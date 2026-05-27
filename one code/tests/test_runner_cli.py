@@ -334,5 +334,37 @@ class CliResumeFlagTests(unittest.TestCase):
             self.assertEqual(target.read_text(encoding="utf-8"), "def test_mesh():\n    assert True\n")
 
 
+class RunnerMultiAssetTests(unittest.TestCase):
+    def test_run_task_writes_multiple_assets_and_checkpoints(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_task(
+                "multi write",
+                workspace=workspace,
+                run_id="multi-write",
+                write_texts=[
+                    "src/a.py=a = 1\n",
+                    "tests/test_a.py=def test_a():\n    assert True\n",
+                ],
+            )
+
+            manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
+
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["requested_count"], 2)
+            self.assertEqual(result["completed_count"], 2)
+            self.assertEqual(result["skipped_count"], 0)
+            self.assertEqual(result["failed_count"], 0)
+            self.assertEqual(len(result["assets"]), 2)
+            self.assertEqual(result["assets"][0]["payload"]["path"], "src/a.py")
+            self.assertEqual(result["assets"][1]["payload"]["path"], "tests/test_a.py")
+            self.assertEqual(len(manifest["checkpoints"]), 2)
+            self.assertEqual((workspace / "src" / "a.py").read_text(encoding="utf-8"), "a = 1\n")
+            self.assertEqual(
+                (workspace / "tests" / "test_a.py").read_text(encoding="utf-8"),
+                "def test_a():\n    assert True\n",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

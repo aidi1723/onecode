@@ -27,12 +27,104 @@ def build_intent(
     return ActionIntent.noop()
 
 
+def parse_write_text(value: str) -> tuple[str, str]:
+    path, separator, content = value.partition("=")
+    if separator == "" or path == "":
+        raise ValueError("--write-text must use PATH=CONTENT with a non-empty path")
+    return path, content
+
+
+def build_intents(
+    intent_type: str,
+    write_path: str | None,
+    write_content: str | None,
+    command: str | None,
+    write_texts: list[str] | None,
+) -> list[ActionIntent]:
+    if write_texts is not None:
+        return [ActionIntent.write_text(*parse_write_text(write_text)) for write_text in write_texts]
+    return [build_intent(intent_type, write_path, write_content, command)]
+
+
 def ready_asset_for_intent(context: Any, intent: ActionIntent) -> ReadyAsset | None:
     if intent.action_type.value != "write_text":
         return None
     if context.resume_state is None:
         return None
     return context.resume_state.ready_assets.get(intent.payload["path"])
+
+
+def run_intent(
+    task: str,
+    context: Any,
+    gate: LogosGate,
+    intent: ActionIntent,
+    simulated_action_seconds: float,
+) -> tuple[dict[str, Any], Any]:
+    preflight = gate.preflight(context, intent)
+    ready_asset = ready_asset_for_intent(context, intent)
+
+    if preflight.decision == Decision.DENIED:
+        return {
+            "status": "denied",
+            "partial": False,
+            "reason": preflight.reason,
+            "payload": preflight.to_dict(),
+        }, preflight
+    if preflight.decision == Decision.HALTED:
+        return {
+            "status": "halted",
+            "partial": True,
+            "reason": preflight.reason,
+            "payload": preflight.to_dict(),
+        }, preflight
+    if preflight.decision == Decision.ALLOWED and ready_asset is not None:
+        return {
+            "status": "skipped",
+            "partial": False,
+            "reason": "resumed_asset_ready",
+            "payload": {
+                "path": ready_asset.path,
+                "sha256": ready_asset.sha256,
+                "source_run_id": ready_asset.source_run_id,
+                "source_turn_index": ready_asset.source_turn_index,
+            },
+        }, preflight
+
+    def action() -> dict[str, Any]:
+        if simulated_action_seconds > 0:
+            time.sleep(simulated_action_seconds)
+        if intent.action_type.value == "write_text":
+            return PathGuard.write_text(context.workspace_root, intent.payload["path"], intent.payload["content"])
+        return {
+            "task": task,
+            "run_id": context.run_id,
+            "turn_index": context.turn_index + 1,
+        }
+
+    return gate.run_bounded_action(action), preflight
+
+
+def asset_entry(
+    index: int,
+    gate_result: dict[str, Any],
+    preflight_decision: Any,
+    intent_type: str,
+    payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    entry = {
+        "index": index,
+        "status": gate_result["status"],
+        "partial": gate_result["partial"],
+        "reason": gate_result["reason"],
+        "decision": preflight_decision.decision.value,
+        "intent_type": intent_type,
+        "payload": payload if payload is not None else gate_result["payload"],
+        "resumed": gate_result["status"] == "skipped",
+    }
+    if "sha256" in gate_result["payload"]:
+        entry["sha256"] = gate_result["payload"]["sha256"]
+    return entry
 
 
 def run_task(
@@ -46,6 +138,7 @@ def run_task(
     intent_type: str = "noop",
     command: str | None = None,
     resume_from_run_id: str | None = None,
+    write_texts: list[str] | None = None,
 ) -> dict[str, Any]:
     context = create_context(
         workspace_root=workspace,
@@ -54,78 +147,52 @@ def run_task(
         resume_from_run_id=resume_from_run_id,
     )
     gate = LogosGate(http_timeout_seconds=http_timeout_seconds)
-    intent = build_intent(intent_type, write_path, write_content, command)
-    preflight = gate.preflight(context, intent)
-    ready_asset = ready_asset_for_intent(context, intent)
+    intents = build_intents(intent_type, write_path, write_content, command, write_texts)
+    assets = []
 
-    if preflight.decision == Decision.DENIED:
-        gate_result = {
-            "status": "denied",
-            "partial": False,
-            "reason": preflight.reason,
-            "payload": preflight.to_dict(),
-        }
-    elif preflight.decision == Decision.HALTED:
-        gate_result = {
-            "status": "halted",
-            "partial": True,
-            "reason": preflight.reason,
-            "payload": preflight.to_dict(),
-        }
-    elif preflight.decision == Decision.ALLOWED and ready_asset is not None:
-        gate_result = {
-            "status": "skipped",
-            "partial": False,
-            "reason": "resumed_asset_ready",
-            "payload": {
-                "path": ready_asset.path,
-                "sha256": ready_asset.sha256,
-                "source_run_id": ready_asset.source_run_id,
-                "source_turn_index": ready_asset.source_turn_index,
-            },
-        }
-    else:
+    for index, intent in enumerate(intents):
+        gate_result, preflight = run_intent(task, context, gate, intent, simulated_action_seconds)
+        checkpoint_payload = gate_result["payload"]
+        entry_payload = checkpoint_payload
+        if intent.action_type.value == "write_text" and "sha256" in checkpoint_payload:
+            entry_payload = {**checkpoint_payload, "path": intent.payload["path"]}
 
-        def action() -> dict[str, Any]:
-            if simulated_action_seconds > 0:
-                time.sleep(simulated_action_seconds)
-            if intent.action_type.value == "write_text":
-                return PathGuard.write_text(context.workspace_root, intent.payload["path"], intent.payload["content"])
-            return {
-                "task": task,
-                "run_id": context.run_id,
-                "turn_index": context.turn_index + 1,
-            }
-
-        gate_result = gate.run_bounded_action(action)
-
-    write_checkpoint(
-        context=context,
-        payload=gate_result["payload"],
-        next_state=COMPLETE,
-        status=gate_result["status"],
-        partial=gate_result["partial"],
-        reason=gate_result["reason"],
-        intent_type=intent.action_type.value,
-        decision=preflight.decision.value,
-    )
+        write_checkpoint(
+            context=context,
+            payload=checkpoint_payload,
+            next_state=COMPLETE,
+            status=gate_result["status"],
+            partial=gate_result["partial"],
+            reason=gate_result["reason"],
+            intent_type=intent.action_type.value,
+            decision=preflight.decision.value,
+        )
+        assets.append(asset_entry(index, gate_result, preflight, intent.action_type.value, entry_payload))
+        if gate_result["status"] in {"denied", "halted"}:
+            break
 
     ledger_path = context.evidence_root / "ledger.json"
+    last_asset = assets[-1]
     result = {
         "run_id": context.run_id,
-        "status": gate_result["status"],
+        "status": last_asset["status"],
         "state": str(COMPLETE),
         "manifest_path": str(context.manifest_path),
         "ledger_path": str(ledger_path),
-        "partial": gate_result["partial"],
-        "reason": gate_result["reason"],
-        "decision": preflight.decision.value,
-        "intent_type": intent.action_type.value,
-        "payload": gate_result["payload"],
+        "partial": last_asset["partial"],
+        "reason": last_asset["reason"],
+        "decision": last_asset["decision"],
+        "intent_type": last_asset["intent_type"],
+        "payload": last_asset["payload"],
         "resumed_from": resume_from_run_id,
-        "resumed": gate_result["status"] == "skipped",
+        "resumed": last_asset["resumed"],
+        "assets": assets,
+        "requested_count": len(intents),
+        "completed_count": sum(asset["status"] == "completed" for asset in assets),
+        "skipped_count": sum(asset["status"] == "skipped" for asset in assets),
+        "failed_count": sum(asset["status"] in {"denied", "halted"} for asset in assets),
     }
-    if "sha256" in gate_result["payload"]:
-        result["sha256"] = gate_result["payload"]["sha256"]
+    if "sha256" in last_asset:
+        result["sha256"] = last_asset["sha256"]
     write_ledger(context, result)
     return result
