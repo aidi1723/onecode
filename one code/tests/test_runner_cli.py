@@ -124,5 +124,68 @@ class RunnerSovereigntyTests(unittest.TestCase):
             self.assertEqual(result["reason"], "permission_denied")
 
 
+class CliSovereigntyTests(unittest.TestCase):
+    def test_cli_write_text_creates_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "write",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-write",
+                    "--write-path",
+                    "src/cli_asset.py",
+                    "--write-content",
+                    "x = 1\n",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            result = json.loads(completed.stdout)
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["decision"], "allowed")
+            self.assertTrue((Path(tmp) / "src" / "cli_asset.py").exists())
+
+    def test_cli_illegal_write_halts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "bad write",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-bad-write",
+                    "--write-path",
+                    "../outside.txt",
+                    "--write-content",
+                    "blocked",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            result = json.loads(completed.stdout)
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "sovereignty_breach")
+
+
 if __name__ == "__main__":
     unittest.main()
