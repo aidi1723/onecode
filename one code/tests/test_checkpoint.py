@@ -84,5 +84,55 @@ class AppendOnlyManifestTests(unittest.TestCase):
             self.assertEqual(manifest["checkpoints"][1]["intent_type"], "write_text")
 
 
+class ResumedCheckpointMetadataTests(unittest.TestCase):
+    def test_write_checkpoint_persists_resume_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            asset = workspace / "src" / "ready.py"
+            asset.parent.mkdir(parents=True)
+            asset.write_text("ready = True\n", encoding="utf-8")
+            asset_hash = sha256_file(asset)
+
+            old_run = workspace / ".onecode" / "runs" / "old-run"
+            old_checkpoint = old_run / "checkpoints" / "0001.json"
+            old_checkpoint.parent.mkdir(parents=True)
+            old_checkpoint.write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "intent_type": "write_text",
+                        "decision": "allowed",
+                        "turn_index": 1,
+                        "payload": {"path": str(asset), "sha256": asset_hash},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (old_run / "manifest.json").write_text(
+                json.dumps({"run_id": "old-run", "checkpoints": [{"path": str(old_checkpoint)}]}),
+                encoding="utf-8",
+            )
+
+            context = create_context(workspace, run_id="retry-run", resume_from_run_id="old-run")
+            checkpoint_path = write_checkpoint(
+                context=context,
+                payload={"path": "src/ready.py", "sha256": asset_hash},
+                next_state=COMPLETE,
+                status="skipped",
+                partial=False,
+                reason="resumed_asset_ready",
+                intent_type="write_text",
+                decision="allowed",
+            )
+
+            checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+            manifest = json.loads(context.manifest_path.read_text(encoding="utf-8"))
+
+            self.assertEqual(checkpoint["resumed_from"], "old-run")
+            self.assertEqual(checkpoint["ready_assets"]["src/ready.py"]["sha256"], asset_hash)
+            self.assertEqual(manifest["resumed_from"], "old-run")
+            self.assertEqual(manifest["ready_assets"]["src/ready.py"]["source_run_id"], "old-run")
+
+
 if __name__ == "__main__":
     unittest.main()
