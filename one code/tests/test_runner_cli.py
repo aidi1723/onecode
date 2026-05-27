@@ -356,6 +356,7 @@ class RunnerMultiAssetTests(unittest.TestCase):
             self.assertEqual(result["skipped_count"], 0)
             self.assertEqual(result["failed_count"], 0)
             self.assertEqual(len(result["assets"]), 2)
+            self.assertEqual([asset["index"] for asset in result["assets"]], [1, 2])
             self.assertEqual(result["assets"][0]["payload"]["path"], "src/a.py")
             self.assertEqual(result["assets"][1]["payload"]["path"], "tests/test_a.py")
             self.assertEqual(len(manifest["checkpoints"]), 2)
@@ -364,6 +365,39 @@ class RunnerMultiAssetTests(unittest.TestCase):
                 (workspace / "tests" / "test_a.py").read_text(encoding="utf-8"),
                 "def test_a():\n    assert True\n",
             )
+
+    def test_run_task_reports_completed_when_multi_asset_run_ends_with_skipped_asset(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            run_task(
+                "write ready",
+                workspace=workspace,
+                run_id="source-run",
+                write_path="src/ready.py",
+                write_content="ready = True\n",
+            )
+
+            result = run_task(
+                "resume mixed",
+                workspace=workspace,
+                run_id="mixed-run",
+                resume_from_run_id="source-run",
+                write_texts=[
+                    "src/new.py=new = True\n",
+                    "src/ready.py=should_not_overwrite\n",
+                ],
+            )
+
+            self.assertEqual(result["status"], "completed")
+            self.assertIsNone(result["reason"])
+            self.assertEqual(result["completed_count"], 1)
+            self.assertEqual(result["skipped_count"], 1)
+            self.assertEqual(result["failed_count"], 0)
+            self.assertEqual(result["assets"][0]["status"], "completed")
+            self.assertEqual(result["assets"][1]["status"], "skipped")
+            self.assertEqual(result["assets"][1]["reason"], "resumed_asset_ready")
+            self.assertEqual((workspace / "src" / "ready.py").read_text(encoding="utf-8"), "ready = True\n")
+            self.assertEqual((workspace / "src" / "new.py").read_text(encoding="utf-8"), "new = True\n")
 
 
 if __name__ == "__main__":

@@ -150,7 +150,7 @@ def run_task(
     intents = build_intents(intent_type, write_path, write_content, command, write_texts)
     assets = []
 
-    for index, intent in enumerate(intents):
+    for index, intent in enumerate(intents, start=1):
         gate_result, preflight = run_intent(task, context, gate, intent, simulated_action_seconds)
         checkpoint_payload = gate_result["payload"]
         entry_payload = checkpoint_payload
@@ -173,14 +173,18 @@ def run_task(
 
     ledger_path = context.evidence_root / "ledger.json"
     last_asset = assets[-1]
+    completed_count = sum(asset["status"] == "completed" for asset in assets)
+    skipped_count = sum(asset["status"] == "skipped" for asset in assets)
+    failed_count = sum(asset["status"] in {"denied", "halted"} for asset in assets)
+    aggregate_success = write_texts is not None and failed_count == 0
     result = {
         "run_id": context.run_id,
-        "status": last_asset["status"],
+        "status": "completed" if aggregate_success else last_asset["status"],
         "state": str(COMPLETE),
         "manifest_path": str(context.manifest_path),
         "ledger_path": str(ledger_path),
         "partial": last_asset["partial"],
-        "reason": last_asset["reason"],
+        "reason": None if aggregate_success else last_asset["reason"],
         "decision": last_asset["decision"],
         "intent_type": last_asset["intent_type"],
         "payload": last_asset["payload"],
@@ -188,9 +192,9 @@ def run_task(
         "resumed": last_asset["resumed"],
         "assets": assets,
         "requested_count": len(intents),
-        "completed_count": sum(asset["status"] == "completed" for asset in assets),
-        "skipped_count": sum(asset["status"] == "skipped" for asset in assets),
-        "failed_count": sum(asset["status"] in {"denied", "halted"} for asset in assets),
+        "completed_count": completed_count,
+        "skipped_count": skipped_count,
+        "failed_count": failed_count,
     }
     if "sha256" in last_asset:
         result["sha256"] = last_asset["sha256"]
