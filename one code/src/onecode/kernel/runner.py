@@ -36,6 +36,7 @@ def run_task(
     write_content: str | None = None,
     intent_type: str = "noop",
     command: str | None = None,
+    resume_from_run_id: str | None = None,
 ) -> dict[str, Any]:
     context = create_context(
         workspace_root=workspace,
@@ -98,6 +99,7 @@ def run_task(
         "decision": preflight.decision.value,
         "intent_type": intent.action_type.value,
         "payload": gate_result["payload"],
+        "resumed_from": resume_from_run_id,
     }
     if "sha256" in gate_result["payload"]:
         result["sha256"] = gate_result["payload"]["sha256"]

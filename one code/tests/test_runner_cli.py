@@ -187,5 +187,35 @@ class CliSovereigntyTests(unittest.TestCase):
             self.assertEqual(result["reason"], "sovereignty_breach")
 
 
+class CliResumeFlagTests(unittest.TestCase):
+    def test_cli_accepts_resume_from_flag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "resume smoke",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "resume-cli",
+                    "--resume-from",
+                    "previous-run",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            result = json.loads(completed.stdout)
+            self.assertEqual(result["run_id"], "resume-cli")
+            self.assertEqual(result["resumed_from"], "previous-run")
+
+
 if __name__ == "__main__":
     unittest.main()

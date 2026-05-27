@@ -19,6 +19,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--write-content", default=None)
     run_parser.add_argument("--intent-type", default="noop")
     run_parser.add_argument("--command", dest="intent_command", default=None)
+    run_parser.add_argument("--resume-from", default=None)
     return parser
 
 
@@ -37,6 +38,7 @@ def main(argv: list[str] | None = None) -> int:
             write_content=args.write_content,
             intent_type=args.intent_type,
             command=args.intent_command,
+            resume_from_run_id=args.resume_from,
         )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 0
