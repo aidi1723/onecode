@@ -9,6 +9,7 @@ from onecode.kernel.hexagram import COMPLETE
 from onecode.kernel.logos_gate import LogosGate
 from onecode.kernel.path_guard import PathGuard
 from onecode.kernel.permission_matrix import Decision
+from onecode.kernel.resumption import ReadyAsset
 
 
 def build_intent(
@@ -24,6 +25,14 @@ def build_intent(
     if intent_type == "execute_pytest":
         return ActionIntent.execute_pytest(command or "tests")
     return ActionIntent.noop()
+
+
+def ready_asset_for_intent(context: Any, intent: ActionIntent) -> ReadyAsset | None:
+    if intent.action_type.value != "write_text":
+        return None
+    if context.resume_state is None:
+        return None
+    return context.resume_state.ready_assets.get(intent.payload["path"])
 
 
 def run_task(
@@ -47,6 +56,7 @@ def run_task(
     gate = LogosGate(http_timeout_seconds=http_timeout_seconds)
     intent = build_intent(intent_type, write_path, write_content, command)
     preflight = gate.preflight(context, intent)
+    ready_asset = ready_asset_for_intent(context, intent)
 
     if preflight.decision == Decision.DENIED:
         gate_result = {
@@ -61,6 +71,18 @@ def run_task(
             "partial": True,
             "reason": preflight.reason,
             "payload": preflight.to_dict(),
+        }
+    elif preflight.decision == Decision.ALLOWED and ready_asset is not None:
+        gate_result = {
+            "status": "skipped",
+            "partial": False,
+            "reason": "resumed_asset_ready",
+            "payload": {
+                "path": ready_asset.path,
+                "sha256": ready_asset.sha256,
+                "source_run_id": ready_asset.source_run_id,
+                "source_turn_index": ready_asset.source_turn_index,
+            },
         }
     else:
 
@@ -101,6 +123,7 @@ def run_task(
         "intent_type": intent.action_type.value,
         "payload": gate_result["payload"],
         "resumed_from": resume_from_run_id,
+        "resumed": gate_result["status"] == "skipped",
     }
     if "sha256" in gate_result["payload"]:
         result["sha256"] = gate_result["payload"]["sha256"]

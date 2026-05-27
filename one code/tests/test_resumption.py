@@ -6,6 +6,7 @@ from pathlib import Path
 from onecode.kernel.checkpoint import sha256_file
 from onecode.kernel.context import create_context
 from onecode.kernel.resumption import ReadyAsset, ResumeState, load_resume_state
+from onecode.kernel.runner import run_task
 
 
 class ResumptionSkeletonTests(unittest.TestCase):
@@ -140,6 +141,68 @@ class ResumeContextLifecycleTests(unittest.TestCase):
             self.assertIsNotNone(context.resume_state)
             self.assertIn("src/ready.py", context.resume_state.ready_assets)
             self.assertEqual(context.resume_state.ready_assets["src/ready.py"].sha256, asset_hash)
+
+
+class ResumeSkipRuleTests(unittest.TestCase):
+    def test_runner_skips_ready_asset_and_writes_missing_normally(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            ready_asset = workspace / "src" / "mesh.py"
+            ready_asset.parent.mkdir(parents=True)
+            ready_asset.write_text("mesh = 'ready'\n", encoding="utf-8")
+            ready_hash = sha256_file(ready_asset)
+
+            old_run = workspace / ".onecode" / "runs" / "old-run"
+            checkpoint_path = old_run / "checkpoints" / "0001.json"
+            checkpoint_path.parent.mkdir(parents=True)
+            checkpoint_path.write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "intent_type": "write_text",
+                        "decision": "allowed",
+                        "turn_index": 1,
+                        "payload": {"path": str(ready_asset), "sha256": ready_hash},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (old_run / "manifest.json").write_text(
+                json.dumps({"run_id": "old-run", "checkpoints": [{"path": str(checkpoint_path)}]}),
+                encoding="utf-8",
+            )
+
+            skipped = run_task(
+                "resume ready mesh",
+                workspace=workspace,
+                run_id="retry-ready",
+                resume_from_run_id="old-run",
+                write_path="src/mesh.py",
+                write_content="mesh = 'should not overwrite'\n",
+            )
+
+            self.assertEqual(skipped["status"], "skipped")
+            self.assertEqual(skipped["reason"], "resumed_asset_ready")
+            self.assertTrue(skipped["resumed"])
+            self.assertEqual(skipped["sha256"], ready_hash)
+            self.assertEqual(ready_asset.read_text(encoding="utf-8"), "mesh = 'ready'\n")
+            skipped_manifest = json.loads(Path(skipped["manifest_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(skipped_manifest["checkpoints"][0]["status"], "skipped")
+
+            written = run_task(
+                "resume missing test",
+                workspace=workspace,
+                run_id="retry-missing",
+                resume_from_run_id="old-run",
+                write_path="tests/test_mesh.py",
+                write_content="def test_mesh():\n    assert True\n",
+            )
+
+            missing_asset = workspace / "tests" / "test_mesh.py"
+            self.assertEqual(written["status"], "completed")
+            self.assertFalse(written["resumed"])
+            self.assertTrue(missing_asset.exists())
+            self.assertEqual(missing_asset.read_text(encoding="utf-8"), "def test_mesh():\n    assert True\n")
 
 
 if __name__ == "__main__":
