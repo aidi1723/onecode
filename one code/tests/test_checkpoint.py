@@ -50,5 +50,39 @@ class CheckpointTests(unittest.TestCase):
             self.assertEqual(ledger["status"], "completed")
 
 
+class AppendOnlyManifestTests(unittest.TestCase):
+    def test_write_checkpoint_preserves_prior_checkpoint_records(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="append-test")
+
+            first = write_checkpoint(
+                context=context,
+                payload={"task": "one"},
+                next_state=COMPLETE,
+                status="completed",
+                partial=False,
+                reason=None,
+                intent_type="noop",
+                decision="allowed",
+            )
+            second = write_checkpoint(
+                context=context,
+                payload={"task": "two"},
+                next_state=COMPLETE,
+                status="completed",
+                partial=False,
+                reason=None,
+                intent_type="write_text",
+                decision="allowed",
+            )
+
+            manifest = json.loads(context.manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(len(manifest["checkpoints"]), 2)
+            self.assertEqual(manifest["checkpoints"][0]["path"], str(first))
+            self.assertEqual(manifest["checkpoints"][0]["intent_type"], "noop")
+            self.assertEqual(manifest["checkpoints"][1]["path"], str(second))
+            self.assertEqual(manifest["checkpoints"][1]["intent_type"], "write_text")
+
+
 if __name__ == "__main__":
     unittest.main()

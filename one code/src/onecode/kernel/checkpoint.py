@@ -33,6 +33,12 @@ def atomic_write_json(path: Path, data: dict[str, Any]) -> None:
     temp_path.replace(path)
 
 
+def read_manifest(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def write_checkpoint(
     context: OneCodeContext,
     payload: dict[str, Any],
@@ -40,8 +46,15 @@ def write_checkpoint(
     status: str,
     partial: bool,
     reason: str | None,
+    intent_type: str | None = None,
+    decision: str | None = None,
 ) -> Path:
-    turn_number = context.turn_index + 1
+    existing_manifest = read_manifest(context.manifest_path)
+    existing_checkpoints = []
+    if existing_manifest is not None:
+        existing_checkpoints = list(existing_manifest.get("checkpoints", []))
+
+    turn_number = len(existing_checkpoints) + 1
     checkpoint_path = context.evidence_root / "checkpoints" / f"{turn_number:04d}.json"
     checkpoint = {
         "run_id": context.run_id,
@@ -51,29 +64,34 @@ def write_checkpoint(
         "status": status,
         "partial": partial,
         "reason": reason,
+        "intent_type": intent_type,
+        "decision": decision,
         "created_at": utc_now_iso(),
         "payload": payload,
     }
     atomic_write_json(checkpoint_path, checkpoint)
 
     checkpoint_hash = sha256_file(checkpoint_path)
+    checkpoint_record = {
+        "path": str(checkpoint_path),
+        "sha256": checkpoint_hash,
+        "turn_index": turn_number,
+        "status": status,
+        "partial": partial,
+        "reason": reason,
+        "intent_type": intent_type,
+        "decision": decision,
+    }
     manifest = {
         "run_id": context.run_id,
-        "created_at": utc_now_iso(),
+        "created_at": existing_manifest.get("created_at") if existing_manifest else utc_now_iso(),
+        "updated_at": utc_now_iso(),
         "workspace_root": str(context.workspace_root),
         "current_state": str(next_state),
         "status": status,
         "partial": partial,
         "reason": reason,
-        "checkpoints": [
-            {
-                "path": str(checkpoint_path),
-                "sha256": checkpoint_hash,
-                "turn_index": turn_number,
-                "status": status,
-                "partial": partial,
-            }
-        ],
+        "checkpoints": existing_checkpoints + [checkpoint_record],
     }
     atomic_write_json(context.manifest_path, manifest)
     return checkpoint_path
