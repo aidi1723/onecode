@@ -17,6 +17,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--simulate-action-seconds", type=float, default=0)
     run_parser.add_argument("--write-path", default=None)
     run_parser.add_argument("--write-content", default=None)
+    run_parser.add_argument("--write-text", action="append", default=None)
     run_parser.add_argument("--intent-type", default="noop")
     run_parser.add_argument("--command", dest="intent_command", default=None)
     run_parser.add_argument("--resume-from", default=None)
@@ -28,6 +29,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.subcommand == "run":
+        if args.write_text and (args.write_path is not None or args.write_content is not None):
+            parser.error("cannot combine --write-text with --write-path or --write-content")
         result = run_task(
             args.task,
             workspace=Path(args.workspace),
@@ -36,6 +39,7 @@ def main(argv: list[str] | None = None) -> int:
             simulated_action_seconds=args.simulate_action_seconds,
             write_path=args.write_path,
             write_content=args.write_content,
+            write_texts=args.write_text,
             intent_type=args.intent_type,
             command=args.intent_command,
             resume_from_run_id=args.resume_from,

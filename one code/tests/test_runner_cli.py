@@ -189,6 +189,73 @@ class CliSovereigntyTests(unittest.TestCase):
 
 
 class CliResumeFlagTests(unittest.TestCase):
+    def test_cli_accepts_repeated_write_text_arguments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "multi write",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-multi",
+                    "--write-text",
+                    "src/a.py=a = 1\n",
+                    "--write-text",
+                    "tests/test_a.py=def test_a():\n    assert True\n",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            result = json.loads(completed.stdout)
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["requested_count"], 2)
+            self.assertEqual(result["completed_count"], 2)
+            self.assertEqual(len(result["assets"]), 2)
+            self.assertEqual((Path(tmp) / "src" / "a.py").read_text(encoding="utf-8"), "a = 1\n")
+            self.assertEqual(
+                (Path(tmp) / "tests" / "test_a.py").read_text(encoding="utf-8"),
+                "def test_a():\n    assert True\n",
+            )
+
+    def test_cli_rejects_mixed_write_interfaces(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "bad args",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-conflict",
+                    "--write-path",
+                    "src/a.py",
+                    "--write-content",
+                    "a = 1\n",
+                    "--write-text",
+                    "src/b.py=b = 1\n",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("cannot combine --write-text with --write-path or --write-content", completed.stderr)
+
     def test_cli_accepts_resume_from_flag(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = os.environ.copy()
