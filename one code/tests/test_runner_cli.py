@@ -89,6 +89,7 @@ class RunnerSovereigntyTests(unittest.TestCase):
             self.assertEqual(result["decision"], "allowed")
             self.assertTrue(target.exists())
             self.assertEqual(result["sha256"], result["payload"]["sha256"])
+            self.assertEqual(result["payload"]["path"], str(target))
 
     def test_run_task_halts_illegal_write_without_creating_file(self):
         with tempfile.TemporaryDirectory() as tmp:
