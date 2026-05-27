@@ -1,4 +1,7 @@
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -38,6 +41,36 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(result["reason"], "http_timeout")
             self.assertTrue(Path(result["manifest_path"]).exists())
             self.assertTrue(Path(result["ledger_path"]).exists())
+
+
+class CliTests(unittest.TestCase):
+    def test_cli_run_prints_json_result(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "smoke",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-test",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            result = json.loads(completed.stdout)
+            self.assertEqual(result["run_id"], "cli-test")
+            self.assertEqual(result["status"], "completed")
+            self.assertFalse(result["partial"])
+            self.assertTrue(Path(result["manifest_path"]).exists())
 
 
 if __name__ == "__main__":
