@@ -100,6 +100,128 @@ class ResumeManifestAuditTests(unittest.TestCase):
 
             self.assertEqual(state.ready_assets, {})
 
+    def test_audit_ignores_non_completed_checkpoint(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            asset = workspace / "src" / "halted.py"
+            asset.parent.mkdir(parents=True)
+            asset.write_text("x = 1\n", encoding="utf-8")
+            asset_hash = sha256_file(asset)
+
+            run_root = workspace / ".onecode" / "runs" / "source-run"
+            checkpoint_path = run_root / "checkpoints" / "0001.json"
+            checkpoint_path.parent.mkdir(parents=True)
+            checkpoint_path.write_text(
+                json.dumps(
+                    {
+                        "status": "halted",
+                        "intent_type": "write_text",
+                        "decision": "allowed",
+                        "turn_index": 1,
+                        "payload": {"path": str(asset), "sha256": asset_hash},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (run_root / "manifest.json").write_text(
+                json.dumps({"run_id": "source-run", "checkpoints": [{"path": str(checkpoint_path)}]}),
+                encoding="utf-8",
+            )
+
+            state = load_resume_state(workspace, "source-run")
+
+            self.assertEqual(state.ready_assets, {})
+
+    def test_audit_ignores_denied_checkpoint(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            asset = workspace / "src" / "denied.py"
+            asset.parent.mkdir(parents=True)
+            asset.write_text("x = 1\n", encoding="utf-8")
+            asset_hash = sha256_file(asset)
+
+            run_root = workspace / ".onecode" / "runs" / "source-run"
+            checkpoint_path = run_root / "checkpoints" / "0001.json"
+            checkpoint_path.parent.mkdir(parents=True)
+            checkpoint_path.write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "intent_type": "write_text",
+                        "decision": "denied",
+                        "turn_index": 1,
+                        "payload": {"path": str(asset), "sha256": asset_hash},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (run_root / "manifest.json").write_text(
+                json.dumps({"run_id": "source-run", "checkpoints": [{"path": str(checkpoint_path)}]}),
+                encoding="utf-8",
+            )
+
+            state = load_resume_state(workspace, "source-run")
+
+            self.assertEqual(state.ready_assets, {})
+
+    def test_audit_ignores_missing_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            run_root = workspace / ".onecode" / "runs" / "source-run"
+            checkpoint_path = run_root / "checkpoints" / "0001.json"
+            checkpoint_path.parent.mkdir(parents=True)
+            checkpoint_path.write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "intent_type": "write_text",
+                        "decision": "allowed",
+                        "turn_index": 1,
+                        "payload": {"path": "src/missing.py", "sha256": "abc123"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (run_root / "manifest.json").write_text(
+                json.dumps({"run_id": "source-run", "checkpoints": [{"path": str(checkpoint_path)}]}),
+                encoding="utf-8",
+            )
+
+            state = load_resume_state(workspace, "source-run")
+
+            self.assertEqual(state.ready_assets, {})
+
+    def test_audit_ignores_path_outside_workspace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            outside = workspace.parent / "outside-ready.py"
+            outside.write_text("x = 1\n", encoding="utf-8")
+            self.addCleanup(lambda: outside.exists() and outside.unlink())
+
+            run_root = workspace / ".onecode" / "runs" / "source-run"
+            checkpoint_path = run_root / "checkpoints" / "0001.json"
+            checkpoint_path.parent.mkdir(parents=True)
+            checkpoint_path.write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "intent_type": "write_text",
+                        "decision": "allowed",
+                        "turn_index": 1,
+                        "payload": {"path": str(outside), "sha256": sha256_file(outside)},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (run_root / "manifest.json").write_text(
+                json.dumps({"run_id": "source-run", "checkpoints": [{"path": str(checkpoint_path)}]}),
+                encoding="utf-8",
+            )
+
+            state = load_resume_state(workspace, "source-run")
+
+            self.assertEqual(state.ready_assets, {})
+
 
 class ResumeContextLifecycleTests(unittest.TestCase):
     def test_context_automatically_loads_resume_state(self):

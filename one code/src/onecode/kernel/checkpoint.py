@@ -39,6 +39,19 @@ def read_manifest(path: Path) -> dict[str, Any] | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def ready_assets_summary(context: OneCodeContext) -> dict[str, dict[str, Any]]:
+    if context.resume_state is None:
+        return {}
+    return {
+        path: {
+            "sha256": asset.sha256,
+            "source_run_id": asset.source_run_id,
+            "source_turn_index": asset.source_turn_index,
+        }
+        for path, asset in sorted(context.resume_state.ready_assets.items())
+    }
+
+
 def write_checkpoint(
     context: OneCodeContext,
     payload: dict[str, Any],
@@ -56,6 +69,8 @@ def write_checkpoint(
 
     turn_number = len(existing_checkpoints) + 1
     checkpoint_path = context.evidence_root / "checkpoints" / f"{turn_number:04d}.json"
+    resumed_from = context.resume_from_run_id
+    ready_assets = ready_assets_summary(context)
     checkpoint = {
         "run_id": context.run_id,
         "turn_index": turn_number,
@@ -66,6 +81,8 @@ def write_checkpoint(
         "reason": reason,
         "intent_type": intent_type,
         "decision": decision,
+        "resumed_from": resumed_from,
+        "ready_assets": ready_assets,
         "created_at": utc_now_iso(),
         "payload": payload,
     }
@@ -81,6 +98,8 @@ def write_checkpoint(
         "reason": reason,
         "intent_type": intent_type,
         "decision": decision,
+        "resumed_from": resumed_from,
+        "ready_assets": ready_assets,
     }
     manifest = {
         "run_id": context.run_id,
@@ -91,6 +110,8 @@ def write_checkpoint(
         "status": status,
         "partial": partial,
         "reason": reason,
+        "resumed_from": resumed_from,
+        "ready_assets": ready_assets,
         "checkpoints": existing_checkpoints + [checkpoint_record],
     }
     atomic_write_json(context.manifest_path, manifest)

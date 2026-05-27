@@ -216,6 +216,123 @@ class CliResumeFlagTests(unittest.TestCase):
             self.assertEqual(result["run_id"], "resume-cli")
             self.assertEqual(result["resumed_from"], "previous-run")
 
+    def test_cli_resume_skips_ready_asset_without_overwriting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            first = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "write ready",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "source-run",
+                    "--write-path",
+                    "src/mesh.py",
+                    "--write-content",
+                    "mesh = 'ready'\n",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            first_result = json.loads(first.stdout)
+            first_sha = first_result["sha256"]
+
+            second = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "resume ready",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "retry-run",
+                    "--resume-from",
+                    "source-run",
+                    "--write-path",
+                    "src/mesh.py",
+                    "--write-content",
+                    "mesh = 'rewritten'\n",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            result = json.loads(second.stdout)
+            target = Path(tmp) / "src" / "mesh.py"
+            self.assertEqual(result["status"], "skipped")
+            self.assertEqual(result["reason"], "resumed_asset_ready")
+            self.assertTrue(result["resumed"])
+            self.assertEqual(result["sha256"], first_sha)
+            self.assertEqual(target.read_text(encoding="utf-8"), "mesh = 'ready'\n")
+
+    def test_cli_resume_writes_missing_asset_normally(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "write ready",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "source-run",
+                    "--write-path",
+                    "src/mesh.py",
+                    "--write-content",
+                    "mesh = 'ready'\n",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "resume missing",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "retry-run",
+                    "--resume-from",
+                    "source-run",
+                    "--write-path",
+                    "tests/test_mesh.py",
+                    "--write-content",
+                    "def test_mesh():\n    assert True\n",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            result = json.loads(completed.stdout)
+            target = Path(tmp) / "tests" / "test_mesh.py"
+            self.assertEqual(result["status"], "completed")
+            self.assertFalse(result["resumed"])
+            self.assertEqual(result["resumed_from"], "source-run")
+            self.assertEqual(target.read_text(encoding="utf-8"), "def test_mesh():\n    assert True\n")
+
 
 if __name__ == "__main__":
     unittest.main()
