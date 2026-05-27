@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from onecode.kernel.checkpoint import sha256_file
+from onecode.kernel.context import create_context
 from onecode.kernel.resumption import ReadyAsset, ResumeState, load_resume_state
 
 
@@ -97,6 +98,48 @@ class ResumeManifestAuditTests(unittest.TestCase):
             state = load_resume_state(workspace, "source-run")
 
             self.assertEqual(state.ready_assets, {})
+
+
+class ResumeContextLifecycleTests(unittest.TestCase):
+    def test_context_automatically_loads_resume_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            asset = workspace / "src" / "ready.py"
+            asset.parent.mkdir(parents=True)
+            asset.write_text("ready = True\n", encoding="utf-8")
+            asset_hash = sha256_file(asset)
+
+            run_root = workspace / ".onecode" / "runs" / "old_run_123"
+            checkpoint_path = run_root / "checkpoints" / "0001.json"
+            checkpoint_path.parent.mkdir(parents=True)
+            checkpoint_path.write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "intent_type": "write_text",
+                        "decision": "allowed",
+                        "turn_index": 1,
+                        "payload": {"path": str(asset), "sha256": asset_hash},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (run_root / "manifest.json").write_text(
+                json.dumps({"run_id": "old_run_123", "checkpoints": [{"path": str(checkpoint_path)}]}),
+                encoding="utf-8",
+            )
+
+            context = create_context(
+                workspace_root=workspace,
+                http_timeout_seconds=60,
+                run_id="retry-run",
+                resume_from_run_id="old_run_123",
+            )
+
+            self.assertEqual(context.resume_from_run_id, "old_run_123")
+            self.assertIsNotNone(context.resume_state)
+            self.assertIn("src/ready.py", context.resume_state.ready_assets)
+            self.assertEqual(context.resume_state.ready_assets["src/ready.py"].sha256, asset_hash)
 
 
 if __name__ == "__main__":

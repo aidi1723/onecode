@@ -42,6 +42,7 @@ def run_task(
         workspace_root=workspace,
         http_timeout_seconds=http_timeout_seconds,
         run_id=run_id,
+        resume_from_run_id=resume_from_run_id,
     )
     gate = LogosGate(http_timeout_seconds=http_timeout_seconds)
     intent = build_intent(intent_type, write_path, write_content, command)

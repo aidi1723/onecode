@@ -1,8 +1,7 @@
 import json
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-
-from onecode.kernel.checkpoint import sha256_file
 
 
 @dataclass(frozen=True)
@@ -17,6 +16,14 @@ class ReadyAsset:
 class ResumeState:
     source_run_id: str
     ready_assets: dict[str, ReadyAsset]
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def load_json(path: Path) -> dict:
