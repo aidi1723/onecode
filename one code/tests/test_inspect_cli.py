@@ -233,6 +233,15 @@ class InspectCliTests(unittest.TestCase):
             self.assertEqual(summary["resolved_count"], 4)
             self.assertEqual(summary["remaining_count"], 0)
             self.assertEqual(summary["checkpoint_count"], 4)
+            self.assertEqual(
+                [(asset["status"], asset["path"]) for asset in summary["assets"]],
+                [
+                    ("skipped", "src/a.py"),
+                    ("skipped", "src/b.py"),
+                    ("completed", "src/c.py"),
+                    ("completed", "tests/test_c.py"),
+                ],
+            )
             self.assertEqual((Path(tmp) / "src" / "a.py").read_text(encoding="utf-8"), "A = 1\n")
             self.assertEqual((Path(tmp) / "src" / "b.py").read_text(encoding="utf-8"), "B = 1\n")
             self.assertEqual((Path(tmp) / "src" / "c.py").read_text(encoding="utf-8"), "C = 1\n")
@@ -298,6 +307,13 @@ class InspectCliTests(unittest.TestCase):
             self.assertEqual(summary["resolved_count"], 2)
             self.assertEqual(summary["remaining_count"], 1)
             self.assertEqual(summary["checkpoint_count"], 2)
+            self.assertEqual(
+                [(asset["status"], asset["reason"], asset["path"]) for asset in summary["assets"]],
+                [
+                    ("completed", None, "src/a.py"),
+                    ("halted", "sovereignty_breach", None),
+                ],
+            )
 
     def test_cli_inspect_missing_run_returns_nonzero(self):
         with tempfile.TemporaryDirectory() as tmp:

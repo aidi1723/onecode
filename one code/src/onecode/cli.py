@@ -207,6 +207,37 @@ def delivery_summary(ledger: dict) -> dict[str, str]:
     return {"delivery_status": "unknown", "next_action": "inspect"}
 
 
+def checkpoint_asset_path(payload: dict | None, workspace_root: Path) -> str | None:
+    if not isinstance(payload, dict) or not isinstance(payload.get("path"), str):
+        return None
+    path = Path(payload["path"])
+    if not path.is_absolute():
+        return payload["path"]
+    try:
+        return str(path.resolve().relative_to(workspace_root))
+    except ValueError:
+        return None
+
+
+def checkpoint_assets(checkpoints: list[dict], workspace_root: Path) -> list[dict]:
+    assets = []
+    for checkpoint in checkpoints:
+        checkpoint_payload, _, _ = read_json(Path(checkpoint["path"]))
+        payload = checkpoint_payload.get("payload") if isinstance(checkpoint_payload, dict) else None
+        assets.append(
+            {
+                "turn_index": checkpoint.get("turn_index"),
+                "status": checkpoint.get("status"),
+                "reason": checkpoint.get("reason"),
+                "intent_type": checkpoint.get("intent_type"),
+                "decision": checkpoint.get("decision"),
+                "path": checkpoint_asset_path(payload, workspace_root),
+                "iching_status_code": checkpoint.get("iching_status_code"),
+            }
+        )
+    return assets
+
+
 def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
     evidence_root = workspace.resolve() / ".onecode" / "runs" / run_id
     manifest_path = evidence_root / "manifest.json"
@@ -311,6 +342,11 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
                 "manifest_path": str(manifest_path),
                 "ledger_path": str(ledger_path),
             }
+    workspace_root = (
+        Path(manifest["workspace_root"]).resolve()
+        if isinstance(manifest.get("workspace_root"), str)
+        else workspace.resolve()
+    )
     return 0, {
         "run_id": run_id,
         "status": ledger.get("status", manifest.get("status")),
@@ -329,6 +365,7 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
         "iching_transition_reason": ledger.get(
             "iching_transition_reason", manifest.get("iching_transition_reason")
         ),
+        "assets": checkpoint_assets(checkpoints, workspace_root),
         "manifest_path": str(manifest_path),
         "ledger_path": str(ledger_path),
     } | delivery_summary(ledger)
