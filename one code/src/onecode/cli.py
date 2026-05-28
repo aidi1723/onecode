@@ -166,6 +166,15 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
             "manifest_path": str(manifest_path),
             "ledger_path": str(ledger_path),
         }
+    if not isinstance(ledger["status"], str) or not ledger["status"]:
+        return 1, {
+            "run_id": run_id,
+            "status": "corrupt",
+            "corrupt_path": str(ledger_path),
+            "corrupt_reason": "invalid_status",
+            "manifest_path": str(manifest_path),
+            "ledger_path": str(ledger_path),
+        }
     if "checkpoints" not in manifest:
         return 1, {
             "run_id": run_id,
