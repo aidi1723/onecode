@@ -133,6 +133,14 @@ def read_json(path: Path) -> tuple[dict | None, str | None, str | None]:
     return data, None, None
 
 
+def validate_status_document(data: dict, path: Path) -> tuple[str | None, str | None]:
+    if "status" not in data:
+        return str(path), "missing_status"
+    if not isinstance(data["status"], str) or not data["status"]:
+        return str(path), "invalid_status"
+    return None, None
+
+
 def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
     evidence_root = workspace.resolve() / ".onecode" / "runs" / run_id
     manifest_path = evidence_root / "manifest.json"
@@ -157,21 +165,15 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
             "manifest_path": str(manifest_path),
             "ledger_path": str(ledger_path),
         }
-    if "status" not in ledger:
+    corrupt_path, corrupt_reason = validate_status_document(manifest, manifest_path)
+    if corrupt_path is None:
+        corrupt_path, corrupt_reason = validate_status_document(ledger, ledger_path)
+    if corrupt_path is not None:
         return 1, {
             "run_id": run_id,
             "status": "corrupt",
-            "corrupt_path": str(ledger_path),
-            "corrupt_reason": "missing_status",
-            "manifest_path": str(manifest_path),
-            "ledger_path": str(ledger_path),
-        }
-    if not isinstance(ledger["status"], str) or not ledger["status"]:
-        return 1, {
-            "run_id": run_id,
-            "status": "corrupt",
-            "corrupt_path": str(ledger_path),
-            "corrupt_reason": "invalid_status",
+            "corrupt_path": corrupt_path,
+            "corrupt_reason": corrupt_reason,
             "manifest_path": str(manifest_path),
             "ledger_path": str(ledger_path),
         }
