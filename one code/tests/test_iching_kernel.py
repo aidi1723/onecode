@@ -137,6 +137,25 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(IchingKernel.element_relation("metal", "metal"), "same")
         self.assertEqual(IchingKernel.element_relation("wood", "water"), "neutral")
 
+    def test_element_dynamics_modulates_relation_with_yin_yang_pressure(self):
+        hard_control = IchingKernel.element_dynamics(IchingKernel.compute_status(IchingKernel.LI, IchingKernel.QIAN))
+        self.assertEqual(hard_control["outer_element"], "fire")
+        self.assertEqual(hard_control["inner_element"], "metal")
+        self.assertEqual(hard_control["relation"], "controls")
+        self.assertEqual(hard_control["yin_yang_pressure"], "cooldown")
+        self.assertEqual(hard_control["modulation"], "hard_control")
+
+        recovery_seed = IchingKernel.element_dynamics(IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN))
+        self.assertEqual(recovery_seed["outer_element"], "water")
+        self.assertEqual(recovery_seed["inner_element"], "wood")
+        self.assertEqual(recovery_seed["relation"], "generates")
+        self.assertEqual(recovery_seed["yin_yang_pressure"], "activate")
+        self.assertEqual(recovery_seed["modulation"], "recovery_seed")
+
+        steady_same = IchingKernel.element_dynamics(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.GEN))
+        self.assertEqual(steady_same["relation"], "same")
+        self.assertEqual(steady_same["modulation"], "normal")
+
     def test_hexagram_records_cover_all_sixty_four_states(self):
         records = IchingKernel.hexagram_records()
 
@@ -165,6 +184,7 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(profile["outer_element"], "metal")
         self.assertEqual(profile["inner_element"], "metal")
         self.assertEqual(profile["element_relation"], "same")
+        self.assertEqual(profile["element_dynamics"]["modulation"], "normal")
         self.assertEqual(profile["yin_yang"]["balance"], "yang_excess")
         self.assertEqual(profile["four_symbols"][0]["symbol"], "tai_yang")
         self.assertEqual(profile["transition"]["status_code"], IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.DUI))

@@ -150,6 +150,29 @@ class IchingKernel:
         return "neutral"
 
     @classmethod
+    def element_dynamics(cls, status_code: int) -> dict[str, str]:
+        normalized = status_code & 0b111111
+        inner = normalized & 0b111
+        outer = (normalized >> 3) & 0b111
+        outer_element = cls.element_for_trigram(outer)
+        inner_element = cls.element_for_trigram(inner)
+        relation = cls.element_relation(outer_element, inner_element)
+        pressure = cls.yin_yang_cross_profile(normalized)["pressure"]
+        if relation == "controls" and pressure == "cooldown":
+            modulation = "hard_control"
+        elif relation == "generates" and outer_element == "water" and inner_element == "wood":
+            modulation = "recovery_seed"
+        else:
+            modulation = "normal"
+        return {
+            "outer_element": outer_element,
+            "inner_element": inner_element,
+            "relation": relation,
+            "yin_yang_pressure": pressure,
+            "modulation": modulation,
+        }
+
+    @classmethod
     def cross_cutting_profile(cls, status_code: int) -> dict:
         normalized = status_code & 0b111111
         inner = normalized & 0b111
@@ -165,6 +188,7 @@ class IchingKernel:
             "outer_element": outer_element,
             "inner_element": inner_element,
             "element_relation": cls.element_relation(outer_element, inner_element),
+            "element_dynamics": cls.element_dynamics(normalized),
             "yin_yang": cls.yin_yang_cross_profile(normalized),
             "four_symbols": cls.four_symbols(normalized),
             "transition": {
