@@ -27,6 +27,9 @@ def build_parser() -> argparse.ArgumentParser:
     inspect_parser.add_argument("--workspace", default=".")
     inspect_parser.add_argument("--run-id", required=True)
 
+    list_runs_parser = subparsers.add_parser("list-runs")
+    list_runs_parser.add_argument("--workspace", default=".")
+
     subparsers.add_parser("doctor")
     return parser
 
@@ -160,6 +163,19 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
     }
 
 
+def list_runs(workspace: Path) -> dict:
+    resolved_workspace = workspace.resolve()
+    runs_root = resolved_workspace / ".onecode" / "runs"
+    if not runs_root.exists():
+        return {"workspace": str(workspace), "runs": []}
+    runs = []
+    for run_dir in sorted(path for path in runs_root.iterdir() if path.is_dir()):
+        exit_code, summary = inspect_run(resolved_workspace, run_dir.name)
+        if exit_code == 0:
+            runs.append(summary)
+    return {"workspace": str(workspace), "runs": runs}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -168,6 +184,11 @@ def main(argv: list[str] | None = None) -> int:
         exit_code, result = inspect_run(Path(args.workspace), args.run_id)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return exit_code
+
+    if args.subcommand == "list-runs":
+        result = list_runs(Path(args.workspace))
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return 0
 
     if args.subcommand == "doctor":
         result = run_doctor()
