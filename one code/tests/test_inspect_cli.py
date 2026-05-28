@@ -149,6 +149,7 @@ class InspectCliTests(unittest.TestCase):
             self.assertEqual(error["status"], "corrupt")
             self.assertEqual(error["run_id"], "list-run")
             self.assertIn("manifest.json", error["corrupt_path"])
+            self.assertEqual(error["corrupt_reason"], "non_object_json")
             self.assertNotIn("Traceback", completed.stderr)
 
 

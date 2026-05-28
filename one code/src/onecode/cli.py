@@ -121,30 +121,32 @@ def run_doctor() -> dict:
     return {"status": "ok" if all(check["passed"] for check in checks) else "failed", "checks": checks}
 
 
-def read_json(path: Path) -> tuple[dict | None, str | None]:
+def read_json(path: Path) -> tuple[dict | None, str | None, str | None]:
     if not path.exists():
-        return None, None
+        return None, None, None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
-        return None, str(path)
+        return None, str(path), "invalid_json"
     if not isinstance(data, dict):
-        return None, str(path)
-    return data, None
+        return None, str(path), "non_object_json"
+    return data, None, None
 
 
 def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
     evidence_root = workspace.resolve() / ".onecode" / "runs" / run_id
     manifest_path = evidence_root / "manifest.json"
     ledger_path = evidence_root / "ledger.json"
-    manifest, corrupt_manifest_path = read_json(manifest_path)
-    ledger, corrupt_ledger_path = read_json(ledger_path)
+    manifest, corrupt_manifest_path, corrupt_manifest_reason = read_json(manifest_path)
+    ledger, corrupt_ledger_path, corrupt_ledger_reason = read_json(ledger_path)
     corrupt_path = corrupt_manifest_path or corrupt_ledger_path
+    corrupt_reason = corrupt_manifest_reason or corrupt_ledger_reason
     if corrupt_path is not None:
         return 1, {
             "run_id": run_id,
             "status": "corrupt",
             "corrupt_path": corrupt_path,
+            "corrupt_reason": corrupt_reason,
             "manifest_path": str(manifest_path),
             "ledger_path": str(ledger_path),
         }
