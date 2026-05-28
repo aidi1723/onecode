@@ -136,6 +136,23 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(record["yin_yang"]["balance"], "yang_excess")
         self.assertEqual(len(record["four_symbols"]), 3)
 
+    def test_cross_cutting_profile_unifies_all_rule_projections(self):
+        status = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI)
+        profile = IchingKernel.cross_cutting_profile(status)
+
+        self.assertEqual(profile["status_code"], 59)
+        self.assertEqual(profile["binary"], "111011")
+        self.assertEqual(profile["outer_trigram"], IchingKernel.QIAN)
+        self.assertEqual(profile["inner_trigram"], IchingKernel.DUI)
+        self.assertEqual(profile["outer_element"], "metal")
+        self.assertEqual(profile["inner_element"], "metal")
+        self.assertEqual(profile["element_relation"], "same")
+        self.assertEqual(profile["yin_yang"]["balance"], "yang_excess")
+        self.assertEqual(profile["four_symbols"][0]["symbol"], "tai_yang")
+        self.assertEqual(profile["transition"]["status_code"], IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.DUI))
+        self.assertEqual(profile["transition"]["reason"], "yang_overload_cooldown")
+        self.assertEqual(IchingKernel.hexagram_record(status), profile)
+
     def test_flip_line_mutates_exactly_one_line(self):
         self.assertEqual(IchingKernel.flip_line(0b000000, 0), 0b000001)
         self.assertEqual(IchingKernel.flip_line(0b000001, 0), 0b000000)

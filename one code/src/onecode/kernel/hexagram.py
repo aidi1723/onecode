@@ -99,12 +99,13 @@ class IchingKernel:
         return "neutral"
 
     @classmethod
-    def hexagram_record(cls, status_code: int) -> dict:
+    def cross_cutting_profile(cls, status_code: int) -> dict:
         normalized = status_code & 0b111111
         inner = normalized & 0b111
         outer = (normalized >> 3) & 0b111
         outer_element = cls.element_for_trigram(outer)
         inner_element = cls.element_for_trigram(inner)
+        transition = cls.transition(normalized)
         return {
             "status_code": normalized,
             "binary": format(normalized, "06b"),
@@ -115,7 +116,16 @@ class IchingKernel:
             "element_relation": cls.element_relation(outer_element, inner_element),
             "yin_yang": cls.yin_yang_profile(normalized),
             "four_symbols": cls.four_symbols(normalized),
+            "transition": {
+                "status_code": transition.status_code,
+                "action": transition.action,
+                "reason": transition.reason,
+            },
         }
+
+    @classmethod
+    def hexagram_record(cls, status_code: int) -> dict:
+        return cls.cross_cutting_profile(status_code)
 
     @classmethod
     def hexagram_records(cls) -> dict[int, dict]:
