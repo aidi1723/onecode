@@ -2,6 +2,7 @@ import argparse
 import json
 import tempfile
 import string
+import hashlib
 from pathlib import Path
 
 from onecode.kernel.checkpoint import sha256_file
@@ -12,6 +13,7 @@ VALID_RUN_STATUSES = {"completed", "skipped", "denied", "halted"}
 LEDGER_COUNT_FIELDS = ("requested_count", "completed_count", "skipped_count", "failed_count")
 SHA256_HEX_LENGTH = 64
 HEX_DIGITS = set(string.hexdigits)
+PLAN_ASSET_FIELDS = {"path", "content"}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -148,7 +150,12 @@ def read_json(path: Path) -> tuple[dict | None, str | None, str | None]:
     return data, None, None
 
 
-def load_task_plan(path: Path) -> tuple[str, list[str]]:
+def sha256_bytes(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def load_task_plan(path: Path) -> tuple[str, list[str], dict]:
+    resolved_path = path.resolve()
     data, corrupt_path, corrupt_reason = read_json(path)
     if corrupt_path is not None:
         raise ValueError(f"invalid plan: {corrupt_reason}")
@@ -162,17 +169,29 @@ def load_task_plan(path: Path) -> tuple[str, list[str]]:
         raise ValueError("invalid plan: assets must be a non-empty list")
 
     write_texts = []
+    seen_paths = set()
     for index, asset in enumerate(assets, start=1):
         if not isinstance(asset, dict):
             raise ValueError(f"invalid plan asset {index}: asset must be an object")
+        unknown_fields = sorted(set(asset) - PLAN_ASSET_FIELDS)
+        if unknown_fields:
+            raise ValueError(f"invalid plan asset {index}: unknown fields {', '.join(unknown_fields)}")
         path = asset.get("path")
         content = asset.get("content")
         if not isinstance(path, str) or not path:
             raise ValueError(f"invalid plan asset {index}: path must be a non-empty string")
         if not isinstance(content, str):
             raise ValueError(f"invalid plan asset {index}: content must be a string")
+        if path in seen_paths:
+            raise ValueError(f"invalid plan asset {index}: duplicate path {path}")
+        seen_paths.add(path)
         write_texts.append(f"{path}={content}")
-    return task, write_texts
+    plan_evidence = {
+        "plan_path": str(resolved_path),
+        "plan_sha256": sha256_bytes(resolved_path),
+        "plan_asset_count": len(write_texts),
+    }
+    return task, write_texts, plan_evidence
 
 
 def validate_status_document(data: dict, path: Path) -> tuple[str | None, str | None]:
@@ -387,6 +406,9 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
         "partial": ledger.get("partial", manifest.get("partial")),
         "reason": ledger.get("reason", manifest.get("reason")),
         "resumed_from": ledger.get("resumed_from", manifest.get("resumed_from")),
+        "plan_path": ledger.get("plan_path"),
+        "plan_sha256": ledger.get("plan_sha256"),
+        "plan_asset_count": ledger.get("plan_asset_count"),
         "requested_count": ledger.get("requested_count"),
         "completed_count": ledger.get("completed_count"),
         "skipped_count": ledger.get("skipped_count"),
@@ -438,7 +460,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.subcommand == "run-plan":
         try:
-            task, write_texts = load_task_plan(Path(args.plan))
+            task, write_texts, plan_evidence = load_task_plan(Path(args.plan))
             result = run_task(
                 task,
                 workspace=Path(args.workspace),
@@ -447,6 +469,17 @@ def main(argv: list[str] | None = None) -> int:
                 write_texts=write_texts,
                 resume_from_run_id=args.resume_from,
             )
+            result = result | plan_evidence
+            from onecode.kernel.checkpoint import write_ledger
+            from onecode.kernel.context import create_context
+
+            context = create_context(
+                workspace_root=Path(args.workspace),
+                http_timeout_seconds=args.http_timeout_seconds,
+                run_id=result["run_id"],
+                resume_from_run_id=args.resume_from,
+            )
+            write_ledger(context, result)
         except ValueError as exc:
             parser.error(str(exc))
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))

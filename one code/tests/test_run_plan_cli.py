@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import hashlib
 from pathlib import Path
 
 
@@ -67,6 +68,12 @@ class RunPlanCliTests(unittest.TestCase):
 
             self.assertEqual(result["status"], "completed")
             self.assertEqual(result["requested_count"], 2)
+            self.assertEqual(result["plan_path"], str(plan_path.resolve()))
+            self.assertEqual(result["plan_sha256"], hashlib.sha256(plan_path.read_bytes()).hexdigest())
+            self.assertEqual(result["plan_asset_count"], 2)
+            self.assertEqual(summary["plan_path"], str(plan_path.resolve()))
+            self.assertEqual(summary["plan_sha256"], result["plan_sha256"])
+            self.assertEqual(summary["plan_asset_count"], 2)
             self.assertEqual(summary["delivery_status"], "deliverable")
             self.assertEqual(summary["next_action"], "idle")
             self.assertEqual(summary["completed_count"], 2)
@@ -216,6 +223,119 @@ class RunPlanCliTests(unittest.TestCase):
             self.assertIn("invalid plan asset 1: content must be a string", completed.stderr)
             self.assertNotIn("Traceback", completed.stderr)
             self.assertFalse((workspace / "src" / "a.py").exists())
+
+    def test_cli_run_plan_rejects_duplicate_paths_without_writing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = workspace / "duplicate-plan.json"
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "task": "duplicate",
+                        "assets": [
+                            {"path": "src/a.py", "content": "A = 1\n"},
+                            {"path": "src/a.py", "content": "A = 2\n"},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run-plan",
+                    "--workspace",
+                    tmp,
+                    "--plan",
+                    str(plan_path),
+                    "--run-id",
+                    "duplicate-plan",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("invalid plan asset 2: duplicate path src/a.py", completed.stderr)
+            self.assertNotIn("Traceback", completed.stderr)
+            self.assertFalse((workspace / "src" / "a.py").exists())
+
+    def test_cli_run_plan_rejects_unknown_asset_fields_without_writing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = workspace / "unknown-field-plan.json"
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "task": "unknown field",
+                        "assets": [
+                            {"path": "src/a.py", "content": "A = 1\n", "command": "echo no"},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run-plan",
+                    "--workspace",
+                    tmp,
+                    "--plan",
+                    str(plan_path),
+                    "--run-id",
+                    "unknown-field-plan",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("invalid plan asset 1: unknown fields command", completed.stderr)
+            self.assertNotIn("Traceback", completed.stderr)
+            self.assertFalse((workspace / "src" / "a.py").exists())
+
+    def test_cli_run_plan_rejects_invalid_json_without_traceback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = workspace / "invalid-json-plan.json"
+            plan_path.write_text("{not json", encoding="utf-8")
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run-plan",
+                    "--workspace",
+                    tmp,
+                    "--plan",
+                    str(plan_path),
+                    "--run-id",
+                    "invalid-json-plan",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("invalid plan: invalid_json", completed.stderr)
+            self.assertNotIn("Traceback", completed.stderr)
 
 
 if __name__ == "__main__":
