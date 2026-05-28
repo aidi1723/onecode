@@ -6,6 +6,9 @@ from pathlib import Path
 from onecode.kernel.runner import run_task
 
 
+VALID_RUN_STATUSES = {"completed", "skipped", "denied", "halted"}
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="onecode")
     subparsers = parser.add_subparsers(dest="subcommand", required=True)
@@ -137,6 +140,8 @@ def validate_status_document(data: dict, path: Path) -> tuple[str | None, str | 
     if "status" not in data:
         return str(path), "missing_status"
     if not isinstance(data["status"], str) or not data["status"]:
+        return str(path), "invalid_status"
+    if data["status"] not in VALID_RUN_STATUSES:
         return str(path), "invalid_status"
     return None, None
 
