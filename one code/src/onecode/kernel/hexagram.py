@@ -21,6 +21,18 @@ class IchingKernel:
         outer = (status_code >> 3) & 0b111
         return inner == cls.DUI and outer != cls.LI
 
+    @classmethod
+    def classify_outcome(cls, status: str, reason: str | None) -> int:
+        if reason == "sovereignty_breach":
+            return cls.compute_status(cls.LI, cls.KUN)
+        if reason == "http_timeout":
+            return cls.compute_status(cls.KAN, cls.ZHEN)
+        if status == "skipped":
+            return cls.compute_status(cls.QIAN, cls.DUI)
+        if status == "completed":
+            return cls.compute_status(cls.QIAN, cls.QIAN)
+        return cls.compute_status(cls.KUN, cls.KUN)
+
 
 def is_valid_hexagram_code(value: str) -> bool:
     return len(value) == 6 and all(char in "01" for char in value)

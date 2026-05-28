@@ -64,15 +64,7 @@ def should_skip_ready_asset(ready_asset: ReadyAsset | None, preflight: Any) -> b
 
 
 def iching_status_for_result(gate_result: dict[str, Any]) -> int:
-    if gate_result["reason"] == "sovereignty_breach":
-        return IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN)
-    if gate_result["reason"] == "http_timeout":
-        return IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)
-    if gate_result["status"] == "skipped":
-        return IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI)
-    if gate_result["status"] == "completed":
-        return IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN)
-    return IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN)
+    return IchingKernel.classify_outcome(gate_result["status"], gate_result["reason"])
 
 
 def run_intent(
