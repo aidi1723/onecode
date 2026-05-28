@@ -129,6 +129,7 @@ def asset_entry(
     preflight_decision: Any,
     intent_type: str,
     iching_transition: IchingTransition,
+    iching_profile: dict[str, Any],
     payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     entry = {
@@ -144,6 +145,7 @@ def asset_entry(
         "iching_status_code": iching_transition.status_code,
         "iching_transition_action": iching_transition.action,
         "iching_transition_reason": iching_transition.reason,
+        "iching_profile": iching_profile,
     }
     if "sha256" in gate_result["payload"]:
         entry["sha256"] = gate_result["payload"]["sha256"]
@@ -176,6 +178,7 @@ def run_task(
     for index, intent in enumerate(intents, start=1):
         gate_result, preflight = run_intent(task, context, gate, intent, simulated_action_seconds)
         iching_transition = iching_transition_for_result(gate_result)
+        iching_profile = IchingKernel.cross_cutting_profile(iching_transition.status_code)
         checkpoint_payload = gate_result["payload"]
         entry_payload = checkpoint_payload
         if intent.action_type.value == "write_text" and "sha256" in checkpoint_payload:
@@ -193,8 +196,19 @@ def run_task(
             iching_status_code=iching_transition.status_code,
             iching_transition_action=iching_transition.action,
             iching_transition_reason=iching_transition.reason,
+            iching_profile=iching_profile,
         )
-        assets.append(asset_entry(index, gate_result, preflight, intent.action_type.value, iching_transition, entry_payload))
+        assets.append(
+            asset_entry(
+                index,
+                gate_result,
+                preflight,
+                intent.action_type.value,
+                iching_transition,
+                iching_profile,
+                entry_payload,
+            )
+        )
         if gate_result["status"] in {"denied", "halted"}:
             break
 
@@ -226,6 +240,7 @@ def run_task(
         "iching_status_code": last_asset["iching_status_code"],
         "iching_transition_action": last_asset["iching_transition_action"],
         "iching_transition_reason": last_asset["iching_transition_reason"],
+        "iching_profile": last_asset["iching_profile"],
     }
     if "sha256" in last_asset:
         result["sha256"] = last_asset["sha256"]

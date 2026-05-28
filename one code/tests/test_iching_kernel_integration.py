@@ -30,9 +30,15 @@ class IchingKernelIntegrationTests(unittest.TestCase):
             self.assertEqual(result["status"], "halted")
             self.assertEqual(result["reason"], "sovereignty_breach")
             self.assertEqual(result["iching_status_code"], expected)
+            self.assertEqual(result["iching_profile"]["status_code"], expected)
+            self.assertEqual(result["iching_profile"]["outer_element"], "fire")
+            self.assertEqual(result["iching_profile"]["rule_layers"]["onecode_runtime"], ["transition"])
             self.assertEqual(ledger["iching_status_code"], expected)
+            self.assertEqual(ledger["iching_profile"]["status_code"], expected)
             self.assertEqual(manifest["iching_status_code"], expected)
+            self.assertEqual(manifest["iching_profile"]["status_code"], expected)
             self.assertEqual(manifest["checkpoints"][-1]["iching_status_code"], expected)
+            self.assertEqual(manifest["checkpoints"][-1]["iching_profile"]["status_code"], expected)
             self.assertFalse((workspace / "src" / "after.py").exists())
 
     def test_multi_asset_timeout_records_kan_zhen_status_code(self):
@@ -68,8 +74,13 @@ class IchingKernelIntegrationTests(unittest.TestCase):
             self.assertEqual(result["status"], "halted")
             self.assertEqual(result["reason"], "http_timeout")
             self.assertEqual(result["iching_status_code"], expected)
+            self.assertEqual(result["iching_profile"]["status_code"], expected)
+            self.assertEqual(result["iching_profile"]["element_dynamics"]["modulation"], "recovery_seed")
+            self.assertEqual(result["iching_profile"]["yin_yang"]["pressure"], "activate")
             self.assertEqual(manifest["iching_status_code"], expected)
+            self.assertEqual(manifest["iching_profile"]["status_code"], expected)
             self.assertEqual(manifest["checkpoints"][-1]["iching_status_code"], expected)
+            self.assertEqual(manifest["checkpoints"][-1]["iching_profile"]["status_code"], expected)
             self.assertFalse((workspace / "src" / "c.py").exists())
 
     def test_completed_multi_asset_run_records_gen_qian_status_code(self):
@@ -92,12 +103,16 @@ class IchingKernelIntegrationTests(unittest.TestCase):
             self.assertEqual(result["iching_status_code"], expected)
             self.assertEqual(result["iching_transition_action"], "halt")
             self.assertEqual(result["iching_transition_reason"], "yang_overload_cooldown")
+            self.assertEqual(result["iching_profile"]["status_code"], expected)
+            self.assertEqual(result["iching_profile"]["yin_yang"]["pressure"], "stable")
             self.assertEqual(manifest["iching_status_code"], expected)
             self.assertEqual(manifest["iching_transition_action"], "halt")
             self.assertEqual(manifest["iching_transition_reason"], "yang_overload_cooldown")
+            self.assertEqual(manifest["iching_profile"]["status_code"], expected)
             self.assertEqual(manifest["checkpoints"][-1]["iching_status_code"], expected)
             self.assertEqual(manifest["checkpoints"][-1]["iching_transition_action"], "halt")
             self.assertEqual(manifest["checkpoints"][-1]["iching_transition_reason"], "yang_overload_cooldown")
+            self.assertEqual(manifest["checkpoints"][-1]["iching_profile"]["status_code"], expected)
 
 
 if __name__ == "__main__":
