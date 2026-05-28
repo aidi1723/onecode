@@ -48,10 +48,31 @@ class IchingKernel:
         "fire": "metal",
         "metal": "wood",
     }
+    RULE_LAYERS = {
+        "bit_derived": [
+            "status_code",
+            "binary",
+            "inner_trigram",
+            "outer_trigram",
+            "yin_yang",
+            "four_symbols",
+        ],
+        "correspondence_derived": [
+            "inner_element",
+            "outer_element",
+            "element_relation",
+            "element_dynamics",
+        ],
+        "onecode_runtime": ["transition"],
+    }
 
     @classmethod
     def compute_status(cls, outer_trigram: int, inner_trigram: int) -> int:
         return ((outer_trigram & 0b111) << 3) | (inner_trigram & 0b111)
+
+    @classmethod
+    def rule_layers(cls) -> dict[str, list[str]]:
+        return {layer: list(fields) for layer, fields in cls.RULE_LAYERS.items()}
 
     @classmethod
     def four_symbol_for_bits(cls, bits: int) -> str:
@@ -196,6 +217,7 @@ class IchingKernel:
                 "action": transition.action,
                 "reason": transition.reason,
             },
+            "rule_layers": cls.rule_layers(),
         }
 
     @classmethod

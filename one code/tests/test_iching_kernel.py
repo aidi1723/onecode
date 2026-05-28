@@ -210,6 +210,31 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(profile["transition"]["reason"], "yang_overload_cooldown")
         self.assertEqual(IchingKernel.hexagram_record(status), profile)
 
+    def test_cross_cutting_profile_marks_rule_source_layers(self):
+        profile = IchingKernel.cross_cutting_profile(IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN))
+
+        self.assertEqual(
+            profile["rule_layers"]["bit_derived"],
+            [
+                "status_code",
+                "binary",
+                "inner_trigram",
+                "outer_trigram",
+                "yin_yang",
+                "four_symbols",
+            ],
+        )
+        self.assertEqual(
+            profile["rule_layers"]["correspondence_derived"],
+            [
+                "inner_element",
+                "outer_element",
+                "element_relation",
+                "element_dynamics",
+            ],
+        )
+        self.assertEqual(profile["rule_layers"]["onecode_runtime"], ["transition"])
+
     def test_flip_line_mutates_exactly_one_line(self):
         self.assertEqual(IchingKernel.flip_line(0b000000, 0), 0b000001)
         self.assertEqual(IchingKernel.flip_line(0b000001, 0), 0b000000)
