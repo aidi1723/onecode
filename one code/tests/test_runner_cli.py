@@ -129,6 +129,21 @@ class RunnerSovereigntyTests(unittest.TestCase):
             self.assertEqual(result["decision"], "denied")
             self.assertEqual(result["reason"], "permission_denied")
 
+    def test_run_task_unknown_intent_records_discovery_gap(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_task(
+                "unknown intent",
+                workspace=Path(tmp),
+                run_id="unknown-intent-test",
+                intent_type="teleport_asset",
+            )
+
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["decision"], "halted")
+            self.assertEqual(result["reason"], "invalid_intent")
+            self.assertEqual(result["iching_transition_action"], "discover")
+            self.assertEqual(result["iching_transition_reason"], "rule_gap_requires_mapping")
+
 
 class CliSovereigntyTests(unittest.TestCase):
     def test_cli_write_text_creates_file(self):

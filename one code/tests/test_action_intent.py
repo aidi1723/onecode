@@ -10,6 +10,12 @@ class ActionIntentTests(unittest.TestCase):
         self.assertEqual(intent.action_type, ActionType.NOOP)
         self.assertEqual(intent.payload, {})
 
+    def test_invalid_intent_preserves_unmapped_intent_type(self):
+        intent = ActionIntent.invalid_intent("teleport_asset")
+
+        self.assertEqual(intent.action_type, ActionType.INVALID_INTENT)
+        self.assertEqual(intent.payload, {"intent_type": "teleport_asset"})
+
     def test_write_text_requires_path_and_content(self):
         intent = ActionIntent.write_text("src/generated.py", "print('ok')\n")
 

@@ -8,6 +8,7 @@ class ActionType(StrEnum):
     WRITE_TEXT = "write_text"
     EXECUTE_PYTEST = "execute_pytest"
     BASH_EXECUTION = "bash_execution"
+    INVALID_INTENT = "invalid_intent"
 
 
 @dataclass(frozen=True)
@@ -55,3 +56,7 @@ class ActionIntent:
     @classmethod
     def execute_pytest(cls, target: str) -> "ActionIntent":
         return cls(ActionType.EXECUTE_PYTEST, {"target": target})
+
+    @classmethod
+    def invalid_intent(cls, intent_type: str) -> "ActionIntent":
+        return cls(ActionType.INVALID_INTENT, {"intent_type": intent_type})

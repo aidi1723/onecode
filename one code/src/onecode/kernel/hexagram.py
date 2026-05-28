@@ -348,6 +348,8 @@ class IchingKernel:
             return cls.compute_status(cls.LI, cls.KUN)
         if reason == "http_timeout":
             return cls.compute_status(cls.KAN, cls.ZHEN)
+        if reason == "invalid_intent":
+            return cls.compute_status(cls.KUN, cls.KUN)
         if status == "skipped":
             return cls.compute_status(cls.QIAN, cls.DUI)
         if status == "completed":

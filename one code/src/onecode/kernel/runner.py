@@ -24,7 +24,9 @@ def build_intent(
         return ActionIntent.bash_execution(command or "")
     if intent_type == "execute_pytest":
         return ActionIntent.execute_pytest(command or "tests")
-    return ActionIntent.noop()
+    if intent_type == "noop":
+        return ActionIntent.noop()
+    return ActionIntent.invalid_intent(intent_type)
 
 
 def parse_write_text(value: str) -> tuple[str, str]:
