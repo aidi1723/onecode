@@ -52,6 +52,12 @@ def ready_assets_summary(context: OneCodeContext) -> dict[str, dict[str, Any]]:
     }
 
 
+def resume_audit_events_summary(context: OneCodeContext) -> list[dict[str, Any]]:
+    if context.resume_state is None:
+        return []
+    return list(context.resume_state.audit_events)
+
+
 def write_checkpoint(
     context: OneCodeContext,
     payload: dict[str, Any],
@@ -74,6 +80,7 @@ def write_checkpoint(
     checkpoint_path = context.evidence_root / "checkpoints" / f"{turn_number:04d}.json"
     resumed_from = context.resume_from_run_id
     ready_assets = ready_assets_summary(context)
+    resume_audit_events = resume_audit_events_summary(context)
     checkpoint = {
         "run_id": context.run_id,
         "turn_index": turn_number,
@@ -89,6 +96,7 @@ def write_checkpoint(
         "iching_transition_reason": iching_transition_reason,
         "resumed_from": resumed_from,
         "ready_assets": ready_assets,
+        "resume_audit_events": resume_audit_events,
         "created_at": utc_now_iso(),
         "payload": payload,
     }
@@ -109,6 +117,7 @@ def write_checkpoint(
         "iching_transition_reason": iching_transition_reason,
         "resumed_from": resumed_from,
         "ready_assets": ready_assets,
+        "resume_audit_events": resume_audit_events,
     }
     manifest = {
         "run_id": context.run_id,
@@ -124,6 +133,7 @@ def write_checkpoint(
         "iching_transition_reason": iching_transition_reason,
         "resumed_from": resumed_from,
         "ready_assets": ready_assets,
+        "resume_audit_events": resume_audit_events,
         "checkpoints": existing_checkpoints + [checkpoint_record],
     }
     atomic_write_json(context.manifest_path, manifest)

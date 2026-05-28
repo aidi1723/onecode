@@ -130,8 +130,11 @@ class ResumedCheckpointMetadataTests(unittest.TestCase):
 
             self.assertEqual(checkpoint["resumed_from"], "old-run")
             self.assertEqual(checkpoint["ready_assets"]["src/ready.py"]["sha256"], asset_hash)
+            self.assertEqual(checkpoint["resume_audit_events"][0]["path"], "src/ready.py")
+            self.assertEqual(checkpoint["resume_audit_events"][0]["status"], "ready")
             self.assertEqual(manifest["resumed_from"], "old-run")
             self.assertEqual(manifest["ready_assets"]["src/ready.py"]["source_run_id"], "old-run")
+            self.assertEqual(manifest["resume_audit_events"][0]["path"], "src/ready.py")
 
 
 if __name__ == "__main__":
