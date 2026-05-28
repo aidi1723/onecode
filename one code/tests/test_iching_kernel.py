@@ -154,6 +154,40 @@ class TestIchingKernel(unittest.TestCase):
             ],
         )
 
+    def test_line_and_trigram_records_expose_liangyi_primitives(self):
+        lines = IchingKernel.line_records(0b111011)
+
+        self.assertEqual(len(lines), 6)
+        self.assertEqual(lines[0], {"line_index": 0, "value": 1, "polarity": "yang"})
+        self.assertEqual(lines[2], {"line_index": 2, "value": 0, "polarity": "yin"})
+        self.assertEqual(lines[5], {"line_index": 5, "value": 1, "polarity": "yang"})
+
+        self.assertEqual(
+            IchingKernel.trigram_record(0b111011, "inner"),
+            {
+                "scope": "inner",
+                "trigram": IchingKernel.DUI,
+                "binary": "011",
+                "element": "metal",
+                "yin_yang": {"yang_count": 2, "yin_count": 1, "balance": "balanced"},
+                "lines": lines[:3],
+            },
+        )
+        self.assertEqual(
+            IchingKernel.trigram_record(0b111011, "outer"),
+            {
+                "scope": "outer",
+                "trigram": IchingKernel.QIAN,
+                "binary": "111",
+                "element": "metal",
+                "yin_yang": {"yang_count": 3, "yin_count": 0, "balance": "pure_yang"},
+                "lines": lines[3:],
+            },
+        )
+
+        with self.assertRaises(ValueError):
+            IchingKernel.trigram_record(0b111011, "middle")
+
     def test_five_element_matrix_maps_trigrams_and_relations(self):
         self.assertEqual(IchingKernel.element_for_trigram(IchingKernel.QIAN), "metal")
         self.assertEqual(IchingKernel.element_for_trigram(IchingKernel.DUI), "metal")
@@ -213,6 +247,9 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(profile["binary"], "111011")
         self.assertEqual(profile["outer_trigram"], IchingKernel.QIAN)
         self.assertEqual(profile["inner_trigram"], IchingKernel.DUI)
+        self.assertEqual(profile["lines"][2]["polarity"], "yin")
+        self.assertEqual(profile["inner_trigram_record"]["binary"], "011")
+        self.assertEqual(profile["outer_trigram_record"]["binary"], "111")
         self.assertEqual(profile["outer_element"], "metal")
         self.assertEqual(profile["inner_element"], "metal")
         self.assertEqual(profile["element_relation"], "same")
