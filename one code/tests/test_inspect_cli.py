@@ -6,6 +6,9 @@ import tempfile
 import unittest
 import hashlib
 from pathlib import Path
+from unittest.mock import patch
+
+from onecode.cli import delivery_summary
 
 
 class InspectCliTests(unittest.TestCase):
@@ -314,6 +317,33 @@ class InspectCliTests(unittest.TestCase):
                     ("halted", "sovereignty_breach", None),
                 ],
             )
+
+    def test_delivery_summary_delegates_next_action_to_iching_kernel(self):
+        ledger = {
+            "status": "halted",
+            "requested_count": 3,
+            "completed_count": 1,
+            "skipped_count": 0,
+            "failed_count": 1,
+        }
+        expected = {
+            "delivery_status": "blocked",
+            "next_action": "resume",
+            "resolved_count": 2,
+            "remaining_count": 1,
+        }
+
+        with patch("onecode.cli.IchingKernel.delivery_decision", return_value=expected) as delivery_decision:
+            summary = delivery_summary(ledger)
+
+        self.assertEqual(summary, expected)
+        delivery_decision.assert_called_once_with(
+            status="halted",
+            requested_count=3,
+            completed_count=1,
+            skipped_count=0,
+            failed_count=1,
+        )
 
     def test_cli_inspect_missing_run_returns_nonzero(self):
         with tempfile.TemporaryDirectory() as tmp:

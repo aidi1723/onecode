@@ -105,6 +105,58 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(IchingKernel.dispatch_decision(checkpoint_transition), "stop")
         self.assertEqual(IchingKernel.dispatch_decision(continue_transition), "continue")
 
+    def test_delivery_decision_derives_inspection_actions_from_evidence(self):
+        self.assertEqual(
+            IchingKernel.delivery_decision(
+                status="completed",
+                requested_count=3,
+                completed_count=2,
+                skipped_count=1,
+                failed_count=0,
+            ),
+            {
+                "delivery_status": "deliverable",
+                "next_action": "idle",
+                "resolved_count": 3,
+                "remaining_count": 0,
+            },
+        )
+        self.assertEqual(
+            IchingKernel.delivery_decision(
+                status="halted",
+                requested_count=3,
+                completed_count=1,
+                skipped_count=0,
+                failed_count=1,
+            ),
+            {
+                "delivery_status": "blocked",
+                "next_action": "resume",
+                "resolved_count": 2,
+                "remaining_count": 1,
+            },
+        )
+        self.assertEqual(
+            IchingKernel.delivery_decision(
+                status="completed",
+                requested_count=None,
+                completed_count=None,
+                skipped_count=None,
+                failed_count=None,
+            ),
+            {"delivery_status": "deliverable", "next_action": "idle"},
+        )
+        self.assertEqual(
+            IchingKernel.delivery_decision(
+                status="mystery",
+                requested_count=None,
+                completed_count=None,
+                skipped_count=None,
+                failed_count=None,
+            ),
+            {"delivery_status": "unknown", "next_action": "inspect"},
+        )
+
     def test_classify_resume_audit_maps_recovery_evidence_to_status_codes(self):
         self.assertEqual(
             IchingKernel.classify_resume_audit(status="ready", reason=None),

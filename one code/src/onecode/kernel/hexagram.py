@@ -412,6 +412,31 @@ class IchingKernel:
             return "stop"
         return "continue"
 
+    @classmethod
+    def delivery_decision(
+        cls,
+        status: str | None,
+        requested_count: int | None,
+        completed_count: int | None,
+        skipped_count: int | None,
+        failed_count: int | None,
+    ) -> dict[str, int | str]:
+        if all(isinstance(value, int) for value in (requested_count, completed_count, skipped_count, failed_count)):
+            resolved = completed_count + skipped_count + failed_count
+            counts = {
+                "resolved_count": resolved,
+                "remaining_count": max(requested_count - resolved, 0),
+            }
+            if status == "completed" and failed_count == 0 and resolved == requested_count:
+                return {"delivery_status": "deliverable", "next_action": "idle"} | counts
+            if failed_count > 0 or status in {"halted", "denied"}:
+                return {"delivery_status": "blocked", "next_action": "resume"} | counts
+            if resolved < requested_count:
+                return {"delivery_status": "partial", "next_action": "resume"} | counts
+        if status == "completed":
+            return {"delivery_status": "deliverable", "next_action": "idle"}
+        return {"delivery_status": "unknown", "next_action": "inspect"}
+
 
 def is_valid_hexagram_code(value: str) -> bool:
     return len(value) == 6 and all(char in "01" for char in value)
