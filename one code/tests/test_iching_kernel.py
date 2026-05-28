@@ -104,6 +104,24 @@ class TestIchingKernel(unittest.TestCase):
             {"yang_count": 0, "yin_count": 6, "balance": "pure_yin"},
         )
 
+    def test_yin_yang_cross_profile_projects_lines_windows_and_trigrams(self):
+        profile = IchingKernel.yin_yang_cross_profile(0b111011)
+
+        self.assertEqual(profile["global"], {"yang_count": 5, "yin_count": 1, "balance": "yang_excess"})
+        self.assertEqual(profile["pressure"], "cooldown")
+        self.assertEqual(profile["lines"][0], {"line_index": 0, "value": 1, "polarity": "yang"})
+        self.assertEqual(profile["lines"][2], {"line_index": 2, "value": 0, "polarity": "yin"})
+        self.assertEqual(profile["inner_trigram"], {"yang_count": 2, "yin_count": 1, "balance": "balanced"})
+        self.assertEqual(profile["outer_trigram"], {"yang_count": 3, "yin_count": 0, "balance": "pure_yang"})
+        self.assertEqual(
+            profile["four_symbol_windows"],
+            [
+                {"pair_index": 0, "yang_count": 2, "yin_count": 0, "balance": "pure_yang"},
+                {"pair_index": 1, "yang_count": 1, "yin_count": 1, "balance": "balanced"},
+                {"pair_index": 2, "yang_count": 2, "yin_count": 0, "balance": "pure_yang"},
+            ],
+        )
+
     def test_five_element_matrix_maps_trigrams_and_relations(self):
         self.assertEqual(IchingKernel.element_for_trigram(IchingKernel.QIAN), "metal")
         self.assertEqual(IchingKernel.element_for_trigram(IchingKernel.DUI), "metal")

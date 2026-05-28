@@ -72,17 +72,68 @@ class IchingKernel:
     def yin_yang_profile(cls, status_code: int) -> dict[str, int | str]:
         yang_count = (status_code & 0b111111).bit_count()
         yin_count = 6 - yang_count
-        if yang_count == 6:
+        return cls.yin_yang_counts(yang_count, yin_count, width=6)
+
+    @classmethod
+    def yin_yang_counts(cls, yang_count: int, yin_count: int, width: int) -> dict[str, int | str]:
+        if yang_count == width:
             balance = "pure_yang"
-        elif yang_count == 5:
-            balance = "yang_excess"
-        elif yang_count in {3, 4}:
-            balance = "balanced"
-        elif yang_count in {1, 2}:
-            balance = "yin_excess"
-        else:
+        elif yin_count == width:
             balance = "pure_yin"
+        elif width == 6 and yang_count == 5:
+            balance = "yang_excess"
+        elif width == 6 and yang_count in {3, 4}:
+            balance = "balanced"
+        elif width < 6 and abs(yang_count - yin_count) <= 1:
+            balance = "balanced"
+        elif yang_count > yin_count:
+            balance = "yang_excess"
+        else:
+            balance = "yin_excess"
         return {"yang_count": yang_count, "yin_count": yin_count, "balance": balance}
+
+    @classmethod
+    def yin_yang_profile_for_bits(cls, value: int, width: int) -> dict[str, int | str]:
+        mask = (1 << width) - 1
+        yang_count = (value & mask).bit_count()
+        return cls.yin_yang_counts(yang_count, width - yang_count, width=width)
+
+    @classmethod
+    def yin_yang_cross_profile(cls, status_code: int) -> dict:
+        normalized = status_code & 0b111111
+        lines = [
+            {
+                "line_index": line_index,
+                "value": (normalized >> line_index) & 1,
+                "polarity": "yang" if ((normalized >> line_index) & 1) else "yin",
+            }
+            for line_index in range(6)
+        ]
+        global_profile = cls.yin_yang_profile(normalized)
+        profile = {
+            "yang_count": global_profile["yang_count"],
+            "yin_count": global_profile["yin_count"],
+            "balance": global_profile["balance"],
+            "global": global_profile,
+            "pressure": cls.balance_pressure(global_profile["balance"]),
+            "lines": lines,
+            "four_symbol_windows": [
+                {"pair_index": pair_index}
+                | cls.yin_yang_profile_for_bits((normalized >> (pair_index * 2)) & 0b11, width=2)
+                for pair_index in range(3)
+            ],
+            "inner_trigram": cls.yin_yang_profile_for_bits(normalized & 0b111, width=3),
+            "outer_trigram": cls.yin_yang_profile_for_bits((normalized >> 3) & 0b111, width=3),
+        }
+        return profile
+
+    @classmethod
+    def balance_pressure(cls, balance: str) -> str:
+        if balance in {"pure_yang", "yang_excess"}:
+            return "cooldown"
+        if balance in {"pure_yin", "yin_excess"}:
+            return "activate"
+        return "stable"
 
     @classmethod
     def element_for_trigram(cls, trigram: int) -> str:
@@ -114,7 +165,7 @@ class IchingKernel:
             "outer_element": outer_element,
             "inner_element": inner_element,
             "element_relation": cls.element_relation(outer_element, inner_element),
-            "yin_yang": cls.yin_yang_profile(normalized),
+            "yin_yang": cls.yin_yang_cross_profile(normalized),
             "four_symbols": cls.four_symbols(normalized),
             "transition": {
                 "status_code": transition.status_code,
