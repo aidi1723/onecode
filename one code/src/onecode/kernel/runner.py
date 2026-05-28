@@ -19,6 +19,8 @@ def build_intent(
     command: str | None,
 ) -> ActionIntent:
     if write_path is not None or write_content is not None:
+        if write_path is None or write_content is None:
+            return ActionIntent.invalid_intent("write_text")
         return ActionIntent.write_text(write_path or "", write_content or "")
     if intent_type == "bash_execution":
         return ActionIntent.bash_execution(command or "")

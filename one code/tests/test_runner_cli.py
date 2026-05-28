@@ -144,6 +144,22 @@ class RunnerSovereigntyTests(unittest.TestCase):
             self.assertEqual(result["iching_transition_action"], "discover")
             self.assertEqual(result["iching_transition_reason"], "rule_gap_requires_mapping")
 
+    def test_run_task_incomplete_write_request_records_discovery_gap(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_task(
+                "incomplete write",
+                workspace=Path(tmp),
+                run_id="incomplete-write-test",
+                write_path="src/missing_content.py",
+            )
+
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["decision"], "halted")
+            self.assertEqual(result["reason"], "invalid_intent")
+            self.assertEqual(result["iching_transition_action"], "discover")
+            self.assertEqual(result["iching_transition_reason"], "rule_gap_requires_mapping")
+            self.assertFalse((Path(tmp) / "src" / "missing_content.py").exists())
+
 
 class CliSovereigntyTests(unittest.TestCase):
     def test_cli_write_text_creates_file(self):
