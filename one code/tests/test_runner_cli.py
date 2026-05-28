@@ -506,6 +506,35 @@ class RunnerMultiAssetTests(unittest.TestCase):
                 "def test_mesh():\n    assert True\n",
             )
 
+    def test_run_task_halts_on_middle_asset_and_does_not_write_later_asset(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_task(
+                "fail fast",
+                workspace=workspace,
+                run_id="fail-fast",
+                write_texts=[
+                    "src/ok.py=ok = True\n",
+                    "../outside.py=blocked\n",
+                    "src/after.py=after = True\n",
+                ],
+            )
+
+            manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
+
+            self.assertEqual(result["status"], "halted")
+            self.assertTrue(result["partial"])
+            self.assertEqual(result["reason"], "sovereignty_breach")
+            self.assertEqual(result["requested_count"], 3)
+            self.assertEqual(result["completed_count"], 1)
+            self.assertEqual(result["skipped_count"], 0)
+            self.assertEqual(result["failed_count"], 1)
+            self.assertEqual(len(result["assets"]), 2)
+            self.assertEqual(len(manifest["checkpoints"]), 2)
+            self.assertTrue((workspace / "src" / "ok.py").exists())
+            self.assertFalse((workspace / "src" / "after.py").exists())
+            self.assertFalse((workspace.parent / "outside.py").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
