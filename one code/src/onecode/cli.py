@@ -195,12 +195,13 @@ def delivery_summary(ledger: dict) -> dict[str, str]:
     failed = ledger.get("failed_count")
     if all(isinstance(value, int) for value in (requested, completed, skipped, failed)):
         resolved = completed + skipped + failed
+        counts = {"resolved_count": resolved, "remaining_count": max(requested - resolved, 0)}
         if status == "completed" and failed == 0 and resolved == requested:
-            return {"delivery_status": "deliverable", "next_action": "idle"}
+            return {"delivery_status": "deliverable", "next_action": "idle"} | counts
         if failed > 0 or status in {"halted", "denied"}:
-            return {"delivery_status": "blocked", "next_action": "resume"}
+            return {"delivery_status": "blocked", "next_action": "resume"} | counts
         if resolved < requested:
-            return {"delivery_status": "partial", "next_action": "resume"}
+            return {"delivery_status": "partial", "next_action": "resume"} | counts
     if status == "completed":
         return {"delivery_status": "deliverable", "next_action": "idle"}
     return {"delivery_status": "unknown", "next_action": "inspect"}

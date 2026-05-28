@@ -230,6 +230,8 @@ class InspectCliTests(unittest.TestCase):
             self.assertEqual(summary["completed_count"], 2)
             self.assertEqual(summary["skipped_count"], 2)
             self.assertEqual(summary["failed_count"], 0)
+            self.assertEqual(summary["resolved_count"], 4)
+            self.assertEqual(summary["remaining_count"], 0)
             self.assertEqual(summary["checkpoint_count"], 4)
             self.assertEqual((Path(tmp) / "src" / "a.py").read_text(encoding="utf-8"), "A = 1\n")
             self.assertEqual((Path(tmp) / "src" / "b.py").read_text(encoding="utf-8"), "B = 1\n")
@@ -293,6 +295,8 @@ class InspectCliTests(unittest.TestCase):
             self.assertEqual(summary["completed_count"], 1)
             self.assertEqual(summary["skipped_count"], 0)
             self.assertEqual(summary["failed_count"], 1)
+            self.assertEqual(summary["resolved_count"], 2)
+            self.assertEqual(summary["remaining_count"], 1)
             self.assertEqual(summary["checkpoint_count"], 2)
 
     def test_cli_inspect_missing_run_returns_nonzero(self):
