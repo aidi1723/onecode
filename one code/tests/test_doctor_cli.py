@@ -25,6 +25,10 @@ class DoctorCliTests(unittest.TestCase):
             ["write_text", "resume_skip", "sovereignty_breach", "http_timeout"],
         )
         self.assertTrue(all(check["passed"] for check in result["checks"]))
+        self.assertEqual(result["checks"][0]["detail"]["run_id"], "doctor-write")
+        self.assertEqual(result["checks"][1]["detail"]["run_id"], "doctor-resume")
+        self.assertEqual(result["checks"][2]["detail"]["run_id"], "doctor-breach")
+        self.assertEqual(result["checks"][3]["detail"]["run_id"], "doctor-timeout")
 
 
 if __name__ == "__main__":

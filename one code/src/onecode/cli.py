@@ -23,6 +23,10 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--command", dest="intent_command", default=None)
     run_parser.add_argument("--resume-from", default=None)
 
+    inspect_parser = subparsers.add_parser("inspect")
+    inspect_parser.add_argument("--workspace", default=".")
+    inspect_parser.add_argument("--run-id", required=True)
+
     subparsers.add_parser("doctor")
     return parser
 
@@ -47,7 +51,7 @@ def run_doctor() -> dict:
             doctor_check(
                 "write_text",
                 write_result["status"] == "completed" and (workspace / "src" / "doctor_asset.py").exists(),
-                {"status": write_result["status"], "reason": write_result["reason"]},
+                {"run_id": write_result["run_id"], "status": write_result["status"], "reason": write_result["reason"]},
             )
         )
 
@@ -72,7 +76,7 @@ def run_doctor() -> dict:
                 resume_result["status"] == "skipped"
                 and resume_result["reason"] == "resumed_asset_ready"
                 and (workspace / "src" / "resume_asset.py").read_text(encoding="utf-8") == "ready = True\n",
-                {"status": resume_result["status"], "reason": resume_result["reason"]},
+                {"run_id": resume_result["run_id"], "status": resume_result["status"], "reason": resume_result["reason"]},
             )
         )
 
@@ -92,7 +96,7 @@ def run_doctor() -> dict:
                 breach_result["status"] == "halted"
                 and breach_result["reason"] == "sovereignty_breach"
                 and not outside.exists(),
-                {"status": breach_result["status"], "reason": breach_result["reason"]},
+                {"run_id": breach_result["run_id"], "status": breach_result["status"], "reason": breach_result["reason"]},
             )
         )
 
@@ -107,16 +111,63 @@ def run_doctor() -> dict:
             doctor_check(
                 "http_timeout",
                 timeout_result["status"] == "halted" and timeout_result["reason"] == "http_timeout",
-                {"status": timeout_result["status"], "reason": timeout_result["reason"]},
+                {"run_id": timeout_result["run_id"], "status": timeout_result["status"], "reason": timeout_result["reason"]},
             )
         )
 
     return {"status": "ok" if all(check["passed"] for check in checks) else "failed", "checks": checks}
 
 
+def read_json(path: Path) -> dict | None:
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
+    evidence_root = workspace.resolve() / ".onecode" / "runs" / run_id
+    manifest_path = evidence_root / "manifest.json"
+    ledger_path = evidence_root / "ledger.json"
+    manifest = read_json(manifest_path)
+    ledger = read_json(ledger_path)
+    if manifest is None or ledger is None:
+        return 1, {
+            "run_id": run_id,
+            "status": "missing",
+            "manifest_path": str(manifest_path),
+            "ledger_path": str(ledger_path),
+        }
+    checkpoints = manifest.get("checkpoints", [])
+    return 0, {
+        "run_id": run_id,
+        "status": ledger.get("status", manifest.get("status")),
+        "partial": ledger.get("partial", manifest.get("partial")),
+        "reason": ledger.get("reason", manifest.get("reason")),
+        "requested_count": ledger.get("requested_count"),
+        "completed_count": ledger.get("completed_count"),
+        "skipped_count": ledger.get("skipped_count"),
+        "failed_count": ledger.get("failed_count"),
+        "checkpoint_count": len(checkpoints),
+        "iching_status_code": ledger.get("iching_status_code", manifest.get("iching_status_code")),
+        "iching_transition_action": ledger.get(
+            "iching_transition_action", manifest.get("iching_transition_action")
+        ),
+        "iching_transition_reason": ledger.get(
+            "iching_transition_reason", manifest.get("iching_transition_reason")
+        ),
+        "manifest_path": str(manifest_path),
+        "ledger_path": str(ledger_path),
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.subcommand == "inspect":
+        exit_code, result = inspect_run(Path(args.workspace), args.run_id)
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return exit_code
 
     if args.subcommand == "doctor":
         result = run_doctor()
