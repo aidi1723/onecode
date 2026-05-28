@@ -1,6 +1,27 @@
 from dataclasses import dataclass
 
 
+class IchingKernel:
+    KUN = 0b000
+    ZHEN = 0b001
+    KAN = 0b010
+    DUI = 0b011
+    GEN = 0b100
+    XUN = 0b101
+    LI = 0b110
+    QIAN = 0b111
+
+    @classmethod
+    def compute_status(cls, outer_trigram: int, inner_trigram: int) -> int:
+        return ((outer_trigram & 0b111) << 3) | (inner_trigram & 0b111)
+
+    @classmethod
+    def should_skip(cls, status_code: int) -> bool:
+        inner = status_code & 0b111
+        outer = (status_code >> 3) & 0b111
+        return inner == cls.DUI and outer != cls.LI
+
+
 def is_valid_hexagram_code(value: str) -> bool:
     return len(value) == 6 and all(char in "01" for char in value)
 
