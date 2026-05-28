@@ -119,6 +119,34 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(IchingKernel.element_relation("metal", "metal"), "same")
         self.assertEqual(IchingKernel.element_relation("wood", "water"), "neutral")
 
+    def test_hexagram_records_cover_all_sixty_four_states(self):
+        records = IchingKernel.hexagram_records()
+
+        self.assertEqual(len(records), 64)
+        self.assertEqual(set(records.keys()), set(range(64)))
+
+        record = IchingKernel.hexagram_record(IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI))
+        self.assertEqual(record["status_code"], 59)
+        self.assertEqual(record["binary"], "111011")
+        self.assertEqual(record["outer_trigram"], IchingKernel.QIAN)
+        self.assertEqual(record["inner_trigram"], IchingKernel.DUI)
+        self.assertEqual(record["outer_element"], "metal")
+        self.assertEqual(record["inner_element"], "metal")
+        self.assertEqual(record["element_relation"], "same")
+        self.assertEqual(record["yin_yang"]["balance"], "yang_excess")
+        self.assertEqual(len(record["four_symbols"]), 3)
+
+    def test_flip_line_mutates_exactly_one_line(self):
+        self.assertEqual(IchingKernel.flip_line(0b000000, 0), 0b000001)
+        self.assertEqual(IchingKernel.flip_line(0b000001, 0), 0b000000)
+        self.assertEqual(IchingKernel.flip_line(0b000000, 5), 0b100000)
+        self.assertEqual(IchingKernel.flip_line(0b111111, 3), 0b110111)
+
+        with self.assertRaises(ValueError):
+            IchingKernel.flip_line(0b000000, -1)
+        with self.assertRaises(ValueError):
+            IchingKernel.flip_line(0b000000, 6)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -99,6 +99,35 @@ class IchingKernel:
         return "neutral"
 
     @classmethod
+    def hexagram_record(cls, status_code: int) -> dict:
+        normalized = status_code & 0b111111
+        inner = normalized & 0b111
+        outer = (normalized >> 3) & 0b111
+        outer_element = cls.element_for_trigram(outer)
+        inner_element = cls.element_for_trigram(inner)
+        return {
+            "status_code": normalized,
+            "binary": format(normalized, "06b"),
+            "outer_trigram": outer,
+            "inner_trigram": inner,
+            "outer_element": outer_element,
+            "inner_element": inner_element,
+            "element_relation": cls.element_relation(outer_element, inner_element),
+            "yin_yang": cls.yin_yang_profile(normalized),
+            "four_symbols": cls.four_symbols(normalized),
+        }
+
+    @classmethod
+    def hexagram_records(cls) -> dict[int, dict]:
+        return {status_code: cls.hexagram_record(status_code) for status_code in range(64)}
+
+    @classmethod
+    def flip_line(cls, status_code: int, line_index: int) -> int:
+        if line_index < 0 or line_index > 5:
+            raise ValueError(f"line_index must be between 0 and 5: {line_index!r}")
+        return (status_code & 0b111111) ^ (1 << line_index)
+
+    @classmethod
     def should_skip(cls, status_code: int) -> bool:
         inner = status_code & 0b111
         outer = (status_code >> 3) & 0b111
