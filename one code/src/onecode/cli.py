@@ -1,6 +1,7 @@
 import argparse
 import json
 import tempfile
+import string
 from pathlib import Path
 
 from onecode.kernel.runner import run_task
@@ -8,6 +9,8 @@ from onecode.kernel.runner import run_task
 
 VALID_RUN_STATUSES = {"completed", "skipped", "denied", "halted"}
 LEDGER_COUNT_FIELDS = ("requested_count", "completed_count", "skipped_count", "failed_count")
+SHA256_HEX_LENGTH = 64
+HEX_DIGITS = set(string.hexdigits)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -163,6 +166,10 @@ def validate_checkpoint_evidence(checkpoints: list[dict], path: Path) -> tuple[s
         if not isinstance(checkpoint.get("path"), str) or not checkpoint["path"]:
             return str(path), "invalid_checkpoint_evidence"
         if not isinstance(checkpoint.get("sha256"), str) or not checkpoint["sha256"]:
+            return str(path), "invalid_checkpoint_evidence"
+        if len(checkpoint["sha256"]) != SHA256_HEX_LENGTH:
+            return str(path), "invalid_checkpoint_evidence"
+        if any(character not in HEX_DIGITS for character in checkpoint["sha256"]):
             return str(path), "invalid_checkpoint_evidence"
     return None, None
 
