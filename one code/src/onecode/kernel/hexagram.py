@@ -77,7 +77,7 @@ class IchingKernel:
             "element_relation",
             "element_dynamics",
         ],
-        "onecode_runtime": ["transition"],
+        "onecode_runtime": ["transition", "dispatch_decision"],
     }
 
     @classmethod
@@ -297,6 +297,7 @@ class IchingKernel:
         outer_element = cls.element_for_trigram(outer)
         inner_element = cls.element_for_trigram(inner)
         transition = cls.transition(normalized)
+        dispatch_decision = cls.dispatch_decision(transition)
         return {
             "status_code": normalized,
             "binary": format(normalized, "06b"),
@@ -319,6 +320,7 @@ class IchingKernel:
                 "action": transition.action,
                 "reason": transition.reason,
             },
+            "dispatch_decision": dispatch_decision,
             "rule_layers": cls.rule_layers(),
         }
 
@@ -403,6 +405,12 @@ class IchingKernel:
                 reason="rule_gap_requires_mapping",
             )
         return IchingTransition(status_code=status_code, action="continue", reason=None)
+
+    @classmethod
+    def dispatch_decision(cls, transition: IchingTransition) -> str:
+        if transition.action in {"halt", "checkpoint", "discover"}:
+            return "stop"
+        return "continue"
 
 
 def is_valid_hexagram_code(value: str) -> bool:

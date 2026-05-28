@@ -673,6 +673,33 @@ class RunnerMultiAssetTests(unittest.TestCase):
             self.assertFalse((workspace / "src" / "after.py").exists())
             self.assertFalse((workspace.parent / "outside.py").exists())
 
+    def test_run_task_uses_iching_dispatch_decision_for_multi_asset_loop_control(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+
+            def dispatch_decision(transition):
+                if transition.action == "halt":
+                    return "continue"
+                return "continue"
+
+            with patch("onecode.kernel.runner.IchingKernel.dispatch_decision", side_effect=dispatch_decision):
+                result = run_task(
+                    "kernel dispatch",
+                    workspace=workspace,
+                    run_id="kernel-dispatch",
+                    write_texts=[
+                        "src/ok.py=ok = True\n",
+                        "../outside.py=blocked\n",
+                        "src/after.py=after = True\n",
+                    ],
+                )
+
+            self.assertEqual(result["requested_count"], 3)
+            self.assertEqual(len(result["assets"]), 3)
+            self.assertTrue((workspace / "src" / "ok.py").exists())
+            self.assertTrue((workspace / "src" / "after.py").exists())
+            self.assertFalse((workspace.parent / "outside.py").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

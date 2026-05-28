@@ -96,6 +96,15 @@ class TestIchingKernel(unittest.TestCase):
 
         self.assertEqual(transition.reason, "network_water_preserves_resume_seed")
 
+    def test_dispatch_decision_derives_loop_control_from_transition(self):
+        halt_transition = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN))
+        checkpoint_transition = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN))
+        continue_transition = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI))
+
+        self.assertEqual(IchingKernel.dispatch_decision(halt_transition), "stop")
+        self.assertEqual(IchingKernel.dispatch_decision(checkpoint_transition), "stop")
+        self.assertEqual(IchingKernel.dispatch_decision(continue_transition), "continue")
+
     def test_classify_resume_audit_maps_recovery_evidence_to_status_codes(self):
         self.assertEqual(
             IchingKernel.classify_resume_audit(status="ready", reason=None),
@@ -312,6 +321,7 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(profile["four_symbols"][0]["symbol"], "tai_yang")
         self.assertEqual(profile["transition"]["status_code"], IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.DUI))
         self.assertEqual(profile["transition"]["reason"], "yang_overload_cooldown")
+        self.assertEqual(profile["dispatch_decision"], "continue")
         self.assertEqual(IchingKernel.hexagram_record(status), profile)
 
     def test_cross_cutting_profile_marks_rule_source_layers(self):
@@ -340,7 +350,7 @@ class TestIchingKernel(unittest.TestCase):
                 "element_dynamics",
             ],
         )
-        self.assertEqual(profile["rule_layers"]["onecode_runtime"], ["transition"])
+        self.assertEqual(profile["rule_layers"]["onecode_runtime"], ["transition", "dispatch_decision"])
 
     def test_rule_layers_returns_defensive_copies(self):
         first = IchingKernel.rule_layers()

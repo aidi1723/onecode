@@ -250,7 +250,7 @@ def run_task(
                 entry_payload,
             )
         )
-        if gate_result["status"] in {"denied", "halted"}:
+        if IchingKernel.dispatch_decision(iching_transition) == "stop":
             break
 
     ledger_path = context.evidence_root / "ledger.json"

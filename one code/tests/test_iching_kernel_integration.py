@@ -32,7 +32,7 @@ class IchingKernelIntegrationTests(unittest.TestCase):
             self.assertEqual(result["iching_status_code"], expected)
             self.assertEqual(result["iching_profile"]["status_code"], expected)
             self.assertEqual(result["iching_profile"]["outer_element"], "fire")
-            self.assertEqual(result["iching_profile"]["rule_layers"]["onecode_runtime"], ["transition"])
+            self.assertEqual(result["iching_profile"]["rule_layers"]["onecode_runtime"], ["transition", "dispatch_decision"])
             self.assertEqual(ledger["iching_status_code"], expected)
             self.assertEqual(ledger["iching_profile"]["status_code"], expected)
             self.assertEqual(manifest["iching_status_code"], expected)
