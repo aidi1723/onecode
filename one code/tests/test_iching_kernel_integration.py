@@ -90,8 +90,14 @@ class IchingKernelIntegrationTests(unittest.TestCase):
 
             self.assertEqual(result["status"], "completed")
             self.assertEqual(result["iching_status_code"], expected)
+            self.assertEqual(result["iching_transition_action"], "halt")
+            self.assertEqual(result["iching_transition_reason"], "yang_overload_cooldown")
             self.assertEqual(manifest["iching_status_code"], expected)
+            self.assertEqual(manifest["iching_transition_action"], "halt")
+            self.assertEqual(manifest["iching_transition_reason"], "yang_overload_cooldown")
             self.assertEqual(manifest["checkpoints"][-1]["iching_status_code"], expected)
+            self.assertEqual(manifest["checkpoints"][-1]["iching_transition_action"], "halt")
+            self.assertEqual(manifest["checkpoints"][-1]["iching_transition_reason"], "yang_overload_cooldown")
 
 
 if __name__ == "__main__":

@@ -62,6 +62,8 @@ def write_checkpoint(
     intent_type: str | None = None,
     decision: str | None = None,
     iching_status_code: int | None = None,
+    iching_transition_action: str | None = None,
+    iching_transition_reason: str | None = None,
 ) -> Path:
     existing_manifest = read_manifest(context.manifest_path)
     existing_checkpoints = []
@@ -83,6 +85,8 @@ def write_checkpoint(
         "intent_type": intent_type,
         "decision": decision,
         "iching_status_code": iching_status_code,
+        "iching_transition_action": iching_transition_action,
+        "iching_transition_reason": iching_transition_reason,
         "resumed_from": resumed_from,
         "ready_assets": ready_assets,
         "created_at": utc_now_iso(),
@@ -101,6 +105,8 @@ def write_checkpoint(
         "intent_type": intent_type,
         "decision": decision,
         "iching_status_code": iching_status_code,
+        "iching_transition_action": iching_transition_action,
+        "iching_transition_reason": iching_transition_reason,
         "resumed_from": resumed_from,
         "ready_assets": ready_assets,
     }
@@ -114,6 +120,8 @@ def write_checkpoint(
         "partial": partial,
         "reason": reason,
         "iching_status_code": iching_status_code,
+        "iching_transition_action": iching_transition_action,
+        "iching_transition_reason": iching_transition_reason,
         "resumed_from": resumed_from,
         "ready_assets": ready_assets,
         "checkpoints": existing_checkpoints + [checkpoint_record],
