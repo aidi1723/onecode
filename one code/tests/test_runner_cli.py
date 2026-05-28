@@ -43,6 +43,46 @@ class RunnerTests(unittest.TestCase):
             self.assertTrue(Path(result["manifest_path"]).exists())
             self.assertTrue(Path(result["ledger_path"]).exists())
 
+    def test_run_task_persists_run_metadata_in_single_ledger_write(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_task(
+                "metadata",
+                workspace=Path(tmp),
+                run_id="metadata-test",
+                run_metadata={"plan_sha256": "abc123", "plan_asset_count": 2},
+            )
+
+            ledger = json.loads(Path(result["ledger_path"]).read_text(encoding="utf-8"))
+
+            self.assertEqual(result["plan_sha256"], "abc123")
+            self.assertEqual(result["plan_asset_count"], 2)
+            self.assertEqual(ledger["plan_sha256"], "abc123")
+            self.assertEqual(ledger["plan_asset_count"], 2)
+
+    def test_run_task_metadata_cannot_override_rule_driven_result_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_task(
+                "metadata guarded",
+                workspace=Path(tmp),
+                run_id="metadata-guarded-test",
+                run_metadata={
+                    "status": "halted",
+                    "reason": "external_override",
+                    "iching_status_code": 0,
+                    "plan_sha256": "abc123",
+                },
+            )
+
+            ledger = json.loads(Path(result["ledger_path"]).read_text(encoding="utf-8"))
+
+            self.assertEqual(result["status"], "completed")
+            self.assertIsNone(result["reason"])
+            self.assertNotEqual(result["iching_status_code"], 0)
+            self.assertEqual(result["plan_sha256"], "abc123")
+            self.assertEqual(ledger["status"], "completed")
+            self.assertIsNone(ledger["reason"])
+            self.assertNotEqual(ledger["iching_status_code"], 0)
+
 
 class CliTests(unittest.TestCase):
     def test_cli_run_prints_json_result(self):

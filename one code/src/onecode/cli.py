@@ -468,18 +468,8 @@ def main(argv: list[str] | None = None) -> int:
                 run_id=args.run_id,
                 write_texts=write_texts,
                 resume_from_run_id=args.resume_from,
+                run_metadata=plan_evidence,
             )
-            result = result | plan_evidence
-            from onecode.kernel.checkpoint import write_ledger
-            from onecode.kernel.context import create_context
-
-            context = create_context(
-                workspace_root=Path(args.workspace),
-                http_timeout_seconds=args.http_timeout_seconds,
-                run_id=result["run_id"],
-                resume_from_run_id=args.resume_from,
-            )
-            write_ledger(context, result)
         except ValueError as exc:
             parser.error(str(exc))
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))

@@ -12,6 +12,42 @@ from onecode.kernel.permission_matrix import Decision
 from onecode.kernel.resumption import ReadyAsset
 
 
+RULE_DRIVEN_RESULT_FIELDS = {
+    "assets",
+    "completed_count",
+    "decision",
+    "failed_count",
+    "iching_profile",
+    "iching_status_code",
+    "iching_transition_action",
+    "iching_transition_reason",
+    "intent_type",
+    "ledger_path",
+    "manifest_path",
+    "partial",
+    "payload",
+    "reason",
+    "requested_count",
+    "resumed",
+    "resumed_from",
+    "run_id",
+    "sha256",
+    "skipped_count",
+    "state",
+    "status",
+}
+
+
+def safe_run_metadata(run_metadata: dict[str, Any] | None) -> dict[str, Any]:
+    if run_metadata is None:
+        return {}
+    return {
+        key: value
+        for key, value in run_metadata.items()
+        if key not in RULE_DRIVEN_RESULT_FIELDS
+    }
+
+
 def build_intent(
     intent_type: str,
     write_path: str | None,
@@ -168,6 +204,7 @@ def run_task(
     command: str | None = None,
     resume_from_run_id: str | None = None,
     write_texts: list[str] | None = None,
+    run_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     context = create_context(
         workspace_root=workspace,
@@ -248,5 +285,6 @@ def run_task(
     }
     if "sha256" in last_asset:
         result["sha256"] = last_asset["sha256"]
+    result = result | safe_run_metadata(run_metadata)
     write_ledger(context, result)
     return result
