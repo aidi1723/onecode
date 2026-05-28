@@ -24,6 +24,30 @@ class IchingKernel:
         0b10: "shao_yin",
         0b11: "tai_yang",
     }
+    TRIGRAM_ELEMENTS = {
+        KUN: "earth",
+        ZHEN: "wood",
+        KAN: "water",
+        DUI: "metal",
+        GEN: "earth",
+        XUN: "wood",
+        LI: "fire",
+        QIAN: "metal",
+    }
+    GENERATES = {
+        "wood": "fire",
+        "fire": "earth",
+        "earth": "metal",
+        "metal": "water",
+        "water": "wood",
+    }
+    CONTROLS = {
+        "wood": "earth",
+        "earth": "water",
+        "water": "fire",
+        "fire": "metal",
+        "metal": "wood",
+    }
 
     @classmethod
     def compute_status(cls, outer_trigram: int, inner_trigram: int) -> int:
@@ -61,6 +85,20 @@ class IchingKernel:
         return {"yang_count": yang_count, "yin_count": yin_count, "balance": balance}
 
     @classmethod
+    def element_for_trigram(cls, trigram: int) -> str:
+        return cls.TRIGRAM_ELEMENTS[trigram & 0b111]
+
+    @classmethod
+    def element_relation(cls, source: str, target: str) -> str:
+        if source == target:
+            return "same"
+        if cls.GENERATES.get(source) == target:
+            return "generates"
+        if cls.CONTROLS.get(source) == target:
+            return "controls"
+        return "neutral"
+
+    @classmethod
     def should_skip(cls, status_code: int) -> bool:
         inner = status_code & 0b111
         outer = (status_code >> 3) & 0b111
@@ -92,14 +130,17 @@ class IchingKernel:
     def transition(cls, status_code: int) -> IchingTransition:
         inner = status_code & 0b111
         outer = (status_code >> 3) & 0b111
+        outer_element = cls.element_for_trigram(outer)
+        inner_element = cls.element_for_trigram(inner)
+        relation = cls.element_relation(outer_element, inner_element)
 
-        if outer == cls.LI:
+        if outer == cls.LI and relation == "controls":
             return IchingTransition(
                 status_code=cls.compute_status(cls.LI, cls.KUN),
                 action="halt",
                 reason="sovereignty_fire_suppresses_asset",
             )
-        if outer == cls.KAN:
+        if outer == cls.KAN and relation == "generates":
             return IchingTransition(
                 status_code=status_code,
                 action="checkpoint",

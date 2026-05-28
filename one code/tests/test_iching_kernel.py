@@ -104,6 +104,21 @@ class TestIchingKernel(unittest.TestCase):
             {"yang_count": 0, "yin_count": 6, "balance": "pure_yin"},
         )
 
+    def test_five_element_matrix_maps_trigrams_and_relations(self):
+        self.assertEqual(IchingKernel.element_for_trigram(IchingKernel.QIAN), "metal")
+        self.assertEqual(IchingKernel.element_for_trigram(IchingKernel.DUI), "metal")
+        self.assertEqual(IchingKernel.element_for_trigram(IchingKernel.ZHEN), "wood")
+        self.assertEqual(IchingKernel.element_for_trigram(IchingKernel.XUN), "wood")
+        self.assertEqual(IchingKernel.element_for_trigram(IchingKernel.KAN), "water")
+        self.assertEqual(IchingKernel.element_for_trigram(IchingKernel.LI), "fire")
+        self.assertEqual(IchingKernel.element_for_trigram(IchingKernel.KUN), "earth")
+        self.assertEqual(IchingKernel.element_for_trigram(IchingKernel.GEN), "earth")
+
+        self.assertEqual(IchingKernel.element_relation("water", "wood"), "generates")
+        self.assertEqual(IchingKernel.element_relation("fire", "metal"), "controls")
+        self.assertEqual(IchingKernel.element_relation("metal", "metal"), "same")
+        self.assertEqual(IchingKernel.element_relation("wood", "water"), "neutral")
+
 
 if __name__ == "__main__":
     unittest.main()
