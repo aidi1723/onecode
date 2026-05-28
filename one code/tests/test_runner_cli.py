@@ -76,19 +76,24 @@ class CliTests(unittest.TestCase):
 class RunnerSovereigntyTests(unittest.TestCase):
     def test_run_task_write_text_creates_file_and_records_sha256(self):
         with tempfile.TemporaryDirectory() as tmp:
+            original_cwd = os.getcwd()
+            os.chdir(tmp)
+            self.addCleanup(os.chdir, original_cwd)
+            workspace = Path("relative-workspace")
             result = run_task(
                 "write",
-                workspace=Path(tmp),
+                workspace=workspace,
                 run_id="write-test",
                 write_path="src/generated.py",
                 write_content="print('ok')\n",
             )
 
-            target = Path(tmp) / "src" / "generated.py"
+            target = (workspace / "src" / "generated.py").resolve()
             self.assertEqual(result["status"], "completed")
             self.assertEqual(result["decision"], "allowed")
             self.assertTrue(target.exists())
             self.assertEqual(result["sha256"], result["payload"]["sha256"])
+            self.assertEqual(result["payload"]["path"], str(target))
 
     def test_run_task_halts_illegal_write_without_creating_file(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -188,6 +193,73 @@ class CliSovereigntyTests(unittest.TestCase):
 
 
 class CliResumeFlagTests(unittest.TestCase):
+    def test_cli_accepts_repeated_write_text_arguments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "multi write",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-multi",
+                    "--write-text",
+                    "src/a.py=a = 1\n",
+                    "--write-text",
+                    "tests/test_a.py=def test_a():\n    assert True\n",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            result = json.loads(completed.stdout)
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["requested_count"], 2)
+            self.assertEqual(result["completed_count"], 2)
+            self.assertEqual(len(result["assets"]), 2)
+            self.assertEqual((Path(tmp) / "src" / "a.py").read_text(encoding="utf-8"), "a = 1\n")
+            self.assertEqual(
+                (Path(tmp) / "tests" / "test_a.py").read_text(encoding="utf-8"),
+                "def test_a():\n    assert True\n",
+            )
+
+    def test_cli_rejects_mixed_write_interfaces(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "bad args",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-conflict",
+                    "--write-path",
+                    "src/a.py",
+                    "--write-content",
+                    "a = 1\n",
+                    "--write-text",
+                    "src/b.py=b = 1\n",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("cannot combine --write-text with --write-path or --write-content", completed.stderr)
+
     def test_cli_accepts_resume_from_flag(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = os.environ.copy()
@@ -332,6 +404,150 @@ class CliResumeFlagTests(unittest.TestCase):
             self.assertFalse(result["resumed"])
             self.assertEqual(result["resumed_from"], "source-run")
             self.assertEqual(target.read_text(encoding="utf-8"), "def test_mesh():\n    assert True\n")
+
+
+class RunnerMultiAssetTests(unittest.TestCase):
+    def test_run_task_rejects_invalid_write_text_argument(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "--write-text must use PATH=CONTENT"):
+                run_task(
+                    "invalid write text",
+                    workspace=Path(tmp),
+                    run_id="invalid-write-text",
+                    write_texts=["missing-equals"],
+                )
+
+    def test_run_task_writes_multiple_assets_and_checkpoints(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_task(
+                "multi write",
+                workspace=workspace,
+                run_id="multi-write",
+                write_texts=[
+                    "src/a.py=a = 1\n",
+                    "tests/test_a.py=def test_a():\n    assert True\n",
+                ],
+            )
+
+            manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
+
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["requested_count"], 2)
+            self.assertEqual(result["completed_count"], 2)
+            self.assertEqual(result["skipped_count"], 0)
+            self.assertEqual(result["failed_count"], 0)
+            self.assertEqual(len(result["assets"]), 2)
+            self.assertEqual([asset["index"] for asset in result["assets"]], [1, 2])
+            self.assertEqual(result["assets"][0]["payload"]["path"], "src/a.py")
+            self.assertEqual(result["assets"][1]["payload"]["path"], "tests/test_a.py")
+            self.assertEqual(len(manifest["checkpoints"]), 2)
+            self.assertEqual((workspace / "src" / "a.py").read_text(encoding="utf-8"), "a = 1\n")
+            self.assertEqual(
+                (workspace / "tests" / "test_a.py").read_text(encoding="utf-8"),
+                "def test_a():\n    assert True\n",
+            )
+
+    def test_run_task_reports_completed_when_multi_asset_run_ends_with_skipped_asset(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            run_task(
+                "write ready",
+                workspace=workspace,
+                run_id="source-run",
+                write_path="src/ready.py",
+                write_content="ready = True\n",
+            )
+
+            result = run_task(
+                "resume mixed",
+                workspace=workspace,
+                run_id="mixed-run",
+                resume_from_run_id="source-run",
+                write_texts=[
+                    "src/new.py=new = True\n",
+                    "src/ready.py=should_not_overwrite\n",
+                ],
+            )
+
+            self.assertEqual(result["status"], "completed")
+            self.assertIsNone(result["reason"])
+            self.assertEqual(result["completed_count"], 1)
+            self.assertEqual(result["skipped_count"], 1)
+            self.assertEqual(result["failed_count"], 0)
+            self.assertEqual(result["assets"][0]["status"], "completed")
+            self.assertEqual(result["assets"][1]["status"], "skipped")
+            self.assertEqual(result["assets"][1]["reason"], "resumed_asset_ready")
+            self.assertEqual((workspace / "src" / "ready.py").read_text(encoding="utf-8"), "ready = True\n")
+            self.assertEqual((workspace / "src" / "new.py").read_text(encoding="utf-8"), "new = True\n")
+
+    def test_run_task_skips_ready_asset_and_writes_missing_asset_in_one_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            first = run_task(
+                "source",
+                workspace=workspace,
+                run_id="source-run",
+                write_path="src/mesh.py",
+                write_content="mesh = 'ready'\n",
+            )
+
+            result = run_task(
+                "resume multi",
+                workspace=workspace,
+                run_id="retry-run",
+                resume_from_run_id="source-run",
+                write_texts=[
+                    "src/mesh.py=mesh = 'rewritten'\n",
+                    "tests/test_mesh.py=def test_mesh():\n    assert True\n",
+                ],
+            )
+
+            manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
+
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["requested_count"], 2)
+            self.assertEqual(result["completed_count"], 1)
+            self.assertEqual(result["skipped_count"], 1)
+            self.assertEqual(result["failed_count"], 0)
+            self.assertEqual(result["assets"][0]["status"], "skipped")
+            self.assertEqual(result["assets"][0]["sha256"], first["sha256"])
+            self.assertEqual(result["assets"][1]["status"], "completed")
+            self.assertEqual(len(manifest["checkpoints"]), 2)
+            self.assertEqual((workspace / "src" / "mesh.py").read_text(encoding="utf-8"), "mesh = 'ready'\n")
+            self.assertEqual(
+                (workspace / "tests" / "test_mesh.py").read_text(encoding="utf-8"),
+                "def test_mesh():\n    assert True\n",
+            )
+
+    def test_run_task_halts_on_middle_asset_and_does_not_write_later_asset(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_task(
+                "fail fast",
+                workspace=workspace,
+                run_id="fail-fast",
+                write_texts=[
+                    "src/ok.py=ok = True\n",
+                    "../outside.py=blocked\n",
+                    "src/after.py=after = True\n",
+                ],
+            )
+
+            manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
+
+            self.assertEqual(result["status"], "halted")
+            self.assertTrue(result["partial"])
+            self.assertEqual(result["reason"], "sovereignty_breach")
+            self.assertEqual(result["requested_count"], 3)
+            self.assertEqual(result["completed_count"], 1)
+            self.assertEqual(result["skipped_count"], 0)
+            self.assertEqual(result["failed_count"], 1)
+            self.assertEqual(len(result["assets"]), 2)
+            self.assertEqual(len(manifest["checkpoints"]), 2)
+            self.assertTrue((workspace / "src" / "ok.py").exists())
+            self.assertFalse((workspace / "src" / "after.py").exists())
+            self.assertFalse((workspace.parent / "outside.py").exists())
 
 
 if __name__ == "__main__":
