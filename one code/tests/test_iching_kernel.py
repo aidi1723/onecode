@@ -68,6 +68,20 @@ class TestIchingKernel(unittest.TestCase):
             IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
         )
 
+    def test_four_symbols_project_status_into_three_two_bit_views(self):
+        status = 0b110100
+
+        self.assertEqual(
+            IchingKernel.four_symbols(status),
+            [
+                {"pair_index": 0, "bits": 0b00, "symbol": "tai_yin"},
+                {"pair_index": 1, "bits": 0b01, "symbol": "shao_yang"},
+                {"pair_index": 2, "bits": 0b11, "symbol": "tai_yang"},
+            ],
+        )
+
+        self.assertEqual(IchingKernel.four_symbol_for_bits(0b10), "shao_yin")
+
 
 if __name__ == "__main__":
     unittest.main()

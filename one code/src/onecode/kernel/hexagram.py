@@ -18,9 +18,31 @@ class IchingKernel:
     LI = 0b110
     QIAN = 0b111
 
+    FOUR_SYMBOLS = {
+        0b00: "tai_yin",
+        0b01: "shao_yang",
+        0b10: "shao_yin",
+        0b11: "tai_yang",
+    }
+
     @classmethod
     def compute_status(cls, outer_trigram: int, inner_trigram: int) -> int:
         return ((outer_trigram & 0b111) << 3) | (inner_trigram & 0b111)
+
+    @classmethod
+    def four_symbol_for_bits(cls, bits: int) -> str:
+        return cls.FOUR_SYMBOLS[bits & 0b11]
+
+    @classmethod
+    def four_symbols(cls, status_code: int) -> list[dict[str, int | str]]:
+        return [
+            {
+                "pair_index": pair_index,
+                "bits": (status_code >> (pair_index * 2)) & 0b11,
+                "symbol": cls.four_symbol_for_bits((status_code >> (pair_index * 2)) & 0b11),
+            }
+            for pair_index in range(3)
+        ]
 
     @classmethod
     def should_skip(cls, status_code: int) -> bool:
