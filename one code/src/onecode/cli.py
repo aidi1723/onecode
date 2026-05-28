@@ -125,9 +125,12 @@ def read_json(path: Path) -> tuple[dict | None, str | None]:
     if not path.exists():
         return None, None
     try:
-        return json.loads(path.read_text(encoding="utf-8")), None
+        data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return None, str(path)
+    if not isinstance(data, dict):
+        return None, str(path)
+    return data, None
 
 
 def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:

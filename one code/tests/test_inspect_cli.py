@@ -119,6 +119,38 @@ class InspectCliTests(unittest.TestCase):
             self.assertIn("manifest.json", error["corrupt_path"])
             self.assertNotIn("Traceback", completed.stderr)
 
+    def test_cli_inspect_non_object_json_returns_corrupt_without_traceback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            run_root = Path(tmp) / ".onecode" / "runs" / "list-run"
+            run_root.mkdir(parents=True)
+            (run_root / "manifest.json").write_text("[]", encoding="utf-8")
+            (run_root / "ledger.json").write_text('{"status": "completed"}', encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "inspect",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "list-run",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            error = json.loads(completed.stdout)
+            self.assertEqual(error["status"], "corrupt")
+            self.assertEqual(error["run_id"], "list-run")
+            self.assertIn("manifest.json", error["corrupt_path"])
+            self.assertNotIn("Traceback", completed.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
