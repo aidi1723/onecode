@@ -157,7 +157,16 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
             "manifest_path": str(manifest_path),
             "ledger_path": str(ledger_path),
         }
-    checkpoints = manifest.get("checkpoints", [])
+    if "checkpoints" not in manifest:
+        return 1, {
+            "run_id": run_id,
+            "status": "corrupt",
+            "corrupt_path": str(manifest_path),
+            "corrupt_reason": "missing_checkpoints",
+            "manifest_path": str(manifest_path),
+            "ledger_path": str(ledger_path),
+        }
+    checkpoints = manifest["checkpoints"]
     if not isinstance(checkpoints, list):
         return 1, {
             "run_id": run_id,
