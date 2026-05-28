@@ -182,9 +182,8 @@ def list_runs(workspace: Path) -> dict:
         return {"workspace": str(workspace), "runs": []}
     runs = []
     for run_dir in sorted(path for path in runs_root.iterdir() if path.is_dir()):
-        exit_code, summary = inspect_run(resolved_workspace, run_dir.name)
-        if exit_code == 0:
-            runs.append(summary)
+        _, summary = inspect_run(resolved_workspace, run_dir.name)
+        runs.append(summary)
     return {"workspace": str(workspace), "runs": runs}
 
 
