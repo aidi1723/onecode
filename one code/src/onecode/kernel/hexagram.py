@@ -45,6 +45,22 @@ class IchingKernel:
         ]
 
     @classmethod
+    def yin_yang_profile(cls, status_code: int) -> dict[str, int | str]:
+        yang_count = (status_code & 0b111111).bit_count()
+        yin_count = 6 - yang_count
+        if yang_count == 6:
+            balance = "pure_yang"
+        elif yang_count == 5:
+            balance = "yang_excess"
+        elif yang_count in {3, 4}:
+            balance = "balanced"
+        elif yang_count in {1, 2}:
+            balance = "yin_excess"
+        else:
+            balance = "pure_yin"
+        return {"yang_count": yang_count, "yin_count": yin_count, "balance": balance}
+
+    @classmethod
     def should_skip(cls, status_code: int) -> bool:
         inner = status_code & 0b111
         outer = (status_code >> 3) & 0b111
@@ -89,7 +105,8 @@ class IchingKernel:
                 action="checkpoint",
                 reason="network_water_preserves_resume_seed",
             )
-        if (status_code & 0b111111).bit_count() >= 5:
+        profile = cls.yin_yang_profile(status_code)
+        if profile["balance"] in {"pure_yang", "yang_excess"}:
             return IchingTransition(
                 status_code=cls.compute_status(cls.GEN, inner),
                 action="halt",

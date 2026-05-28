@@ -82,6 +82,28 @@ class TestIchingKernel(unittest.TestCase):
 
         self.assertEqual(IchingKernel.four_symbol_for_bits(0b10), "shao_yin")
 
+    def test_yin_yang_profile_classifies_balance_states(self):
+        self.assertEqual(
+            IchingKernel.yin_yang_profile(0b111111),
+            {"yang_count": 6, "yin_count": 0, "balance": "pure_yang"},
+        )
+        self.assertEqual(
+            IchingKernel.yin_yang_profile(0b011111),
+            {"yang_count": 5, "yin_count": 1, "balance": "yang_excess"},
+        )
+        self.assertEqual(
+            IchingKernel.yin_yang_profile(0b001111),
+            {"yang_count": 4, "yin_count": 2, "balance": "balanced"},
+        )
+        self.assertEqual(
+            IchingKernel.yin_yang_profile(0b000011),
+            {"yang_count": 2, "yin_count": 4, "balance": "yin_excess"},
+        )
+        self.assertEqual(
+            IchingKernel.yin_yang_profile(0b000000),
+            {"yang_count": 0, "yin_count": 6, "balance": "pure_yin"},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
