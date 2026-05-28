@@ -7,6 +7,7 @@ from onecode.kernel.runner import run_task
 
 
 VALID_RUN_STATUSES = {"completed", "skipped", "denied", "halted"}
+LEDGER_COUNT_FIELDS = ("requested_count", "completed_count", "skipped_count", "failed_count")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -146,6 +147,13 @@ def validate_status_document(data: dict, path: Path) -> tuple[str | None, str | 
     return None, None
 
 
+def validate_ledger_counts(ledger: dict, path: Path) -> tuple[str | None, str | None]:
+    for field in LEDGER_COUNT_FIELDS:
+        if field in ledger and (not isinstance(ledger[field], int) or ledger[field] < 0):
+            return str(path), "invalid_count"
+    return None, None
+
+
 def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
     evidence_root = workspace.resolve() / ".onecode" / "runs" / run_id
     manifest_path = evidence_root / "manifest.json"
@@ -188,6 +196,16 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
             "status": "corrupt",
             "corrupt_path": str(ledger_path),
             "corrupt_reason": "status_mismatch",
+            "manifest_path": str(manifest_path),
+            "ledger_path": str(ledger_path),
+        }
+    corrupt_path, corrupt_reason = validate_ledger_counts(ledger, ledger_path)
+    if corrupt_path is not None:
+        return 1, {
+            "run_id": run_id,
+            "status": "corrupt",
+            "corrupt_path": corrupt_path,
+            "corrupt_reason": corrupt_reason,
             "manifest_path": str(manifest_path),
             "ledger_path": str(ledger_path),
         }
