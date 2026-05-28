@@ -221,6 +221,24 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(IchingKernel.element_relation("metal", "metal"), "same")
         self.assertEqual(IchingKernel.element_relation("wood", "water"), "neutral")
 
+    def test_five_element_records_cover_generation_and_control_cross_matrix(self):
+        records = IchingKernel.element_records()
+
+        self.assertEqual(set(records.keys()), {"wood", "fire", "earth", "metal", "water"})
+        self.assertEqual(records["water"]["generates"], "wood")
+        self.assertEqual(records["water"]["generated_by"], "metal")
+        self.assertEqual(records["water"]["controls"], "fire")
+        self.assertEqual(records["water"]["controlled_by"], "earth")
+
+        matrix = IchingKernel.element_matrix()
+        self.assertEqual(len(matrix), 25)
+        self.assertEqual(matrix[("water", "wood")], "generates")
+        self.assertEqual(matrix[("wood", "water")], "generated_by")
+        self.assertEqual(matrix[("fire", "metal")], "controls")
+        self.assertEqual(matrix[("metal", "fire")], "controlled_by")
+        self.assertEqual(matrix[("earth", "earth")], "same")
+        self.assertEqual(matrix[("wood", "metal")], "controlled_by")
+
     def test_element_dynamics_modulates_relation_with_yin_yang_pressure(self):
         hard_control = IchingKernel.element_dynamics(IchingKernel.compute_status(IchingKernel.LI, IchingKernel.QIAN))
         self.assertEqual(hard_control["outer_element"], "fire")
@@ -271,6 +289,9 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(profile["trigram_records"][IchingKernel.LI]["element"], "fire")
         self.assertEqual(profile["outer_element"], "metal")
         self.assertEqual(profile["inner_element"], "metal")
+        self.assertEqual(profile["element_records"]["water"]["generates"], "wood")
+        self.assertEqual(profile["element_matrix"]["fire->metal"], "controls")
+        self.assertEqual(profile["element_matrix"]["metal->fire"], "controlled_by")
         self.assertEqual(profile["element_relation"], "same")
         self.assertEqual(profile["element_dynamics"]["modulation"], "normal")
         self.assertEqual(profile["yin_yang"]["balance"], "yang_excess")
@@ -299,6 +320,8 @@ class TestIchingKernel(unittest.TestCase):
             [
                 "inner_element",
                 "outer_element",
+                "element_records",
+                "element_matrix",
                 "element_relation",
                 "element_dynamics",
             ],

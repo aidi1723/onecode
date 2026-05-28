@@ -72,6 +72,8 @@ class IchingKernel:
         "correspondence_derived": [
             "inner_element",
             "outer_element",
+            "element_records",
+            "element_matrix",
             "element_relation",
             "element_dynamics",
         ],
@@ -231,6 +233,40 @@ class IchingKernel:
         return "neutral"
 
     @classmethod
+    def element_records(cls) -> dict[str, dict[str, str]]:
+        elements = tuple(cls.GENERATES.keys())
+        return {
+            element: {
+                "element": element,
+                "generates": cls.GENERATES[element],
+                "generated_by": next(source for source, target in cls.GENERATES.items() if target == element),
+                "controls": cls.CONTROLS[element],
+                "controlled_by": next(source for source, target in cls.CONTROLS.items() if target == element),
+            }
+            for element in elements
+        }
+
+    @classmethod
+    def element_matrix(cls) -> dict[tuple[str, str], str]:
+        elements = tuple(cls.GENERATES.keys())
+        return {
+            (source, target): cls.element_cross_relation(source, target)
+            for source in elements
+            for target in elements
+        }
+
+    @classmethod
+    def element_cross_relation(cls, source: str, target: str) -> str:
+        relation = cls.element_relation(source, target)
+        if relation != "neutral":
+            return relation
+        if cls.GENERATES.get(target) == source:
+            return "generated_by"
+        if cls.CONTROLS.get(target) == source:
+            return "controlled_by"
+        return "neutral"
+
+    @classmethod
     def element_dynamics(cls, status_code: int) -> dict[str, str]:
         normalized = status_code & 0b111111
         inner = normalized & 0b111
@@ -272,6 +308,8 @@ class IchingKernel:
             "trigram_records": cls.trigram_records(),
             "outer_element": outer_element,
             "inner_element": inner_element,
+            "element_records": cls.element_records(),
+            "element_matrix": {f"{source}->{target}": relation for (source, target), relation in cls.element_matrix().items()},
             "element_relation": cls.element_relation(outer_element, inner_element),
             "element_dynamics": cls.element_dynamics(normalized),
             "yin_yang": cls.yin_yang_cross_profile(normalized),
