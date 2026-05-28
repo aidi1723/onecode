@@ -158,6 +158,15 @@ def validate_ledger_counts(ledger: dict, path: Path) -> tuple[str | None, str | 
     return None, None
 
 
+def validate_checkpoint_evidence(checkpoints: list[dict], path: Path) -> tuple[str | None, str | None]:
+    for checkpoint in checkpoints:
+        if not isinstance(checkpoint.get("path"), str) or not checkpoint["path"]:
+            return str(path), "invalid_checkpoint_evidence"
+        if not isinstance(checkpoint.get("sha256"), str) or not checkpoint["sha256"]:
+            return str(path), "invalid_checkpoint_evidence"
+    return None, None
+
+
 def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
     evidence_root = workspace.resolve() / ".onecode" / "runs" / run_id
     manifest_path = evidence_root / "manifest.json"
@@ -238,6 +247,16 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
             "status": "corrupt",
             "corrupt_path": str(manifest_path),
             "corrupt_reason": "invalid_checkpoint_entry",
+            "manifest_path": str(manifest_path),
+            "ledger_path": str(ledger_path),
+        }
+    corrupt_path, corrupt_reason = validate_checkpoint_evidence(checkpoints, manifest_path)
+    if corrupt_path is not None:
+        return 1, {
+            "run_id": run_id,
+            "status": "corrupt",
+            "corrupt_path": corrupt_path,
+            "corrupt_reason": corrupt_reason,
             "manifest_path": str(manifest_path),
             "ledger_path": str(ledger_path),
         }
