@@ -121,18 +121,30 @@ def run_doctor() -> dict:
     return {"status": "ok" if all(check["passed"] for check in checks) else "failed", "checks": checks}
 
 
-def read_json(path: Path) -> dict | None:
+def read_json(path: Path) -> tuple[dict | None, str | None]:
     if not path.exists():
-        return None
-    return json.loads(path.read_text(encoding="utf-8"))
+        return None, None
+    try:
+        return json.loads(path.read_text(encoding="utf-8")), None
+    except json.JSONDecodeError:
+        return None, str(path)
 
 
 def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
     evidence_root = workspace.resolve() / ".onecode" / "runs" / run_id
     manifest_path = evidence_root / "manifest.json"
     ledger_path = evidence_root / "ledger.json"
-    manifest = read_json(manifest_path)
-    ledger = read_json(ledger_path)
+    manifest, corrupt_manifest_path = read_json(manifest_path)
+    ledger, corrupt_ledger_path = read_json(ledger_path)
+    corrupt_path = corrupt_manifest_path or corrupt_ledger_path
+    if corrupt_path is not None:
+        return 1, {
+            "run_id": run_id,
+            "status": "corrupt",
+            "corrupt_path": corrupt_path,
+            "manifest_path": str(manifest_path),
+            "ledger_path": str(ledger_path),
+        }
     if manifest is None or ledger is None:
         return 1, {
             "run_id": run_id,
