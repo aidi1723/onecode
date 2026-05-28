@@ -296,6 +296,7 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
         "status": ledger.get("status", manifest.get("status")),
         "partial": ledger.get("partial", manifest.get("partial")),
         "reason": ledger.get("reason", manifest.get("reason")),
+        "resumed_from": ledger.get("resumed_from", manifest.get("resumed_from")),
         "requested_count": ledger.get("requested_count"),
         "completed_count": ledger.get("completed_count"),
         "skipped_count": ledger.get("skipped_count"),

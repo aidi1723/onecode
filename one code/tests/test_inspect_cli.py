@@ -63,6 +63,86 @@ class InspectCliTests(unittest.TestCase):
             self.assertTrue(Path(summary["ledger_path"]).exists())
             self.assertIn("iching_status_code", summary)
 
+    def test_cli_inspect_reports_resumed_project_dry_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "source project",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "project-source",
+                    "--write-text",
+                    "src/mesh.py=READY = True\n",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            resumed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "resume project",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "project-resume",
+                    "--resume-from",
+                    "project-source",
+                    "--write-text",
+                    "src/mesh.py=READY = False\n",
+                    "--write-text",
+                    "tests/test_mesh.py=def test_mesh():\n    assert True\n",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            run_result = json.loads(resumed.stdout)
+
+            inspected = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "inspect",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "project-resume",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            summary = json.loads(inspected.stdout)
+            self.assertEqual(run_result["status"], "completed")
+            self.assertEqual(summary["status"], "completed")
+            self.assertEqual(summary["resumed_from"], "project-source")
+            self.assertEqual(summary["requested_count"], 2)
+            self.assertEqual(summary["completed_count"], 1)
+            self.assertEqual(summary["skipped_count"], 1)
+            self.assertEqual(summary["failed_count"], 0)
+            self.assertEqual(summary["checkpoint_count"], 2)
+            self.assertEqual((Path(tmp) / "src" / "mesh.py").read_text(encoding="utf-8"), "READY = True\n")
+            self.assertEqual(
+                (Path(tmp) / "tests" / "test_mesh.py").read_text(encoding="utf-8"),
+                "def test_mesh():\n    assert True\n",
+            )
+
     def test_cli_inspect_missing_run_returns_nonzero(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = os.environ.copy()
