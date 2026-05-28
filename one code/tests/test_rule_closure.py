@@ -22,6 +22,9 @@ class RuleClosureTests(unittest.TestCase):
         self.assertIn("yin-yang", text)
         self.assertIn("five-element", text)
         self.assertIn("forbidden parallel control variables", text)
+        self.assertIn("Rule Discovery Protocol", text)
+        self.assertIn("Bug reports are rule-gap probes", text)
+        self.assertIn("discover", text)
 
     def test_kernel_source_forbids_parallel_control_variables(self):
         offending_names = set()

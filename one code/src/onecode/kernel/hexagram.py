@@ -344,7 +344,7 @@ class IchingKernel:
 
     @classmethod
     def classify_outcome(cls, status: str, reason: str | None) -> int:
-        if reason == "sovereignty_breach":
+        if reason in {"sovereignty_breach", "permission_denied"}:
             return cls.compute_status(cls.LI, cls.KUN)
         if reason == "http_timeout":
             return cls.compute_status(cls.KAN, cls.ZHEN)
@@ -375,6 +375,12 @@ class IchingKernel:
                 action="halt",
                 reason="sovereignty_fire_suppresses_asset",
             )
+        if (status_code >> 3) & 0b111 == cls.LI:
+            return IchingTransition(
+                status_code=status_code,
+                action="halt",
+                reason="sovereignty_fire_boundary_halt",
+            )
         if dynamics["modulation"] == "recovery_seed":
             return IchingTransition(
                 status_code=status_code,
@@ -387,6 +393,12 @@ class IchingKernel:
                 status_code=cls.compute_status(cls.GEN, inner),
                 action="cooldown",
                 reason="yang_overload_cooldown",
+            )
+        if status_code == cls.compute_status(cls.KUN, cls.KUN):
+            return IchingTransition(
+                status_code=status_code,
+                action="discover",
+                reason="rule_gap_requires_mapping",
             )
         return IchingTransition(status_code=status_code, action="continue", reason=None)
 

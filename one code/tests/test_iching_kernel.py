@@ -20,6 +20,10 @@ class TestIchingKernel(unittest.TestCase):
             IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
         )
         self.assertEqual(
+            IchingKernel.classify_outcome(status="denied", reason="permission_denied"),
+            IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
+        )
+        self.assertEqual(
             IchingKernel.classify_outcome(status="halted", reason="http_timeout"),
             IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN),
         )
@@ -39,6 +43,12 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(fire_transition.action, "halt")
         self.assertEqual(fire_transition.reason, "sovereignty_fire_suppresses_asset")
 
+        fire_over_empty_asset = IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN)
+        fire_boundary_transition = IchingKernel.transition(fire_over_empty_asset)
+        self.assertEqual(fire_boundary_transition.status_code, fire_over_empty_asset)
+        self.assertEqual(fire_boundary_transition.action, "halt")
+        self.assertEqual(fire_boundary_transition.reason, "sovereignty_fire_boundary_halt")
+
         water_over_write_momentum = IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)
         water_transition = IchingKernel.transition(water_over_write_momentum)
         self.assertEqual(water_transition.status_code, water_over_write_momentum)
@@ -50,6 +60,10 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(cooled_transition.status_code, IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.QIAN))
         self.assertEqual(cooled_transition.action, "cooldown")
         self.assertEqual(cooled_transition.reason, "yang_overload_cooldown")
+
+        unmapped_transition = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN))
+        self.assertEqual(unmapped_transition.action, "discover")
+        self.assertEqual(unmapped_transition.reason, "rule_gap_requires_mapping")
 
     def test_transition_consumes_element_dynamics_modulation(self):
         status = IchingKernel.compute_status(IchingKernel.LI, IchingKernel.QIAN)

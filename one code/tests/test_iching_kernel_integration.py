@@ -83,6 +83,30 @@ class IchingKernelIntegrationTests(unittest.TestCase):
             self.assertEqual(manifest["checkpoints"][-1]["iching_profile"]["status_code"], expected)
             self.assertFalse((workspace / "src" / "c.py").exists())
 
+    def test_denied_tool_records_li_kun_status_code(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_task(
+                "denied tool",
+                workspace=workspace,
+                run_id="denied-li-kun-run",
+                intent_type="bash_execution",
+                command="echo blocked",
+            )
+
+            manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
+            expected = IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN)
+
+            self.assertEqual(result["status"], "denied")
+            self.assertEqual(result["reason"], "permission_denied")
+            self.assertEqual(result["iching_status_code"], expected)
+            self.assertEqual(result["iching_transition_action"], "halt")
+            self.assertEqual(result["iching_transition_reason"], "sovereignty_fire_boundary_halt")
+            self.assertEqual(manifest["iching_status_code"], expected)
+            self.assertEqual(manifest["iching_transition_action"], "halt")
+            self.assertEqual(manifest["checkpoints"][-1]["iching_status_code"], expected)
+            self.assertEqual(manifest["checkpoints"][-1]["iching_transition_reason"], "sovereignty_fire_boundary_halt")
+
     def test_completed_multi_asset_run_records_gen_qian_status_code(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
