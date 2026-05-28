@@ -72,6 +72,37 @@ PYTHONPATH=src python3 -m onecode run "resume asset" \
 
 If the prior asset exists and its SHA256 matches the old manifest, OneCode skips the write and records `resumed_asset_ready`.
 
+## Run Plan
+
+Run a structured task plan:
+
+```json
+{
+  "task": "build demo",
+  "assets": [
+    {"path": "src/demo.py", "content": "value = 1\n"},
+    {"path": "tests/test_demo.py", "content": "def test_demo():\n    assert True\n"}
+  ]
+}
+```
+
+```bash
+PYTHONPATH=src python3 -m onecode run-plan \
+  --workspace /tmp/onecode-demo \
+  --run-id demo-plan \
+  --plan /tmp/onecode-demo/task-plan.json
+```
+
+Resume a plan-backed task through the same checkpoint and skip rules:
+
+```bash
+PYTHONPATH=src python3 -m onecode run-plan \
+  --workspace /tmp/onecode-demo \
+  --run-id demo-plan-resume \
+  --resume-from demo-plan \
+  --plan /tmp/onecode-demo/task-plan.json
+```
+
 ## Inspect
 
 Inspect one run:

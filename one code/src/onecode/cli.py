@@ -31,6 +31,13 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--command", dest="intent_command", default=None)
     run_parser.add_argument("--resume-from", default=None)
 
+    run_plan_parser = subparsers.add_parser("run-plan")
+    run_plan_parser.add_argument("--workspace", default=".")
+    run_plan_parser.add_argument("--plan", required=True)
+    run_plan_parser.add_argument("--http-timeout-seconds", type=float, default=60)
+    run_plan_parser.add_argument("--run-id", default=None)
+    run_plan_parser.add_argument("--resume-from", default=None)
+
     inspect_parser = subparsers.add_parser("inspect")
     inspect_parser.add_argument("--workspace", default=".")
     inspect_parser.add_argument("--run-id", required=True)
@@ -139,6 +146,33 @@ def read_json(path: Path) -> tuple[dict | None, str | None, str | None]:
     if not isinstance(data, dict):
         return None, str(path), "non_object_json"
     return data, None, None
+
+
+def load_task_plan(path: Path) -> tuple[str, list[str]]:
+    data, corrupt_path, corrupt_reason = read_json(path)
+    if corrupt_path is not None:
+        raise ValueError(f"invalid plan: {corrupt_reason}")
+    if data is None:
+        raise ValueError("invalid plan: missing_file")
+    task = data.get("task", "plan")
+    if not isinstance(task, str) or not task:
+        raise ValueError("invalid plan: task must be a non-empty string")
+    assets = data.get("assets")
+    if not isinstance(assets, list) or not assets:
+        raise ValueError("invalid plan: assets must be a non-empty list")
+
+    write_texts = []
+    for index, asset in enumerate(assets, start=1):
+        if not isinstance(asset, dict):
+            raise ValueError(f"invalid plan asset {index}: asset must be an object")
+        path = asset.get("path")
+        content = asset.get("content")
+        if not isinstance(path, str) or not path:
+            raise ValueError(f"invalid plan asset {index}: path must be a non-empty string")
+        if not isinstance(content, str):
+            raise ValueError(f"invalid plan asset {index}: content must be a string")
+        write_texts.append(f"{path}={content}")
+    return task, write_texts
 
 
 def validate_status_document(data: dict, path: Path) -> tuple[str | None, str | None]:
@@ -401,6 +435,22 @@ def main(argv: list[str] | None = None) -> int:
         result = run_doctor()
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 0 if result["status"] == "ok" else 1
+
+    if args.subcommand == "run-plan":
+        try:
+            task, write_texts = load_task_plan(Path(args.plan))
+            result = run_task(
+                task,
+                workspace=Path(args.workspace),
+                http_timeout_seconds=args.http_timeout_seconds,
+                run_id=args.run_id,
+                write_texts=write_texts,
+                resume_from_run_id=args.resume_from,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return 1 if result["status"] in {"denied", "halted"} else 0
 
     if args.subcommand == "run":
         if args.write_text and (args.write_path is not None or args.write_content is not None):
