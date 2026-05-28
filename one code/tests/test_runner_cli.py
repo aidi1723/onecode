@@ -467,6 +467,45 @@ class RunnerMultiAssetTests(unittest.TestCase):
             self.assertEqual((workspace / "src" / "ready.py").read_text(encoding="utf-8"), "ready = True\n")
             self.assertEqual((workspace / "src" / "new.py").read_text(encoding="utf-8"), "new = True\n")
 
+    def test_run_task_skips_ready_asset_and_writes_missing_asset_in_one_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            first = run_task(
+                "source",
+                workspace=workspace,
+                run_id="source-run",
+                write_path="src/mesh.py",
+                write_content="mesh = 'ready'\n",
+            )
+
+            result = run_task(
+                "resume multi",
+                workspace=workspace,
+                run_id="retry-run",
+                resume_from_run_id="source-run",
+                write_texts=[
+                    "src/mesh.py=mesh = 'rewritten'\n",
+                    "tests/test_mesh.py=def test_mesh():\n    assert True\n",
+                ],
+            )
+
+            manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
+
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["requested_count"], 2)
+            self.assertEqual(result["completed_count"], 1)
+            self.assertEqual(result["skipped_count"], 1)
+            self.assertEqual(result["failed_count"], 0)
+            self.assertEqual(result["assets"][0]["status"], "skipped")
+            self.assertEqual(result["assets"][0]["sha256"], first["sha256"])
+            self.assertEqual(result["assets"][1]["status"], "completed")
+            self.assertEqual(len(manifest["checkpoints"]), 2)
+            self.assertEqual((workspace / "src" / "mesh.py").read_text(encoding="utf-8"), "mesh = 'ready'\n")
+            self.assertEqual(
+                (workspace / "tests" / "test_mesh.py").read_text(encoding="utf-8"),
+                "def test_mesh():\n    assert True\n",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
