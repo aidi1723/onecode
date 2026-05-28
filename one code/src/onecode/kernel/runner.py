@@ -63,6 +63,18 @@ def should_skip_ready_asset(ready_asset: ReadyAsset | None, preflight: Any) -> b
     return IchingKernel.should_skip(status_code)
 
 
+def iching_status_for_result(gate_result: dict[str, Any]) -> int:
+    if gate_result["reason"] == "sovereignty_breach":
+        return IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN)
+    if gate_result["reason"] == "http_timeout":
+        return IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)
+    if gate_result["status"] == "skipped":
+        return IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI)
+    if gate_result["status"] == "completed":
+        return IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN)
+    return IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN)
+
+
 def run_intent(
     task: str,
     context: Any,
@@ -119,6 +131,7 @@ def asset_entry(
     gate_result: dict[str, Any],
     preflight_decision: Any,
     intent_type: str,
+    iching_status_code: int,
     payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     entry = {
@@ -131,6 +144,7 @@ def asset_entry(
         "payload": payload if payload is not None else gate_result["payload"],
         "raw_payload": gate_result["payload"],
         "resumed": gate_result["status"] == "skipped",
+        "iching_status_code": iching_status_code,
     }
     if "sha256" in gate_result["payload"]:
         entry["sha256"] = gate_result["payload"]["sha256"]
@@ -162,6 +176,7 @@ def run_task(
 
     for index, intent in enumerate(intents, start=1):
         gate_result, preflight = run_intent(task, context, gate, intent, simulated_action_seconds)
+        iching_status_code = iching_status_for_result(gate_result)
         checkpoint_payload = gate_result["payload"]
         entry_payload = checkpoint_payload
         if intent.action_type.value == "write_text" and "sha256" in checkpoint_payload:
@@ -176,8 +191,9 @@ def run_task(
             reason=gate_result["reason"],
             intent_type=intent.action_type.value,
             decision=preflight.decision.value,
+            iching_status_code=iching_status_code,
         )
-        assets.append(asset_entry(index, gate_result, preflight, intent.action_type.value, entry_payload))
+        assets.append(asset_entry(index, gate_result, preflight, intent.action_type.value, iching_status_code, entry_payload))
         if gate_result["status"] in {"denied", "halted"}:
             break
 
@@ -206,6 +222,7 @@ def run_task(
         "completed_count": completed_count,
         "skipped_count": skipped_count,
         "failed_count": failed_count,
+        "iching_status_code": last_asset["iching_status_code"],
     }
     if "sha256" in last_asset:
         result["sha256"] = last_asset["sha256"]
