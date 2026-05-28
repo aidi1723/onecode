@@ -102,3 +102,9 @@ Each run contains `manifest.json`, `ledger.json`, and checkpoint files.
 All physical writes go through `PathGuard.write_text()` after `LogosGate.preflight()`. The current write surface is intentionally limited to `write_text`.
 
 The kernel records an `iching_profile` in run evidence. This profile is a deterministic control view over status bits, yin-yang balance, four-symbol windows, trigram records, five-element relations, and runtime transition decisions.
+
+## Rule Closure Principle
+
+OneCode rule: external facts are evidence, not law. Filesystem presence, SHA256 matches, path traversal, permission denial, and timeout are sampled as physical evidence, then collapsed into the existing rule surface: `6-bit status_code`, yin-yang pressure, four-symbol windows, trigrams, five-element dynamics, and `IchingKernel.transition()`.
+
+Bug fixes must close inside that rule surface. If a test exposes a runtime split, the fix should refine classification, yin-yang balance, five-element relations, or transition behavior. It must not add forbidden parallel control variables such as confidence levels, model moods, manual priorities, retry scores, or external policy flags.
