@@ -48,7 +48,7 @@ class TestIchingKernel(unittest.TestCase):
         pure_qian = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN)
         cooled_transition = IchingKernel.transition(pure_qian)
         self.assertEqual(cooled_transition.status_code, IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.QIAN))
-        self.assertEqual(cooled_transition.action, "halt")
+        self.assertEqual(cooled_transition.action, "cooldown")
         self.assertEqual(cooled_transition.reason, "yang_overload_cooldown")
 
     def test_transition_consumes_element_dynamics_modulation(self):

@@ -385,7 +385,7 @@ class IchingKernel:
         if profile["balance"] in {"pure_yang", "yang_excess"}:
             return IchingTransition(
                 status_code=cls.compute_status(cls.GEN, inner),
-                action="halt",
+                action="cooldown",
                 reason="yang_overload_cooldown",
             )
         return IchingTransition(status_code=status_code, action="continue", reason=None)
