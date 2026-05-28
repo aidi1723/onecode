@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from onecode.kernel.runner import run_task
 
@@ -519,6 +520,31 @@ class RunnerMultiAssetTests(unittest.TestCase):
                 (workspace / "tests" / "test_mesh.py").read_text(encoding="utf-8"),
                 "def test_mesh():\n    assert True\n",
             )
+
+    def test_run_task_uses_iching_kernel_for_resume_skip_decision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            run_task(
+                "source",
+                workspace=workspace,
+                run_id="source-run",
+                write_path="src/mesh.py",
+                write_content="mesh = 'ready'\n",
+            )
+
+            with patch("onecode.kernel.runner.IchingKernel.should_skip", return_value=False):
+                result = run_task(
+                    "resume through iching",
+                    workspace=workspace,
+                    run_id="retry-run",
+                    resume_from_run_id="source-run",
+                    write_path="src/mesh.py",
+                    write_content="mesh = 'rewritten'\n",
+                )
+
+            self.assertEqual(result["status"], "completed")
+            self.assertFalse(result["resumed"])
+            self.assertEqual((workspace / "src" / "mesh.py").read_text(encoding="utf-8"), "mesh = 'rewritten'\n")
 
     def test_run_task_halts_on_middle_asset_and_does_not_write_later_asset(self):
         with tempfile.TemporaryDirectory() as tmp:

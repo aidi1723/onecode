@@ -5,7 +5,7 @@ from typing import Any
 from onecode.kernel.action_intent import ActionIntent
 from onecode.kernel.checkpoint import write_checkpoint, write_ledger
 from onecode.kernel.context import create_context
-from onecode.kernel.hexagram import COMPLETE
+from onecode.kernel.hexagram import COMPLETE, IchingKernel
 from onecode.kernel.logos_gate import LogosGate
 from onecode.kernel.path_guard import PathGuard
 from onecode.kernel.permission_matrix import Decision
@@ -54,6 +54,15 @@ def ready_asset_for_intent(context: Any, intent: ActionIntent) -> ReadyAsset | N
     return context.resume_state.ready_assets.get(intent.payload["path"])
 
 
+def should_skip_ready_asset(ready_asset: ReadyAsset | None, preflight: Any) -> bool:
+    if ready_asset is None:
+        return False
+    if preflight.decision != Decision.ALLOWED:
+        return False
+    status_code = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI)
+    return IchingKernel.should_skip(status_code)
+
+
 def run_intent(
     task: str,
     context: Any,
@@ -78,7 +87,7 @@ def run_intent(
             "reason": preflight.reason,
             "payload": preflight.to_dict(),
         }, preflight
-    if preflight.decision == Decision.ALLOWED and ready_asset is not None:
+    if should_skip_ready_asset(ready_asset, preflight):
         return {
             "status": "skipped",
             "partial": False,
