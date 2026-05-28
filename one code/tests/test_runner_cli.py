@@ -261,6 +261,33 @@ class CliResumeFlagTests(unittest.TestCase):
             self.assertNotEqual(completed.returncode, 0)
             self.assertIn("cannot combine --write-text with --write-path or --write-content", completed.stderr)
 
+    def test_cli_rejects_invalid_write_text_without_traceback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "bad write text",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-bad-write-text",
+                    "--write-text",
+                    "missing-equals",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("--write-text must use PATH=CONTENT with a non-empty path", completed.stderr)
+            self.assertNotIn("Traceback", completed.stderr)
+
     def test_cli_accepts_resume_from_flag(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = os.environ.copy()

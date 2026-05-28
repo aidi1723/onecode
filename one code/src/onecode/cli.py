@@ -198,19 +198,22 @@ def main(argv: list[str] | None = None) -> int:
     if args.subcommand == "run":
         if args.write_text and (args.write_path is not None or args.write_content is not None):
             parser.error("cannot combine --write-text with --write-path or --write-content")
-        result = run_task(
-            args.task,
-            workspace=Path(args.workspace),
-            http_timeout_seconds=args.http_timeout_seconds,
-            run_id=args.run_id,
-            simulated_action_seconds=args.simulate_action_seconds,
-            write_path=args.write_path,
-            write_content=args.write_content,
-            write_texts=args.write_text,
-            intent_type=args.intent_type,
-            command=args.intent_command,
-            resume_from_run_id=args.resume_from,
-        )
+        try:
+            result = run_task(
+                args.task,
+                workspace=Path(args.workspace),
+                http_timeout_seconds=args.http_timeout_seconds,
+                run_id=args.run_id,
+                simulated_action_seconds=args.simulate_action_seconds,
+                write_path=args.write_path,
+                write_content=args.write_content,
+                write_texts=args.write_text,
+                intent_type=args.intent_type,
+                command=args.intent_command,
+                resume_from_run_id=args.resume_from,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 1 if result["status"] in {"denied", "halted"} else 0
 
