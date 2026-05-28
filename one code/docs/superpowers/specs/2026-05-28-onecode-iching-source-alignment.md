@@ -184,14 +184,18 @@ These should not be encoded in the kernel until separately sourced and reviewed:
 
 They can later live in a knowledge package or documentation layer, but not in the control kernel.
 
-## Current Gap List
+## Gap Closure
 
-The kernel is now structurally aligned, but these follow-up improvements remain reasonable:
+The v0.5 kernel now closes the earlier structural gaps:
 
-- Add explicit metadata fields marking each profile field as `bit_derived`, `correspondence_derived`, or `onecode_runtime`.
-- Add tests proving `transition()` never performs disk or tool actions directly.
-- Add a source note near `TRIGRAM_ELEMENTS` clarifying that it is a correspondence table.
-- Add optional alternate correspondence tables only if a real use case requires them.
+- `cross_cutting_profile()` includes `rule_layers` that mark fields as `bit_derived`, `correspondence_derived`, or `onecode_runtime`.
+- `transition()` is covered by a side-effect boundary test proving it does not open files, write files, run preflight, or checkpoint.
+- `TRIGRAM_ELEMENTS` is marked in code as a correspondence table, not a bit-derived fact.
+- `line_records()`, `trigram_record()`, and `trigram_records()` expose the liangyi and bagua primitives directly.
+- `element_records()` and `element_matrix()` expose the five-phase generation/control cross matrix.
+- Runner checkpoints, manifests, and ledgers persist `iching_profile` so runtime evidence carries the full cross-cutting projection.
+
+The only intentionally deferred item is optional alternate correspondence tables. They should be added only after a concrete runtime need and a separate source review.
 
 ## Engineering Rule
 
