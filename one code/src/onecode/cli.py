@@ -4,6 +4,7 @@ import tempfile
 import string
 from pathlib import Path
 
+from onecode.kernel.checkpoint import sha256_file
 from onecode.kernel.runner import run_task
 
 
@@ -176,6 +177,8 @@ def validate_checkpoint_evidence(checkpoints: list[dict], path: Path) -> tuple[s
             checkpoint_path = path.parent / checkpoint_path
         if not checkpoint_path.exists():
             return str(path), "missing_checkpoint_file"
+        if sha256_file(checkpoint_path) != checkpoint["sha256"]:
+            return str(path), "checkpoint_sha_mismatch"
     return None, None
 
 
