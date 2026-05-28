@@ -5,6 +5,7 @@ from pathlib import Path
 
 from onecode.kernel.checkpoint import sha256_file
 from onecode.kernel.context import create_context
+from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.resumption import ReadyAsset, ResumeState, load_resume_state
 from onecode.kernel.runner import run_task
 
@@ -68,6 +69,13 @@ class ResumeManifestAuditTests(unittest.TestCase):
             self.assertEqual(ready.sha256, asset_hash)
             self.assertEqual(ready.source_run_id, "source-run")
             self.assertEqual(ready.source_turn_index, 1)
+            self.assertEqual(len(state.audit_events), 1)
+            self.assertEqual(state.audit_events[0]["path"], "src/a.py")
+            self.assertEqual(state.audit_events[0]["status"], "ready")
+            self.assertEqual(
+                state.audit_events[0]["iching_status_code"],
+                IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI),
+            )
 
     def test_audit_ignores_mismatched_sha(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -99,6 +107,14 @@ class ResumeManifestAuditTests(unittest.TestCase):
             state = load_resume_state(workspace, "source-run")
 
             self.assertEqual(state.ready_assets, {})
+            self.assertEqual(len(state.audit_events), 1)
+            self.assertEqual(state.audit_events[0]["path"], "src/bad.py")
+            self.assertEqual(state.audit_events[0]["status"], "ignored")
+            self.assertEqual(state.audit_events[0]["reason"], "sha256_mismatch")
+            self.assertEqual(
+                state.audit_events[0]["iching_status_code"],
+                IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN),
+            )
 
     def test_audit_ignores_non_completed_checkpoint(self):
         with tempfile.TemporaryDirectory() as tmp:

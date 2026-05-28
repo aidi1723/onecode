@@ -5,7 +5,7 @@ from typing import Any
 from onecode.kernel.action_intent import ActionIntent
 from onecode.kernel.checkpoint import write_checkpoint, write_ledger
 from onecode.kernel.context import create_context
-from onecode.kernel.hexagram import COMPLETE
+from onecode.kernel.hexagram import COMPLETE, IchingKernel, IchingTransition
 from onecode.kernel.logos_gate import LogosGate
 from onecode.kernel.path_guard import PathGuard
 from onecode.kernel.permission_matrix import Decision
@@ -54,6 +54,24 @@ def ready_asset_for_intent(context: Any, intent: ActionIntent) -> ReadyAsset | N
     return context.resume_state.ready_assets.get(intent.payload["path"])
 
 
+def should_skip_ready_asset(ready_asset: ReadyAsset | None, preflight: Any) -> bool:
+    if ready_asset is None:
+        return False
+    if preflight.decision != Decision.ALLOWED:
+        return False
+    status_code = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI)
+    return IchingKernel.should_skip(status_code)
+
+
+def iching_transition_for_result(gate_result: dict[str, Any]) -> IchingTransition:
+    status_code = IchingKernel.classify_outcome(gate_result["status"], gate_result["reason"])
+    return IchingKernel.transition(status_code)
+
+
+def iching_status_for_result(gate_result: dict[str, Any]) -> int:
+    return iching_transition_for_result(gate_result).status_code
+
+
 def run_intent(
     task: str,
     context: Any,
@@ -78,7 +96,7 @@ def run_intent(
             "reason": preflight.reason,
             "payload": preflight.to_dict(),
         }, preflight
-    if preflight.decision == Decision.ALLOWED and ready_asset is not None:
+    if should_skip_ready_asset(ready_asset, preflight):
         return {
             "status": "skipped",
             "partial": False,
@@ -110,6 +128,8 @@ def asset_entry(
     gate_result: dict[str, Any],
     preflight_decision: Any,
     intent_type: str,
+    iching_transition: IchingTransition,
+    iching_profile: dict[str, Any],
     payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     entry = {
@@ -122,6 +142,10 @@ def asset_entry(
         "payload": payload if payload is not None else gate_result["payload"],
         "raw_payload": gate_result["payload"],
         "resumed": gate_result["status"] == "skipped",
+        "iching_status_code": iching_transition.status_code,
+        "iching_transition_action": iching_transition.action,
+        "iching_transition_reason": iching_transition.reason,
+        "iching_profile": iching_profile,
     }
     if "sha256" in gate_result["payload"]:
         entry["sha256"] = gate_result["payload"]["sha256"]
@@ -153,6 +177,8 @@ def run_task(
 
     for index, intent in enumerate(intents, start=1):
         gate_result, preflight = run_intent(task, context, gate, intent, simulated_action_seconds)
+        iching_transition = iching_transition_for_result(gate_result)
+        iching_profile = IchingKernel.cross_cutting_profile(iching_transition.status_code)
         checkpoint_payload = gate_result["payload"]
         entry_payload = checkpoint_payload
         if intent.action_type.value == "write_text" and "sha256" in checkpoint_payload:
@@ -167,8 +193,22 @@ def run_task(
             reason=gate_result["reason"],
             intent_type=intent.action_type.value,
             decision=preflight.decision.value,
+            iching_status_code=iching_transition.status_code,
+            iching_transition_action=iching_transition.action,
+            iching_transition_reason=iching_transition.reason,
+            iching_profile=iching_profile,
         )
-        assets.append(asset_entry(index, gate_result, preflight, intent.action_type.value, entry_payload))
+        assets.append(
+            asset_entry(
+                index,
+                gate_result,
+                preflight,
+                intent.action_type.value,
+                iching_transition,
+                iching_profile,
+                entry_payload,
+            )
+        )
         if gate_result["status"] in {"denied", "halted"}:
             break
 
@@ -197,6 +237,10 @@ def run_task(
         "completed_count": completed_count,
         "skipped_count": skipped_count,
         "failed_count": failed_count,
+        "iching_status_code": last_asset["iching_status_code"],
+        "iching_transition_action": last_asset["iching_transition_action"],
+        "iching_transition_reason": last_asset["iching_transition_reason"],
+        "iching_profile": last_asset["iching_profile"],
     }
     if "sha256" in last_asset:
         result["sha256"] = last_asset["sha256"]
