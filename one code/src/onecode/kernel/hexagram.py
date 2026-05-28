@@ -24,6 +24,7 @@ class IchingKernel:
         0b10: "shao_yin",
         0b11: "tai_yang",
     }
+    # Correspondence layer: these mappings are traditional associations, not bit-derived facts.
     TRIGRAM_ELEMENTS = {
         KUN: "earth",
         ZHEN: "wood",

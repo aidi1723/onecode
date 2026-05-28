@@ -248,6 +248,16 @@ class TestIchingKernel(unittest.TestCase):
         )
         self.assertEqual(profile["rule_layers"]["onecode_runtime"], ["transition"])
 
+    def test_rule_layers_returns_defensive_copies(self):
+        first = IchingKernel.rule_layers()
+        first["bit_derived"].append("mutated")
+        first["new_layer"] = ["mutated"]
+
+        second = IchingKernel.rule_layers()
+
+        self.assertNotIn("mutated", second["bit_derived"])
+        self.assertNotIn("new_layer", second)
+
     def test_flip_line_mutates_exactly_one_line(self):
         self.assertEqual(IchingKernel.flip_line(0b000000, 0), 0b000001)
         self.assertEqual(IchingKernel.flip_line(0b000001, 0), 0b000000)
