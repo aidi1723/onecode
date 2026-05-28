@@ -167,6 +167,15 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
             "manifest_path": str(manifest_path),
             "ledger_path": str(ledger_path),
         }
+    if not all(isinstance(checkpoint, dict) for checkpoint in checkpoints):
+        return 1, {
+            "run_id": run_id,
+            "status": "corrupt",
+            "corrupt_path": str(manifest_path),
+            "corrupt_reason": "invalid_checkpoint_entry",
+            "manifest_path": str(manifest_path),
+            "ledger_path": str(ledger_path),
+        }
     return 0, {
         "run_id": run_id,
         "status": ledger.get("status", manifest.get("status")),
