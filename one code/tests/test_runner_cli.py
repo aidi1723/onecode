@@ -76,15 +76,19 @@ class CliTests(unittest.TestCase):
 class RunnerSovereigntyTests(unittest.TestCase):
     def test_run_task_write_text_creates_file_and_records_sha256(self):
         with tempfile.TemporaryDirectory() as tmp:
+            original_cwd = os.getcwd()
+            os.chdir(tmp)
+            self.addCleanup(os.chdir, original_cwd)
+            workspace = Path("relative-workspace")
             result = run_task(
                 "write",
-                workspace=Path(tmp),
+                workspace=workspace,
                 run_id="write-test",
                 write_path="src/generated.py",
                 write_content="print('ok')\n",
             )
 
-            target = Path(tmp) / "src" / "generated.py"
+            target = (workspace / "src" / "generated.py").resolve()
             self.assertEqual(result["status"], "completed")
             self.assertEqual(result["decision"], "allowed")
             self.assertTrue(target.exists())

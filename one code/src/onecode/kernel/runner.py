@@ -179,8 +179,6 @@ def run_task(
     failed_count = sum(asset["status"] in {"denied", "halted"} for asset in assets)
     aggregate_success = write_texts is not None and failed_count == 0
     result_payload = last_asset["payload"] if write_texts is not None else last_asset["raw_payload"]
-    if write_texts is None and write_path is not None and "path" in result_payload:
-        result_payload = {**result_payload, "path": str(workspace / write_path)}
     result = {
         "run_id": context.run_id,
         "status": "completed" if aggregate_success else last_asset["status"],
