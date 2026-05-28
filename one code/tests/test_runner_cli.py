@@ -185,12 +185,12 @@ class CliSovereigntyTests(unittest.TestCase):
                 env=env,
                 text=True,
                 capture_output=True,
-                check=True,
             )
 
             result = json.loads(completed.stdout)
             self.assertEqual(result["status"], "halted")
             self.assertEqual(result["reason"], "sovereignty_breach")
+            self.assertNotEqual(completed.returncode, 0)
 
 
 class CliResumeFlagTests(unittest.TestCase):

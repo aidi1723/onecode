@@ -212,7 +212,7 @@ def main(argv: list[str] | None = None) -> int:
             resume_from_run_id=args.resume_from,
         )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return 0
+        return 1 if result["status"] in {"denied", "halted"} else 0
 
     parser.error(f"unknown command: {args.subcommand}")
     return 2
