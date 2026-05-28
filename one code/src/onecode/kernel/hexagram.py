@@ -41,6 +41,16 @@ class IchingKernel:
         return cls.compute_status(cls.KUN, cls.KUN)
 
     @classmethod
+    def classify_resume_audit(cls, status: str, reason: str | None) -> int:
+        if status == "ready":
+            return cls.compute_status(cls.QIAN, cls.DUI)
+        if reason == "path_outside_workspace":
+            return cls.compute_status(cls.LI, cls.KUN)
+        if reason in {"missing_file", "sha256_mismatch"}:
+            return cls.compute_status(cls.KAN, cls.ZHEN)
+        return cls.compute_status(cls.KUN, cls.KUN)
+
+    @classmethod
     def transition(cls, status_code: int) -> IchingTransition:
         inner = status_code & 0b111
         outer = (status_code >> 3) & 0b111

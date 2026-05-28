@@ -78,7 +78,7 @@ def checkpoint_to_ready_asset(
             path=payload_path,
             status="ignored",
             reason="path_outside_workspace",
-            status_code=IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
+            status_code=IchingKernel.classify_resume_audit("ignored", "path_outside_workspace"),
         )
 
     asset_path = workspace_root.resolve() / relative_path
@@ -87,14 +87,14 @@ def checkpoint_to_ready_asset(
             path=relative_path,
             status="ignored",
             reason="missing_file",
-            status_code=IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN),
+            status_code=IchingKernel.classify_resume_audit("ignored", "missing_file"),
         )
     if sha256_file(asset_path) != payload_sha:
         return None, audit_event(
             path=relative_path,
             status="ignored",
             reason="sha256_mismatch",
-            status_code=IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN),
+            status_code=IchingKernel.classify_resume_audit("ignored", "sha256_mismatch"),
         )
 
     ready_asset = ReadyAsset(
@@ -107,7 +107,7 @@ def checkpoint_to_ready_asset(
         path=relative_path,
         status="ready",
         reason=None,
-        status_code=IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI),
+        status_code=IchingKernel.classify_resume_audit("ready", None),
     )
 
 

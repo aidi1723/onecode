@@ -50,6 +50,24 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(cooled_transition.action, "halt")
         self.assertEqual(cooled_transition.reason, "yang_overload_cooldown")
 
+    def test_classify_resume_audit_maps_recovery_evidence_to_status_codes(self):
+        self.assertEqual(
+            IchingKernel.classify_resume_audit(status="ready", reason=None),
+            IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI),
+        )
+        self.assertEqual(
+            IchingKernel.classify_resume_audit(status="ignored", reason="sha256_mismatch"),
+            IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN),
+        )
+        self.assertEqual(
+            IchingKernel.classify_resume_audit(status="ignored", reason="missing_file"),
+            IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN),
+        )
+        self.assertEqual(
+            IchingKernel.classify_resume_audit(status="ignored", reason="path_outside_workspace"),
+            IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
