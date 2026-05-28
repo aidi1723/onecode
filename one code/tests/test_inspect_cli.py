@@ -219,6 +219,42 @@ class InspectCliTests(unittest.TestCase):
             self.assertIn("manifest.json", error["corrupt_path"])
             self.assertEqual(error["corrupt_reason"], "missing_checkpoints")
 
+    def test_cli_inspect_missing_ledger_status_returns_corrupt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            run_root = Path(tmp) / ".onecode" / "runs" / "missing-ledger-status"
+            run_root.mkdir(parents=True)
+            (run_root / "manifest.json").write_text(
+                '{"status": "completed", "checkpoints": []}',
+                encoding="utf-8",
+            )
+            (run_root / "ledger.json").write_text('{"completed_count": 0}', encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "inspect",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "missing-ledger-status",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            error = json.loads(completed.stdout)
+            self.assertEqual(error["status"], "corrupt")
+            self.assertEqual(error["run_id"], "missing-ledger-status")
+            self.assertIn("ledger.json", error["corrupt_path"])
+            self.assertEqual(error["corrupt_reason"], "missing_status")
+            self.assertNotIn("Traceback", completed.stderr)
+
     def test_cli_inspect_non_object_checkpoint_entry_returns_corrupt(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = os.environ.copy()
