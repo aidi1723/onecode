@@ -403,6 +403,16 @@ class CliResumeFlagTests(unittest.TestCase):
 
 
 class RunnerMultiAssetTests(unittest.TestCase):
+    def test_run_task_rejects_invalid_write_text_argument(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "--write-text must use PATH=CONTENT"):
+                run_task(
+                    "invalid write text",
+                    workspace=Path(tmp),
+                    run_id="invalid-write-text",
+                    write_texts=["missing-equals"],
+                )
+
     def test_run_task_writes_multiple_assets_and_checkpoints(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
