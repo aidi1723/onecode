@@ -241,6 +241,17 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
             "manifest_path": str(manifest_path),
             "ledger_path": str(ledger_path),
         }
+    if all(field in ledger for field in LEDGER_COUNT_FIELDS):
+        resolved_count = ledger["completed_count"] + ledger["skipped_count"] + ledger["failed_count"]
+        if resolved_count != len(checkpoints):
+            return 1, {
+                "run_id": run_id,
+                "status": "corrupt",
+                "corrupt_path": str(manifest_path),
+                "corrupt_reason": "checkpoint_count_mismatch",
+                "manifest_path": str(manifest_path),
+                "ledger_path": str(ledger_path),
+            }
     return 0, {
         "run_id": run_id,
         "status": ledger.get("status", manifest.get("status")),

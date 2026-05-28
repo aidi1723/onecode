@@ -477,6 +477,48 @@ class InspectCliTests(unittest.TestCase):
             self.assertEqual(error["corrupt_reason"], "count_mismatch")
             self.assertNotIn("Traceback", completed.stderr)
 
+    def test_cli_inspect_ledger_counts_must_match_checkpoint_count(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            run_root = Path(tmp) / ".onecode" / "runs" / "checkpoint-count-mismatch"
+            run_root.mkdir(parents=True)
+            (run_root / "manifest.json").write_text(
+                '{"status": "completed", "checkpoints": [{"status": "completed"}]}',
+                encoding="utf-8",
+            )
+            (run_root / "ledger.json").write_text(
+                (
+                    '{"status": "completed", "requested_count": 2, '
+                    '"completed_count": 2, "skipped_count": 0, "failed_count": 0}'
+                ),
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "inspect",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "checkpoint-count-mismatch",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            error = json.loads(completed.stdout)
+            self.assertEqual(error["status"], "corrupt")
+            self.assertEqual(error["run_id"], "checkpoint-count-mismatch")
+            self.assertIn("manifest.json", error["corrupt_path"])
+            self.assertEqual(error["corrupt_reason"], "checkpoint_count_mismatch")
+            self.assertNotIn("Traceback", completed.stderr)
+
     def test_cli_inspect_non_object_checkpoint_entry_returns_corrupt(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = os.environ.copy()
