@@ -483,10 +483,15 @@ class InspectCliTests(unittest.TestCase):
             env["PYTHONPATH"] = "src"
             run_root = Path(tmp) / ".onecode" / "runs" / "checkpoint-count-mismatch"
             run_root.mkdir(parents=True)
+            checkpoint_path = run_root / "checkpoints" / "0001.json"
+            checkpoint_path.parent.mkdir()
+            checkpoint_path.write_text('{"status": "completed"}', encoding="utf-8")
             (run_root / "manifest.json").write_text(
                 (
                     '{"status": "completed", "checkpoints": ['
-                    '{"status": "completed", "path": "checkpoints/0001.json", '
+                    '{"status": "completed", "path": "'
+                    + str(checkpoint_path)
+                    + '", '
                     '"sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}'
                     "]}"
                 ),
@@ -610,6 +615,54 @@ class InspectCliTests(unittest.TestCase):
             self.assertEqual(error["run_id"], "malformed-checkpoint-sha")
             self.assertIn("manifest.json", error["corrupt_path"])
             self.assertEqual(error["corrupt_reason"], "invalid_checkpoint_evidence")
+            self.assertNotIn("Traceback", completed.stderr)
+
+    def test_cli_inspect_missing_checkpoint_file_returns_corrupt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            run_root = Path(tmp) / ".onecode" / "runs" / "missing-checkpoint-file"
+            run_root.mkdir(parents=True)
+            (run_root / "manifest.json").write_text(
+                (
+                    '{"status": "completed", "checkpoints": ['
+                    '{"status": "completed", "path": "'
+                    + str(run_root / "checkpoints" / "0001.json")
+                    + '", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}'
+                    "]}"
+                ),
+                encoding="utf-8",
+            )
+            (run_root / "ledger.json").write_text(
+                (
+                    '{"status": "completed", "requested_count": 1, '
+                    '"completed_count": 1, "skipped_count": 0, "failed_count": 0}'
+                ),
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "inspect",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "missing-checkpoint-file",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            error = json.loads(completed.stdout)
+            self.assertEqual(error["status"], "corrupt")
+            self.assertEqual(error["run_id"], "missing-checkpoint-file")
+            self.assertIn("manifest.json", error["corrupt_path"])
+            self.assertEqual(error["corrupt_reason"], "missing_checkpoint_file")
             self.assertNotIn("Traceback", completed.stderr)
 
     def test_cli_inspect_non_object_checkpoint_entry_returns_corrupt(self):

@@ -171,6 +171,11 @@ def validate_checkpoint_evidence(checkpoints: list[dict], path: Path) -> tuple[s
             return str(path), "invalid_checkpoint_evidence"
         if any(character not in HEX_DIGITS for character in checkpoint["sha256"]):
             return str(path), "invalid_checkpoint_evidence"
+        checkpoint_path = Path(checkpoint["path"])
+        if not checkpoint_path.is_absolute():
+            checkpoint_path = path.parent / checkpoint_path
+        if not checkpoint_path.exists():
+            return str(path), "missing_checkpoint_file"
     return None, None
 
 
