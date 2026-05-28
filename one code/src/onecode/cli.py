@@ -187,6 +187,25 @@ def validate_checkpoint_evidence(checkpoints: list[dict], path: Path) -> tuple[s
     return None, None
 
 
+def delivery_summary(ledger: dict) -> dict[str, str]:
+    status = ledger.get("status")
+    requested = ledger.get("requested_count")
+    completed = ledger.get("completed_count")
+    skipped = ledger.get("skipped_count")
+    failed = ledger.get("failed_count")
+    if all(isinstance(value, int) for value in (requested, completed, skipped, failed)):
+        resolved = completed + skipped + failed
+        if status == "completed" and failed == 0 and resolved == requested:
+            return {"delivery_status": "deliverable", "next_action": "idle"}
+        if failed > 0 or status in {"halted", "denied"}:
+            return {"delivery_status": "blocked", "next_action": "resume"}
+        if resolved < requested:
+            return {"delivery_status": "partial", "next_action": "resume"}
+    if status == "completed":
+        return {"delivery_status": "deliverable", "next_action": "idle"}
+    return {"delivery_status": "unknown", "next_action": "inspect"}
+
+
 def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
     evidence_root = workspace.resolve() / ".onecode" / "runs" / run_id
     manifest_path = evidence_root / "manifest.json"
@@ -311,7 +330,7 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
         ),
         "manifest_path": str(manifest_path),
         "ledger_path": str(ledger_path),
-    }
+    } | delivery_summary(ledger)
 
 
 def list_runs(workspace: Path) -> dict:

@@ -143,6 +143,158 @@ class InspectCliTests(unittest.TestCase):
                 "def test_mesh():\n    assert True\n",
             )
 
+    def test_cli_inspect_reports_complex_task_completion_state_after_resume(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            failed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "complex fail",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "complex-failed",
+                    "--write-text",
+                    "src/a.py=A = 1\n",
+                    "--write-text",
+                    "src/b.py=B = 1\n",
+                    "--write-text",
+                    "../outside.py=blocked\n",
+                    "--write-text",
+                    "src/c.py=C = 1\n",
+                    "--write-text",
+                    "tests/test_c.py=def test_c():\n    assert True\n",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+            self.assertNotEqual(failed.returncode, 0)
+
+            resumed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "complex resume",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "complex-resumed",
+                    "--resume-from",
+                    "complex-failed",
+                    "--write-text",
+                    "src/a.py=A = 2\n",
+                    "--write-text",
+                    "src/b.py=B = 2\n",
+                    "--write-text",
+                    "src/c.py=C = 1\n",
+                    "--write-text",
+                    "tests/test_c.py=def test_c():\n    assert True\n",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            run_result = json.loads(resumed.stdout)
+
+            inspected = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "inspect",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "complex-resumed",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            summary = json.loads(inspected.stdout)
+
+            self.assertEqual(run_result["status"], "completed")
+            self.assertEqual(summary["delivery_status"], "deliverable")
+            self.assertEqual(summary["next_action"], "idle")
+            self.assertEqual(summary["resumed_from"], "complex-failed")
+            self.assertEqual(summary["requested_count"], 4)
+            self.assertEqual(summary["completed_count"], 2)
+            self.assertEqual(summary["skipped_count"], 2)
+            self.assertEqual(summary["failed_count"], 0)
+            self.assertEqual(summary["checkpoint_count"], 4)
+            self.assertEqual((Path(tmp) / "src" / "a.py").read_text(encoding="utf-8"), "A = 1\n")
+            self.assertEqual((Path(tmp) / "src" / "b.py").read_text(encoding="utf-8"), "B = 1\n")
+            self.assertEqual((Path(tmp) / "src" / "c.py").read_text(encoding="utf-8"), "C = 1\n")
+            self.assertEqual(
+                (Path(tmp) / "tests" / "test_c.py").read_text(encoding="utf-8"),
+                "def test_c():\n    assert True\n",
+            )
+
+    def test_cli_inspect_reports_blocked_complex_task_can_resume(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            failed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "complex blocked",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "complex-blocked",
+                    "--write-text",
+                    "src/a.py=A = 1\n",
+                    "--write-text",
+                    "../outside.py=blocked\n",
+                    "--write-text",
+                    "src/b.py=B = 1\n",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+            self.assertNotEqual(failed.returncode, 0)
+
+            inspected = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "inspect",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "complex-blocked",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            summary = json.loads(inspected.stdout)
+
+            self.assertEqual(summary["status"], "halted")
+            self.assertEqual(summary["reason"], "sovereignty_breach")
+            self.assertEqual(summary["delivery_status"], "blocked")
+            self.assertEqual(summary["next_action"], "resume")
+            self.assertEqual(summary["requested_count"], 3)
+            self.assertEqual(summary["completed_count"], 1)
+            self.assertEqual(summary["skipped_count"], 0)
+            self.assertEqual(summary["failed_count"], 1)
+            self.assertEqual(summary["checkpoint_count"], 2)
+
     def test_cli_inspect_missing_run_returns_nonzero(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = os.environ.copy()
