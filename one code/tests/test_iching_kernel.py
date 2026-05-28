@@ -188,6 +188,24 @@ class TestIchingKernel(unittest.TestCase):
         with self.assertRaises(ValueError):
             IchingKernel.trigram_record(0b111011, "middle")
 
+    def test_trigram_records_cover_all_bagua_states(self):
+        records = IchingKernel.trigram_records()
+
+        self.assertEqual(len(records), 8)
+        self.assertEqual(set(records.keys()), set(range(8)))
+        self.assertEqual(records[IchingKernel.KUN]["name"], "kun")
+        self.assertEqual(records[IchingKernel.ZHEN]["name"], "zhen")
+        self.assertEqual(records[IchingKernel.KAN]["name"], "kan")
+        self.assertEqual(records[IchingKernel.DUI]["name"], "dui")
+        self.assertEqual(records[IchingKernel.GEN]["name"], "gen")
+        self.assertEqual(records[IchingKernel.XUN]["name"], "xun")
+        self.assertEqual(records[IchingKernel.LI]["name"], "li")
+        self.assertEqual(records[IchingKernel.QIAN]["name"], "qian")
+        self.assertEqual(records[IchingKernel.QIAN]["binary"], "111")
+        self.assertEqual(records[IchingKernel.QIAN]["lines"][0]["polarity"], "yang")
+        self.assertEqual(records[IchingKernel.KUN]["binary"], "000")
+        self.assertEqual(records[IchingKernel.KUN]["lines"][2]["polarity"], "yin")
+
     def test_five_element_matrix_maps_trigrams_and_relations(self):
         self.assertEqual(IchingKernel.element_for_trigram(IchingKernel.QIAN), "metal")
         self.assertEqual(IchingKernel.element_for_trigram(IchingKernel.DUI), "metal")
@@ -250,6 +268,7 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(profile["lines"][2]["polarity"], "yin")
         self.assertEqual(profile["inner_trigram_record"]["binary"], "011")
         self.assertEqual(profile["outer_trigram_record"]["binary"], "111")
+        self.assertEqual(profile["trigram_records"][IchingKernel.LI]["element"], "fire")
         self.assertEqual(profile["outer_element"], "metal")
         self.assertEqual(profile["inner_element"], "metal")
         self.assertEqual(profile["element_relation"], "same")
@@ -270,6 +289,7 @@ class TestIchingKernel(unittest.TestCase):
                 "binary",
                 "inner_trigram",
                 "outer_trigram",
+                "trigram_records",
                 "yin_yang",
                 "four_symbols",
             ],

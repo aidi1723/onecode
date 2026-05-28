@@ -18,6 +18,16 @@ class IchingKernel:
     LI = 0b110
     QIAN = 0b111
 
+    TRIGRAM_NAMES = {
+        KUN: "kun",
+        ZHEN: "zhen",
+        KAN: "kan",
+        DUI: "dui",
+        GEN: "gen",
+        XUN: "xun",
+        LI: "li",
+        QIAN: "qian",
+    }
     FOUR_SYMBOLS = {
         0b00: "tai_yin",
         0b01: "shao_yang",
@@ -55,6 +65,7 @@ class IchingKernel:
             "binary",
             "inner_trigram",
             "outer_trigram",
+            "trigram_records",
             "yin_yang",
             "four_symbols",
         ],
@@ -153,6 +164,29 @@ class IchingKernel:
         }
 
     @classmethod
+    def standalone_trigram_record(cls, trigram: int) -> dict:
+        normalized = trigram & 0b111
+        return {
+            "trigram": normalized,
+            "name": cls.TRIGRAM_NAMES[normalized],
+            "binary": format(normalized, "03b"),
+            "element": cls.element_for_trigram(normalized),
+            "yin_yang": cls.yin_yang_profile_for_bits(normalized, width=3),
+            "lines": [
+                {
+                    "line_index": line_index,
+                    "value": (normalized >> line_index) & 1,
+                    "polarity": "yang" if ((normalized >> line_index) & 1) else "yin",
+                }
+                for line_index in range(3)
+            ],
+        }
+
+    @classmethod
+    def trigram_records(cls) -> dict[int, dict]:
+        return {trigram: cls.standalone_trigram_record(trigram) for trigram in range(8)}
+
+    @classmethod
     def yin_yang_cross_profile(cls, status_code: int) -> dict:
         normalized = status_code & 0b111111
         lines = cls.line_records(normalized)
@@ -235,6 +269,7 @@ class IchingKernel:
             "lines": cls.line_records(normalized),
             "outer_trigram_record": cls.trigram_record(normalized, "outer"),
             "inner_trigram_record": cls.trigram_record(normalized, "inner"),
+            "trigram_records": cls.trigram_records(),
             "outer_element": outer_element,
             "inner_element": inner_element,
             "element_relation": cls.element_relation(outer_element, inner_element),
