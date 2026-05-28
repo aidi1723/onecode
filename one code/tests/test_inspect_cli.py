@@ -719,6 +719,60 @@ class InspectCliTests(unittest.TestCase):
             self.assertEqual(error["corrupt_reason"], "checkpoint_sha_mismatch")
             self.assertNotIn("Traceback", completed.stderr)
 
+    def test_cli_inspect_invalid_checkpoint_json_returns_corrupt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            run_root = Path(tmp) / ".onecode" / "runs" / "invalid-checkpoint-json"
+            run_root.mkdir(parents=True)
+            checkpoint_path = run_root / "checkpoints" / "0001.json"
+            checkpoint_path.parent.mkdir()
+            checkpoint_path.write_text("{not json", encoding="utf-8")
+            checkpoint_sha = hashlib.sha256(checkpoint_path.read_bytes()).hexdigest()
+            (run_root / "manifest.json").write_text(
+                (
+                    '{"status": "completed", "checkpoints": ['
+                    '{"status": "completed", "path": "'
+                    + str(checkpoint_path)
+                    + '", "sha256": "'
+                    + checkpoint_sha
+                    + '"}'
+                    "]}"
+                ),
+                encoding="utf-8",
+            )
+            (run_root / "ledger.json").write_text(
+                (
+                    '{"status": "completed", "requested_count": 1, '
+                    '"completed_count": 1, "skipped_count": 0, "failed_count": 0}'
+                ),
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "inspect",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "invalid-checkpoint-json",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            error = json.loads(completed.stdout)
+            self.assertEqual(error["status"], "corrupt")
+            self.assertEqual(error["run_id"], "invalid-checkpoint-json")
+            self.assertIn("0001.json", error["corrupt_path"])
+            self.assertEqual(error["corrupt_reason"], "invalid_json")
+            self.assertNotIn("Traceback", completed.stderr)
+
     def test_cli_inspect_non_object_checkpoint_entry_returns_corrupt(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = os.environ.copy()
