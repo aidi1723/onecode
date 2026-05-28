@@ -157,6 +157,13 @@ class TestIchingKernel(unittest.TestCase):
             {"delivery_status": "unknown", "next_action": "inspect"},
         )
 
+    def test_process_exit_code_derives_cli_exit_from_transition_rules(self):
+        self.assertEqual(IchingKernel.process_exit_code(status="completed", reason=None), 0)
+        self.assertEqual(IchingKernel.process_exit_code(status="skipped", reason="resumed_asset_ready"), 0)
+        self.assertEqual(IchingKernel.process_exit_code(status="halted", reason="sovereignty_breach"), 1)
+        self.assertEqual(IchingKernel.process_exit_code(status="denied", reason="permission_denied"), 1)
+        self.assertEqual(IchingKernel.process_exit_code(status="halted", reason="invalid_intent"), 1)
+
     def test_classify_resume_audit_maps_recovery_evidence_to_status_codes(self):
         self.assertEqual(
             IchingKernel.classify_resume_audit(status="ready", reason=None),

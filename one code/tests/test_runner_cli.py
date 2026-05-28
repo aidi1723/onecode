@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from onecode.cli import main
 from onecode.kernel.runner import run_task
 
 
@@ -262,6 +263,24 @@ class CliSovereigntyTests(unittest.TestCase):
             self.assertEqual(result["status"], "halted")
             self.assertEqual(result["reason"], "sovereignty_breach")
             self.assertNotEqual(completed.returncode, 0)
+
+    def test_cli_run_exit_code_delegates_to_iching_kernel(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with (
+                patch(
+                    "onecode.cli.run_task",
+                    return_value={
+                        "status": "halted",
+                        "reason": "sovereignty_breach",
+                    },
+                ),
+                patch("onecode.cli.IchingKernel.process_exit_code", return_value=0) as process_exit_code,
+                patch("builtins.print"),
+            ):
+                exit_code = main(["run", "delegated", "--workspace", tmp])
+
+        self.assertEqual(exit_code, 0)
+        process_exit_code.assert_called_once_with(status="halted", reason="sovereignty_breach")
 
 
 class CliResumeFlagTests(unittest.TestCase):

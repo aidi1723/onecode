@@ -6,6 +6,9 @@ import tempfile
 import unittest
 import hashlib
 from pathlib import Path
+from unittest.mock import patch
+
+from onecode.cli import main
 
 
 class RunPlanCliTests(unittest.TestCase):
@@ -87,6 +90,36 @@ class RunPlanCliTests(unittest.TestCase):
                 (workspace / "tests" / "test_mesh.py").read_text(encoding="utf-8"),
                 "def test_mesh():\n    assert True\n",
             )
+
+    def test_cli_run_plan_exit_code_delegates_to_iching_kernel(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = workspace / "task-plan.json"
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "task": "delegated plan",
+                        "assets": [{"path": "../outside.py", "content": "blocked\n"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with (
+                patch(
+                    "onecode.cli.run_task",
+                    return_value={
+                        "status": "halted",
+                        "reason": "sovereignty_breach",
+                    },
+                ),
+                patch("onecode.cli.IchingKernel.process_exit_code", return_value=0) as process_exit_code,
+                patch("builtins.print"),
+            ):
+                exit_code = main(["run-plan", "--workspace", tmp, "--plan", str(plan_path)])
+
+        self.assertEqual(exit_code, 0)
+        process_exit_code.assert_called_once_with(status="halted", reason="sovereignty_breach")
 
     def test_cli_run_plan_halts_then_resumes_with_recovery_plan(self):
         with tempfile.TemporaryDirectory() as tmp:

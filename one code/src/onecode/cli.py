@@ -464,7 +464,7 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             parser.error(str(exc))
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return 1 if result["status"] in {"denied", "halted"} else 0
+        return IchingKernel.process_exit_code(status=result["status"], reason=result["reason"])
 
     if args.subcommand == "run":
         if args.write_text and (args.write_path is not None or args.write_content is not None):
@@ -486,7 +486,7 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             parser.error(str(exc))
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return 1 if result["status"] in {"denied", "halted"} else 0
+        return IchingKernel.process_exit_code(status=result["status"], reason=result["reason"])
 
     parser.error(f"unknown command: {args.subcommand}")
     return 2

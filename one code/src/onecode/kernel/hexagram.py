@@ -437,6 +437,12 @@ class IchingKernel:
             return {"delivery_status": "deliverable", "next_action": "idle"}
         return {"delivery_status": "unknown", "next_action": "inspect"}
 
+    @classmethod
+    def process_exit_code(cls, status: str, reason: str | None) -> int:
+        status_code = cls.classify_outcome(status, reason)
+        transition = cls.transition(status_code)
+        return 1 if cls.dispatch_decision(transition) == "stop" else 0
+
 
 def is_valid_hexagram_code(value: str) -> bool:
     return len(value) == 6 and all(char in "01" for char in value)
