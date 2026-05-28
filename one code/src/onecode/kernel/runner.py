@@ -64,7 +64,8 @@ def should_skip_ready_asset(ready_asset: ReadyAsset | None, preflight: Any) -> b
 
 
 def iching_status_for_result(gate_result: dict[str, Any]) -> int:
-    return IchingKernel.classify_outcome(gate_result["status"], gate_result["reason"])
+    status_code = IchingKernel.classify_outcome(gate_result["status"], gate_result["reason"])
+    return IchingKernel.transition(status_code).status_code
 
 
 def run_intent(

@@ -31,6 +31,25 @@ class TestIchingKernel(unittest.TestCase):
             IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN),
         )
 
+    def test_transition_applies_cross_cutting_dynamic_laws(self):
+        fire_over_ready_asset = IchingKernel.compute_status(IchingKernel.LI, IchingKernel.DUI)
+        fire_transition = IchingKernel.transition(fire_over_ready_asset)
+        self.assertEqual(fire_transition.status_code, IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN))
+        self.assertEqual(fire_transition.action, "halt")
+        self.assertEqual(fire_transition.reason, "sovereignty_fire_suppresses_asset")
+
+        water_over_write_momentum = IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)
+        water_transition = IchingKernel.transition(water_over_write_momentum)
+        self.assertEqual(water_transition.status_code, water_over_write_momentum)
+        self.assertEqual(water_transition.action, "checkpoint")
+        self.assertEqual(water_transition.reason, "network_water_preserves_resume_seed")
+
+        pure_qian = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN)
+        cooled_transition = IchingKernel.transition(pure_qian)
+        self.assertEqual(cooled_transition.status_code, IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.QIAN))
+        self.assertEqual(cooled_transition.action, "halt")
+        self.assertEqual(cooled_transition.reason, "yang_overload_cooldown")
+
 
 if __name__ == "__main__":
     unittest.main()

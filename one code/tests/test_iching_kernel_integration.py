@@ -72,7 +72,7 @@ class IchingKernelIntegrationTests(unittest.TestCase):
             self.assertEqual(manifest["checkpoints"][-1]["iching_status_code"], expected)
             self.assertFalse((workspace / "src" / "c.py").exists())
 
-    def test_completed_multi_asset_run_records_qian_qian_status_code(self):
+    def test_completed_multi_asset_run_records_gen_qian_status_code(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
             result = run_task(
@@ -86,7 +86,7 @@ class IchingKernelIntegrationTests(unittest.TestCase):
             )
 
             manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
-            expected = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN)
+            expected = IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.QIAN)
 
             self.assertEqual(result["status"], "completed")
             self.assertEqual(result["iching_status_code"], expected)

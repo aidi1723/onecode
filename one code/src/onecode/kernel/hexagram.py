@@ -1,6 +1,13 @@
 from dataclasses import dataclass
 
 
+@dataclass(frozen=True)
+class IchingTransition:
+    status_code: int
+    action: str
+    reason: str | None
+
+
 class IchingKernel:
     KUN = 0b000
     ZHEN = 0b001
@@ -32,6 +39,31 @@ class IchingKernel:
         if status == "completed":
             return cls.compute_status(cls.QIAN, cls.QIAN)
         return cls.compute_status(cls.KUN, cls.KUN)
+
+    @classmethod
+    def transition(cls, status_code: int) -> IchingTransition:
+        inner = status_code & 0b111
+        outer = (status_code >> 3) & 0b111
+
+        if outer == cls.LI:
+            return IchingTransition(
+                status_code=cls.compute_status(cls.LI, cls.KUN),
+                action="halt",
+                reason="sovereignty_fire_suppresses_asset",
+            )
+        if outer == cls.KAN:
+            return IchingTransition(
+                status_code=status_code,
+                action="checkpoint",
+                reason="network_water_preserves_resume_seed",
+            )
+        if (status_code & 0b111111).bit_count() >= 5:
+            return IchingTransition(
+                status_code=cls.compute_status(cls.GEN, inner),
+                action="halt",
+                reason="yang_overload_cooldown",
+            )
+        return IchingTransition(status_code=status_code, action="continue", reason=None)
 
 
 def is_valid_hexagram_code(value: str) -> bool:
