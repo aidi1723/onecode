@@ -56,6 +56,29 @@ def doctor_check(name: str, passed: bool, detail: dict | None = None) -> dict:
     return {"name": name, "passed": passed, "detail": detail or {}}
 
 
+def doctor_result_detail(result: dict) -> dict:
+    return {
+        "run_id": result["run_id"],
+        "status": result["status"],
+        "reason": result["reason"],
+        "iching_status_code": result["iching_status_code"],
+        "iching_transition_action": result["iching_transition_action"],
+        "iching_transition_reason": result["iching_transition_reason"],
+        "dispatch_decision": result["iching_profile"]["dispatch_decision"],
+    }
+
+
+def doctor_rule_passed(result: dict) -> bool:
+    profile = result["iching_profile"]
+    profile_transition = IchingKernel.transition(profile["status_code"])
+    return (
+        profile["status_code"] == result["iching_status_code"]
+        and profile["transition"]["action"] == profile_transition.action
+        and profile["transition"]["reason"] == profile_transition.reason
+        and profile["dispatch_decision"] == IchingKernel.dispatch_decision(profile_transition)
+    )
+
+
 def run_doctor() -> dict:
     checks = []
     with tempfile.TemporaryDirectory() as tmp:
@@ -71,8 +94,10 @@ def run_doctor() -> dict:
         checks.append(
             doctor_check(
                 "write_text",
-                write_result["status"] == "completed" and (workspace / "src" / "doctor_asset.py").exists(),
-                {"run_id": write_result["run_id"], "status": write_result["status"], "reason": write_result["reason"]},
+                write_result["status"] == "completed"
+                and (workspace / "src" / "doctor_asset.py").exists()
+                and doctor_rule_passed(write_result),
+                doctor_result_detail(write_result),
             )
         )
 
@@ -96,8 +121,9 @@ def run_doctor() -> dict:
                 "resume_skip",
                 resume_result["status"] == "skipped"
                 and resume_result["reason"] == "resumed_asset_ready"
-                and (workspace / "src" / "resume_asset.py").read_text(encoding="utf-8") == "ready = True\n",
-                {"run_id": resume_result["run_id"], "status": resume_result["status"], "reason": resume_result["reason"]},
+                and (workspace / "src" / "resume_asset.py").read_text(encoding="utf-8") == "ready = True\n"
+                and doctor_rule_passed(resume_result),
+                doctor_result_detail(resume_result),
             )
         )
 
@@ -116,8 +142,9 @@ def run_doctor() -> dict:
                 "sovereignty_breach",
                 breach_result["status"] == "halted"
                 and breach_result["reason"] == "sovereignty_breach"
-                and not outside.exists(),
-                {"run_id": breach_result["run_id"], "status": breach_result["status"], "reason": breach_result["reason"]},
+                and not outside.exists()
+                and doctor_rule_passed(breach_result),
+                doctor_result_detail(breach_result),
             )
         )
 
@@ -131,8 +158,10 @@ def run_doctor() -> dict:
         checks.append(
             doctor_check(
                 "http_timeout",
-                timeout_result["status"] == "halted" and timeout_result["reason"] == "http_timeout",
-                {"run_id": timeout_result["run_id"], "status": timeout_result["status"], "reason": timeout_result["reason"]},
+                timeout_result["status"] == "halted"
+                and timeout_result["reason"] == "http_timeout"
+                and doctor_rule_passed(timeout_result),
+                doctor_result_detail(timeout_result),
             )
         )
 
