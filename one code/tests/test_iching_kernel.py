@@ -69,6 +69,19 @@ class TestIchingKernel(unittest.TestCase):
 
         self.assertNotEqual(transition.reason, "sovereignty_fire_suppresses_asset")
 
+    def test_transition_is_pure_state_calculation_without_runtime_side_effects(self):
+        status = IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)
+
+        with (
+            patch("builtins.open", side_effect=AssertionError("transition must not open files")),
+            patch("onecode.kernel.path_guard.PathGuard.write_text", side_effect=AssertionError("transition must not write files")),
+            patch("onecode.kernel.logos_gate.LogosGate.preflight", side_effect=AssertionError("transition must not preflight")),
+            patch("onecode.kernel.checkpoint.write_checkpoint", side_effect=AssertionError("transition must not checkpoint")),
+        ):
+            transition = IchingKernel.transition(status)
+
+        self.assertEqual(transition.reason, "network_water_preserves_resume_seed")
+
     def test_classify_resume_audit_maps_recovery_evidence_to_status_codes(self):
         self.assertEqual(
             IchingKernel.classify_resume_audit(status="ready", reason=None),
