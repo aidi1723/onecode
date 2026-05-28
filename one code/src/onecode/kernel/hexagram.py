@@ -158,7 +158,7 @@ class IchingKernel:
         inner_element = cls.element_for_trigram(inner)
         relation = cls.element_relation(outer_element, inner_element)
         pressure = cls.yin_yang_cross_profile(normalized)["pressure"]
-        if relation == "controls" and pressure == "cooldown":
+        if relation == "controls" and outer_element == "fire" and inner_element == "metal":
             modulation = "hard_control"
         elif relation == "generates" and outer_element == "water" and inner_element == "wood":
             modulation = "recovery_seed"
@@ -243,18 +243,15 @@ class IchingKernel:
     @classmethod
     def transition(cls, status_code: int) -> IchingTransition:
         inner = status_code & 0b111
-        outer = (status_code >> 3) & 0b111
-        outer_element = cls.element_for_trigram(outer)
-        inner_element = cls.element_for_trigram(inner)
-        relation = cls.element_relation(outer_element, inner_element)
+        dynamics = cls.element_dynamics(status_code)
 
-        if outer == cls.LI and relation == "controls":
+        if dynamics["modulation"] == "hard_control":
             return IchingTransition(
                 status_code=cls.compute_status(cls.LI, cls.KUN),
                 action="halt",
                 reason="sovereignty_fire_suppresses_asset",
             )
-        if outer == cls.KAN and relation == "generates":
+        if dynamics["modulation"] == "recovery_seed":
             return IchingTransition(
                 status_code=status_code,
                 action="checkpoint",

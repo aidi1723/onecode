@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from onecode.kernel.hexagram import IchingKernel
 
@@ -49,6 +50,24 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(cooled_transition.status_code, IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.QIAN))
         self.assertEqual(cooled_transition.action, "halt")
         self.assertEqual(cooled_transition.reason, "yang_overload_cooldown")
+
+    def test_transition_consumes_element_dynamics_modulation(self):
+        status = IchingKernel.compute_status(IchingKernel.LI, IchingKernel.QIAN)
+
+        with patch.object(
+            IchingKernel,
+            "element_dynamics",
+            return_value={
+                "outer_element": "fire",
+                "inner_element": "metal",
+                "relation": "controls",
+                "yin_yang_pressure": "cooldown",
+                "modulation": "normal",
+            },
+        ):
+            transition = IchingKernel.transition(status)
+
+        self.assertNotEqual(transition.reason, "sovereignty_fire_suppresses_asset")
 
     def test_classify_resume_audit_maps_recovery_evidence_to_status_codes(self):
         self.assertEqual(
