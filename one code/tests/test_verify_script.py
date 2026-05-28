@@ -10,6 +10,13 @@ class VerifyScriptTests(unittest.TestCase):
         self.assertTrue(script.exists())
         self.assertTrue(script.stat().st_mode & 0o111)
 
+    def test_verify_script_uses_short_module_entrypoint(self):
+        script = Path("scripts/verify.sh")
+        text = script.read_text(encoding="utf-8")
+
+        self.assertIn("python3 -m onecode doctor", text)
+        self.assertNotIn("python3 -m onecode.cli doctor", text)
+
     def test_verify_script_runs_non_recursive_smoke_check(self):
         completed = subprocess.run(
             ["bash", "scripts/verify.sh", "--skip-tests"],

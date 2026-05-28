@@ -12,4 +12,4 @@ if [[ "${1:-}" != "--skip-tests" ]]; then
 fi
 
 echo "doctor"
-python3 -m onecode.cli doctor
+python3 -m onecode doctor
