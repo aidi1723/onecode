@@ -11,10 +11,11 @@ class ReadmeTests(unittest.TestCase):
 
         for snippet in [
             "bash scripts/verify.sh",
+            "python3 -m onecode doctor",
             "python3 -m onecode.cli doctor",
-            "python3 -m onecode.cli run",
-            "python3 -m onecode.cli inspect",
-            "python3 -m onecode.cli list-runs",
+            "python3 -m onecode run",
+            "python3 -m onecode inspect",
+            "python3 -m onecode list-runs",
             "--resume-from",
             "--write-text",
         ]:

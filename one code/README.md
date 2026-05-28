@@ -4,6 +4,8 @@ OneCode is a local-first agent kernel prototype. It focuses on scoped file write
 
 The code is intentionally small and currently runs with the Python standard library only.
 
+The short module entrypoint is `python3 -m onecode`. The older explicit CLI module form, such as `python3 -m onecode.cli doctor`, remains supported.
+
 ## Verify
 
 Run the complete local check:
@@ -16,14 +18,14 @@ This runs:
 
 - `python3 -m compileall src tests`
 - `python3 -m unittest discover -s tests -v`
-- `python3 -m onecode.cli doctor`
+- `python3 -m onecode doctor`
 
 ## Doctor
 
 Run the built-in smoke check:
 
 ```bash
-PYTHONPATH=src python3 -m onecode.cli doctor
+PYTHONPATH=src python3 -m onecode doctor
 ```
 
 `doctor` runs four real local paths in a temporary workspace:
@@ -40,7 +42,7 @@ It prints JSON and exits non-zero if any check fails.
 Write one asset:
 
 ```bash
-PYTHONPATH=src python3 -m onecode.cli run "write asset" \
+PYTHONPATH=src python3 -m onecode run "write asset" \
   --workspace /tmp/onecode-demo \
   --run-id demo-run \
   --write-path src/demo.py \
@@ -50,7 +52,7 @@ PYTHONPATH=src python3 -m onecode.cli run "write asset" \
 Write multiple assets:
 
 ```bash
-PYTHONPATH=src python3 -m onecode.cli run "write assets" \
+PYTHONPATH=src python3 -m onecode run "write assets" \
   --workspace /tmp/onecode-demo \
   --run-id demo-multi \
   --write-text "src/a.py=a = 1\n" \
@@ -60,7 +62,7 @@ PYTHONPATH=src python3 -m onecode.cli run "write assets" \
 Resume from an earlier run:
 
 ```bash
-PYTHONPATH=src python3 -m onecode.cli run "resume asset" \
+PYTHONPATH=src python3 -m onecode run "resume asset" \
   --workspace /tmp/onecode-demo \
   --run-id demo-resume \
   --resume-from demo-run \
@@ -75,7 +77,7 @@ If the prior asset exists and its SHA256 matches the old manifest, OneCode skips
 Inspect one run:
 
 ```bash
-PYTHONPATH=src python3 -m onecode.cli inspect \
+PYTHONPATH=src python3 -m onecode inspect \
   --workspace /tmp/onecode-demo \
   --run-id demo-run
 ```
@@ -83,7 +85,7 @@ PYTHONPATH=src python3 -m onecode.cli inspect \
 List all runs in a workspace:
 
 ```bash
-PYTHONPATH=src python3 -m onecode.cli list-runs \
+PYTHONPATH=src python3 -m onecode list-runs \
   --workspace /tmp/onecode-demo
 ```
 
