@@ -179,9 +179,11 @@ def validate_checkpoint_evidence(checkpoints: list[dict], path: Path) -> tuple[s
             return str(path), "missing_checkpoint_file"
         if sha256_file(checkpoint_path) != checkpoint["sha256"]:
             return str(path), "checkpoint_sha_mismatch"
-        _, corrupt_checkpoint_path, corrupt_checkpoint_reason = read_json(checkpoint_path)
+        checkpoint_payload, corrupt_checkpoint_path, corrupt_checkpoint_reason = read_json(checkpoint_path)
         if corrupt_checkpoint_path is not None:
             return corrupt_checkpoint_path, corrupt_checkpoint_reason
+        if checkpoint_payload.get("status") != checkpoint.get("status"):
+            return str(path), "checkpoint_record_mismatch"
     return None, None
 
 
