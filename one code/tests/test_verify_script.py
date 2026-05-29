@@ -38,6 +38,13 @@ class VerifyScriptTests(unittest.TestCase):
 
         self.assertIn("demo workspace", completed.stdout)
         self.assertIn("demo-plan-verified", completed.stdout)
+        self.assertIn("presets: python-compileall, python-unittest", completed.stdout)
+        self.assertIn("policy: completed", completed.stdout)
+        self.assertIn("run-plan: completed / deliverable", completed.stdout)
+        self.assertIn("verifier: python-unittest passed", completed.stdout)
+        self.assertIn("inspect: completed / deliverable", completed.stdout)
+        self.assertNotIn("iching_profile", completed.stdout)
+        self.assertNotIn("element_matrix", completed.stdout)
 
     def test_verify_script_exists_and_is_executable(self):
         script = Path("scripts/verify.sh")
