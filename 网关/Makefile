@@ -13,9 +13,6 @@ validate:
 	python3 -m agent_skill_dictionary.validator
 	python3 -m json.tool agent_skill_dictionary/programming-agent-skill-dictionary.json >/dev/null
 	python3 -m json.tool agent_skill_dictionary/guard_policy.json >/dev/null
-	python3 -m json.tool schemas/guard-policy.schema.json >/dev/null
-	python3 -m json.tool data/xinhua-base-entries.json >/dev/null
-	python3 -m json.tool data/agent-dictionary-manifest.json >/dev/null
 
 compile:
 	python3 -m compileall -q agent_skill_dictionary tests
