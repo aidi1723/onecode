@@ -145,14 +145,19 @@ Generate a local verifier policy and require a controlled verifier before delive
 PYTHONPATH=src python3 -m onecode init-verifier-policy \
   --workspace /tmp/onecode-demo \
   --preset python-unittest
+```
 
+After initialization, `run-plan --verifier` reads the workspace default policy at `.onecode/verifier-policy.json`:
+
+```bash
 PYTHONPATH=src python3 -m onecode run-plan \
   --workspace /tmp/onecode-demo \
   --run-id demo-plan-verified \
   --plan /tmp/onecode-demo/task-plan.json \
-  --verifier-policy /tmp/onecode-demo/.onecode/verifier-policy.json \
   --verifier python-unittest
 ```
+
+Use `--verifier-policy` to override the workspace default policy path.
 
 ## Inspect
 

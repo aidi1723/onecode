@@ -27,6 +27,7 @@ class ReadmeTests(unittest.TestCase):
             "--write-text",
             "--verifier-policy",
             "--verifier python-unittest",
+            "After initialization, `run-plan --verifier` reads the workspace default policy",
         ]:
             self.assertIn(snippet, text)
 

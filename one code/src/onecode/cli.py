@@ -784,6 +784,12 @@ def list_runs(workspace: Path) -> dict:
     return {"workspace": str(workspace), "runs": runs}
 
 
+def run_plan_verifier_policy_path(workspace: Path, explicit_policy: str | None) -> Path:
+    if explicit_policy is not None:
+        return Path(explicit_policy)
+    return workspace / DEFAULT_VERIFIER_POLICY_PATH
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -839,9 +845,8 @@ def main(argv: list[str] | None = None) -> int:
                 parser.error("--max-repair-attempts requires --verifier")
             verifier_specs = []
             if args.verifier:
-                if args.verifier_policy is None:
-                    parser.error("--verifier requires --verifier-policy")
-                policy = load_verifier_policy(Path(args.verifier_policy))
+                policy_path = run_plan_verifier_policy_path(Path(args.workspace), args.verifier_policy)
+                policy = load_verifier_policy(policy_path)
                 verifier_specs = validate_selected_verifiers(Path(args.workspace), policy, args.verifier)
             resume_summary = None
             if args.resume_from is not None:

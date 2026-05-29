@@ -49,8 +49,10 @@ class RunPlanCliTests(unittest.TestCase):
         timeout_ms: int = 5000,
         cwd: str = ".",
         verifier_id: str = "python-unittest",
+        path: str = "verifiers.json",
     ) -> Path:
-        policy_path = workspace / "verifiers.json"
+        policy_path = workspace / path
+        policy_path.parent.mkdir(parents=True, exist_ok=True)
         policy_path.write_text(
             json.dumps(
                 {
@@ -67,6 +69,118 @@ class RunPlanCliTests(unittest.TestCase):
             encoding="utf-8",
         )
         return policy_path
+
+    def test_cli_run_plan_uses_workspace_default_verifier_policy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_plan(workspace)
+            self.write_policy(
+                workspace,
+                [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+                path=".onecode/verifier-policy.json",
+            )
+
+            with patch("builtins.print") as print_mock:
+                exit_code = main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "default-policy",
+                        "--verifier",
+                        "python-unittest",
+                    ]
+                )
+            result = json.loads(print_mock.call_args.args[0])
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(result["delivery_status"], "deliverable")
+            self.assertEqual(result["verifier_results"][0]["id"], "python-unittest")
+            self.assertEqual(result["verifier_results"][0]["status"], "passed")
+
+    def test_cli_run_plan_explicit_verifier_policy_overrides_workspace_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_plan(workspace)
+            self.write_policy(
+                workspace,
+                [sys.executable, "-c", "raise SystemExit(7)"],
+                path=".onecode/verifier-policy.json",
+            )
+            explicit_policy = self.write_policy(
+                workspace,
+                [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+                path="explicit-verifiers.json",
+            )
+
+            with patch("builtins.print") as print_mock:
+                exit_code = main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "explicit-policy",
+                        "--verifier-policy",
+                        str(explicit_policy),
+                        "--verifier",
+                        "python-unittest",
+                    ]
+                )
+            result = json.loads(print_mock.call_args.args[0])
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(result["verifier_results"][0]["status"], "passed")
+
+    def test_cli_run_plan_missing_default_verifier_policy_fails_before_writing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_plan(workspace)
+
+            with self.assertRaises(SystemExit):
+                main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "missing-default-policy",
+                        "--verifier",
+                        "python-unittest",
+                    ]
+                )
+
+            self.assertFalse((workspace / "src" / "generated.py").exists())
+
+    def test_cli_run_plan_without_verifier_does_not_require_default_policy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_plan(workspace)
+
+            with patch("builtins.print") as print_mock:
+                exit_code = main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "no-verifier-no-policy",
+                    ]
+                )
+            result = json.loads(print_mock.call_args.args[0])
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(result["status"], "completed")
+            self.assertNotIn("verifier_results", result)
 
     def write_repair_plan(self, workspace: Path) -> Path:
         plan_path = workspace / "repair-plan.json"
