@@ -8,7 +8,18 @@ import hashlib
 from pathlib import Path
 from unittest.mock import patch
 
-from onecode.cli import main
+from onecode.cli import build_run_plan_repair_prompt, is_patch_only_repair_plan, main
+from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset, ModelPlanPatch
+
+
+class FakeRepairProvider:
+    def __init__(self, plans: list[ModelPlan]):
+        self.plans = list(plans)
+        self.prompts: list[str] = []
+
+    def create_plan(self, task: str, model: str, http_timeout_seconds: float) -> ModelPlan:
+        self.prompts.append(task)
+        return self.plans.pop(0)
 
 
 class RunPlanCliTests(unittest.TestCase):
@@ -56,6 +67,92 @@ class RunPlanCliTests(unittest.TestCase):
             encoding="utf-8",
         )
         return policy_path
+
+    def write_repair_plan(self, workspace: Path) -> Path:
+        plan_path = workspace / "repair-plan.json"
+        plan_path.write_text(
+            json.dumps(
+                {
+                    "task": "repairable plan",
+                    "assets": [
+                        {
+                            "path": "src/calc.py",
+                            "content": "def value():\n    return 1\n",
+                        },
+                        {
+                            "path": "tests/test_calc.py",
+                            "content": "import unittest\nfrom src.calc import value\n\nclass CalcTests(unittest.TestCase):\n    def test_value(self):\n        self.assertEqual(value(), 20)\n",
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        return plan_path
+
+    def test_cli_run_plan_repair_requires_selected_verifiers_before_writing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_plan(workspace)
+
+            with self.assertRaises(SystemExit):
+                main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "repair-no-verifier",
+                        "--max-repair-attempts",
+                        "1",
+                    ]
+                )
+
+            self.assertFalse((workspace / "src" / "generated.py").exists())
+
+    def test_run_plan_repair_prompt_includes_verifier_evidence(self):
+        prompt = build_run_plan_repair_prompt(
+            task="repair task",
+            result={
+                "run_id": "run-1",
+                "task_status_code": 48,
+                "task_transition_action": "halt",
+                "task_resume_decisions": [{"kind": "ready", "target_id": "src/a.py"}],
+            },
+            verifier_results=[
+                {
+                    "id": "unit",
+                    "status": "failed",
+                    "reason": "verifier_failed",
+                    "exit_code": 1,
+                    "stdout_tail": "stdout evidence",
+                    "stderr_tail": "stderr evidence",
+                }
+            ],
+            planned_asset_paths=["src/a.py", "tests/test_a.py"],
+        )
+
+        self.assertIn("unit", prompt)
+        self.assertIn("verifier_failed", prompt)
+        self.assertIn("stdout evidence", prompt)
+        self.assertIn("stderr evidence", prompt)
+        self.assertIn("src/a.py", prompt)
+        self.assertIn("patches only", prompt)
+
+    def test_run_plan_repair_accepts_only_patch_plans(self):
+        patch_plan = ModelPlan(
+            task="repair",
+            patches=[ModelPlanPatch(path="src/a.py", search_block="bad", replace_block="good")],
+        )
+        asset_plan = ModelPlan(
+            task="bad repair",
+            assets=[ModelPlanAsset(path="src/a.py", content="value = 1\n")],
+        )
+
+        self.assertTrue(is_patch_only_repair_plan(patch_plan))
+        self.assertFalse(is_patch_only_repair_plan(asset_plan))
 
     def test_cli_run_plan_runs_passing_verifier_and_records_task_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -254,6 +351,231 @@ class RunPlanCliTests(unittest.TestCase):
             self.assertEqual(result["delivery_status"], "blocked")
             self.assertEqual(result["verifier_results"][0]["exit_code"], 5)
             self.assertIn("bad verifier", result["verifier_results"][0]["stdout_tail"])
+
+    def test_cli_run_plan_repairs_failed_verifier_with_patch_only_plan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_repair_plan(workspace)
+            policy_path = self.write_policy(
+                workspace,
+                [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+            )
+            provider = FakeRepairProvider(
+                [
+                    ModelPlan(
+                        task="repair",
+                        patches=[
+                            ModelPlanPatch(
+                                path="src/calc.py",
+                                search_block="def value():\n    return 1\n",
+                                replace_block="def value():\n    return 20\n",
+                            )
+                        ],
+                    )
+                ]
+            )
+
+            with patch("onecode.cli.build_provider", return_value=provider):
+                with patch("builtins.print") as print_mock:
+                    exit_code = main(
+                        [
+                            "run-plan",
+                            "--workspace",
+                            tmp,
+                            "--plan",
+                            str(plan_path),
+                            "--run-id",
+                            "repair-success",
+                            "--verifier-policy",
+                            str(policy_path),
+                            "--verifier",
+                            "python-unittest",
+                            "--repair-api-key",
+                            "test-key",
+                            "--max-repair-attempts",
+                            "1",
+                        ]
+                    )
+            result = json.loads(print_mock.call_args.args[0])
+
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(result["repaired"])
+            self.assertEqual(result["repair_attempt_count"], 1)
+            self.assertEqual(result["repair_verifier_results"][-1][0]["status"], "passed")
+            self.assertIn("return 20", (workspace / "src" / "calc.py").read_text(encoding="utf-8"))
+            self.assertIn("verifier_failed", provider.prompts[0])
+
+    def test_cli_run_plan_rejects_non_patch_repair_plan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_repair_plan(workspace)
+            policy_path = self.write_policy(workspace, [sys.executable, "-m", "unittest", "discover", "-s", "tests"])
+            provider = FakeRepairProvider(
+                [ModelPlan(task="bad repair", assets=[ModelPlanAsset(path="src/calc.py", content="bad\n")])]
+            )
+
+            with patch("onecode.cli.build_provider", return_value=provider):
+                with patch("builtins.print") as print_mock:
+                    exit_code = main(
+                        [
+                            "run-plan",
+                            "--workspace",
+                            tmp,
+                            "--plan",
+                            str(plan_path),
+                            "--run-id",
+                            "repair-rejected",
+                            "--verifier-policy",
+                            str(policy_path),
+                            "--verifier",
+                            "python-unittest",
+                            "--repair-api-key",
+                            "test-key",
+                            "--max-repair-attempts",
+                            "1",
+                        ]
+                    )
+            result = json.loads(print_mock.call_args.args[0])
+
+            self.assertNotEqual(exit_code, 0)
+            self.assertFalse(result["repaired"])
+            self.assertEqual(result["repair_rejected_reason"], "repair_plan_must_use_patches_only")
+
+    def test_cli_run_plan_exhausted_repair_attempt_remains_halted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_repair_plan(workspace)
+            policy_path = self.write_policy(workspace, [sys.executable, "-m", "unittest", "discover", "-s", "tests"])
+            provider = FakeRepairProvider(
+                [
+                    ModelPlan(
+                        task="repair",
+                        patches=[
+                            ModelPlanPatch(
+                                path="src/calc.py",
+                                search_block="def value():\n    return 1\n",
+                                replace_block="def value():\n    return 3\n",
+                            )
+                        ],
+                    )
+                ]
+            )
+
+            with patch("onecode.cli.build_provider", return_value=provider):
+                with patch("builtins.print") as print_mock:
+                    exit_code = main(
+                        [
+                            "run-plan",
+                            "--workspace",
+                            tmp,
+                            "--plan",
+                            str(plan_path),
+                            "--run-id",
+                            "repair-exhausted",
+                            "--verifier-policy",
+                            str(policy_path),
+                            "--verifier",
+                            "python-unittest",
+                            "--repair-api-key",
+                            "test-key",
+                            "--max-repair-attempts",
+                            "1",
+                        ]
+                    )
+            result = json.loads(print_mock.call_args.args[0])
+
+            self.assertNotEqual(exit_code, 0)
+            self.assertFalse(result["repaired"])
+            self.assertEqual(result["repair_attempt_count"], 1)
+            self.assertEqual(result["repair_verifier_results"][-1][0]["status"], "failed")
+
+    def test_cli_run_plan_second_repair_prompt_uses_latest_verifier_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_repair_plan(workspace)
+            policy_path = self.write_policy(workspace, [sys.executable, "-m", "unittest", "discover", "-s", "tests"])
+            provider = FakeRepairProvider(
+                [
+                    ModelPlan(
+                        task="repair",
+                        patches=[
+                            ModelPlanPatch(
+                                path="src/calc.py",
+                                search_block="def value():\n    return 1\n",
+                                replace_block="def value():\n    return 300\n",
+                            )
+                        ],
+                    ),
+                    ModelPlan(
+                        task="repair",
+                        patches=[
+                            ModelPlanPatch(
+                                path="src/calc.py",
+                                search_block="def value():\n    return 300\n",
+                                replace_block="def value():\n    return 20\n",
+                            )
+                        ],
+                    ),
+                ]
+            )
+
+            with patch("onecode.cli.build_provider", return_value=provider):
+                with patch("builtins.print") as print_mock:
+                    exit_code = main(
+                        [
+                            "run-plan",
+                            "--workspace",
+                            tmp,
+                            "--plan",
+                            str(plan_path),
+                            "--run-id",
+                            "repair-second-prompt",
+                            "--verifier-policy",
+                            str(policy_path),
+                            "--verifier",
+                            "python-unittest",
+                            "--repair-api-key",
+                            "test-key",
+                            "--max-repair-attempts",
+                            "2",
+                        ]
+                    )
+            result = json.loads(print_mock.call_args.args[0])
+
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(result["repaired"])
+            self.assertEqual(len(provider.prompts), 2)
+            self.assertIn("300 != 20", provider.prompts[1])
+
+    def test_cli_run_plan_does_not_repair_when_attempts_zero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_repair_plan(workspace)
+            policy_path = self.write_policy(workspace, [sys.executable, "-m", "unittest", "discover", "-s", "tests"])
+            provider = FakeRepairProvider([])
+
+            with patch("onecode.cli.build_provider", return_value=provider):
+                with patch("builtins.print") as print_mock:
+                    exit_code = main(
+                        [
+                            "run-plan",
+                            "--workspace",
+                            tmp,
+                            "--plan",
+                            str(plan_path),
+                            "--run-id",
+                            "repair-disabled",
+                            "--verifier-policy",
+                            str(policy_path),
+                            "--verifier",
+                            "python-unittest",
+                        ]
+                    )
+            result = json.loads(print_mock.call_args.args[0])
+
+            self.assertNotEqual(exit_code, 0)
+            self.assertNotIn("repair_attempt_count", result)
+            self.assertEqual(provider.prompts, [])
 
     def test_cli_run_plan_blocks_delivery_when_verifier_times_out(self):
         with tempfile.TemporaryDirectory() as tmp:

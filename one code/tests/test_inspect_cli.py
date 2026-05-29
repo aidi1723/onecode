@@ -9,6 +9,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from onecode.cli import delivery_summary, inspect_run, main
+from onecode.kernel.model_provider import ModelPlan, ModelPlanPatch
+from tests.test_run_plan_cli import FakeRepairProvider
 
 
 class InspectCliTests(unittest.TestCase):
@@ -127,6 +129,86 @@ class InspectCliTests(unittest.TestCase):
             self.assertEqual(summary["task_resume_decisions"][0]["kind"], "ready")
             self.assertIn("task_resume_status_code", summary)
             self.assertIn("task_resume_transition_action", summary)
+
+    def test_cli_inspect_reports_repair_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = workspace / "task-plan.json"
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "task": "repair inspect",
+                        "assets": [
+                            {"path": "src/calc.py", "content": "def value():\n    return 1\n"},
+                            {
+                                "path": "tests/test_calc.py",
+                                "content": "import unittest\nfrom src.calc import value\n\nclass CalcTests(unittest.TestCase):\n    def test_value(self):\n        self.assertEqual(value(), 20)\n",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            policy_path = workspace / "verifiers.json"
+            policy_path.write_text(
+                json.dumps(
+                    {
+                        "verifiers": [
+                            {
+                                "id": "python-unittest",
+                                "command": [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+                                "cwd": ".",
+                                "timeout_ms": 5000,
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            provider = FakeRepairProvider(
+                [
+                    ModelPlan(
+                        task="repair",
+                        patches=[
+                            ModelPlanPatch(
+                                path="src/calc.py",
+                                search_block="def value():\n    return 1\n",
+                                replace_block="def value():\n    return 20\n",
+                            )
+                        ],
+                    )
+                ]
+            )
+
+            with patch("onecode.cli.build_provider", return_value=provider):
+                with patch("builtins.print"):
+                    main(
+                        [
+                            "run-plan",
+                            "--workspace",
+                            tmp,
+                            "--plan",
+                            str(plan_path),
+                            "--run-id",
+                            "repaired",
+                            "--verifier-policy",
+                            str(policy_path),
+                            "--verifier",
+                            "python-unittest",
+                            "--repair-api-key",
+                            "test-key",
+                            "--max-repair-attempts",
+                            "1",
+                        ]
+                    )
+
+            exit_code, summary = inspect_run(workspace, "repaired")
+
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(summary["repaired"])
+            self.assertEqual(summary["repair_attempt_count"], 1)
+            self.assertEqual(summary["initial_verifier_results"][0]["status"], "failed")
+            self.assertEqual(summary["repair_verifier_results"][-1][0]["status"], "passed")
 
     def test_cli_inspect_prints_existing_run_summary(self):
         with tempfile.TemporaryDirectory() as tmp:
