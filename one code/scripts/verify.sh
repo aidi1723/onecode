@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export PYTHONPATH="${PYTHONPATH:-src}"
+echo "install"
+python3 -m pip install -e .[tui]
 
 echo "compileall"
 python3 -m compileall src tests
