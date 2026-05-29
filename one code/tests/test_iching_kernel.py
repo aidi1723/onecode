@@ -391,6 +391,32 @@ class TestIchingKernel(unittest.TestCase):
                 dynamics = IchingKernel.element_dynamics(IchingKernel.compute_status(outer, inner))
                 self.assertEqual(dynamics["modulation"], modulation)
 
+    def test_execution_bandwidth_applies_explicit_five_element_matrix(self):
+        fire_over_metal = IchingKernel.compute_status(IchingKernel.LI, IchingKernel.QIAN)
+        water_over_fire = IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.LI)
+        wood_over_fire = IchingKernel.compute_status(IchingKernel.ZHEN, IchingKernel.LI)
+
+        self.assertEqual(IchingKernel.execution_bandwidth(fire_over_metal), 0.0)
+        self.assertEqual(IchingKernel.execution_bandwidth(water_over_fire), 0.0)
+        self.assertEqual(IchingKernel.execution_bandwidth(wood_over_fire, base=2.0), 2.0)
+
+        profile = IchingKernel.cross_cutting_profile(fire_over_metal)
+        self.assertEqual(profile["execution_bandwidth"], 0.0)
+
+    def test_aggregate_status_collapses_parallel_results_with_or_and_gates(self):
+        statuses = [
+            IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.QIAN),
+            IchingKernel.compute_status(IchingKernel.LI, IchingKernel.DUI),
+        ]
+
+        aggregated = IchingKernel.aggregate_status(statuses)
+
+        self.assertEqual(
+            aggregated,
+            IchingKernel.compute_status(IchingKernel.KAN | IchingKernel.LI, IchingKernel.QIAN & IchingKernel.DUI),
+        )
+        self.assertEqual(IchingKernel.aggregate_status([]), IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN))
+
     def test_hexagram_records_cover_all_sixty_four_states(self):
         records = IchingKernel.hexagram_records()
 

@@ -99,6 +99,48 @@ def checkpoint_to_ready_asset(
         )
     current_sha256 = sha256_file(asset_path)
     if intent_type == "patch_text":
+        pre_sha = payload.get("pre_sha256")
+        post_sha = payload.get("post_sha256") or payload_sha
+        if isinstance(pre_sha, str) and isinstance(post_sha, str):
+            if current_sha256 == post_sha:
+                ready_asset = ReadyAsset(
+                    path=relative_path,
+                    sha256=current_sha256,
+                    source_run_id=source_run_id,
+                    source_turn_index=int(checkpoint.get("turn_index", 0)),
+                    intent_type=intent_type,
+                )
+                return ready_asset, audit_event(
+                    path=relative_path,
+                    status="ready",
+                    reason=None,
+                    status_code=IchingKernel.classify_resume_audit("ready", None),
+                    intent_type=intent_type,
+                    current_sha256=current_sha256,
+                    post_sha256=post_sha,
+                )
+            if current_sha256 == pre_sha:
+                return None, audit_event(
+                    path=relative_path,
+                    status="apply_patch",
+                    reason="patch_base_ready",
+                    status_code=IchingKernel.classify_resume_audit("apply_patch", "patch_base_ready"),
+                    intent_type=intent_type,
+                    current_sha256=current_sha256,
+                    pre_sha256=pre_sha,
+                    post_sha256=post_sha,
+                )
+            return None, audit_event(
+                path=relative_path,
+                status="halted",
+                reason="patch_resume_conflict",
+                status_code=IchingKernel.classify_resume_audit("halted", "patch_resume_conflict"),
+                intent_type=intent_type,
+                current_sha256=current_sha256,
+                pre_sha256=pre_sha,
+                post_sha256=post_sha,
+            )
+
         replace_block = payload.get("replace_block")
         if not isinstance(replace_block, str) or replace_block == "":
             return None, None

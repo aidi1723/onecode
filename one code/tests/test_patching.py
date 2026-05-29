@@ -11,6 +11,7 @@ from onecode.kernel.patching import (
     apply_patch_preview,
     commit_patch,
 )
+from onecode.kernel.checkpoint import sha256_file
 
 
 class PatchingTests(unittest.TestCase):
@@ -81,6 +82,7 @@ class PatchingTests(unittest.TestCase):
             target = workspace / "src" / "mesh.py"
             target.parent.mkdir()
             target.write_text("def status():\n    return False\n", encoding="utf-8")
+            pre_hash = sha256_file(target)
 
             result = commit_patch(
                 workspace,
@@ -94,6 +96,11 @@ class PatchingTests(unittest.TestCase):
             self.assertEqual(result["status"], "completed")
             self.assertEqual(result["path"], str(target.resolve()))
             self.assertIn("sha256", result)
+            self.assertIn("pre_sha256", result)
+            self.assertEqual(result["pre_sha256"], pre_hash)
+            self.assertEqual(result["post_sha256"], result["sha256"])
+            self.assertIn("search_block_sha256", result)
+            self.assertIn("replace_block_sha256", result)
             self.assertEqual(target.read_text(encoding="utf-8"), "def status():\n    return True\n")
 
     def test_commit_patch_rejects_path_traversal_without_writing(self):

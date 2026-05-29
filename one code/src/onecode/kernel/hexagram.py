@@ -59,6 +59,33 @@ class IchingKernel:
         "fire": "metal",
         "metal": "wood",
     }
+    ELEMENT_EXECUTION_BANDWIDTH = {
+        ("metal", "metal"): 1.0,
+        ("metal", "wood"): 0.0,
+        ("metal", "water"): 1.0,
+        ("metal", "fire"): 1.0,
+        ("metal", "earth"): 1.0,
+        ("wood", "metal"): 1.0,
+        ("wood", "wood"): 1.0,
+        ("wood", "water"): 0.0,
+        ("wood", "fire"): 1.0,
+        ("wood", "earth"): 0.0,
+        ("water", "metal"): 0.0,
+        ("water", "wood"): 1.0,
+        ("water", "water"): 1.0,
+        ("water", "fire"): 0.0,
+        ("water", "earth"): 1.0,
+        ("fire", "metal"): 0.0,
+        ("fire", "wood"): 1.0,
+        ("fire", "water"): 1.0,
+        ("fire", "fire"): 1.0,
+        ("fire", "earth"): 1.0,
+        ("earth", "metal"): 1.0,
+        ("earth", "wood"): 1.0,
+        ("earth", "water"): 1.0,
+        ("earth", "fire"): 0.0,
+        ("earth", "earth"): 1.0,
+    }
     RULE_LAYERS = {
         "bit_derived": [
             "status_code",
@@ -267,6 +294,27 @@ class IchingKernel:
         return "neutral"
 
     @classmethod
+    def execution_bandwidth(cls, status_code: int, base: float = 1.0) -> float:
+        normalized = status_code & 0b111111
+        inner = normalized & 0b111
+        outer = (normalized >> 3) & 0b111
+        outer_element = cls.element_for_trigram(outer)
+        inner_element = cls.element_for_trigram(inner)
+        return base * cls.ELEMENT_EXECUTION_BANDWIDTH[(outer_element, inner_element)]
+
+    @classmethod
+    def aggregate_status(cls, status_codes: list[int]) -> int:
+        if not status_codes:
+            return cls.compute_status(cls.KUN, cls.KUN)
+        outer_global = 0
+        inner_global = 0b111
+        for status_code in status_codes:
+            normalized = status_code & 0b111111
+            outer_global |= (normalized >> 3) & 0b111
+            inner_global &= normalized & 0b111
+        return cls.compute_status(outer_global, inner_global)
+
+    @classmethod
     def element_dynamics(cls, status_code: int) -> dict[str, str]:
         normalized = status_code & 0b111111
         inner = normalized & 0b111
@@ -321,6 +369,7 @@ class IchingKernel:
             "element_matrix": {f"{source}->{target}": relation for (source, target), relation in cls.element_matrix().items()},
             "element_relation": cls.element_relation(outer_element, inner_element),
             "element_dynamics": cls.element_dynamics(normalized),
+            "execution_bandwidth": cls.execution_bandwidth(normalized),
             "yin_yang": cls.yin_yang_cross_profile(normalized),
             "four_symbols": cls.four_symbols(normalized),
             "transition": {
