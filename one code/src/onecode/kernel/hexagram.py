@@ -35,6 +35,12 @@ class IchingKernel:
         0b10: "shao_yin",
         0b11: "tai_yang",
     }
+    FOUR_SYMBOL_RUNTIME_SEMANTICS = {
+        "tai_yin": "halted",
+        "shao_yang": "safe_read_skip",
+        "shao_yin": "write_commit",
+        "tai_yang": "overload_clash",
+    }
     # Correspondence layer: these mappings are traditional associations, not bit-derived facts.
     TRIGRAM_ELEMENTS = {
         KUN: "earth",
@@ -99,10 +105,13 @@ class IchingKernel:
             "inner_trigram",
             "outer_trigram",
             "trigram_records",
+            "liangyi",
             "yin_yang",
             "polarity_index",
             "balance_mask",
             "four_symbols",
+            "overlapping_four_symbols",
+            "four_symbol_balance",
         ],
         "correspondence_derived": [
             "inner_element",
@@ -138,6 +147,50 @@ class IchingKernel:
             }
             for pair_index in range(3)
         ]
+
+    @classmethod
+    def liangyi_bits(cls, status_code: int) -> list[dict[str, int | str]]:
+        normalized = status_code & 0b111111
+        return [
+            {
+                "bit_index": bit_index,
+                "value": (normalized >> bit_index) & 1,
+                "polarity": "yang" if ((normalized >> bit_index) & 1) else "yin",
+                "runtime_semantics": "active" if ((normalized >> bit_index) & 1) else "inactive",
+            }
+            for bit_index in range(6)
+        ]
+
+    @classmethod
+    def overlapping_four_symbols(cls, status_code: int) -> list[dict[str, int | str]]:
+        normalized = status_code & 0b111111
+        windows = []
+        for window_index in range(5):
+            bits = (normalized >> window_index) & 0b11
+            symbol = cls.four_symbol_for_bits(bits)
+            windows.append(
+                {
+                    "window_index": window_index,
+                    "bits": bits,
+                    "symbol": symbol,
+                    "runtime_semantics": cls.FOUR_SYMBOL_RUNTIME_SEMANTICS[symbol],
+                }
+            )
+        return windows
+
+    @classmethod
+    def four_symbol_balance_vector(cls, status_code: int) -> dict[str, dict[str, int] | int | str | None]:
+        counts = {symbol: 0 for symbol in cls.FOUR_SYMBOLS.values()}
+        for window in cls.overlapping_four_symbols(status_code):
+            counts[str(window["symbol"])] += 1
+        if counts["tai_yang"] > counts["shao_yang"] + counts["shao_yin"]:
+            return {
+                "counts": counts,
+                "decision": "overflow",
+                "change_mask": 0b100000,
+                "reason": "tai_yang_exceeds_minor_symbols",
+            }
+        return {"counts": counts, "decision": "stable", "change_mask": 0, "reason": None}
 
     @classmethod
     def yin_yang_profile(cls, status_code: int) -> dict[str, int | str]:
@@ -469,6 +522,7 @@ class IchingKernel:
             "outer_trigram": outer,
             "inner_trigram": inner,
             "lines": cls.line_records(normalized),
+            "liangyi": cls.liangyi_bits(normalized),
             "outer_trigram_record": cls.trigram_record(normalized, "outer"),
             "inner_trigram_record": cls.trigram_record(normalized, "inner"),
             "trigram_records": cls.trigram_records(),
@@ -482,6 +536,8 @@ class IchingKernel:
             "evolved_element_modulation": cls.evolved_element_modulation(normalized),
             "yin_yang": cls.yin_yang_cross_profile(normalized),
             "four_symbols": cls.four_symbols(normalized),
+            "overlapping_four_symbols": cls.overlapping_four_symbols(normalized),
+            "four_symbol_balance": cls.four_symbol_balance_vector(normalized),
             "transition": {
                 "status_code": transition.status_code,
                 "action": transition.action,

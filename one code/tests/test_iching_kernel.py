@@ -234,6 +234,43 @@ class TestIchingKernel(unittest.TestCase):
 
         self.assertEqual(IchingKernel.four_symbol_for_bits(0b10), "shao_yin")
 
+    def test_liangyi_and_overlapping_four_symbol_pipeline(self):
+        status = 0b111011
+
+        self.assertEqual(
+            IchingKernel.liangyi_bits(status),
+            [
+                {"bit_index": 0, "value": 1, "polarity": "yang", "runtime_semantics": "active"},
+                {"bit_index": 1, "value": 1, "polarity": "yang", "runtime_semantics": "active"},
+                {"bit_index": 2, "value": 0, "polarity": "yin", "runtime_semantics": "inactive"},
+                {"bit_index": 3, "value": 1, "polarity": "yang", "runtime_semantics": "active"},
+                {"bit_index": 4, "value": 1, "polarity": "yang", "runtime_semantics": "active"},
+                {"bit_index": 5, "value": 1, "polarity": "yang", "runtime_semantics": "active"},
+            ],
+        )
+        self.assertEqual(
+            IchingKernel.overlapping_four_symbols(status),
+            [
+                {"window_index": 0, "bits": 0b11, "symbol": "tai_yang", "runtime_semantics": "overload_clash"},
+                {"window_index": 1, "bits": 0b01, "symbol": "shao_yang", "runtime_semantics": "safe_read_skip"},
+                {"window_index": 2, "bits": 0b10, "symbol": "shao_yin", "runtime_semantics": "write_commit"},
+                {"window_index": 3, "bits": 0b11, "symbol": "tai_yang", "runtime_semantics": "overload_clash"},
+                {"window_index": 4, "bits": 0b11, "symbol": "tai_yang", "runtime_semantics": "overload_clash"},
+            ],
+        )
+
+    def test_four_symbol_balance_vector_detects_overflow(self):
+        overflow = IchingKernel.four_symbol_balance_vector(0b111111)
+
+        self.assertEqual(overflow["counts"], {"tai_yin": 0, "shao_yang": 0, "shao_yin": 0, "tai_yang": 5})
+        self.assertEqual(overflow["decision"], "overflow")
+        self.assertEqual(overflow["change_mask"], 0b100000)
+        self.assertEqual(overflow["reason"], "tai_yang_exceeds_minor_symbols")
+
+        stable = IchingKernel.four_symbol_balance_vector(0b100011)
+        self.assertEqual(stable["decision"], "stable")
+        self.assertEqual(stable["change_mask"], 0)
+
     def test_yin_yang_profile_classifies_balance_states(self):
         self.assertEqual(
             IchingKernel.yin_yang_profile(0b111111),
@@ -460,6 +497,8 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(profile["outer_trigram"], IchingKernel.QIAN)
         self.assertEqual(profile["inner_trigram"], IchingKernel.DUI)
         self.assertEqual(profile["lines"][2]["polarity"], "yin")
+        self.assertEqual(profile["liangyi"][2]["polarity"], "yin")
+        self.assertEqual(profile["four_symbol_balance"]["decision"], "overflow")
         self.assertEqual(profile["inner_trigram_record"]["binary"], "011")
         self.assertEqual(profile["outer_trigram_record"]["binary"], "111")
         self.assertEqual(profile["trigram_records"][IchingKernel.LI]["element"], "fire")
@@ -488,10 +527,13 @@ class TestIchingKernel(unittest.TestCase):
                 "inner_trigram",
                 "outer_trigram",
                 "trigram_records",
+                "liangyi",
                 "yin_yang",
                 "polarity_index",
                 "balance_mask",
                 "four_symbols",
+                "overlapping_four_symbols",
+                "four_symbol_balance",
             ],
         )
         self.assertEqual(

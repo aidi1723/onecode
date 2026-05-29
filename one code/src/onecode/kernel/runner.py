@@ -253,6 +253,9 @@ def asset_entry(
     balanced_status_code: int,
     balance_mask: int,
     balance_action: str,
+    four_symbol_decision: str,
+    four_symbol_change_mask: int,
+    four_symbol_reason: str | None,
     payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     entry = {
@@ -267,6 +270,9 @@ def asset_entry(
         "balanced_status_code": balanced_status_code,
         "balance_mask": balance_mask,
         "balance_action": balance_action,
+        "four_symbol_decision": four_symbol_decision,
+        "four_symbol_change_mask": four_symbol_change_mask,
+        "four_symbol_reason": four_symbol_reason,
         "payload": payload if payload is not None else gate_result["payload"],
         "raw_payload": gate_result["payload"],
         "resumed": gate_result["status"] == "skipped",
@@ -330,6 +336,7 @@ def run_task(
             balanced_status_code = IchingKernel.apply_balanced_event(raw_status_code, gate_result["reason"] or gate_result["status"])
             balance_mask = IchingKernel.balance_mask(raw_status_code)
             balanced_transition = IchingKernel.transition(balanced_status_code)
+            four_symbol_balance = IchingKernel.four_symbol_balance_vector(raw_status_code)
             run_control = IchingKernel.entropy_regulated_status(observed_status_codes)
             global_status_code = int(run_control["status_code"])
             global_transition = IchingKernel.transition(global_status_code)
@@ -384,6 +391,9 @@ def run_task(
                     balanced_status_code,
                     balance_mask,
                     balanced_transition.action,
+                    str(four_symbol_balance["decision"]),
+                    int(four_symbol_balance["change_mask"]),
+                    four_symbol_balance["reason"] if isinstance(four_symbol_balance["reason"], str) else None,
                     entry_payload,
                 )
             )

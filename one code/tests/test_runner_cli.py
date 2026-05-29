@@ -568,6 +568,8 @@ class RunnerMultiAssetTests(unittest.TestCase):
             self.assertEqual(result["assets"][0]["balanced_status_code"], 0b011111)
             self.assertEqual(result["assets"][0]["balance_mask"], 0b100000)
             self.assertEqual(result["assets"][0]["balance_action"], "cooldown")
+            self.assertEqual(result["assets"][0]["four_symbol_decision"], "overflow")
+            self.assertEqual(result["assets"][0]["four_symbol_change_mask"], 0b100000)
             self.assertEqual(result["assets"][1]["balanced_status_code"], 0b011111)
             self.assertEqual(result["global_entropy_decision"], "rollback")
             self.assertEqual(result["global_status_code"], IchingKernel.ROLLBACK_STATUS)
