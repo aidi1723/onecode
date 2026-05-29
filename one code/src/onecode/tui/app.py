@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import json
+import re
 import urllib.request
 import urllib.error
 from pathlib import Path
@@ -32,6 +33,7 @@ TASK_MARKERS = (
     "test", "add", "remove", "delete", "update", "refactor",
 )
 PATH_MARKERS = ("src/", "tests/", ".py", ".md", ".json")
+RICH_TAG_PATTERN = re.compile(r"\[/?[a-zA-Z][^\]]*\]")
 
 
 def resolve_api_key(provider_kind: str = "chat") -> str | None:
@@ -75,6 +77,10 @@ def classify_input(text: str) -> str:
     if any(m in stripped for m in TASK_MARKERS) and any(m in stripped for m in PATH_MARKERS):
         return "task"
     return "chat"
+
+
+def plain_text(text: str) -> str:
+    return RICH_TAG_PATTERN.sub("", text)
 
 
 def format_execution_trace(trace: dict) -> str:
@@ -188,6 +194,8 @@ class OneCodeApp(App):
         self.model = model or os.environ.get("ONECODE_MODEL", "").strip() or provider_model or DEFAULT_MODEL
         self.endpoint = resolve_endpoint(self.provider_kind)
         self.api_key = resolve_api_key(self.provider_kind)
+        self.transcript_path = self.workspace / ".onecode" / "tui-transcript.txt"
+        self.last_output_path = self.workspace / ".onecode" / "tui-last-output.txt"
         self.messages: list[dict] = [
             {"role": "system", "content": (
                 "You are OneCode assistant. Help users with code tasks concisely. "
@@ -230,27 +238,40 @@ class OneCodeApp(App):
     def _user(self, text: str) -> None:
         log = self.query_one("#chat-log", VerticalScroll)
         log.mount(UserMessage(f"[b]> {text}[/b]"))
+        self._record_transcript("user", text, update_last=False)
         log.scroll_end(animate=False)
 
     def _assistant(self, text: str) -> None:
         log = self.query_one("#chat-log", VerticalScroll)
         log.mount(AssistantMessage(text))
+        self._record_transcript("assistant", text)
         log.scroll_end(animate=False)
 
     def _system(self, text: str) -> None:
         log = self.query_one("#chat-log", VerticalScroll)
         log.mount(SystemMessage(text))
+        self._record_transcript("system", text)
         log.scroll_end(animate=False)
 
     def _error(self, text: str) -> None:
         log = self.query_one("#chat-log", VerticalScroll)
         log.mount(SystemMessage(f"[red]{text}[/red]"))
+        self._record_transcript("error", text)
         log.scroll_end(animate=False)
 
     def _divider(self) -> None:
         log = self.query_one("#chat-log", VerticalScroll)
         log.mount(Divider("─" * 60))
         log.scroll_end(animate=False)
+
+    def _record_transcript(self, role: str, text: str, update_last: bool = True) -> None:
+        clean = plain_text(text).strip()
+        self.transcript_path.parent.mkdir(parents=True, exist_ok=True)
+        line = f"[{role}] {clean}\n"
+        with self.transcript_path.open("a", encoding="utf-8") as handle:
+            handle.write(line)
+        if update_last:
+            self.last_output_path.write_text(line, encoding="utf-8")
 
     # --- Input routing ---
 
@@ -267,6 +288,10 @@ class OneCodeApp(App):
             self.action_clear()
         elif low in ("/runs", "/list-runs"):
             self._run_list_runs()
+        elif low == "/export":
+            self._system(f"Transcript: {self.transcript_path}")
+        elif low in ("/export-last", "/last-output"):
+            self._system(f"Last output: {self.last_output_path}")
         elif low.startswith("/inspect "):
             self._run_inspect(text.split(maxsplit=1)[1])
         elif low.startswith("/task ") or low.startswith("/run "):
@@ -304,6 +329,8 @@ class OneCodeApp(App):
             "  /exec-plan file.json Execute multi-step plan\n"
             "  /inspect <run-id>  Inspect run evidence\n"
             "  /runs              List all runs\n"
+            "  /export            Show transcript file path\n"
+            "  /export-last       Show last output file path\n"
             "  /doctor            Smoke checks\n"
             "  /model [name]      Show/switch model\n"
             "  /status            Show config\n"

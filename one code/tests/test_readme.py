@@ -25,6 +25,8 @@ class ReadmeTests(unittest.TestCase):
             "pip install -e .[tui]",
             "The core kernel has no runtime third-party dependency.",
             "Textual is an optional TUI dependency.",
+            ".onecode/tui-transcript.txt",
+            "/export-last",
             "--resume-from",
             "--write-text",
             "--verifier-policy",

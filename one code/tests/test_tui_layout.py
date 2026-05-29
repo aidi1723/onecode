@@ -82,6 +82,33 @@ class TuiLayoutTests(unittest.TestCase):
             "提示: 未检测到 OPENAI_API_KEY。AI 对话功能已禁用，但本地接入命令仍可正常执行。",
         )
 
+    def test_tui_records_plain_text_transcript_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            app = OneCodeApp(workspace=Path(tmp), model="test-model")
+
+            app._record_transcript("assistant", "[green]completed[/green] run:demo")
+            app._record_transcript("system", "[yellow]提示[/yellow]: ready")
+
+            transcript = app.transcript_path.read_text(encoding="utf-8")
+            last_output = app.last_output_path.read_text(encoding="utf-8")
+
+            self.assertIn("[assistant] completed run:demo", transcript)
+            self.assertIn("[system] 提示: ready", transcript)
+            self.assertEqual(last_output, "[system] 提示: ready\n")
+            self.assertNotIn("[green]", transcript)
+            self.assertNotIn("[yellow]", last_output)
+
+    def test_export_commands_report_transcript_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            app = OneCodeApp(workspace=Path(tmp), model="test-model")
+
+            with patch.object(app, "_system") as system:
+                app._handle("/export")
+                app._handle("/export-last")
+
+            self.assertIn(str(app.transcript_path), system.call_args_list[0].args[0])
+            self.assertIn(str(app.last_output_path), system.call_args_list[1].args[0])
+
     def test_styles_define_startup_and_message_surfaces(self):
         css = Path("src/onecode/tui/styles.tcss").read_text(encoding="utf-8")
 

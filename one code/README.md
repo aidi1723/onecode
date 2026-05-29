@@ -81,6 +81,15 @@ onecode tui
 
 The TUI is optional and requires Textual. It routes chat through the configured model endpoint, while task execution still flows through the kernel loop, `LogosGate`, `PathGuard`, and ledger evidence.
 
+TUI output is also written as plain text under the active workspace:
+
+```text
+.onecode/tui-transcript.txt
+.onecode/tui-last-output.txt
+```
+
+Use `/export` or `/export-last` in the TUI to print those paths when terminal box selection is inconvenient.
+
 ## Run
 
 Write one asset:
