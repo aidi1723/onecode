@@ -137,6 +137,20 @@ def write_checkpoint(
         "ready_assets": ready_assets,
         "resume_audit_events": resume_audit_events,
     }
+    if intent_type == "patch_text":
+        patch_evidence_keys = [
+            "pre_sha256",
+            "post_sha256",
+            "search_block_sha256",
+            "replace_block_sha256",
+        ]
+        patch_evidence = {
+            key: payload[key]
+            for key in patch_evidence_keys
+            if isinstance(payload.get(key), str)
+        }
+        if patch_evidence:
+            checkpoint_record["patch_evidence"] = patch_evidence
     manifest = {
         "run_id": context.run_id,
         "created_at": existing_manifest.get("created_at") if existing_manifest else utc_now_iso(),

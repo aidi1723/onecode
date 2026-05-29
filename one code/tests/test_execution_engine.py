@@ -377,6 +377,7 @@ class ExecutionEngineTests(unittest.TestCase):
             self.assertEqual(trace_dict["global_transition"]["reason"], trace.global_transition.reason)
             self.assertEqual(trace_dict["global_entropy_decision"], trace.global_entropy_decision)
             self.assertEqual(trace_dict["global_entropy"], trace.global_entropy)
+            self.assertEqual(trace_dict["global_entropy_reason"], trace.global_entropy_reason)
 
     def test_execute_plan_blocks_zero_bandwidth_steps_before_running_tools(self):
         with tempfile.TemporaryDirectory() as tmp:

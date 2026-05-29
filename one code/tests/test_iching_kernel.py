@@ -642,6 +642,8 @@ class TestIchingKernel(unittest.TestCase):
         yin_regulated = IchingKernel.entropy_regulated_status(pure_yin_statuses)
         self.assertEqual(yin_regulated["status_code"], IchingKernel.ROLLBACK_STATUS)
         self.assertEqual(yin_regulated["decision"], "rollback_negative_polarity")
+        self.assertEqual(yin_regulated["reason"], "entropy_negative_polarity_rollback")
+        self.assertEqual(IchingKernel.transition(int(yin_regulated["status_code"])).reason, "network_water_preserves_resume_seed")
 
         mixed_statuses = [
             IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.KUN),

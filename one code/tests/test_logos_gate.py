@@ -31,6 +31,18 @@ class LogosGateTests(unittest.TestCase):
         self.assertEqual(result["reason"], "http_timeout")
         self.assertEqual(result["payload"], {})
 
+    def test_timeout_rebuilds_executor_before_next_action(self):
+        gate = LogosGate(http_timeout_seconds=0.05)
+        try:
+            timed_out = gate.run_bounded_action(lambda: time.sleep(0.3))
+            recovered = gate.run_bounded_action(lambda: {"value": "fresh"})
+        finally:
+            gate.close()
+
+        self.assertEqual(timed_out["reason"], "http_timeout")
+        self.assertEqual(recovered["status"], "completed")
+        self.assertEqual(recovered["payload"], {"value": "fresh"})
+
     def test_rejects_non_positive_timeout(self):
         with self.assertRaises(ValueError):
             LogosGate(http_timeout_seconds=0)

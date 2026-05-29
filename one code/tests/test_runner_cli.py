@@ -572,6 +572,7 @@ class RunnerMultiAssetTests(unittest.TestCase):
             self.assertEqual(result["assets"][0]["four_symbol_change_mask"], 0b100000)
             self.assertEqual(result["assets"][1]["balanced_status_code"], 0b011111)
             self.assertEqual(result["global_entropy_decision"], "accept_positive_polarity")
+            self.assertIsNone(result["global_entropy_reason"])
             self.assertEqual(result["global_status_code"], IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN))
             self.assertEqual(result["global_transition_action"], "cooldown")
             self.assertIn("global_entropy", result)

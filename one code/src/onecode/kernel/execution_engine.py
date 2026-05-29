@@ -255,4 +255,9 @@ def execute_plan(
         global_transition=IchingKernel.transition(global_status_code),
         global_entropy=float(entropy_regulated["entropy"]),
         global_entropy_decision=str(entropy_regulated["decision"]),
+        global_entropy_reason=(
+            str(entropy_regulated["reason"])
+            if isinstance(entropy_regulated.get("reason"), str)
+            else None
+        ),
     )

@@ -44,9 +44,9 @@ class PathGuard:
         parts = requested.parts
         if not parts:
             raise PathGuardError("path must not be empty")
-        if parts[0] == ".git":
+        if ".git" in parts:
             raise PathGuardError("paths under .git are not allowed")
-        if parts[0] == ".github":
+        if ".github" in parts:
             raise PathGuardError("github automation writes are not allowed")
         if len(parts) == 1 and (
             parts[0] in cls.DENIED_ROOT_FILES

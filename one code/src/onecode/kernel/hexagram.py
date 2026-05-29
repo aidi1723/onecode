@@ -487,6 +487,7 @@ class IchingKernel:
             return {
                 "status_code": cls.ROLLBACK_STATUS,
                 "decision": "rollback_negative_polarity",
+                "reason": "entropy_negative_polarity_rollback",
                 "entropy": entropy["entropy"],
                 "threshold": cls.ENTROPY_THRESHOLD,
             }
@@ -666,7 +667,6 @@ class IchingKernel:
                 action="discover",
                 reason="rule_gap_requires_discovery",
             )
-
         if dynamics["modulation"] == "hard_control":
             return IchingTransition(
                 status_code=cls.compute_status(cls.LI, cls.KUN),

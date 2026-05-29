@@ -72,6 +72,7 @@ def execution_trace_to_dict(trace: Any) -> dict[str, Any]:
         "global_transition": global_transition,
         "global_entropy": trace.global_entropy,
         "global_entropy_decision": trace.global_entropy_decision,
+        "global_entropy_reason": trace.global_entropy_reason,
         "step_results": [
             {
                 "step_id": step.step_id,

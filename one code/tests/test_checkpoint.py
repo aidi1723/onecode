@@ -103,6 +103,39 @@ class AppendOnlyManifestTests(unittest.TestCase):
             self.assertEqual(manifest["checkpoints"][1]["path"], str(second))
             self.assertEqual(manifest["checkpoints"][1]["intent_type"], "write_text")
 
+    def test_patch_checkpoint_manifest_record_indexes_patch_hash_chain(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="patch-manifest-index")
+            payload = {
+                "path": "src/a.py",
+                "sha256": "post",
+                "pre_sha256": "pre",
+                "post_sha256": "post",
+                "search_block_sha256": "search",
+                "replace_block_sha256": "replace",
+            }
+
+            write_checkpoint(
+                context=context,
+                payload=payload,
+                next_state=COMPLETE,
+                status="completed",
+                partial=False,
+                reason=None,
+                intent_type="patch_text",
+                decision="allowed",
+            )
+
+            manifest = json.loads(context.manifest_path.read_text(encoding="utf-8"))
+            record = manifest["checkpoints"][0]
+
+            self.assertEqual(record["patch_evidence"], {
+                "pre_sha256": "pre",
+                "post_sha256": "post",
+                "search_block_sha256": "search",
+                "replace_block_sha256": "replace",
+            })
+
 
 class ResumedCheckpointMetadataTests(unittest.TestCase):
     def test_write_checkpoint_persists_resume_metadata(self):

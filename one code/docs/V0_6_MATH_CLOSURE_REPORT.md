@@ -89,7 +89,7 @@ The profile includes `liangyi`, `overlapping_four_symbols`, `four_symbol_balance
 The entropy gate must preserve polarity direction: low entropy is polarization, not rollback.
 
 - Positive low entropy means consistent yang completion. It is accepted as `accept_positive_polarity`, then macro transition applies cooldown (`QIAN/QIAN = 63` -> `GEN/QIAN = 39`).
-- Negative low entropy means consistent yin stasis or failure. It collapses to `rollback_negative_polarity` and the recovery status.
+- Negative low entropy means consistent yin stasis or failure. It collapses to `rollback_negative_polarity` with `entropy_negative_polarity_rollback`, so entropy rollback is not mislabeled as `network_water_preserves_resume_seed`.
 
 The rule discovery branch is live:
 

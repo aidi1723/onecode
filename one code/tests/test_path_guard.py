@@ -65,6 +65,21 @@ class PathGuardTests(unittest.TestCase):
                         PathGuard.write_text(workspace, path, "blocked")
                     self.assertFalse((workspace / path).exists())
 
+    def test_rejects_nested_git_and_github_control_surfaces(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            paths = [
+                "nested/.github/workflows/ci.yml",
+                "subproject/.git/hooks/pre-commit",
+                "a/b/.git/config",
+            ]
+
+            for path in paths:
+                with self.subTest(path=path):
+                    with self.assertRaises(PathGuardError):
+                        PathGuard.write_text(workspace, path, "blocked")
+                    self.assertFalse((workspace / path).exists())
+
 
 if __name__ == "__main__":
     unittest.main()

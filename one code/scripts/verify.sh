@@ -4,6 +4,8 @@ set -euo pipefail
 PYTHON_BIN="${PYTHON:-}"
 if [[ -z "$PYTHON_BIN" && -n "${VIRTUAL_ENV:-}" && -x "$VIRTUAL_ENV/bin/python" ]]; then
   PYTHON_BIN="$VIRTUAL_ENV/bin/python"
+elif [[ -z "$PYTHON_BIN" && -x ".venv/bin/python" ]]; then
+  PYTHON_BIN=".venv/bin/python"
 fi
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 

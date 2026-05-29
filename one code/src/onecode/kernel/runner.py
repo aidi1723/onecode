@@ -20,6 +20,7 @@ RULE_DRIVEN_RESULT_FIELDS = {
     "failed_count",
     "global_entropy",
     "global_entropy_decision",
+    "global_entropy_reason",
     "global_status_code",
     "global_transition_action",
     "global_transition_reason",
@@ -346,6 +347,7 @@ def run_task(
                 "global_transition_reason": global_transition.reason,
                 "global_entropy": run_control["entropy"],
                 "global_entropy_decision": run_control["decision"],
+                "global_entropy_reason": run_control.get("reason"),
             }
             checkpoint_payload = gate_result["payload"]
             entry_payload = checkpoint_payload
@@ -434,6 +436,7 @@ def run_task(
         "global_transition_reason": global_transition.reason,
         "global_entropy": entropy_regulated["entropy"],
         "global_entropy_decision": entropy_regulated["decision"],
+        "global_entropy_reason": entropy_regulated.get("reason"),
         "iching_status_code": last_asset["iching_status_code"],
         "iching_transition_action": last_asset["iching_transition_action"],
         "iching_transition_reason": last_asset["iching_transition_reason"],

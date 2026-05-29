@@ -98,6 +98,7 @@ class ExecutionTrace:
     global_transition: IchingTransition | None = None
     global_entropy: float = 0.0
     global_entropy_decision: str = "accept"
+    global_entropy_reason: str | None = None
 
 
 ToolHandler = Callable[[dict[str, Any]], dict[str, Any]]

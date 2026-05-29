@@ -50,6 +50,7 @@ class RuleClosureTests(unittest.TestCase):
             "low entropy is polarization, not rollback",
             "accept_positive_polarity",
             "rollback_negative_polarity",
+            "entropy_negative_polarity_rollback",
             "KUN/KUN = 0",
             "discover + stop",
             "patch_text evidence requires pre/post and block hashes",

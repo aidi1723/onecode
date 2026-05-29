@@ -34,6 +34,11 @@ class LogosGate:
             self._executor.shutdown(wait=True, cancel_futures=True)
             self._executor = None
 
+    def reset_executor(self, *, wait: bool = False) -> None:
+        if self._executor is not None:
+            self._executor.shutdown(wait=wait, cancel_futures=True)
+            self._executor = None
+
     def executor(self) -> ThreadPoolExecutor:
         if self._executor is None:
             self._executor = ThreadPoolExecutor(max_workers=self.executor_pool_size)
@@ -88,6 +93,7 @@ class LogosGate:
             payload = future.result(timeout=self.http_timeout_seconds)
         except TimeoutError:
             future.cancel()
+            self.reset_executor(wait=False)
             return {
                 "status": "halted",
                 "partial": True,
