@@ -18,6 +18,11 @@ RULE_DRIVEN_RESULT_FIELDS = {
     "completed_count",
     "decision",
     "failed_count",
+    "global_entropy",
+    "global_entropy_decision",
+    "global_status_code",
+    "global_transition_action",
+    "global_transition_reason",
     "iching_profile",
     "iching_status_code",
     "iching_transition_action",
@@ -244,6 +249,10 @@ def asset_entry(
     iching_transition: IchingTransition,
     iching_profile: dict[str, Any],
     duration_ms: int,
+    raw_status_code: int,
+    balanced_status_code: int,
+    balance_mask: int,
+    balance_action: str,
     payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     entry = {
@@ -254,6 +263,10 @@ def asset_entry(
         "decision": preflight_decision.decision.value,
         "intent_type": intent_type,
         "duration_ms": duration_ms,
+        "raw_status_code": raw_status_code,
+        "balanced_status_code": balanced_status_code,
+        "balance_mask": balance_mask,
+        "balance_action": balance_action,
         "payload": payload if payload is not None else gate_result["payload"],
         "raw_payload": gate_result["payload"],
         "resumed": gate_result["status"] == "skipped",
@@ -304,13 +317,29 @@ def run_task(
             plan_actions,
         )
         assets = []
+        observed_status_codes: list[int] = []
 
         for index, intent in enumerate(intents, start=1):
             intent_started_at = time.monotonic()
             gate_result, preflight = run_intent(task, context, gate, intent, simulated_action_seconds)
             duration_ms = int((time.monotonic() - intent_started_at) * 1000)
+            raw_status_code = IchingKernel.classify_outcome(gate_result["status"], gate_result["reason"])
             iching_transition = iching_transition_for_result(gate_result)
             iching_profile = IchingKernel.cross_cutting_profile(iching_transition.status_code)
+            observed_status_codes.append(raw_status_code)
+            balanced_status_code = IchingKernel.apply_balanced_event(raw_status_code, gate_result["reason"] or gate_result["status"])
+            balance_mask = IchingKernel.balance_mask(raw_status_code)
+            balanced_transition = IchingKernel.transition(balanced_status_code)
+            run_control = IchingKernel.entropy_regulated_status(observed_status_codes)
+            global_status_code = int(run_control["status_code"])
+            global_transition = IchingKernel.transition(global_status_code)
+            run_control_payload = {
+                "global_status_code": global_status_code,
+                "global_transition_action": global_transition.action,
+                "global_transition_reason": global_transition.reason,
+                "global_entropy": run_control["entropy"],
+                "global_entropy_decision": run_control["decision"],
+            }
             checkpoint_payload = gate_result["payload"]
             entry_payload = checkpoint_payload
             if intent.action_type == ActionType.WRITE_TEXT and "sha256" in checkpoint_payload:
@@ -340,6 +369,7 @@ def run_task(
                 iching_transition_reason=iching_transition.reason,
                 iching_profile=iching_profile,
                 duration_ms=duration_ms,
+                run_control=run_control_payload,
             )
             assets.append(
                 asset_entry(
@@ -350,6 +380,10 @@ def run_task(
                     iching_transition,
                     iching_profile,
                     duration_ms,
+                    raw_status_code,
+                    balanced_status_code,
+                    balance_mask,
+                    balanced_transition.action,
                     entry_payload,
                 )
             )
@@ -364,6 +398,9 @@ def run_task(
     is_multi_action_run = write_texts is not None or plan_actions is not None
     aggregate_success = is_multi_action_run and failed_count == 0
     result_payload = last_asset["payload"] if is_multi_action_run else last_asset["raw_payload"]
+    entropy_regulated = IchingKernel.entropy_regulated_status([asset["raw_status_code"] for asset in assets])
+    global_status_code = int(entropy_regulated["status_code"])
+    global_transition = IchingKernel.transition(global_status_code)
     result = {
         "run_id": context.run_id,
         "status": "completed" if aggregate_success else last_asset["status"],
@@ -382,6 +419,11 @@ def run_task(
         "completed_count": completed_count,
         "skipped_count": skipped_count,
         "failed_count": failed_count,
+        "global_status_code": global_status_code,
+        "global_transition_action": global_transition.action,
+        "global_transition_reason": global_transition.reason,
+        "global_entropy": entropy_regulated["entropy"],
+        "global_entropy_decision": entropy_regulated["decision"],
         "iching_status_code": last_asset["iching_status_code"],
         "iching_transition_action": last_asset["iching_transition_action"],
         "iching_transition_reason": last_asset["iching_transition_reason"],

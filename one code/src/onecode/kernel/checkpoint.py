@@ -81,6 +81,7 @@ def write_checkpoint(
     iching_transition_reason: str | None = None,
     iching_profile: dict[str, Any] | None = None,
     duration_ms: int = 0,
+    run_control: dict[str, Any] | None = None,
 ) -> Path:
     existing_manifest = read_manifest(context.manifest_path)
     existing_checkpoints = []
@@ -107,6 +108,7 @@ def write_checkpoint(
         "iching_transition_reason": iching_transition_reason,
         "iching_profile": iching_profile,
         "duration_ms": duration_ms,
+        "run_control": run_control,
         "resumed_from": resumed_from,
         "ready_assets": ready_assets,
         "resume_audit_events": resume_audit_events,
@@ -130,6 +132,7 @@ def write_checkpoint(
         "iching_transition_reason": iching_transition_reason,
         "iching_profile": iching_profile,
         "duration_ms": duration_ms,
+        "run_control": run_control,
         "resumed_from": resumed_from,
         "ready_assets": ready_assets,
         "resume_audit_events": resume_audit_events,
@@ -147,6 +150,7 @@ def write_checkpoint(
         "iching_transition_action": iching_transition_action,
         "iching_transition_reason": iching_transition_reason,
         "iching_profile": iching_profile,
+        **(run_control or {}),
         "resumed_from": resumed_from,
         "ready_assets": ready_assets,
         "resume_audit_events": resume_audit_events,

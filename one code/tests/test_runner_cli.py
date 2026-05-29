@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from onecode.cli import main
+from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.runner import run_task
 
 
@@ -564,7 +565,18 @@ class RunnerMultiAssetTests(unittest.TestCase):
             self.assertEqual([asset["index"] for asset in result["assets"]], [1, 2])
             self.assertEqual(result["assets"][0]["payload"]["path"], "src/a.py")
             self.assertEqual(result["assets"][1]["payload"]["path"], "tests/test_a.py")
+            self.assertEqual(result["assets"][0]["balanced_status_code"], 0b011111)
+            self.assertEqual(result["assets"][0]["balance_mask"], 0b100000)
+            self.assertEqual(result["assets"][0]["balance_action"], "cooldown")
+            self.assertEqual(result["assets"][1]["balanced_status_code"], 0b011111)
+            self.assertEqual(result["global_entropy_decision"], "rollback")
+            self.assertEqual(result["global_status_code"], IchingKernel.ROLLBACK_STATUS)
+            self.assertEqual(result["global_transition_action"], IchingKernel.transition(IchingKernel.ROLLBACK_STATUS).action)
+            self.assertIn("global_entropy", result)
+            self.assertEqual(result["ledger_path"], str(Path(result["ledger_path"])))
             self.assertEqual(len(manifest["checkpoints"]), 2)
+            self.assertEqual(manifest["global_entropy_decision"], result["global_entropy_decision"])
+            self.assertEqual(manifest["global_status_code"], result["global_status_code"])
             self.assertEqual((workspace / "src" / "a.py").read_text(encoding="utf-8"), "a = 1\n")
             self.assertEqual(
                 (workspace / "tests" / "test_a.py").read_text(encoding="utf-8"),
