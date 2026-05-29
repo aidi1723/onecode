@@ -28,10 +28,12 @@ from onecode.kernel.model_provider import api_key_from_env, build_provider_confi
 from onecode.kernel.self_audit import audit_self
 from onecode.kernel.context import create_context
 from onecode.kernel.verifier import (
+    DEFAULT_VERIFIER_POLICY_PATH,
     load_verifier_policy,
     run_verifier,
     task_status_from_results,
     validate_selected_verifiers,
+    write_verifier_policy,
 )
 
 
@@ -108,6 +110,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     list_runs_parser = subparsers.add_parser("list-runs")
     list_runs_parser.add_argument("--workspace", default=".")
+
+    init_verifier_policy_parser = subparsers.add_parser("init-verifier-policy")
+    init_verifier_policy_parser.add_argument("--workspace", default=".")
+    init_verifier_policy_parser.add_argument("--output", default=DEFAULT_VERIFIER_POLICY_PATH)
+    init_verifier_policy_parser.add_argument("--preset", action="append", default=None)
+    init_verifier_policy_parser.add_argument("--force", action="store_true")
 
     subparsers.add_parser("doctor")
     subparsers.add_parser("audit-self")
@@ -787,6 +795,19 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.subcommand == "list-runs":
         result = list_runs(Path(args.workspace))
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return 0
+
+    if args.subcommand == "init-verifier-policy":
+        try:
+            result = write_verifier_policy(
+                workspace=Path(args.workspace),
+                output=args.output,
+                preset_ids=args.preset,
+                force=args.force,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 0
 

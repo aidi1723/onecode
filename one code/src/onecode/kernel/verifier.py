@@ -1,6 +1,7 @@
 import hashlib
 import json
 import subprocess
+import sys
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -11,6 +12,21 @@ from onecode.kernel.hexagram import IchingKernel
 
 VerifierStatus = Literal["passed", "failed", "skipped"]
 TAIL_LIMIT = 4096
+DEFAULT_VERIFIER_POLICY_PATH = ".onecode/verifier-policy.json"
+VERIFIER_POLICY_PRESETS = {
+    "python-unittest": {
+        "id": "python-unittest",
+        "command": [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+        "cwd": ".",
+        "timeout_ms": 30000,
+    },
+    "python-compileall": {
+        "id": "python-compileall",
+        "command": [sys.executable, "-m", "compileall", "src", "tests"],
+        "cwd": ".",
+        "timeout_ms": 30000,
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -91,6 +107,57 @@ def load_verifier_policy(path: Path) -> VerifierPolicy:
             raise ValueError(f"duplicate verifier id: {spec.id}")
         specs[spec.id] = spec
     return VerifierPolicy(specs=specs)
+
+
+def verifier_policy_data(preset_ids: list[str] | None = None) -> dict[str, Any]:
+    selected_ids = preset_ids or ["python-unittest"]
+    verifiers = []
+    seen = set()
+    for preset_id in selected_ids:
+        if preset_id not in VERIFIER_POLICY_PRESETS:
+            raise ValueError(f"unknown verifier policy preset: {preset_id}")
+        if preset_id in seen:
+            raise ValueError(f"duplicate verifier policy preset: {preset_id}")
+        seen.add(preset_id)
+        verifiers.append(dict(VERIFIER_POLICY_PRESETS[preset_id]))
+    return {"verifiers": verifiers}
+
+
+def workspace_relative_path(workspace: Path, path: Path) -> str:
+    try:
+        return path.relative_to(workspace).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def resolve_policy_output_path(workspace: Path, output: str) -> Path:
+    workspace_root = workspace.resolve()
+    output_path = Path(output)
+    resolved = output_path.resolve() if output_path.is_absolute() else (workspace_root / output_path).resolve()
+    if resolved != workspace_root and workspace_root not in resolved.parents:
+        raise ValueError("verifier policy output outside workspace")
+    return resolved
+
+
+def write_verifier_policy(
+    workspace: Path,
+    output: str = DEFAULT_VERIFIER_POLICY_PATH,
+    preset_ids: list[str] | None = None,
+    force: bool = False,
+) -> dict[str, Any]:
+    workspace_root = workspace.resolve()
+    policy_path = resolve_policy_output_path(workspace_root, output)
+    if policy_path.exists() and not force:
+        raise ValueError("verifier policy output already exists")
+    data = verifier_policy_data(preset_ids)
+    policy_path.parent.mkdir(parents=True, exist_ok=True)
+    policy_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    load_verifier_policy(policy_path)
+    return {
+        "status": "completed",
+        "path": workspace_relative_path(workspace_root, policy_path),
+        "verifier_ids": [verifier["id"] for verifier in data["verifiers"]],
+    }
 
 
 def resolve_verifier_cwd(workspace: Path, cwd: str) -> Path:

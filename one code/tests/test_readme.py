@@ -15,6 +15,7 @@ class ReadmeTests(unittest.TestCase):
             "python3 -m onecode.cli doctor",
             "python3 -m onecode run",
             "python3 -m onecode run-plan",
+            "python3 -m onecode init-verifier-policy",
             "python3 -m onecode inspect",
             "python3 -m onecode list-runs",
             "onecode audit-self",
@@ -24,6 +25,8 @@ class ReadmeTests(unittest.TestCase):
             "Textual is an optional TUI dependency.",
             "--resume-from",
             "--write-text",
+            "--verifier-policy",
+            "--verifier python-unittest",
         ]:
             self.assertIn(snippet, text)
 

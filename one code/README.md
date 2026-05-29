@@ -139,6 +139,21 @@ PYTHONPATH=src python3 -m onecode run-plan \
   --plan /tmp/onecode-demo/task-plan.json
 ```
 
+Generate a local verifier policy and require a controlled verifier before delivery:
+
+```bash
+PYTHONPATH=src python3 -m onecode init-verifier-policy \
+  --workspace /tmp/onecode-demo \
+  --preset python-unittest
+
+PYTHONPATH=src python3 -m onecode run-plan \
+  --workspace /tmp/onecode-demo \
+  --run-id demo-plan-verified \
+  --plan /tmp/onecode-demo/task-plan.json \
+  --verifier-policy /tmp/onecode-demo/.onecode/verifier-policy.json \
+  --verifier python-unittest
+```
+
 ## Inspect
 
 Inspect one run:
