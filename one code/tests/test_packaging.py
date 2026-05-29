@@ -12,6 +12,14 @@ class PackagingTests(unittest.TestCase):
         self.assertEqual(data["project"]["requires-python"], ">=3.11")
         self.assertEqual(data["project"]["scripts"]["onecode"], "onecode.cli:main")
 
+    def test_tui_dependency_is_optional_and_version_aligned(self):
+        data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+        requirements = Path("requirements-tui.txt").read_text(encoding="utf-8")
+
+        self.assertEqual(data["project"].get("dependencies", []), [])
+        self.assertEqual(data["project"]["optional-dependencies"]["tui"], ["textual==8.2.7"])
+        self.assertIn("textual==8.2.7", requirements)
+
     def test_bin_onecode_script_exists_and_loads_src_entrypoint(self):
         script = Path("bin/onecode")
 

@@ -17,6 +17,11 @@ class ReadmeTests(unittest.TestCase):
             "python3 -m onecode run-plan",
             "python3 -m onecode inspect",
             "python3 -m onecode list-runs",
+            "onecode audit-self",
+            "onecode tui",
+            "pip install -e .[tui]",
+            "The core kernel has no runtime third-party dependency.",
+            "Textual is an optional TUI dependency.",
             "--resume-from",
             "--write-text",
         ]:

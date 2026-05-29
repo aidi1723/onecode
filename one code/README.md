@@ -2,9 +2,25 @@
 
 OneCode is a local-first agent kernel prototype. It focuses on scoped file writes, append-only run evidence, stateful resumption, and deterministic Iching-derived status profiles.
 
-The code is intentionally small and currently runs with the Python standard library only.
+The core kernel has no runtime third-party dependency. Textual is an optional TUI dependency.
 
 The short module entrypoint is `python3 -m onecode`. The older explicit CLI module form, such as `python3 -m onecode.cli doctor`, remains supported.
+
+## Install
+
+Install the core CLI:
+
+```bash
+pip install -e .
+```
+
+Install the optional conversational TUI:
+
+```bash
+pip install -e .[tui]
+```
+
+The pinned TUI dependency is also mirrored in `requirements-tui.txt` for local virtualenv workflows.
 
 ## Verify
 
@@ -36,6 +52,26 @@ PYTHONPATH=src python3 -m onecode doctor
 - `http_timeout`
 
 It prints JSON and exits non-zero if any check fails.
+
+## Self Audit
+
+Run the project-level self audit:
+
+```bash
+onecode audit-self
+```
+
+`audit-self` reviews the CLI shell, TUI bootstrap, model provider matrix, `compileall`, unittest, and `doctor`. The final status is collapsed through `IchingKernel` into an `iching_status_code`, transition action, and dispatch decision.
+
+## TUI
+
+Start the conversational shell:
+
+```bash
+onecode tui
+```
+
+The TUI is optional and requires Textual. It routes chat through the configured model endpoint, while task execution still flows through the kernel loop, `LogosGate`, `PathGuard`, and ledger evidence.
 
 ## Run
 
