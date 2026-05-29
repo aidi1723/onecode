@@ -2,6 +2,7 @@ import argparse
 import json
 import tempfile
 from pathlib import Path
+from typing import Any
 
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.inspection import (
@@ -13,10 +14,19 @@ from onecode.kernel.inspection import (
 )
 from onecode.kernel.execution_engine import execute_plan
 from onecode.kernel.execution_plan_loader import execution_trace_to_dict, load_execution_plan
+from onecode.kernel.checkpoint import write_ledger
 from onecode.kernel.runner import run_task
 from onecode.kernel.task_plan import load_task_plan
+from onecode.kernel.task_resume import PlannedAsset, classify_task_resume
 from onecode.kernel.model_loop import run_model_task
 from onecode.kernel.self_audit import audit_self
+from onecode.kernel.context import create_context
+from onecode.kernel.verifier import (
+    load_verifier_policy,
+    run_verifier,
+    task_status_from_results,
+    validate_selected_verifiers,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -45,6 +55,8 @@ def build_parser() -> argparse.ArgumentParser:
     run_plan_parser.add_argument("--http-timeout-seconds", type=float, default=60)
     run_plan_parser.add_argument("--run-id", default=None)
     run_plan_parser.add_argument("--resume-from", default=None)
+    run_plan_parser.add_argument("--verifier-policy", default=None)
+    run_plan_parser.add_argument("--verifier", action="append", default=None)
 
     run_execution_plan_parser = subparsers.add_parser("run-execution-plan")
     run_execution_plan_parser.add_argument("--workspace", default=".")
@@ -237,6 +249,119 @@ def delivery_summary(ledger: dict) -> dict[str, int | str]:
     )
 
 
+def ledger_history_present(ledger_path: str | None) -> bool:
+    if not isinstance(ledger_path, str):
+        return False
+    return Path(ledger_path).with_suffix(".jsonl").exists()
+
+
+def task_completion_evidence(result: dict, verifier_results: list[dict]) -> dict:
+    manifest_path = result.get("manifest_path")
+    ledger_path = result.get("ledger_path")
+    assets_complete = (
+        result.get("status") == "completed"
+        and result.get("failed_count") == 0
+        and result.get("requested_count")
+        == result.get("completed_count", 0) + result.get("skipped_count", 0)
+    )
+    verifiers_passed = all(verifier.get("status") == "passed" for verifier in verifier_results)
+    return {
+        "assets_complete": assets_complete,
+        "verifiers_passed": verifiers_passed,
+        "ledger_present": isinstance(ledger_path, str) and Path(ledger_path).exists(),
+        "ledger_history_present": ledger_history_present(ledger_path),
+        "manifest_present": isinstance(manifest_path, str) and Path(manifest_path).exists(),
+        "checkpoint_count": len(result.get("assets", [])) if isinstance(result.get("assets"), list) else 0,
+    }
+
+
+def apply_verifier_evidence(result: dict, workspace: Path, verifier_results: list) -> dict:
+    verifier_dicts = [verifier.to_dict() for verifier in verifier_results]
+    first_failure = next((verifier for verifier in verifier_dicts if verifier["status"] != "passed"), None)
+    evidence = task_completion_evidence(result, verifier_dicts)
+    task_status = task_status_from_results(result, verifier_results)
+    enhanced = {
+        **result,
+        "verifier_results": verifier_dicts,
+        "task_completion_evidence": evidence,
+        "delivery_status": "deliverable" if first_failure is None and evidence["assets_complete"] else "blocked",
+        **task_status,
+    }
+    if first_failure is not None:
+        enhanced = {
+            **enhanced,
+            "status": "halted",
+            "reason": first_failure["reason"],
+            "partial": True,
+        }
+    context = create_context(
+        workspace_root=workspace,
+        http_timeout_seconds=60,
+        run_id=enhanced["run_id"],
+        resume_from_run_id=enhanced.get("resumed_from"),
+    )
+    write_ledger(context, enhanced)
+    return enhanced
+
+
+def write_result_ledger(workspace: Path, result: dict) -> dict:
+    context = create_context(
+        workspace_root=workspace,
+        http_timeout_seconds=60,
+        run_id=result["run_id"],
+        resume_from_run_id=result.get("resumed_from"),
+    )
+    write_ledger(context, result)
+    return result
+
+
+def apply_task_resume_evidence(result: dict, workspace: Path, resume_summary: Any | None) -> dict:
+    if resume_summary is None:
+        return result
+    enhanced = {**result, **resume_summary.to_dict()}
+    write_result_ledger(workspace, enhanced)
+    return enhanced
+
+
+def halted_task_resume_result(
+    workspace: Path,
+    run_id: str | None,
+    resume_from_run_id: str,
+    resume_summary: Any,
+) -> dict:
+    first_halt = next(
+        (decision for decision in resume_summary.decisions if decision.kind == "halt"),
+        None,
+    )
+    context = create_context(
+        workspace_root=workspace,
+        run_id=run_id,
+        resume_from_run_id=resume_from_run_id,
+    )
+    result = {
+        "run_id": context.run_id,
+        "status": "halted",
+        "state": "000000",
+        "manifest_path": str(context.manifest_path),
+        "ledger_path": str(context.evidence_root / "ledger.json"),
+        "partial": True,
+        "reason": first_halt.reason if first_halt is not None else "task_resume_halt",
+        "decision": "halted",
+        "intent_type": "task_resume",
+        "payload": {},
+        "resumed_from": resume_from_run_id,
+        "resumed": False,
+        "assets": [],
+        "requested_count": 0,
+        "completed_count": 0,
+        "skipped_count": 0,
+        "failed_count": 1,
+        **resume_summary.to_dict(),
+    }
+    write_ledger(context, result)
+    return result
+
+
 def checkpoint_asset_path(payload: dict | None, workspace_root: Path) -> str | None:
     if not isinstance(payload, dict) or not isinstance(payload.get("path"), str):
         return None
@@ -266,6 +391,28 @@ def checkpoint_assets(checkpoints: list[dict], workspace_root: Path) -> list[dic
             }
         )
     return assets
+
+
+TASK_INSPECT_FIELDS = [
+    "verifier_results",
+    "task_status_code",
+    "task_transition_action",
+    "task_transition_reason",
+    "task_dispatch_decision",
+    "task_entropy",
+    "task_entropy_decision",
+    "task_entropy_reason",
+    "task_completion_evidence",
+    "task_resume_decisions",
+    "task_resume_status_code",
+    "task_resume_transition_action",
+    "task_resume_transition_reason",
+    "task_resume_dispatch_decision",
+]
+
+
+def optional_task_inspect_fields(ledger: dict) -> dict:
+    return {field: ledger[field] for field in TASK_INSPECT_FIELDS if field in ledger}
 
 
 def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
@@ -401,7 +548,7 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
         "assets": checkpoint_assets(checkpoints, workspace_root),
         "manifest_path": str(manifest_path),
         "ledger_path": str(ledger_path),
-    } | delivery_summary(ledger)
+    } | delivery_summary(ledger) | optional_task_inspect_fields(ledger)
 
 
 def list_runs(workspace: Path) -> dict:
@@ -452,6 +599,33 @@ def main(argv: list[str] | None = None) -> int:
     if args.subcommand == "run-plan":
         try:
             task, write_texts, plan_evidence = load_task_plan(Path(args.plan))
+            verifier_specs = []
+            if args.verifier:
+                if args.verifier_policy is None:
+                    parser.error("--verifier requires --verifier-policy")
+                policy = load_verifier_policy(Path(args.verifier_policy))
+                verifier_specs = validate_selected_verifiers(Path(args.workspace), policy, args.verifier)
+            resume_summary = None
+            if args.resume_from is not None:
+                planned_assets = [
+                    PlannedAsset(path=write_text.partition("=")[0], content=write_text.partition("=")[2])
+                    for write_text in write_texts
+                ]
+                resume_summary = classify_task_resume(
+                    workspace=Path(args.workspace),
+                    source_run_id=args.resume_from,
+                    planned_assets=planned_assets,
+                    verifier_specs=verifier_specs,
+                )
+                if any(decision.kind == "halt" for decision in resume_summary.decisions):
+                    result = halted_task_resume_result(
+                        Path(args.workspace),
+                        args.run_id,
+                        args.resume_from,
+                        resume_summary,
+                    )
+                    print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+                    return IchingKernel.process_exit_code(status=result["status"], reason=result["reason"])
             result = run_task(
                 task,
                 workspace=Path(args.workspace),
@@ -461,6 +635,10 @@ def main(argv: list[str] | None = None) -> int:
                 resume_from_run_id=args.resume_from,
                 run_metadata=plan_evidence,
             )
+            if verifier_specs and result["status"] == "completed":
+                verifier_results = [run_verifier(Path(args.workspace), spec) for spec in verifier_specs]
+                result = apply_verifier_evidence(result, Path(args.workspace), verifier_results)
+            result = apply_task_resume_evidence(result, Path(args.workspace), resume_summary)
         except ValueError as exc:
             parser.error(str(exc))
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))

@@ -8,10 +8,126 @@ import hashlib
 from pathlib import Path
 from unittest.mock import patch
 
-from onecode.cli import delivery_summary
+from onecode.cli import delivery_summary, inspect_run, main
 
 
 class InspectCliTests(unittest.TestCase):
+    def test_cli_inspect_reports_verifier_task_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = workspace / "task-plan.json"
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "task": "verified inspect",
+                        "assets": [
+                            {"path": "src/generated.py", "content": "VALUE = 1\n"},
+                            {
+                                "path": "tests/test_generated.py",
+                                "content": "import unittest\n\nclass GeneratedTests(unittest.TestCase):\n    def test_generated(self):\n        self.assertEqual(1, 1)\n",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            policy_path = workspace / "verifiers.json"
+            policy_path.write_text(
+                json.dumps(
+                    {
+                        "verifiers": [
+                            {
+                                "id": "python-unittest",
+                                "command": [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+                                "cwd": ".",
+                                "timeout_ms": 5000,
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with patch("builtins.print"):
+                main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "verified",
+                        "--verifier-policy",
+                        str(policy_path),
+                        "--verifier",
+                        "python-unittest",
+                    ]
+                )
+
+            exit_code, summary = inspect_run(workspace, "verified")
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(summary["delivery_status"], "deliverable")
+            self.assertIn("task_status_code", summary)
+            self.assertIn("task_transition_action", summary)
+            self.assertTrue(summary["task_completion_evidence"]["verifiers_passed"])
+            self.assertEqual(summary["verifier_results"][0]["status"], "passed")
+
+    def test_cli_inspect_reports_task_resume_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = workspace / "task-plan.json"
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "task": "resume inspect",
+                        "assets": [
+                            {"path": "src/a.py", "content": "A = 1\n"},
+                            {"path": "src/b.py", "content": "B = 1\n"},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with patch("builtins.print"):
+                main(
+                    [
+                        "run",
+                        "source",
+                        "--workspace",
+                        tmp,
+                        "--run-id",
+                        "source",
+                        "--write-path",
+                        "src/a.py",
+                        "--write-content",
+                        "A = 1\n",
+                    ]
+                )
+            with patch("builtins.print"):
+                main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "resumed",
+                        "--resume-from",
+                        "source",
+                    ]
+                )
+
+            exit_code, summary = inspect_run(workspace, "resumed")
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(summary["task_resume_decisions"][0]["kind"], "ready")
+            self.assertIn("task_resume_status_code", summary)
+            self.assertIn("task_resume_transition_action", summary)
+
     def test_cli_inspect_prints_existing_run_summary(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = os.environ.copy()

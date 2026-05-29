@@ -12,6 +12,332 @@ from onecode.cli import main
 
 
 class RunPlanCliTests(unittest.TestCase):
+    def write_plan(self, workspace: Path, path: str = "task-plan.json") -> Path:
+        plan_path = workspace / path
+        plan_path.write_text(
+            json.dumps(
+                {
+                    "task": "verified plan",
+                    "assets": [
+                        {"path": "src/generated.py", "content": "VALUE = 1\n"},
+                        {
+                            "path": "tests/test_generated.py",
+                            "content": "import unittest\n\nclass GeneratedTests(unittest.TestCase):\n    def test_generated(self):\n        self.assertEqual(1, 1)\n",
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        return plan_path
+
+    def write_policy(
+        self,
+        workspace: Path,
+        command: list[str],
+        timeout_ms: int = 5000,
+        cwd: str = ".",
+        verifier_id: str = "python-unittest",
+    ) -> Path:
+        policy_path = workspace / "verifiers.json"
+        policy_path.write_text(
+            json.dumps(
+                {
+                    "verifiers": [
+                        {
+                            "id": verifier_id,
+                            "command": command,
+                            "cwd": cwd,
+                            "timeout_ms": timeout_ms,
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        return policy_path
+
+    def test_cli_run_plan_runs_passing_verifier_and_records_task_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_plan(workspace)
+            policy_path = self.write_policy(
+                workspace,
+                [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+            )
+
+            with patch("builtins.print") as print_mock:
+                exit_code = main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "verified",
+                        "--verifier-policy",
+                        str(policy_path),
+                        "--verifier",
+                        "python-unittest",
+                    ]
+                )
+            result = json.loads(print_mock.call_args.args[0])
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["delivery_status"], "deliverable")
+            self.assertEqual(result["verifier_results"][0]["status"], "passed")
+            self.assertIsNone(result["verifier_results"][0]["reason"])
+            self.assertTrue(result["task_completion_evidence"]["verifiers_passed"])
+            self.assertTrue(result["task_completion_evidence"]["assets_complete"])
+            self.assertIn("task_status_code", result)
+
+    def test_cli_run_plan_resume_records_ready_asset_and_verifier_decisions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_plan(workspace)
+            policy_path = self.write_policy(
+                workspace,
+                [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+            )
+            with patch("builtins.print"):
+                main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "source-verified",
+                        "--verifier-policy",
+                        str(policy_path),
+                        "--verifier",
+                        "python-unittest",
+                    ]
+                )
+
+            with patch("builtins.print") as print_mock:
+                exit_code = main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "resume-verified",
+                        "--resume-from",
+                        "source-verified",
+                        "--verifier-policy",
+                        str(policy_path),
+                        "--verifier",
+                        "python-unittest",
+                    ]
+                )
+            result = json.loads(print_mock.call_args.args[0])
+            decisions = {(decision["target_type"], decision["target_id"]): decision for decision in result["task_resume_decisions"]}
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(decisions[("asset", "src/generated.py")]["kind"], "ready")
+            self.assertEqual(decisions[("asset", "tests/test_generated.py")]["kind"], "ready")
+            self.assertEqual(decisions[("verifier", "python-unittest")]["kind"], "ready")
+            self.assertIn("task_resume_status_code", result)
+
+    def test_cli_run_plan_resume_records_verify_when_verifier_evidence_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_plan(workspace)
+            policy_path = self.write_policy(workspace, [sys.executable, "-m", "unittest", "discover", "-s", "tests"])
+            with patch("builtins.print"):
+                main(["run-plan", "--workspace", tmp, "--plan", str(plan_path), "--run-id", "source-assets"])
+
+            with patch("builtins.print") as print_mock:
+                exit_code = main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "resume-needs-verify",
+                        "--resume-from",
+                        "source-assets",
+                        "--verifier-policy",
+                        str(policy_path),
+                        "--verifier",
+                        "python-unittest",
+                    ]
+                )
+            result = json.loads(print_mock.call_args.args[0])
+            decisions = {(decision["target_type"], decision["target_id"]): decision for decision in result["task_resume_decisions"]}
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(decisions[("asset", "src/generated.py")]["kind"], "verify")
+            self.assertEqual(decisions[("asset", "tests/test_generated.py")]["kind"], "verify")
+            self.assertEqual(decisions[("verifier", "python-unittest")]["kind"], "apply")
+
+    def test_cli_run_plan_resume_halts_on_asset_hash_conflict_before_writing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            source_plan = self.write_plan(workspace, "source-plan.json")
+            recovery_plan = workspace / "recovery-plan.json"
+            recovery_plan.write_text(
+                json.dumps(
+                    {
+                        "task": "recovery",
+                        "assets": [
+                            {"path": "src/generated.py", "content": "VALUE = 2\n"},
+                            {"path": "src/later.py", "content": "LATER = True\n"},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with patch("builtins.print"):
+                main(["run-plan", "--workspace", tmp, "--plan", str(source_plan), "--run-id", "source-assets"])
+            (workspace / "src" / "generated.py").write_text("VALUE = 99\n", encoding="utf-8")
+
+            with patch("builtins.print") as print_mock:
+                exit_code = main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(recovery_plan),
+                        "--run-id",
+                        "resume-conflict",
+                        "--resume-from",
+                        "source-assets",
+                    ]
+                )
+            result = json.loads(print_mock.call_args.args[0])
+
+            self.assertNotEqual(exit_code, 0)
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "asset_hash_conflict")
+            self.assertFalse((workspace / "src" / "later.py").exists())
+
+    def test_cli_run_plan_blocks_delivery_when_verifier_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_plan(workspace)
+            policy_path = self.write_policy(
+                workspace,
+                [sys.executable, "-c", "import sys; print('bad verifier'); sys.exit(5)"],
+            )
+
+            with patch("builtins.print") as print_mock:
+                exit_code = main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "verifier-failed",
+                        "--verifier-policy",
+                        str(policy_path),
+                        "--verifier",
+                        "python-unittest",
+                    ]
+                )
+            result = json.loads(print_mock.call_args.args[0])
+
+            self.assertNotEqual(exit_code, 0)
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "verifier_failed")
+            self.assertEqual(result["delivery_status"], "blocked")
+            self.assertEqual(result["verifier_results"][0]["exit_code"], 5)
+            self.assertIn("bad verifier", result["verifier_results"][0]["stdout_tail"])
+
+    def test_cli_run_plan_blocks_delivery_when_verifier_times_out(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_plan(workspace)
+            policy_path = self.write_policy(
+                workspace,
+                [sys.executable, "-c", "import time; time.sleep(1)"],
+                timeout_ms=10,
+            )
+
+            with patch("builtins.print") as print_mock:
+                exit_code = main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "verifier-timeout",
+                        "--verifier-policy",
+                        str(policy_path),
+                        "--verifier",
+                        "python-unittest",
+                    ]
+                )
+            result = json.loads(print_mock.call_args.args[0])
+
+            self.assertNotEqual(exit_code, 0)
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "verifier_timeout")
+            self.assertEqual(result["verifier_results"][0]["reason"], "verifier_timeout")
+
+    def test_cli_run_plan_rejects_unknown_verifier_before_writing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_plan(workspace)
+            policy_path = self.write_policy(workspace, [sys.executable, "-V"])
+
+            with self.assertRaises(SystemExit):
+                main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "unknown-verifier",
+                        "--verifier-policy",
+                        str(policy_path),
+                        "--verifier",
+                        "missing",
+                    ]
+                )
+
+            self.assertFalse((workspace / "src" / "generated.py").exists())
+
+    def test_cli_run_plan_rejects_verifier_cwd_outside_workspace_before_writing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_plan(workspace)
+            policy_path = self.write_policy(workspace, [sys.executable, "-V"], cwd="..")
+
+            with self.assertRaises(SystemExit):
+                main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "outside-cwd",
+                        "--verifier-policy",
+                        str(policy_path),
+                        "--verifier",
+                        "python-unittest",
+                    ]
+                )
+
+            self.assertFalse((workspace / "src" / "generated.py").exists())
+
     def test_cli_run_plan_writes_assets_and_inspects_delivery(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
