@@ -1,0 +1,7 @@
+{
+  "node": "manila-airport-warehouse",
+  "inventory": [
+    {"sku": "stainless-coil-304", "quantity": 28, "unit": "ton"},
+    {"sku": "aluminum-profile-6063", "quantity": 410, "unit": "bundle"}
+  ]
+}

@@ -1,0 +1,19 @@
+[
+  {
+    "task_id": "SECURE_B2B_LEDGER_SYNC_REPAIR",
+    "description": "Controlled repair fixes the sync retry deadlock, then physical unittest proves the patch before memory and summary handoff.",
+    "input": "修：只修复 sync_node.py 中的同步重试死锁 Bug，确保马尼拉仓库节点不可达时按 retry budget 退出，并运行单测验证。",
+    "workspace_template": "tests/fixtures/secure_b2b_ledger",
+    "expected_trace": ["修", "测", "记", "总"],
+    "expected_status": "completed",
+    "expected_exit_code": 0,
+    "verification_command": ["python3", "-m", "unittest", "discover", "-s", "tests", "-v"],
+    "patch_plan": [
+      {
+        "path": "sync_node.py",
+        "expected_sha256": "3eb4f5ef1fcf22a9e7ec7f3c0a54ce1bbe1ad672d2cfd8d666a39c85f7bb8ab7",
+        "content": "from __future__ import annotations\n\nimport json\nimport time\nfrom pathlib import Path\nfrom typing import Any\n\ntry:\n    import httpx\nexcept ImportError:\n    class _HTTPError(Exception):\n        pass\n\n    class _ConnectError(_HTTPError):\n        pass\n\n    class _MissingHTTPX:\n        HTTPError = _HTTPError\n        ConnectError = _ConnectError\n\n        @staticmethod\n        def post(*args: Any, **kwargs: Any) -> Any:\n            raise _ConnectError(\"httpx is not installed\")\n\n    httpx = _MissingHTTPX()\n\n\nSNAPSHOT_PATH = Path(__file__).with_name(\"warehouse_snapshot.json\")\n\n\ndef load_snapshot(path: Path = SNAPSHOT_PATH) -> dict[str, Any]:\n    return json.loads(path.read_text(encoding=\"utf-8\"))\n\n\ndef sync_inventory(endpoint: str, snapshot_path: Path = SNAPSHOT_PATH, max_retries: int = 3) -> dict[str, Any]:\n    snapshot = load_snapshot(snapshot_path)\n    attempts = 0\n    while attempts <= max_retries:\n        try:\n            response = httpx.post(endpoint, json=snapshot, timeout=2.0)\n            response.raise_for_status()\n            return {\"ok\": True, \"attempts\": attempts + 1, \"remote_status\": response.status_code}\n        except httpx.HTTPError as exc:\n            attempts += 1\n            last_error = str(exc)\n            if attempts > max_retries:\n                return {\"ok\": False, \"attempts\": attempts, \"error\": last_error}\n            time.sleep(0.01)\n    return {\"ok\": False, \"attempts\": attempts}\n"
+      }
+    ]
+  }
+]

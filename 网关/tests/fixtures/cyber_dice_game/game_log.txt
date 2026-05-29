@@ -1,0 +1,2 @@
+alice,3,5,10,loss
+bob,6,2,10,win

@@ -1,0 +1,341 @@
+{
+  "version": "0.1.0",
+  "updated_at": "2026-05-24",
+  "mounts": {
+    "查": {
+      "mount_name": "inspect_repo_map_mount",
+      "purpose": "挂载仓库地图、只读探索和最小上下文规范，让 Agent 在动手前先建立证据化项目视图。",
+      "community_sources": [
+        {
+          "name": "Aider Repository Map",
+          "pattern": "repo_map_context",
+          "url": "https://aider.chat/docs/repomap.html"
+        },
+        {
+          "name": "SWE-agent Agent-Computer Interface",
+          "pattern": "readable_file_viewer_and_search",
+          "url": "https://swe-agent.com/0.7/background/aci/"
+        }
+      ],
+      "optional_tools": [
+        "rg",
+        "git_diff",
+        "repo_map_generator",
+        "read_file"
+      ],
+      "context_mount": [
+        "compressed_directory_tree",
+        "symbol_map",
+        "target_file_line_refs"
+      ],
+      "hard_gates": [
+        "禁止写入、安装依赖或执行破坏性命令",
+        "结论必须绑定文件路径、行号、搜索结果或读取证据",
+        "上下文不足时转问，不得猜测仓库结构"
+      ],
+      "evidence": [
+        "repo_map_digest",
+        "target_files_list",
+        "line_refs"
+      ]
+    },
+    "修": {
+      "mount_name": "surgical_fix_mount",
+      "purpose": "挂载系统调试、最小复现、TDD 和外科手术式修改规范，限制 Agent 只修必要位置。",
+      "community_sources": [
+        {
+          "name": "SWE-agent Agent-Computer Interface",
+          "pattern": "edit_feedback_and_linter_gate",
+          "url": "https://swe-agent.com/0.7/background/aci/"
+        },
+        {
+          "name": "Superpowers systematic debugging / TDD",
+          "pattern": "debug_reproduce_fix_verify",
+          "url": "https://github.com/obra/superpowers"
+        }
+      ],
+      "optional_tools": [
+        "read_file",
+        "grep_code",
+        "edit_scoped_file",
+        "undo_change",
+        "run_linter"
+      ],
+      "context_mount": [
+        "failing_evidence",
+        "minimal_reproduction",
+        "impact_scope",
+        "previous_test_output"
+      ],
+      "hard_gates": [
+        "没有复现或失败证据不得宣称修复",
+        "禁止顺手重构无关函数",
+        "禁止覆盖用户既有逻辑或未批准安装依赖"
+      ],
+      "evidence": [
+        "reproduction_result",
+        "git_diff_patch",
+        "modified_line_numbers"
+      ]
+    },
+    "测": {
+      "mount_name": "tdd_ci_quality_gate_mount",
+      "purpose": "挂载 TDD、pytest/pytest-cov 和 CI 质量门规范，用真实命令输出判断通过或失败。",
+      "community_sources": [
+        {
+          "name": "pytest-cov",
+          "pattern": "coverage_reporting",
+          "url": "https://pytest-cov.readthedocs.io/"
+        },
+        {
+          "name": "Verification-before-completion",
+          "pattern": "evidence_before_claims",
+          "url": "https://github.com/obra/superpowers"
+        }
+      ],
+      "optional_tools": [
+        "run_pytest",
+        "run_npm_test",
+        "run_build",
+        "coverage_report"
+      ],
+      "context_mount": [
+        "changed_files",
+        "test_command",
+        "pass_fail_threshold",
+        "coverage_threshold"
+      ],
+      "hard_gates": [
+        "没有系统层 stdout/stderr/exit code 不得签发验证通过",
+        "测试失败必须转修或查",
+        "覆盖率门槛未达到时必须报告失败或证据不足"
+      ],
+      "evidence": [
+        "test_stdout_hash",
+        "exit_code",
+        "coverage_percentage"
+      ]
+    },
+    "卫": {
+      "mount_name": "security_guard_mount",
+      "purpose": "挂载 Semgrep、OSV-Scanner、PreToolUse 和零信任安全护栏，在工具执行前拦截风险。",
+      "community_sources": [
+        {
+          "name": "Semgrep CLI",
+          "pattern": "sast_scan",
+          "url": "https://semgrep.dev/docs/getting-started/cli"
+        },
+        {
+          "name": "OSV-Scanner",
+          "pattern": "dependency_vulnerability_scan",
+          "url": "https://google.github.io/osv-scanner/usage/"
+        }
+      ],
+      "optional_tools": [
+        "dependency_security_scan",
+        "ast_vulnerability_check",
+        "semgrep_scan",
+        "osv_scanner"
+      ],
+      "context_mount": [
+        "pending_tool_call",
+        "dependency_manifest",
+        "security_policy",
+        "network_policy"
+      ],
+      "hard_gates": [
+        "未授权依赖安装必须阻断或转问",
+        "危险 shell、密钥外泄、系统路径写入必须转停",
+        "安全层优先级高于业务执行字"
+      ],
+      "evidence": [
+        "security_audit_report",
+        "risk_level",
+        "blocked_action_hash"
+      ]
+    },
+    "停": {
+      "mount_name": "circuit_breaker_mount",
+      "purpose": "挂载断路器模式和失败熔断规范，连续失败或高风险时停止继续消耗上下文和权限。",
+      "community_sources": [
+        {
+          "name": "Circuit Breaker Pattern",
+          "pattern": "failure_threshold_trip",
+          "url": "https://martinfowler.com/bliki/CircuitBreaker.html"
+        },
+        {
+          "name": "LangGraph interrupt pattern",
+          "pattern": "pause_and_resume",
+          "url": "https://langchain-ai.github.io/langgraph/how-tos/human_in_the_loop/wait-user-input/"
+        }
+      ],
+      "optional_tools": [],
+      "context_mount": [
+        "failure_counter",
+        "last_safe_state",
+        "frozen_execution_stack",
+        "reactivation_options"
+      ],
+      "hard_gates": [
+        "触发后不继续转发上游模型",
+        "收回写入、部署、依赖安装和高风险工具",
+        "恢复必须经过人工确认或明确安全策略"
+      ],
+      "evidence": [
+        "meltdown_report",
+        "failure_counter",
+        "activation_token_status"
+      ]
+    },
+    "问": {
+      "mount_name": "human_in_the_loop_mount",
+      "purpose": "挂载 Human-in-the-loop 和结构化澄清协议，把低置信度或高风险授权转成人类可选项。",
+      "community_sources": [
+        {
+          "name": "LangGraph interrupts",
+          "pattern": "human_in_the_loop_resume",
+          "url": "https://langchain-ai.github.io/langgraph/how-tos/human_in_the_loop/wait-user-input/"
+        },
+        {
+          "name": "Permission request pattern",
+          "pattern": "approve_reject_critical_action",
+          "url": "https://code.claude.com/docs/en/hooks-guide"
+        }
+      ],
+      "optional_tools": [
+        "send_user_message",
+        "render_ui_options"
+      ],
+      "context_mount": [
+        "ambiguity_summary",
+        "risk_summary",
+        "choice_schema"
+      ],
+      "hard_gates": [
+        "禁止猜测用户意图",
+        "问题必须结构化且数量最小",
+        "没有用户确认不得恢复高风险流程"
+      ],
+      "evidence": [
+        "json_choice_prompt",
+        "user_confirmation",
+        "structured_answer"
+      ]
+    },
+    "记": {
+      "mount_name": "memory_bank_mount",
+      "purpose": "挂载 CLAUDE.md / Memory Bank / ADR 记忆规范，只保存已验证、可复用的项目事实和决策。",
+      "community_sources": [
+        {
+          "name": "Claude Code memory",
+          "pattern": "project_memory_claude_md",
+          "url": "https://docs.anthropic.com/en/docs/claude-code/memory"
+        },
+        {
+          "name": "Architecture Decision Record",
+          "pattern": "decision_log",
+          "url": "https://adr.github.io/"
+        }
+      ],
+      "optional_tools": [
+        "append_knowledge_base",
+        "write_markdown_doc",
+        "sha256_file"
+      ],
+      "context_mount": [
+        "verified_facts",
+        "architecture_changes",
+        "technical_debt",
+        "environment_snapshot"
+      ],
+      "hard_gates": [
+        "禁止把未验证推断写成长期规则",
+        "只能写指定知识库、ADR 或 Markdown 路径",
+        "写入后必须生成文件哈希"
+      ],
+      "evidence": [
+        "stored_file_path",
+        "document_hash",
+        "source_reference_hash"
+      ]
+    },
+    "总": {
+      "mount_name": "handoff_compaction_mount",
+      "purpose": "挂载上下文压缩和交接摘要规范，保留事实、证据、风险和下一执行字。",
+      "community_sources": [
+        {
+          "name": "Claude Code context management",
+          "pattern": "conversation_compaction",
+          "url": "https://docs.anthropic.com/en/docs/claude-code/memory"
+        },
+        {
+          "name": "Agent handoff summary pattern",
+          "pattern": "evidence_preserving_handoff",
+          "url": "https://github.com/obra/superpowers"
+        }
+      ],
+      "optional_tools": [
+        "summarize_state",
+        "read_file",
+        "grep_code"
+      ],
+      "context_mount": [
+        "completed_facts",
+        "open_risks",
+        "verification_evidence",
+        "next_opcode"
+      ],
+      "hard_gates": [
+        "禁止把计划写成已完成事实",
+        "禁止丢弃阻塞项和失败证据",
+        "不确定状态必须转问或查"
+      ],
+      "evidence": [
+        "summary_markdown",
+        "open_risk_list",
+        "next_opcode_recommendation"
+      ]
+    }
+  },
+  "derived_mounts": {
+    "造": {
+      "inherits_root": "修",
+      "mount_name": "spec_driven_build_mount",
+      "purpose": "作为修的派生字挂载 Spec-driven / planning-first 构建规范，用于新功能、新模块和新接口。",
+      "community_sources": [
+        {
+          "name": "Spec-driven development pattern",
+          "pattern": "plan_before_build",
+          "url": "https://github.com/obra/superpowers"
+        },
+        {
+          "name": "SWE-agent Agent-Computer Interface",
+          "pattern": "edit_feedback_and_linter_gate",
+          "url": "https://swe-agent.com/0.7/background/aci/"
+        }
+      ],
+      "optional_tools": [
+        "create_new_file",
+        "read_file",
+        "run_compile_command",
+        "run_linter"
+      ],
+      "context_mount": [
+        "spec_summary",
+        "target_module",
+        "compatibility_contract",
+        "test_plan"
+      ],
+      "hard_gates": [
+        "必须先声明计划、兼容性和验收标准",
+        "不得覆盖已有核心文件，除非用户明确授权",
+        "构建后必须转测"
+      ],
+      "evidence": [
+        "created_files",
+        "syntax_check_result",
+        "test_plan"
+      ]
+    }
+  }
+}

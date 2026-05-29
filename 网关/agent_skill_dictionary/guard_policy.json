@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "ignore_paths": [
+    ".git/**",
+    "__pycache__/**",
+    ".pytest_cache/**",
+    "node_modules/**"
+  ],
+  "text_suffixes": [
+    ".bash",
+    ".cfg",
+    ".env",
+    ".ini",
+    ".json",
+    ".md",
+    ".py",
+    ".sh",
+    ".toml",
+    ".txt",
+    ".yaml",
+    ".yml",
+    ".zsh"
+  ],
+  "rules": [
+    {
+      "id": "dangerous-rm-rf",
+      "name": "rm -rf",
+      "pattern": "\\brm\\s+-rf\\b",
+      "severity": "high",
+      "block": true
+    },
+    {
+      "id": "curl-pipe-shell",
+      "name": "curl pipe shell",
+      "pattern": "\\bcurl\\b[^\\n|]*\\|\\s*(?:ba)?sh\\b",
+      "severity": "high",
+      "block": true
+    },
+    {
+      "id": "wget-pipe-shell",
+      "name": "wget pipe shell",
+      "pattern": "\\bwget\\b[^\\n|]*\\|\\s*(?:ba)?sh\\b",
+      "severity": "high",
+      "block": true
+    },
+    {
+      "id": "prompt-injection",
+      "name": "prompt injection",
+      "pattern": "ignore\\s+(?:all\\s+)?previous\\s+instructions",
+      "severity": "high",
+      "block": true,
+      "ignore_case": true
+    },
+    {
+      "id": "credential-exfiltration",
+      "name": "credential exfiltration",
+      "pattern": "\\b(?:OPENAI_API_KEY|ANTHROPIC_API_KEY|AWS_SECRET_ACCESS_KEY)\\s*=\\s*['\\\"]?(?:sk-[A-Za-z0-9_\\-]{8,}|ak-[A-Za-z0-9_\\-]{8,}|[A-Za-z0-9_/\\-+=]{16,})",
+      "severity": "high",
+      "block": true
+    }
+  ]
+}

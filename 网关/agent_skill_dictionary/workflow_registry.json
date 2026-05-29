@@ -1,0 +1,13 @@
+{
+  "version": "0.3.0",
+  "workflows": {
+    "查": "workflows/查.md",
+    "修": "workflows/修.md",
+    "测": "workflows/测.md",
+    "卫": "workflows/卫.md",
+    "停": "workflows/停.md",
+    "问": "workflows/问.md",
+    "记": "workflows/记.md",
+    "总": "workflows/总.md"
+  }
+}

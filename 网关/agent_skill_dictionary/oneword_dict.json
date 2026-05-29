@@ -1,0 +1,313 @@
+{
+  "name": "OneWord Kernel Dictionary",
+  "version": "1.0.0",
+  "updated_at": "2026-05-24",
+  "description": "8 root opcode control vectors for the minimal OneWord gateway MVP.",
+  "roots": {
+    "查": {
+      "hexagram": "离",
+      "name": "inspect",
+      "binary_trigram": "101",
+      "yin_yang_profile": "两阳夹一阴",
+      "control_bias": "READ_ONLY_INSPECT",
+      "physical_control_flows": {
+        "model_forward": "allowed",
+        "source_write": "forbidden",
+        "tool_execution": "read_only"
+      },
+      "temperature": 0.0,
+      "allowed_tools": [
+        "native_inspect_card",
+        "read_file",
+        "list_directory",
+        "grep_code",
+        "git_diff"
+      ],
+      "blocked_tools": [
+        "write_file",
+        "edit_file",
+        "execute_command",
+        "install_dependency"
+      ],
+      "system_prompt": "你当前处于绝对只读模式。唯一任务是收集上下文、梳理依赖、定位可疑行号。严禁修改代码，严禁猜测未读文件内容；输出必须基于物理读取到的真实文本。",
+      "evidence_required": [
+        "Target_Files_List",
+        "Line_Numbers",
+        "Log_Context_Snippets"
+      ],
+      "halt_model_forwarding": false,
+      "control_vector": {
+        "permission": "read_only",
+        "context": "minimal_read_context",
+        "evidence": [
+          "target_files_list",
+          "line_numbers",
+          "log_context_snippets"
+        ]
+      }
+    },
+    "修": {
+      "hexagram": "震",
+      "name": "fix",
+      "binary_trigram": "100",
+      "yin_yang_profile": "两阴一阳",
+      "control_bias": "SURGICAL_ACTION_PATCH",
+      "physical_control_flows": {
+        "model_forward": "allowed",
+        "source_write": "scoped",
+        "tool_execution": "edit_scoped_only"
+      },
+      "temperature": 0.0,
+      "allowed_tools": [
+        "read_file",
+        "edit_scoped_file",
+        "create_new_file"
+      ],
+      "blocked_tools": [
+        "install_dependency",
+        "rm_rf",
+        "delete_file",
+        "git_reset_hard"
+      ],
+      "system_prompt": "你现在是外科手术式 Debug 专家。严格基于报错日志分析根因；只能在受影响代码块内做最小必要修改；严禁大面积重写无关函数或周边逻辑。",
+      "evidence_required": [
+        "Git_Diff_Patch",
+        "Modified_Line_Numbers",
+        "Fix_Logic_Explanation"
+      ],
+      "halt_model_forwarding": false,
+      "control_vector": {
+        "permission": "write_scoped",
+        "context": "clean_on_switch",
+        "evidence": [
+          "git_diff_patch",
+          "modified_line_numbers",
+          "fix_logic_explanation"
+        ]
+      }
+    },
+    "测": {
+      "hexagram": "巽",
+      "name": "verify",
+      "binary_trigram": "011",
+      "yin_yang_profile": "一阴两阳",
+      "control_bias": "SANDBOX_EXECUTE_VERIFY",
+      "physical_control_flows": {
+        "model_forward": "restricted",
+        "source_write": "forbidden",
+        "tool_execution": "sandbox_execute"
+      },
+      "temperature": 0.0,
+      "allowed_tools": [
+        "run_pytest",
+        "run_npm_test",
+        "capture_coverage"
+      ],
+      "blocked_tools": [
+        "write_file",
+        "edit_file",
+        "install_dependency",
+        "delete_file"
+      ],
+      "system_prompt": "你现在是极度苛刻的自动化测试机。必须运行或生成对应验证；覆盖正常边界值、极端空值和异常捕获。证据不足或覆盖率不足必须如实报告失败。",
+      "evidence_required": [
+        "Test_Stdout_Log",
+        "Coverage_Percentage",
+        "Exit_Code"
+      ],
+      "halt_model_forwarding": false,
+      "control_vector": {
+        "permission": "execute_only",
+        "context": "clean_code_input",
+        "evidence": [
+          "test_stdout_log",
+          "coverage_percentage",
+          "exit_code"
+        ]
+      }
+    },
+    "卫": {
+      "hexagram": "坎",
+      "name": "guard",
+      "binary_trigram": "010",
+      "yin_yang_profile": "两阴夹一阳",
+      "control_bias": "SECURITY_FILTER_ISOLATION",
+      "physical_control_flows": {
+        "model_forward": "restricted",
+        "source_write": "forbidden",
+        "tool_execution": "security_scan_only"
+      },
+      "temperature": 0.0,
+      "allowed_tools": [
+        "dependency_security_scan",
+        "ast_vulnerability_check"
+      ],
+      "blocked_tools": [
+        "execute_command",
+        "install_dependency",
+        "network_request",
+        "write_file"
+      ],
+      "system_prompt": "你现在是最高合规风险卫士。检查高危命令、注入漏洞、供应链风险和许可证冲突；只要发现可疑风险，先阻断并输出证据，严禁无证据放行。",
+      "evidence_required": [
+        "Security_Audit_Report",
+        "Risk_Level",
+        "Blocked_Evidence"
+      ],
+      "halt_model_forwarding": false,
+      "control_vector": {
+        "permission": "kernel_filter",
+        "context": "security_pinned",
+        "evidence": [
+          "security_audit_report",
+          "risk_level",
+          "blocked_evidence"
+        ]
+      }
+    },
+    "停": {
+      "hexagram": "艮",
+      "name": "halt",
+      "binary_trigram": "001",
+      "yin_yang_profile": "两阴一阳",
+      "control_bias": "SYSTEM_HARD_HALT",
+      "physical_control_flows": {
+        "model_forward": "blocked",
+        "source_write": "forbidden",
+        "tool_execution": "blocked"
+      },
+      "temperature": 0.0,
+      "allowed_tools": [],
+      "blocked_tools": [
+        "*"
+      ],
+      "system_prompt": "系统进入硬熔断状态。由于连续失败或安全越界，自动化流水线已挂起；等待人类确认恢复、降级或终止。",
+      "evidence_required": [
+        "Memory_State_Dump",
+        "Failure_Counter",
+        "Activation_Token_Status"
+      ],
+      "halt_model_forwarding": true,
+      "control_vector": {
+        "permission": "halted",
+        "context": "frozen_state",
+        "evidence": [
+          "memory_state_dump",
+          "failure_counter",
+          "activation_token_status"
+        ]
+      }
+    },
+    "问": {
+      "hexagram": "兑",
+      "name": "prompt",
+      "binary_trigram": "110",
+      "yin_yang_profile": "一阴两阳",
+      "control_bias": "HUMAN_INTERACTION_PROMPT",
+      "physical_control_flows": {
+        "model_forward": "allowed",
+        "source_write": "forbidden",
+        "tool_execution": "human_prompt_only"
+      },
+      "temperature": 0.2,
+      "allowed_tools": [
+        "send_user_message",
+        "render_ui_options"
+      ],
+      "blocked_tools": [
+        "write_file",
+        "edit_file",
+        "execute_command",
+        "install_dependency"
+      ],
+      "system_prompt": "你遇到了无法确定的歧义。禁止擅自猜测；请把矛盾点或风险点梳理成极简、客观、温和的选择题，等待人类选择。",
+      "evidence_required": [
+        "JSON_Choice_Prompt"
+      ],
+      "halt_model_forwarding": false,
+      "control_vector": {
+        "permission": "human_prompt_only",
+        "context": "dispute_focus",
+        "evidence": [
+          "json_choice_prompt"
+        ]
+      }
+    },
+    "记": {
+      "hexagram": "坤",
+      "name": "store",
+      "binary_trigram": "000",
+      "yin_yang_profile": "纯阴之卦",
+      "control_bias": "SYSTEM_STRONG_WRITE",
+      "physical_control_flows": {
+        "model_forward": "restricted",
+        "source_write": "forbidden",
+        "tool_execution": "storage_only"
+      },
+      "temperature": 0.0,
+      "allowed_tools": [
+        "append_knowledge_base",
+        "write_markdown_doc",
+        "git_commit"
+      ],
+      "blocked_tools": [
+        "edit_source_code",
+        "deploy",
+        "execute_command",
+        "install_dependency"
+      ],
+      "system_prompt": "你现在是系统史官。只记录成功闭环后的事实、决策依据和稳定规则；以克制 Markdown 写入指定知识库，严禁触碰生产环境和业务源码。",
+      "evidence_required": [
+        "Stored_File_Path",
+        "SHA256"
+      ],
+      "halt_model_forwarding": false,
+      "control_vector": {
+        "permission": "storage_write",
+        "context": "archival_context",
+        "evidence": [
+          "stored_file_path",
+          "sha256"
+        ]
+      }
+    },
+    "总": {
+      "hexagram": "乾",
+      "name": "summarize",
+      "binary_trigram": "111",
+      "yin_yang_profile": "纯阳之卦",
+      "control_bias": "CONTEXT_COMPRESS_SUMMARIZE",
+      "physical_control_flows": {
+        "model_forward": "allowed",
+        "source_write": "forbidden",
+        "tool_execution": "context_only"
+      },
+      "temperature": 0.0,
+      "allowed_tools": [
+        "compress_tokens"
+      ],
+      "blocked_tools": [
+        "write_file",
+        "edit_file",
+        "execute_command",
+        "install_dependency"
+      ],
+      "system_prompt": "你现在是上下文收束内核。只压缩事实、证据、风险和下一步；禁止把计划写成已完成，禁止丢弃阻塞项或失败证据。",
+      "evidence_required": [
+        "Summary_Markdown",
+        "Open_Risk_List",
+        "Next_Opcode_Recommendation"
+      ],
+      "halt_model_forwarding": false,
+      "control_vector": {
+        "permission": "context_compress",
+        "context": "compacted_handoff",
+        "evidence": [
+          "summary_markdown",
+          "open_risk_list",
+          "next_opcode_recommendation"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,2850 @@
+{
+  "name": "Programming Agent Skill Dictionary",
+  "version": "0.3.0",
+  "domain": "programming",
+  "updated_at": "2026-05-24",
+  "entries": [
+    {
+      "code": "查",
+      "name": "inspect",
+      "definition": "只读调查项目、文件、结构、原因，不修改代码。",
+      "intent_examples": [
+        "看看项目结构",
+        "找一下入口",
+        "查一下为什么失败"
+      ],
+      "bound_skill_patterns": [
+        "read_only_exploration",
+        "context_collection"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "run_read_only_commands"
+      ],
+      "forbidden_actions": [
+        "edit_files",
+        "install_dependency",
+        "commit_changes"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "forbidden",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "inspect_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 1,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "定位相关文件",
+        "读取必要上下文",
+        "输出调查结论和不确定项"
+      ],
+      "verification": {
+        "required": false,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "file_search_result"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "superpowers:using-superpowers",
+        "multi-agent:reader-only",
+        "engineering:context-collection"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "Claude Code Agent Skills",
+          "SWE-agent Agent Computer Interface",
+          "Reader-only subagent pattern"
+        ],
+        "operating_logic": [
+          "只读枚举项目入口、目录、配置和相关文件",
+          "用搜索结果缩小范围，只读取完成判断所需的最小上下文",
+          "输出已确认事实、推断依据和未解决问题，禁止顺手修改"
+        ],
+        "hard_gates": [
+          "不得调用写文件、安装依赖、提交代码或部署工具",
+          "不确定时保留问题，不把猜测写成结论"
+        ]
+      },
+      "root_opcode": "查",
+      "opcode_vector": {
+        "permission": "read_only",
+        "context": "minimal_read_context",
+        "evidence": [
+          "file_reference",
+          "line_range",
+          "search_result_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "确认调查目标",
+        "定位相关文件、日志、配置或来源",
+        "读取最小必要上下文",
+        "区分事实、推断和未知项",
+        "输出证据路径、行号或来源",
+        "推荐下一执行字"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "总"
+        ],
+        "on_failure": [
+          "问"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    },
+    {
+      "code": "解",
+      "name": "explain",
+      "definition": "解释代码、报错、架构或概念，不修改代码。",
+      "intent_examples": [
+        "这是什么意思",
+        "解释一下这段代码",
+        "这个报错什么意思"
+      ],
+      "bound_skill_patterns": [
+        "structured_explanation",
+        "documentation"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code"
+      ],
+      "forbidden_actions": [
+        "edit_files",
+        "install_dependency",
+        "claim_unverified_runtime_behavior"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "forbidden",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "explain_workflow",
+      "model_policy": {
+        "temperature": 0.1,
+        "max_retry_limit": 1,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "读取必要上下文",
+        "区分事实与推断",
+        "按结构解释"
+      ],
+      "verification": {
+        "required": false,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "source_reference"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question_or_route_to_查",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "documentation:structured-explanation",
+        "engineering:fact-vs-inference"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "Claude Agent Skills documentation pattern",
+          "OpenAI Skills portable capability pattern",
+          "Engineering documentation workflows"
+        ],
+        "operating_logic": [
+          "先读取原始代码、报错或架构上下文",
+          "把解释拆成事实、执行流程、数据流和推断边界",
+          "面向用户当前问题解释，不扩展成无关教程"
+        ],
+        "hard_gates": [
+          "禁止修改代码",
+          "禁止声称未运行过的行为已经验证"
+        ]
+      },
+      "root_opcode": "查",
+      "opcode_vector": {
+        "permission": "read_only",
+        "context": "minimal_read_context",
+        "evidence": [
+          "file_reference",
+          "line_range",
+          "search_result_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "确认调查目标",
+        "定位相关文件、日志、配置或来源",
+        "读取最小必要上下文",
+        "区分事实、推断和未知项",
+        "输出证据路径、行号或来源",
+        "推荐下一执行字"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "总"
+        ],
+        "on_failure": [
+          "问"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    },
+    {
+      "code": "修",
+      "name": "fix",
+      "definition": "修复已有代码中的错误、失败测试、运行异常或不符合预期的行为。",
+      "intent_examples": [
+        "跑不通",
+        "报错了",
+        "测试失败",
+        "这个 bug 帮我修一下"
+      ],
+      "bound_skill_patterns": [
+        "systematic_debugging",
+        "test_driven_development",
+        "surgical_change"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "run_relevant_commands",
+        "edit_scoped_files"
+      ],
+      "forbidden_actions": [
+        "unrelated_refactor",
+        "change_public_api_without_need",
+        "delete_user_changes",
+        "claim_success_without_verification",
+        "install_unapproved_dependency"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "scoped_to_impact_files",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "debug_fix_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 3,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "捕获系统环境报错日志与失败上下文",
+        "提取并运行最小失败复现用例",
+        "锁定受影响的文件与行号",
+        "执行外科手术式修改",
+        "运行本地单测与构建验证",
+        "导出由系统层捕获的验证证据摘要"
+      ],
+      "verification": {
+        "required": true,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "test_output_hash",
+          "build_exit_code_0",
+          "manual_reproduction_result_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question_or_route_to_查",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "superpowers:systematic-debugging",
+        "superpowers:test-driven-development",
+        "superpowers:verification-before-completion",
+        "engineering:surgical-change"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "obra/superpowers systematic-debugging",
+          "obra/superpowers test-driven-development",
+          "SWE-agent issue-reproduction workflow"
+        ],
+        "operating_logic": [
+          "先捕获真实失败日志和最小复现路径",
+          "定位根因并区分配置、依赖、逻辑和环境问题",
+          "只修改受影响文件，优先补充回归测试",
+          "运行验证命令并记录系统层证据摘要"
+        ],
+        "hard_gates": [
+          "没有复现或证据不得宣称修复",
+          "连续失败超过重试上限必须熔断到查",
+          "禁止安装未批准依赖或重写无关模块"
+        ]
+      },
+      "root_opcode": "修",
+      "opcode_vector": {
+        "permission": "write_scoped",
+        "context": "clean_on_switch",
+        "evidence": [
+          "reproduction_result",
+          "diff_summary",
+          "test_output_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "捕获真实失败上下文",
+        "建立最小复现路径",
+        "定位影响范围",
+        "执行最小必要修改",
+        "运行验证命令",
+        "成功转测或审，失败熔断到查或停"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "测"
+        ],
+        "on_failure": [
+          "查",
+          "停"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    },
+    {
+      "code": "造",
+      "name": "build",
+      "definition": "新增功能、脚本、接口或组件。",
+      "intent_examples": [
+        "新增一个功能",
+        "写一个脚本",
+        "实现这个接口"
+      ],
+      "bound_skill_patterns": [
+        "spec_first_development",
+        "implementation_plan",
+        "test_driven_development"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "edit_scoped_files",
+        "run_relevant_commands"
+      ],
+      "forbidden_actions": [
+        "skip_requirement_clarification",
+        "ignore_existing_patterns",
+        "claim_success_without_verification"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "scoped",
+        "network": "approval_required",
+        "dependency_install": "approval_required"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "build_workflow",
+      "model_policy": {
+        "temperature": 0.1,
+        "max_retry_limit": 3,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "确认需求边界",
+        "查找现有模式",
+        "写测试或验证用例",
+        "实现最小功能",
+        "运行验证"
+      ],
+      "verification": {
+        "required": true,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "test_output_hash",
+          "build_output_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "superpowers:brainstorming",
+        "superpowers:writing-plans",
+        "superpowers:test-driven-development",
+        "engineering:spec-to-implementation"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "obra/superpowers brainstorming",
+          "obra/superpowers writing-plans",
+          "OpenAI Skills script-backed capability pattern"
+        ],
+        "operating_logic": [
+          "先把需求压成边界清楚的规格和成功条件",
+          "查找项目现有模式、框架和测试方式",
+          "先写验证用例或可检查验收标准，再做最小实现",
+          "完成后运行相关测试并给出证据"
+        ],
+        "hard_gates": [
+          "需求边界不清时先问或降级到问",
+          "不得绕过现有架构另起炉灶",
+          "不得未验证就宣布完成"
+        ]
+      },
+      "root_opcode": "修",
+      "opcode_vector": {
+        "permission": "write_scoped",
+        "context": "clean_on_switch",
+        "evidence": [
+          "reproduction_result",
+          "diff_summary",
+          "test_output_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "捕获真实失败上下文",
+        "建立最小复现路径",
+        "定位影响范围",
+        "执行最小必要修改",
+        "运行验证命令",
+        "成功转测或审，失败熔断到查或停"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "测"
+        ],
+        "on_failure": [
+          "查",
+          "停"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    },
+    {
+      "code": "改",
+      "name": "change",
+      "definition": "修改、优化或重构已有实现，尽量保持外部行为稳定。",
+      "intent_examples": [
+        "优化一下",
+        "重构这段",
+        "调整实现"
+      ],
+      "bound_skill_patterns": [
+        "surgical_change",
+        "simplicity_first",
+        "interface_preservation"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "edit_scoped_files",
+        "run_relevant_commands"
+      ],
+      "forbidden_actions": [
+        "unrelated_refactor",
+        "public_api_change_without_approval",
+        "delete_user_changes"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "scoped_to_impact_files",
+        "network": "approval_required",
+        "dependency_install": "approval_required"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "change_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 2,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "确认现有行为",
+        "限定影响范围",
+        "执行最小修改",
+        "运行回归验证"
+      ],
+      "verification": {
+        "required": true,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "regression_output_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question_or_route_to_查",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "karpathy:defensive-vibe-coding",
+        "engineering:surgical-change",
+        "engineering:interface-preservation"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "Karpathy-style defensive vibe coding rules",
+          "Claude Code custom instructions / CLAUDE.md practice",
+          "Surgical refactor workflows"
+        ],
+        "operating_logic": [
+          "先确认当前外部行为和接口契约",
+          "把修改范围限定在影响文件内",
+          "保持公共接口稳定，必要变更必须显式说明",
+          "跑回归验证，证明行为没有意外扩散"
+        ],
+        "hard_gates": [
+          "禁止大面积无关重写",
+          "禁止删除用户已有修改",
+          "公共 API 变化必须升级为问或审"
+        ]
+      },
+      "root_opcode": "修",
+      "opcode_vector": {
+        "permission": "write_scoped",
+        "context": "clean_on_switch",
+        "evidence": [
+          "reproduction_result",
+          "diff_summary",
+          "test_output_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "捕获真实失败上下文",
+        "建立最小复现路径",
+        "定位影响范围",
+        "执行最小必要修改",
+        "运行验证命令",
+        "成功转测或审，失败熔断到查或停"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "测"
+        ],
+        "on_failure": [
+          "查",
+          "停"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    },
+    {
+      "code": "测",
+      "name": "test",
+      "definition": "编写、补充或运行测试，验证系统行为。",
+      "intent_examples": [
+        "跑测试",
+        "写单测",
+        "确认没问题"
+      ],
+      "bound_skill_patterns": [
+        "test_driven_development",
+        "verification_before_completion"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "run_relevant_commands",
+        "edit_test_files"
+      ],
+      "forbidden_actions": [
+        "edit_production_files_without_approval",
+        "fake_test_output"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "scoped",
+        "network": "approval_required",
+        "dependency_install": "approval_required"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "test_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 2,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "识别测试目标",
+        "编写或选择测试",
+        "运行测试",
+        "记录系统层证据"
+      ],
+      "verification": {
+        "required": true,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "test_output_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "superpowers:test-driven-development",
+        "superpowers:verification-before-completion",
+        "engineering:regression-testing"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "obra/superpowers test-driven-development",
+          "Verification-before-completion workflow",
+          "CI regression test practice"
+        ],
+        "operating_logic": [
+          "识别要验证的行为、边界值和失败路径",
+          "优先使用项目现有测试框架",
+          "测试代码与生产代码权限分离",
+          "捕获测试输出、退出码和哈希作为证据"
+        ],
+        "hard_gates": [
+          "禁止伪造测试通过日志",
+          "测试失败时必须回退到修或查",
+          "不得为了通过测试而削弱断言"
+        ]
+      },
+      "root_opcode": "测",
+      "opcode_vector": {
+        "permission": "execute_only",
+        "context": "clean_code_input",
+        "evidence": [
+          "test_output_hash",
+          "build_exit_code",
+          "coverage_report"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "确认验证对象和通过标准",
+        "选择项目已有测试或构建命令",
+        "运行命令并捕获输出",
+        "生成证据哈希",
+        "判断通过、失败或证据不足",
+        "成功转总或记，失败转修或查"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "总",
+          "记"
+        ],
+        "on_failure": [
+          "修",
+          "查"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    },
+    {
+      "code": "审",
+      "name": "review",
+      "definition": "代码审查，只找问题、风险和缺失证据，不直接修改。",
+      "intent_examples": [
+        "帮我 review",
+        "看看有没有问题",
+        "审查风险"
+      ],
+      "bound_skill_patterns": [
+        "code_review",
+        "evidence_first_review"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "run_read_only_commands"
+      ],
+      "forbidden_actions": [
+        "edit_files",
+        "commit_changes",
+        "fix_without_approval"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "forbidden",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "review_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 1,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "读取变更",
+        "识别风险",
+        "用文件和行号输出证据",
+        "列出测试缺口"
+      ],
+      "verification": {
+        "required": false,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "file_line_reference"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question_or_route_to_查",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "engineering:code-review-findings-first",
+        "engineering:evidence-first-review"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "Code-review findings-first workflow",
+          "Security audit review style",
+          "Pull request risk review practice"
+        ],
+        "operating_logic": [
+          "只读查看变更和相关上下文",
+          "按严重度列出 bug、回归、安全和测试缺口",
+          "每条发现必须给文件、行号或证据来源",
+          "最后才给简短总结和开放问题"
+        ],
+        "hard_gates": [
+          "禁止直接修改代码",
+          "没有证据的问题必须标为假设",
+          "禁止把风格偏好伪装成缺陷"
+        ]
+      },
+      "root_opcode": "查",
+      "opcode_vector": {
+        "permission": "read_only",
+        "context": "minimal_read_context",
+        "evidence": [
+          "file_reference",
+          "line_range",
+          "search_result_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "确认调查目标",
+        "定位相关文件、日志、配置或来源",
+        "读取最小必要上下文",
+        "区分事实、推断和未知项",
+        "输出证据路径、行号或来源",
+        "推荐下一执行字"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "总"
+        ],
+        "on_failure": [
+          "问"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    },
+    {
+      "code": "设",
+      "name": "design",
+      "definition": "UI 与设计系统实现或一致性检查。",
+      "intent_examples": [
+        "调整界面",
+        "按 DESIGN.md 统一",
+        "优化视觉"
+      ],
+      "bound_skill_patterns": [
+        "design_system",
+        "responsive_ui",
+        "accessibility"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "edit_scoped_files",
+        "run_visual_checks"
+      ],
+      "forbidden_actions": [
+        "ignore_design_source",
+        "unrelated_product_redesign"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "scoped",
+        "network": "approval_required",
+        "dependency_install": "approval_required"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "design_workflow",
+      "model_policy": {
+        "temperature": 0.1,
+        "max_retry_limit": 2,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "读取 DESIGN.md 或建立简要设计基准",
+        "修改共享样式或组件",
+        "检查响应式和可访问性"
+      ],
+      "verification": {
+        "required": true,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "visual_check_hash",
+          "build_output_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "design-md-ui",
+        "design:design-system-consistency",
+        "design:responsive-accessibility-check"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "design-md-ui Skill",
+          "VoltAgent/awesome-design-md",
+          "Claude Design / DESIGN.md practice"
+        ],
+        "operating_logic": [
+          "优先读取 DESIGN.md，缺失时建立简短设计基准",
+          "先改共享 tokens、主题和可复用组件",
+          "检查排版、间距、状态、响应式和可访问性",
+          "必要时用浏览器或截图验证 UI 不重叠、不破版"
+        ],
+        "hard_gates": [
+          "禁止无视既有设计系统",
+          "禁止顺手重做信息架构和业务逻辑",
+          "视觉效果必须服务实际界面任务"
+        ]
+      },
+      "root_opcode": "修",
+      "opcode_vector": {
+        "permission": "write_scoped",
+        "context": "clean_on_switch",
+        "evidence": [
+          "reproduction_result",
+          "diff_summary",
+          "test_output_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "捕获真实失败上下文",
+        "建立最小复现路径",
+        "定位影响范围",
+        "执行最小必要修改",
+        "运行验证命令",
+        "成功转测或审，失败熔断到查或停"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "测"
+        ],
+        "on_failure": [
+          "查",
+          "停"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    },
+    {
+      "code": "源",
+      "name": "source",
+      "definition": "依赖、License、本地已有能力和代码资产溯源。",
+      "intent_examples": [
+        "检查依赖来源",
+        "有没有已有组件",
+        "不要重复造轮子",
+        "看看 License 风险"
+      ],
+      "bound_skill_patterns": [
+        "dependency_audit",
+        "license_review",
+        "reuse_existing_code"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "run_read_only_commands"
+      ],
+      "forbidden_actions": [
+        "edit_files",
+        "install_dependency",
+        "approve_untrusted_source"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "forbidden",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "source_audit_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 1,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "检查本地已有能力",
+        "检查依赖清单",
+        "识别 License 或来源风险",
+        "输出复用建议"
+      ],
+      "verification": {
+        "required": true,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "dependency_inventory_hash",
+          "local_symbol_search_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question_or_route_to_查",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "security:dependency-audit",
+        "security:license-review",
+        "engineering:reuse-existing-code"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "Trail of Bits security skills pattern",
+          "License/dependency audit workflows",
+          "Software supply-chain review practice"
+        ],
+        "operating_logic": [
+          "先检索本地已有函数、组件和脚本，避免重复造轮子",
+          "审查依赖清单、版本、来源、许可证和维护风险",
+          "输出可复用资产、风险依赖和替代方案",
+          "只做审计建议，不直接安装或改代码"
+        ],
+        "hard_gates": [
+          "禁止写文件",
+          "禁止安装依赖",
+          "不能把未核验的包当作可信来源"
+        ]
+      },
+      "root_opcode": "查",
+      "opcode_vector": {
+        "permission": "read_only",
+        "context": "minimal_read_context",
+        "evidence": [
+          "file_reference",
+          "line_range",
+          "search_result_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "确认调查目标",
+        "定位相关文件、日志、配置或来源",
+        "读取最小必要上下文",
+        "区分事实、推断和未知项",
+        "输出证据路径、行号或来源",
+        "推荐下一执行字"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "总"
+        ],
+        "on_failure": [
+          "问"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    },
+    {
+      "code": "卫",
+      "name": "guard",
+      "definition": "安全防护与危险操作拦截。",
+      "intent_examples": [
+        "检查安全风险",
+        "拦截危险命令",
+        "防止提示词注入"
+      ],
+      "bound_skill_patterns": [
+        "security_guard",
+        "dangerous_action_blocking",
+        "permission_whitelist"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "run_read_only_commands",
+        "block_dangerous_actions"
+      ],
+      "forbidden_actions": [
+        "install_dependency_without_approval",
+        "run_dangerous_command",
+        "ignore_security_findings"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "forbidden",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "security_guard_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 1,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "识别高危动作",
+        "检查权限策略",
+        "输出阻断或批准建议"
+      ],
+      "verification": {
+        "required": true,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "security_scan_hash",
+          "permission_policy_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "route_to_查",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "security:permission-whitelist",
+        "security:dangerous-action-blocking",
+        "security:dependency-approval"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "Claude Code hooks PreToolUse/PostToolUse pattern",
+          "OpenAI Agents SDK guardrails",
+          "OWASP LLM application security controls"
+        ],
+        "operating_logic": [
+          "把工具调用先过白名单和风险分类",
+          "对写入、shell、网络、密钥和依赖安装做硬门检查",
+          "高风险动作转人工审批或直接阻断",
+          "记录被拦截动作和原因，供审计复盘"
+        ],
+        "hard_gates": [
+          "默认拒绝未知高危工具",
+          "禁止执行破坏性命令",
+          "模型不得绕过 preflight 工具守卫"
+        ]
+      },
+      "root_opcode": "卫",
+      "opcode_vector": {
+        "permission": "kernel_filter",
+        "context": "security_pinned",
+        "evidence": [
+          "permission_report",
+          "risk_report",
+          "blocked_action_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "捕获待执行动作或待审对象",
+        "做权限白名单检查",
+        "检查危险命令、依赖、网络、路径和密钥风险",
+        "允许、拒绝或转人工确认",
+        "记录违规原因和证据",
+        "高风险转停，低风险返回原执行链"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "总"
+        ],
+        "on_failure": [
+          "问"
+        ],
+        "on_risk": [
+          "停"
+        ]
+      }
+    },
+    {
+      "code": "隔",
+      "name": "isolate",
+      "definition": "多 Agent 隔离协作，分离不可信输入、调度和写入权限。",
+      "intent_examples": [
+        "隔离外部输入",
+        "多 Agent 安全协作",
+        "不要让读取者写入"
+      ],
+      "bound_skill_patterns": [
+        "reader_orchestrator_writer",
+        "prompt_injection_isolation"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "route_between_agents"
+      ],
+      "forbidden_actions": [
+        "share_untrusted_context_with_writer",
+        "grant_write_to_reader"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "forbidden",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "isolated_multi_agent_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 1,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "分离 Reader、Orchestrator、Writer 权限",
+        "清洗不可信输入",
+        "输出隔离上下文摘要"
+      ],
+      "verification": {
+        "required": true,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "isolation_policy_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question_or_route_to_查",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "multi-agent:reader-orchestrator-writer",
+        "security:prompt-injection-isolation"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "Reader/Orchestrator/Writer multi-agent isolation",
+          "Claude Code subagents pattern",
+          "LangGraph multi-agent / human-in-the-loop patterns"
+        ],
+        "operating_logic": [
+          "Reader 只读接触外部或不可信内容",
+          "Orchestrator 只接收结构化摘要并做调度",
+          "Writer 只拿干净上下文和明确任务写入",
+          "跨角色传递必须压缩为 schema 化摘要"
+        ],
+        "hard_gates": [
+          "不可信原文不得直接进入 Writer",
+          "Reader 永远不能获得写权限",
+          "跨代理权限不能继承污染"
+        ]
+      },
+      "root_opcode": "卫",
+      "opcode_vector": {
+        "permission": "kernel_filter",
+        "context": "security_pinned",
+        "evidence": [
+          "permission_report",
+          "risk_report",
+          "blocked_action_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "捕获待执行动作或待审对象",
+        "做权限白名单检查",
+        "检查危险命令、依赖、网络、路径和密钥风险",
+        "允许、拒绝或转人工确认",
+        "记录违规原因和证据",
+        "高风险转停，低风险返回原执行链"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "总"
+        ],
+        "on_failure": [
+          "问"
+        ],
+        "on_risk": [
+          "停"
+        ]
+      }
+    },
+    {
+      "code": "简",
+      "name": "simplify",
+      "definition": "极简、克制、外科手术式改动，避免过度封装和范围扩散。",
+      "intent_examples": [
+        "简单点",
+        "别大改",
+        "最小改动"
+      ],
+      "bound_skill_patterns": [
+        "simplicity_first",
+        "surgical_change",
+        "reuse_existing_code"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "edit_scoped_files",
+        "run_relevant_commands"
+      ],
+      "forbidden_actions": [
+        "over_abstraction",
+        "large_unrelated_rewrite",
+        "new_dependency_without_need"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "scoped_to_impact_files",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "simplify_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 2,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "确认最小目标",
+        "查找可复用现有能力",
+        "执行最小修改",
+        "验证行为不扩散"
+      ],
+      "verification": {
+        "required": true,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "minimal_diff_review_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question_or_route_to_查",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "karpathy:simplicity-first",
+        "karpathy:defensive-vibe-coding",
+        "engineering:minimal-diff"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "Karpathy simplicity-first coding philosophy",
+          "Defensive coding CLAUDE.md rules",
+          "Minimal diff refactor practice"
+        ],
+        "operating_logic": [
+          "先确认真正必须改变的最小目标",
+          "复用现有能力，避免新抽象和新依赖",
+          "用最小 diff 完成行为变化",
+          "验证目标行为，不扩大产品范围"
+        ],
+        "hard_gates": [
+          "禁止为了优雅而过度封装",
+          "禁止顺手清理无关文件",
+          "新依赖必须升级到源和卫审查"
+        ]
+      },
+      "root_opcode": "修",
+      "opcode_vector": {
+        "permission": "write_scoped",
+        "context": "clean_on_switch",
+        "evidence": [
+          "reproduction_result",
+          "diff_summary",
+          "test_output_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "捕获真实失败上下文",
+        "建立最小复现路径",
+        "定位影响范围",
+        "执行最小必要修改",
+        "运行验证命令",
+        "成功转测或审，失败熔断到查或停"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "测"
+        ],
+        "on_failure": [
+          "查",
+          "停"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    },
+    {
+      "code": "部",
+      "name": "deploy",
+      "definition": "部署、发布、CI/CD 和运行环境交付前的只读安全检查。",
+      "intent_examples": [
+        "部署服务",
+        "发布上线",
+        "检查 CI",
+        "跑部署流程"
+      ],
+      "bound_skill_patterns": [
+        "deployment_workflow",
+        "release_checklist",
+        "ci_cd_verification"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "run_relevant_commands"
+      ],
+      "forbidden_actions": [
+        "deploy_without_confirmation",
+        "change_secret_values",
+        "install_unapproved_dependency",
+        "edit_deploy_files"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "forbidden",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "deploy_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 2,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "识别部署目标",
+        "只读检查 CI/CD 配置",
+        "确认环境变量和密钥边界",
+        "运行发布前验证命令",
+        "输出人工确认清单，禁止直接部署"
+      ],
+      "verification": {
+        "required": true,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "deploy_plan_hash",
+          "ci_check_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question_or_route_to_查",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "devops:release-checklist",
+        "devops:ci-cd-verification",
+        "security:human-approval-gate"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "Vercel deploy skill patterns",
+          "GitHub Actions CI/CD practice",
+          "Human approval gate release workflow"
+        ],
+        "operating_logic": [
+          "识别部署目标、环境、构建命令和回滚路径",
+          "只读检查构建、测试、配置和发布脚本",
+          "检查密钥、环境变量和生产风险",
+          "高风险发布必须等待人工确认，当前字不直接执行生产部署"
+        ],
+        "hard_gates": [
+          "禁止无人确认生产部署",
+          "禁止修改真实密钥值",
+          "禁止直接写入部署配置或触发生产发布",
+          "部署失败必须回退到查或修"
+        ]
+      },
+      "root_opcode": "卫",
+      "opcode_vector": {
+        "permission": "kernel_filter",
+        "context": "security_pinned",
+        "evidence": [
+          "permission_report",
+          "risk_report",
+          "blocked_action_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "捕获待执行动作或待审对象",
+        "做权限白名单检查",
+        "检查危险命令、依赖、网络、路径和密钥风险",
+        "允许、拒绝或转人工确认",
+        "记录违规原因和证据",
+        "高风险转停，低风险返回原执行链"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "总"
+        ],
+        "on_failure": [
+          "问"
+        ],
+        "on_risk": [
+          "停"
+        ]
+      }
+    },
+    {
+      "code": "数",
+      "name": "data",
+      "definition": "数据处理、清洗、表格分析和结构化转换。",
+      "intent_examples": [
+        "清洗 CSV",
+        "整理数据",
+        "分析表格",
+        "转换 JSON"
+      ],
+      "bound_skill_patterns": [
+        "data_cleaning",
+        "schema_preservation",
+        "reproducible_transform"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_files",
+        "edit_scoped_files",
+        "run_relevant_commands"
+      ],
+      "forbidden_actions": [
+        "overwrite_source_data_without_backup",
+        "invent_data",
+        "drop_rows_without_reporting"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "scoped",
+        "network": "approval_required",
+        "dependency_install": "approval_required"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "data_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 2,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "识别输入数据",
+        "确认字段和格式",
+        "执行可复现转换",
+        "输出变更摘要和数据质量说明"
+      ],
+      "verification": {
+        "required": true,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "data_profile_hash",
+          "transform_output_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question_or_route_to_查",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "data:reproducible-transform",
+        "data:schema-preservation",
+        "data:quality-report"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "Spreadsheet/data-cleaning agent skills",
+          "Reproducible data pipeline practice",
+          "Schema preservation workflow"
+        ],
+        "operating_logic": [
+          "识别输入文件、字段、编码和目标格式",
+          "先保留源数据，再进行可复现转换",
+          "记录字段映射、丢弃行、异常值和质量问题",
+          "输出结构化结果和质量摘要"
+        ],
+        "hard_gates": [
+          "禁止覆盖源数据且无备份",
+          "禁止编造缺失数据",
+          "任何行列丢弃必须报告"
+        ]
+      },
+      "root_opcode": "记",
+      "opcode_vector": {
+        "permission": "storage_write",
+        "context": "archival_context",
+        "evidence": [
+          "document_hash",
+          "storage_path",
+          "source_reference_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "确认要记录的事实、规则或决策",
+        "检查是否已验证且适合长期保存",
+        "选择写入位置",
+        "写入简短结构化内容",
+        "捕获文件哈希",
+        "输出记录位置和后续引用方式"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "总"
+        ],
+        "on_failure": [
+          "查"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    },
+    {
+      "code": "文",
+      "name": "docs",
+      "definition": "文档生成、README、API 文档和项目说明维护。",
+      "intent_examples": [
+        "补 README",
+        "写接口文档",
+        "整理项目说明",
+        "生成文档"
+      ],
+      "bound_skill_patterns": [
+        "documentation",
+        "api_docs",
+        "reader_friendly_explanation"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "edit_scoped_files"
+      ],
+      "forbidden_actions": [
+        "document_unverified_behavior",
+        "delete_existing_docs_without_approval"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "scoped",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "docs_workflow",
+      "model_policy": {
+        "temperature": 0.1,
+        "max_retry_limit": 2,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "读取真实代码和配置",
+        "区分已验证事实和规划内容",
+        "更新文档",
+        "检查链接和命令示例"
+      ],
+      "verification": {
+        "required": true,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "doc_reference_check_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question_or_route_to_查",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "documentation:readme-maintenance",
+        "documentation:api-docs",
+        "engineering:fact-vs-plan-separation"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "OpenAI Skills documentation packaging pattern",
+          "Repo documentation generation skills",
+          "AGENTS.md / CLAUDE.md project memory practice"
+        ],
+        "operating_logic": [
+          "以真实代码、配置和命令为来源更新文档",
+          "区分已实现事实、使用说明、路线图和限制",
+          "保持 README、API 文档和开发说明一致",
+          "检查命令、链接和文件路径是否仍有效"
+        ],
+        "hard_gates": [
+          "禁止记录未验证能力为事实",
+          "禁止删除历史约束而不说明",
+          "不得把愿景写成已完成"
+        ]
+      },
+      "root_opcode": "记",
+      "opcode_vector": {
+        "permission": "storage_write",
+        "context": "archival_context",
+        "evidence": [
+          "document_hash",
+          "storage_path",
+          "source_reference_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "确认要记录的事实、规则或决策",
+        "检查是否已验证且适合长期保存",
+        "选择写入位置",
+        "写入简短结构化内容",
+        "捕获文件哈希",
+        "输出记录位置和后续引用方式"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "总"
+        ],
+        "on_failure": [
+          "查"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    },
+    {
+      "code": "合",
+      "name": "compliance",
+      "definition": "合规、许可证、政策和风险审查。",
+      "intent_examples": [
+        "检查合规",
+        "许可证风险",
+        "法务风险",
+        "政策审查"
+      ],
+      "bound_skill_patterns": [
+        "compliance_review",
+        "license_review",
+        "risk_register"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "run_read_only_commands"
+      ],
+      "forbidden_actions": [
+        "edit_files",
+        "provide_legal_advice_as_fact",
+        "approve_unverified_license"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "forbidden",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "compliance_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 1,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "收集合规材料",
+        "列出许可证和政策风险",
+        "标记不确定项",
+        "输出需人工确认的风险清单"
+      ],
+      "verification": {
+        "required": true,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "compliance_evidence_hash",
+          "license_inventory_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question_or_route_to_查",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "compliance:license-review",
+        "compliance:risk-register",
+        "security:human-confirmation-required"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "License compliance review workflows",
+          "OWASP governance and policy controls",
+          "Human confirmation risk register pattern"
+        ],
+        "operating_logic": [
+          "收集合规对象、依赖、许可证、政策和数据流",
+          "按风险等级列出确认项和不确定项",
+          "输出需人工确认的风险登记表",
+          "必要时建议转专业法律或安全审查"
+        ],
+        "hard_gates": [
+          "禁止给出确定法律意见",
+          "禁止批准未核验许可证",
+          "禁止修改代码或依赖"
+        ]
+      },
+      "root_opcode": "卫",
+      "opcode_vector": {
+        "permission": "kernel_filter",
+        "context": "security_pinned",
+        "evidence": [
+          "permission_report",
+          "risk_report",
+          "blocked_action_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "捕获待执行动作或待审对象",
+        "做权限白名单检查",
+        "检查危险命令、依赖、网络、路径和密钥风险",
+        "允许、拒绝或转人工确认",
+        "记录违规原因和证据",
+        "高风险转停，低风险返回原执行链"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "总"
+        ],
+        "on_failure": [
+          "问"
+        ],
+        "on_risk": [
+          "停"
+        ]
+      }
+    },
+    {
+      "code": "搜",
+      "name": "search",
+      "definition": "外部资料检索、来源比对和引用线索收集。",
+      "intent_examples": [
+        "搜索外部资料",
+        "查找相关文档",
+        "找官网资料",
+        "检索最新信息"
+      ],
+      "bound_skill_patterns": [
+        "external_search",
+        "source_attribution",
+        "citation_gathering"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "web_search"
+      ],
+      "forbidden_actions": [
+        "edit_files",
+        "cite_unverified_source",
+        "ignore_source_dates"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "forbidden",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "search_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 1,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "确认检索问题",
+        "优先查找权威来源",
+        "记录来源链接和日期",
+        "区分事实、推断和未验证信息"
+      ],
+      "verification": {
+        "required": true,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "source_list_hash",
+          "search_query_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question_or_route_to_查",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "research:source-attribution",
+        "research:authority-first",
+        "research:date-aware-search"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "Research source-attribution workflows",
+          "Date-aware web research practice",
+          "Official-docs-first technical research pattern"
+        ],
+        "operating_logic": [
+          "明确检索问题和时效要求",
+          "优先官方文档、论文、标准、仓库和一手来源",
+          "记录查询、链接、发布日期或访问日期",
+          "把事实、推断和未验证内容分开"
+        ],
+        "hard_gates": [
+          "禁止引用无法核验来源",
+          "高时效问题必须检索最新资料",
+          "不得用搜索结果直接驱动写入动作"
+        ]
+      },
+      "root_opcode": "查",
+      "opcode_vector": {
+        "permission": "read_only",
+        "context": "minimal_read_context",
+        "evidence": [
+          "file_reference",
+          "line_range",
+          "search_result_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "确认调查目标",
+        "定位相关文件、日志、配置或来源",
+        "读取最小必要上下文",
+        "区分事实、推断和未知项",
+        "输出证据路径、行号或来源",
+        "推荐下一执行字"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "总"
+        ],
+        "on_failure": [
+          "问"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    },
+    {
+      "code": "问",
+      "name": "clarify",
+      "definition": "需求、权限、目标或上下文不足时，暂停执行并提出最小必要澄清问题。",
+      "intent_examples": [
+        "你先问清楚",
+        "哪里不确定先问我",
+        "需求不明确怎么办",
+        "先确认一下"
+      ],
+      "bound_skill_patterns": [
+        "clarifying_question",
+        "requirement_boundary",
+        "approval_gate"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "ask_user_question"
+      ],
+      "forbidden_actions": [
+        "edit_files",
+        "assume_missing_requirement",
+        "run_high_risk_action"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "forbidden",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "clarify_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 0,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "识别缺失信息",
+        "压缩成一到三个必要问题",
+        "说明答案将如何改变执行路径",
+        "等待用户确认后再切换执行字"
+      ],
+      "verification": {
+        "required": false,
+        "evidence_source": "manual_human_review",
+        "acceptable_evidence": [
+          "user_confirmation"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.9,
+        "action": "stay_in_问",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "superpowers:brainstorming",
+        "langgraph:human-in-the-loop",
+        "security:human-approval-gate"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "obra/superpowers brainstorming",
+          "LangGraph human-in-the-loop interrupt pattern",
+          "Claude Code permission request practice"
+        ],
+        "operating_logic": [
+          "检测需求、权限或上下文是否不足",
+          "只问会改变执行路径的关键问题",
+          "把问题压到最少，优先给选项和影响说明",
+          "得到用户确认后再恢复执行栈"
+        ],
+        "hard_gates": [
+          "禁止在关键缺口下自行假设",
+          "禁止执行写入或高风险工具",
+          "用户未确认前不得升级到造、修、部"
+        ]
+      },
+      "root_opcode": "问",
+      "opcode_vector": {
+        "permission": "human_prompt_only",
+        "context": "dispute_focus",
+        "evidence": [
+          "user_confirmation",
+          "structured_answer"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "定位缺失信息或冲突意图",
+        "压缩成最少问题",
+        "给出选项和影响",
+        "等待用户输入",
+        "结构化确认结果",
+        "重新编译执行字或恢复执行栈"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "查"
+        ],
+        "on_failure": [
+          "停"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    },
+    {
+      "code": "停",
+      "name": "halt",
+      "definition": "安全熔断、人工审批或失败过多时暂停任务，收回写权限并输出可审计状态。",
+      "intent_examples": [
+        "先停一下",
+        "不要继续执行",
+        "需要人工审批",
+        "失败太多了暂停"
+      ],
+      "bound_skill_patterns": [
+        "meltdown",
+        "manual_approval",
+        "permission_revocation"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "summarize_state",
+        "ask_user_question"
+      ],
+      "forbidden_actions": [
+        "edit_files",
+        "run_high_risk_action",
+        "continue_after_meltdown"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "forbidden",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "halt_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 0,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "冻结当前执行栈",
+        "收回写权限和高风险工具权限",
+        "汇总失败证据与最近动作",
+        "等待人工确认恢复、降级或终止"
+      ],
+      "verification": {
+        "required": true,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "meltdown_report_hash",
+          "permission_state_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.8,
+        "action": "route_to_问",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "security:human-approval-gate",
+        "hooks:permission-request",
+        "langgraph:interrupt"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "Claude Code PermissionRequest hooks",
+          "LangGraph interrupt / resume workflows",
+          "OpenAI Agents SDK guardrails tripwire pattern"
+        ],
+        "operating_logic": [
+          "在连续失败、低置信度或危险动作前冻结流程",
+          "撤销写入、网络和依赖安装权限",
+          "生成失败证据、当前栈和下一步选项",
+          "只在用户明确批准后恢复到指定执行字"
+        ],
+        "hard_gates": [
+          "禁止自动恢复执行",
+          "禁止保留写权限",
+          "禁止隐藏失败上下文"
+        ]
+      },
+      "root_opcode": "停",
+      "opcode_vector": {
+        "permission": "halted",
+        "context": "frozen_state",
+        "evidence": [
+          "meltdown_report",
+          "permission_state_hash",
+          "human_reactivation_token"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "冻结当前执行栈",
+        "收回写入、部署、依赖安装和高风险工具权限",
+        "汇总失败证据和触发原因",
+        "给出恢复、降级或终止选项",
+        "等待用户确认",
+        "根据确认恢复到指定执行字或终止"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "问"
+        ],
+        "on_failure": [
+          "总"
+        ],
+        "on_risk": [
+          "停"
+        ]
+      }
+    },
+    {
+      "code": "记",
+      "name": "record",
+      "definition": "记录项目记忆、决策、ADR、规则和可复用上下文，供后续 Agent 稳定复用。",
+      "intent_examples": [
+        "记一下这个规则",
+        "写进项目记忆",
+        "记录这个决策",
+        "生成 ADR"
+      ],
+      "bound_skill_patterns": [
+        "project_memory",
+        "adr",
+        "context_persistence"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "edit_scoped_docs"
+      ],
+      "forbidden_actions": [
+        "edit_source_code",
+        "store_secret",
+        "record_unverified_fact"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "scoped",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "memory_record_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 1,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "确认要记录的事实或决策来源",
+        "选择 README、AGENTS、ADR 或 docs 位置",
+        "写入简短、可维护的项目规则",
+        "检查是否包含密钥或未验证事实"
+      ],
+      "verification": {
+        "required": true,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "doc_diff_hash",
+          "source_reference_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question_or_route_to_问",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "claude-code:memory",
+        "documentation:adr",
+        "engineering:fact-vs-plan-separation"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "Claude Code memory / CLAUDE.md practice",
+          "Architecture Decision Record practice",
+          "AGENTS.md project instruction pattern"
+        ],
+        "operating_logic": [
+          "只记录稳定、可复用、已确认的项目知识",
+          "按记忆类型选择 AGENTS、README、docs 或 ADR",
+          "把原因、决定、影响和验证状态写清楚",
+          "保持短小，避免把临时对话灌进长期记忆"
+        ],
+        "hard_gates": [
+          "禁止记录密钥和敏感信息",
+          "禁止把未确认猜测写成规则",
+          "禁止改业务代码"
+        ]
+      },
+      "root_opcode": "记",
+      "opcode_vector": {
+        "permission": "storage_write",
+        "context": "archival_context",
+        "evidence": [
+          "document_hash",
+          "storage_path",
+          "source_reference_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "确认要记录的事实、规则或决策",
+        "检查是否已验证且适合长期保存",
+        "选择写入位置",
+        "写入简短结构化内容",
+        "捕获文件哈希",
+        "输出记录位置和后续引用方式"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "总"
+        ],
+        "on_failure": [
+          "查"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    },
+    {
+      "code": "评",
+      "name": "evaluate",
+      "definition": "第二视角评估方案、补丁、输出或 Agent 行为，寻找反例、风险和质量缺口。",
+      "intent_examples": [
+        "评估一下这个方案",
+        "从反面审一下",
+        "做二次检查",
+        "看看这个输出靠谱吗"
+      ],
+      "bound_skill_patterns": [
+        "adversarial_review",
+        "quality_gate",
+        "second_pass_evaluation"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "run_read_only_commands"
+      ],
+      "forbidden_actions": [
+        "edit_files",
+        "approve_without_evidence",
+        "ignore_counterexamples"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "forbidden",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "evaluate_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 1,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "确认评估对象和通过标准",
+        "寻找反例、失败路径和缺失证据",
+        "按严重度输出风险和改进建议",
+        "给出是否可进入下一执行字的判断"
+      ],
+      "verification": {
+        "required": false,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "review_reference_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question_or_route_to_查",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "engineering:evidence-first-review",
+        "openai-agents:guardrail-evaluation",
+        "security:adversarial-review"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "OpenAI Agents SDK guardrail evaluation pattern",
+          "Code review findings-first workflow",
+          "Red-team / adversarial review practice"
+        ],
+        "operating_logic": [
+          "明确被评估对象和验收标准",
+          "优先寻找会导致失败的反例和边界条件",
+          "区分确定缺陷、风险、建议和开放问题",
+          "输出下一步建议：通过、回到修、回到问或停"
+        ],
+        "hard_gates": [
+          "禁止替被审对象直接修改",
+          "禁止无证据批准",
+          "发现高风险时必须建议停或卫"
+        ]
+      },
+      "root_opcode": "查",
+      "opcode_vector": {
+        "permission": "read_only",
+        "context": "minimal_read_context",
+        "evidence": [
+          "file_reference",
+          "line_range",
+          "search_result_hash"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "确认调查目标",
+        "定位相关文件、日志、配置或来源",
+        "读取最小必要上下文",
+        "区分事实、推断和未知项",
+        "输出证据路径、行号或来源",
+        "推荐下一执行字"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "总"
+        ],
+        "on_failure": [
+          "问"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    },
+    {
+      "code": "总",
+      "name": "summarize",
+      "definition": "长上下文压缩、阶段总结和交接摘要，保留事实、决策、证据和下一步。",
+      "intent_examples": [
+        "总结一下当前进度",
+        "压缩上下文",
+        "做个交接摘要",
+        "整理下一步"
+      ],
+      "bound_skill_patterns": [
+        "context_compaction",
+        "handoff_summary",
+        "state_snapshot"
+      ],
+      "allowed_actions": [
+        "read_files",
+        "search_code",
+        "summarize_state"
+      ],
+      "forbidden_actions": [
+        "edit_source_code",
+        "drop_open_risks",
+        "invent_progress"
+      ],
+      "tool_policy": {
+        "read": "allowed",
+        "write": "forbidden",
+        "network": "approval_required",
+        "dependency_install": "forbidden"
+      },
+      "runtime_environment": {
+        "auto_inject_local_env": true,
+        "context_breaker_on_switch": true,
+        "evidence_capture": "system_sandbox",
+        "audit_log_write_access": "system_only"
+      },
+      "routing_target": "summarize_workflow",
+      "model_policy": {
+        "temperature": 0.0,
+        "max_retry_limit": 1,
+        "load_minimal_context": true,
+        "prefer_deterministic_steps": true
+      },
+      "required_steps": [
+        "提取已完成事实",
+        "记录未完成事项、失败证据和风险",
+        "压缩成可交接结构",
+        "标明下一步推荐执行字"
+      ],
+      "verification": {
+        "required": false,
+        "evidence_source": "system_sandbox_stdout_stderr",
+        "acceptable_evidence": [
+          "summary_source_hash"
+        ],
+        "audit_fields": [
+          "timestamp",
+          "command",
+          "exit_code",
+          "stdout_digest",
+          "stderr_digest",
+          "sha256"
+        ]
+      },
+      "fallback": {
+        "when_confidence_below": 0.75,
+        "action": "ask_clarifying_question_or_route_to_查",
+        "on_max_retry_exceeded": "MELT_DOWN_TO_查",
+        "on_meltdown": "revoke_write_permissions_and_emit_bug_report"
+      },
+      "reference_workflow_patterns": [
+        "claude-code:context-management",
+        "engineering:handoff-summary",
+        "superpowers:verification-before-completion"
+      ],
+      "professional_protocol": {
+        "source_projects": [
+          "Claude Code context management practice",
+          "Agent handoff summaries",
+          "Verification-before-completion evidence discipline"
+        ],
+        "operating_logic": [
+          "只压缩已出现或可验证的信息",
+          "保留文件路径、命令、测试结果和未解决风险",
+          "把下一步映射为推荐执行字",
+          "使下一轮 Agent 能从摘要继续，不重做探索"
+        ],
+        "hard_gates": [
+          "禁止发明进度",
+          "禁止丢弃阻塞项",
+          "禁止把失败描述成成功"
+        ]
+      },
+      "root_opcode": "总",
+      "opcode_vector": {
+        "permission": "context_compress",
+        "context": "compacted_handoff",
+        "evidence": [
+          "summary_markdown",
+          "open_risk_list",
+          "next_opcode_recommendation"
+        ]
+      },
+      "inheritance_policy": {
+        "can_relax_permission": false,
+        "can_add_evidence": true,
+        "context_must_not_expand": true
+      },
+      "six_phase_workflow": [
+        "收集已完成事实",
+        "收集未完成事项、风险和失败证据",
+        "丢弃冗余对话和临时推断",
+        "生成结构化摘要",
+        "推荐下一执行字",
+        "输出可交接状态"
+      ],
+      "transition_policy": {
+        "on_success": [
+          "记"
+        ],
+        "on_failure": [
+          "问"
+        ],
+        "on_risk": [
+          "卫"
+        ]
+      }
+    }
+  ]
+}
