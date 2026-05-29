@@ -61,6 +61,15 @@ class LogosGateTests(unittest.TestCase):
         self.assertIsNotNone(executor)
         self.assertTrue(executor._shutdown)
 
+    def test_executor_pool_uses_configured_capacity(self):
+        gate = LogosGate(http_timeout_seconds=1, executor_pool_size=3)
+
+        try:
+            self.assertEqual(gate.executor_pool_size, 3)
+            self.assertEqual(gate.executor()._max_workers, 3)
+        finally:
+            gate.close()
+
 
 class LogosGatePreflightTests(unittest.TestCase):
     def test_preflight_allows_scoped_write_text(self):

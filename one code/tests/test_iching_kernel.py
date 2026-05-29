@@ -417,6 +417,21 @@ class TestIchingKernel(unittest.TestCase):
         )
         self.assertEqual(IchingKernel.aggregate_status([]), IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN))
 
+    def test_apply_event_projects_runtime_evidence_to_change_masks(self):
+        start = IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN)
+
+        completed = IchingKernel.apply_event(start, "completed")
+        timeout = IchingKernel.apply_event(start, "http_timeout")
+        breach = IchingKernel.apply_event(start, "sovereignty_breach")
+
+        self.assertEqual(completed, IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN))
+        self.assertEqual(timeout, IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN))
+        self.assertEqual(breach, IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN))
+        self.assertEqual(
+            IchingKernel.change_mask_for_event(start, "completed"),
+            start ^ IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN),
+        )
+
     def test_hexagram_records_cover_all_sixty_four_states(self):
         records = IchingKernel.hexagram_records()
 

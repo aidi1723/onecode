@@ -17,11 +17,14 @@ class WriteTextTool(ToolDefinition):
     requires_approval: bool = True
 
     def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
-        return {
+        action = {
             "action_type": "write_text",
             "path": params.get("path", ""),
             "content": params.get("content", ""),
         }
+        if "status_code" in params:
+            action["status_code"] = params["status_code"]
+        return action
 
 
 @dataclass(frozen=True)
@@ -30,12 +33,15 @@ class PatchTextTool(ToolDefinition):
     requires_approval: bool = True
 
     def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
-        return {
+        action = {
             "action_type": "patch_text",
             "path": params.get("path", ""),
             "search_block": params.get("search_block", ""),
             "replace_block": params.get("replace_block", ""),
         }
+        if "status_code" in params:
+            action["status_code"] = params["status_code"]
+        return action
 
 
 class ToolRegistry:

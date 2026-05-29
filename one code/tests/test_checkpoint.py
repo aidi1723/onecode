@@ -25,11 +25,14 @@ class CheckpointTests(unittest.TestCase):
             checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
 
             self.assertEqual(checkpoint["next_state"], "000000")
+            self.assertIn("duration_ms", checkpoint)
+            self.assertGreaterEqual(checkpoint["duration_ms"], 0)
             self.assertEqual(manifest["run_id"], "checkpoint-test")
             self.assertEqual(manifest["current_state"], "000000")
             self.assertEqual(manifest["status"], "completed")
             self.assertFalse(manifest["partial"])
             self.assertEqual(manifest["checkpoints"][0]["sha256"], sha256_file(checkpoint_path))
+            self.assertIn("duration_ms", manifest["checkpoints"][0])
 
     def test_write_ledger_creates_user_facing_result(self):
         with tempfile.TemporaryDirectory() as tmp:

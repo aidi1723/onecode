@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Literal
 
+from onecode.kernel.hexagram import IchingTransition
+
 
 StepMode = Literal["auto", "review", "manual"]
 StepStatus = Literal["completed", "failed", "skipped"]
@@ -92,6 +94,8 @@ class ExecutionTrace:
     step_results: list[StepResult]
     runner_results: list[dict[str, Any]]
     reason: str | None = None
+    global_status_code: int = 0
+    global_transition: IchingTransition | None = None
 
 
 ToolHandler = Callable[[dict[str, Any]], dict[str, Any]]

@@ -243,6 +243,7 @@ def asset_entry(
     intent_type: str,
     iching_transition: IchingTransition,
     iching_profile: dict[str, Any],
+    duration_ms: int,
     payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     entry = {
@@ -252,6 +253,7 @@ def asset_entry(
         "reason": gate_result["reason"],
         "decision": preflight_decision.decision.value,
         "intent_type": intent_type,
+        "duration_ms": duration_ms,
         "payload": payload if payload is not None else gate_result["payload"],
         "raw_payload": gate_result["payload"],
         "resumed": gate_result["status"] == "skipped",
@@ -304,7 +306,9 @@ def run_task(
         assets = []
 
         for index, intent in enumerate(intents, start=1):
+            intent_started_at = time.monotonic()
             gate_result, preflight = run_intent(task, context, gate, intent, simulated_action_seconds)
+            duration_ms = int((time.monotonic() - intent_started_at) * 1000)
             iching_transition = iching_transition_for_result(gate_result)
             iching_profile = IchingKernel.cross_cutting_profile(iching_transition.status_code)
             checkpoint_payload = gate_result["payload"]
@@ -335,6 +339,7 @@ def run_task(
                 iching_transition_action=iching_transition.action,
                 iching_transition_reason=iching_transition.reason,
                 iching_profile=iching_profile,
+                duration_ms=duration_ms,
             )
             assets.append(
                 asset_entry(
@@ -344,6 +349,7 @@ def run_task(
                     intent.action_type.value,
                     iching_transition,
                     iching_profile,
+                    duration_ms,
                     entry_payload,
                 )
             )

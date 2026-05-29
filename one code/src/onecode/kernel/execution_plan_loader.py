@@ -57,15 +57,25 @@ def _parse_tool_call(step_index: int, call_index: int, value: Any) -> ToolCallSp
 
 
 def execution_trace_to_dict(trace: Any) -> dict[str, Any]:
+    global_transition = None
+    if trace.global_transition is not None:
+        global_transition = {
+            "status_code": trace.global_transition.status_code,
+            "action": trace.global_transition.action,
+            "reason": trace.global_transition.reason,
+        }
     return {
         "task": trace.task,
         "success": trace.success,
         "reason": trace.reason,
+        "global_status_code": trace.global_status_code,
+        "global_transition": global_transition,
         "step_results": [
             {
                 "step_id": step.step_id,
                 "status": step.status,
                 "reason": step.reason,
+                "duration_ms": step.duration_ms,
                 "tool_results": [
                     {
                         "tool_name": tool.tool_name,

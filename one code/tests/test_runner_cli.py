@@ -26,6 +26,8 @@ class RunnerTests(unittest.TestCase):
 
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["checkpoints"][0]["status"], "completed")
+            self.assertIn("duration_ms", result["assets"][0])
+            self.assertEqual(result["assets"][0]["duration_ms"], manifest["checkpoints"][0]["duration_ms"])
 
     def test_run_task_can_force_timeout_for_verification(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -43,6 +45,9 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(result["reason"], "http_timeout")
             self.assertTrue(Path(result["manifest_path"]).exists())
             self.assertTrue(Path(result["ledger_path"]).exists())
+            manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
+            self.assertGreaterEqual(manifest["checkpoints"][0]["duration_ms"], 10)
+            self.assertEqual(result["assets"][0]["duration_ms"], manifest["checkpoints"][0]["duration_ms"])
 
     def test_run_task_persists_run_metadata_in_single_ledger_write(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -18,6 +18,7 @@ from onecode.kernel.execution_guardrails import (
     validate_plan,
 )
 from onecode.kernel.execution_tools import ToolRegistry, default_tool_registry
+from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.path_guard import PathGuard, PathGuardError
 from onecode.kernel.runner import run_task
 
@@ -55,6 +56,18 @@ def step_has_path_breach(step: ExecutionStep, workspace: Path, registry: ToolReg
     return False
 
 
+def step_blocked_by_bandwidth(step: ExecutionStep, registry: ToolRegistry) -> bool:
+    for tool_call in step.tool_calls:
+        tool = registry.get(tool_call.tool_name)
+        if tool is None:
+            continue
+        action = tool.plan_action(tool_call.params)
+        status_code = action.get("status_code")
+        if isinstance(status_code, int) and IchingKernel.execution_bandwidth(status_code) <= 0:
+            return True
+    return False
+
+
 def execute_step(
     step: ExecutionStep,
     plan: ExecutionPlan,
@@ -66,6 +79,7 @@ def execute_step(
     tool_results: list[ToolResult] = []
     runner_results: list[dict] = []
     step_failed_reason: str | None = None
+    started_at = time.monotonic()
 
     for tool_call in step.tool_calls:
         tool = registry.get(tool_call.tool_name)
@@ -100,12 +114,14 @@ def execute_step(
             break
 
     step_status = "failed" if step_failed_reason is not None else "completed"
+    duration_ms = int((time.monotonic() - started_at) * 1000)
     return (
         StepResult(
             step_id=step.id,
             status=step_status,
             tool_results=tool_results,
             reason=step_failed_reason,
+            duration_ms=duration_ms,
         ),
         runner_results,
     )
@@ -162,6 +178,15 @@ def execute_plan(
                 approved_layer.append(step)
         if not approved_layer:
             continue
+        bandwidth_blocked = [step for step in approved_layer if step_blocked_by_bandwidth(step, registry)]
+        for step in bandwidth_blocked:
+            step_results.append(StepResult(step_id=step.id, status="failed", reason="execution_bandwidth_zero"))
+            processed_step_ids.add(step.id)
+        approved_layer = [step for step in approved_layer if step.id not in {blocked.id for blocked in bandwidth_blocked}]
+        if bandwidth_blocked:
+            break
+        if not approved_layer:
+            continue
         path_breach_step = next(
             (step for step in approved_layer if step_has_path_breach(step, workspace, registry)),
             None,
@@ -211,10 +236,20 @@ def execute_plan(
 
     success = bool(step_results) and all(result.status == "completed" for result in step_results)
     reason = None if success else next((result.reason for result in step_results if result.reason), None)
+    status_codes = [
+        IchingKernel.classify_outcome(
+            "completed" if step.status == "completed" else "halted" if step.status == "failed" else "skipped",
+            step.reason,
+        )
+        for step in step_results
+    ]
+    global_status_code = IchingKernel.aggregate_status(status_codes)
     return ExecutionTrace(
         task=plan.task,
         success=success,
         step_results=step_results,
         runner_results=runner_results,
         reason=reason,
+        global_status_code=global_status_code,
+        global_transition=IchingKernel.transition(global_status_code),
     )

@@ -396,6 +396,26 @@ class IchingKernel:
         return (status_code & 0b111111) ^ (1 << line_index)
 
     @classmethod
+    def target_status_for_event(cls, event: str) -> int:
+        if event in {"completed", "write_completed", "patch_completed"}:
+            return cls.compute_status(cls.QIAN, cls.QIAN)
+        if event in {"skipped", "resumed_asset_ready"}:
+            return cls.compute_status(cls.QIAN, cls.DUI)
+        if event in {"http_timeout", "network_timeout"}:
+            return cls.compute_status(cls.KAN, cls.ZHEN)
+        if event in {"sovereignty_breach", "permission_denied", "invalid_intent"}:
+            return cls.compute_status(cls.LI, cls.KUN)
+        return cls.compute_status(cls.KUN, cls.KUN)
+
+    @classmethod
+    def change_mask_for_event(cls, status_code: int, event: str) -> int:
+        return (status_code & 0b111111) ^ cls.target_status_for_event(event)
+
+    @classmethod
+    def apply_event(cls, status_code: int, event: str) -> int:
+        return (status_code & 0b111111) ^ cls.change_mask_for_event(status_code, event)
+
+    @classmethod
     def should_skip(cls, status_code: int) -> bool:
         inner = status_code & 0b111
         outer = (status_code >> 3) & 0b111

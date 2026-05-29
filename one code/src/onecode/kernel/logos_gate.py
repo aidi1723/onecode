@@ -8,11 +8,19 @@ from onecode.kernel.permission_matrix import Decision, PermissionDecision, Permi
 
 
 class LogosGate:
-    def __init__(self, http_timeout_seconds: float = 60, permission_matrix: PermissionMatrix | None = None) -> None:
+    def __init__(
+        self,
+        http_timeout_seconds: float = 60,
+        permission_matrix: PermissionMatrix | None = None,
+        executor_pool_size: int = 1,
+    ) -> None:
         if http_timeout_seconds <= 0:
             raise ValueError("http_timeout_seconds must be greater than zero")
+        if executor_pool_size <= 0:
+            raise ValueError("executor_pool_size must be greater than zero")
         self.http_timeout_seconds = http_timeout_seconds
         self.permission_matrix = permission_matrix or PermissionMatrix()
+        self.executor_pool_size = executor_pool_size
         self._executor: ThreadPoolExecutor | None = None
 
     def __enter__(self) -> "LogosGate":
@@ -28,7 +36,7 @@ class LogosGate:
 
     def executor(self) -> ThreadPoolExecutor:
         if self._executor is None:
-            self._executor = ThreadPoolExecutor(max_workers=1)
+            self._executor = ThreadPoolExecutor(max_workers=self.executor_pool_size)
         return self._executor
 
     def preflight(self, context: OneCodeContext, intent: ActionIntent) -> PermissionDecision:
