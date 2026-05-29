@@ -11,8 +11,12 @@ from onecode.kernel.inspection import (
     validate_ledger_counts,
     validate_status_document,
 )
+from onecode.kernel.execution_engine import execute_plan
+from onecode.kernel.execution_plan_loader import execution_trace_to_dict, load_execution_plan
 from onecode.kernel.runner import run_task
 from onecode.kernel.task_plan import load_task_plan
+from onecode.kernel.model_loop import run_model_task
+from onecode.kernel.self_audit import audit_self
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -31,6 +35,9 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--intent-type", default="noop")
     run_parser.add_argument("--command", dest="intent_command", default=None)
     run_parser.add_argument("--resume-from", default=None)
+    run_parser.add_argument("--patch-path", default=None)
+    run_parser.add_argument("--search-block", default=None)
+    run_parser.add_argument("--replace-block", default=None)
 
     run_plan_parser = subparsers.add_parser("run-plan")
     run_plan_parser.add_argument("--workspace", default=".")
@@ -38,6 +45,39 @@ def build_parser() -> argparse.ArgumentParser:
     run_plan_parser.add_argument("--http-timeout-seconds", type=float, default=60)
     run_plan_parser.add_argument("--run-id", default=None)
     run_plan_parser.add_argument("--resume-from", default=None)
+
+    run_execution_plan_parser = subparsers.add_parser("run-execution-plan")
+    run_execution_plan_parser.add_argument("--workspace", default=".")
+    run_execution_plan_parser.add_argument("--plan", required=True)
+    run_execution_plan_parser.add_argument("--run-id", default=None)
+    run_execution_plan_parser.add_argument("--resume-from", default=None)
+
+    run_model_parser = subparsers.add_parser("run-model")
+    run_model_parser.add_argument("task")
+    run_model_parser.add_argument("--workspace", default=".")
+    run_model_parser.add_argument("--http-timeout-seconds", type=float, default=60)
+    run_model_parser.add_argument("--run-id", default=None)
+    run_model_parser.add_argument("--resume-from", default=None)
+    run_model_parser.add_argument("--model", default=None)
+    run_model_parser.add_argument("--api-key", default=None)
+    run_model_parser.add_argument(
+        "--provider",
+        choices=[
+            "responses",
+            "chat",
+            "openai-compatible",
+            "compatible",
+            "qwen",
+            "dashscope",
+            "deepseek",
+            "kimi",
+            "moonshot",
+            "zhipu",
+            "glm",
+        ],
+        default="responses",
+    )
+    run_model_parser.add_argument("--endpoint", default=None)
 
     inspect_parser = subparsers.add_parser("inspect")
     inspect_parser.add_argument("--workspace", default=".")
@@ -47,6 +87,27 @@ def build_parser() -> argparse.ArgumentParser:
     list_runs_parser.add_argument("--workspace", default=".")
 
     subparsers.add_parser("doctor")
+    subparsers.add_parser("audit-self")
+
+    tui_parser = subparsers.add_parser("tui")
+    tui_parser.add_argument("--workspace", default=None)
+    tui_parser.add_argument("--model", default=None)
+    tui_parser.add_argument(
+        "--provider",
+        choices=[
+            "chat",
+            "openai-compatible",
+            "compatible",
+            "qwen",
+            "dashscope",
+            "deepseek",
+            "kimi",
+            "moonshot",
+            "zhipu",
+            "glm",
+        ],
+        default=None,
+    )
     return parser
 
 
@@ -369,8 +430,22 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 0
 
+    if args.subcommand == "tui":
+        from onecode.tui.app import run_tui
+        run_tui(
+            workspace=Path(args.workspace) if args.workspace is not None else None,
+            model=args.model,
+            provider_kind=args.provider,
+        )
+        return 0
+
     if args.subcommand == "doctor":
         result = run_doctor()
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return 0 if result["status"] == "ok" else 1
+
+    if args.subcommand == "audit-self":
+        result = audit_self(Path.cwd(), run_doctor)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 0 if result["status"] == "ok" else 1
 
@@ -391,9 +466,45 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return IchingKernel.process_exit_code(status=result["status"], reason=result["reason"])
 
+    if args.subcommand == "run-execution-plan":
+        try:
+            plan = load_execution_plan(Path(args.plan))
+            trace = execute_plan(
+                plan,
+                workspace=Path(args.workspace),
+                run_id=args.run_id,
+                resume_from_run_id=args.resume_from,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(json.dumps(execution_trace_to_dict(trace), ensure_ascii=False, sort_keys=True))
+        return 0 if trace.success else 1
+
+    if args.subcommand == "run-model":
+        try:
+            result = run_model_task(
+                args.task,
+                workspace=Path(args.workspace),
+                http_timeout_seconds=args.http_timeout_seconds,
+                run_id=args.run_id,
+                resume_from_run_id=args.resume_from,
+                model=args.model,
+                api_key=args.api_key,
+                provider_kind=args.provider,
+                endpoint=args.endpoint,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return IchingKernel.process_exit_code(status=result["status"], reason=result["reason"])
+
     if args.subcommand == "run":
         if args.write_text and (args.write_path is not None or args.write_content is not None):
             parser.error("cannot combine --write-text with --write-path or --write-content")
+        if args.write_text and (
+            args.patch_path is not None or args.search_block is not None or args.replace_block is not None
+        ):
+            parser.error("cannot combine --write-text with patch arguments")
         try:
             result = run_task(
                 args.task,
@@ -407,6 +518,9 @@ def main(argv: list[str] | None = None) -> int:
                 intent_type=args.intent_type,
                 command=args.intent_command,
                 resume_from_run_id=args.resume_from,
+                patch_path=args.patch_path,
+                search_block=args.search_block,
+                replace_block=args.replace_block,
             )
         except ValueError as exc:
             parser.error(str(exc))
