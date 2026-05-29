@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+from pathlib import Path
+import sys
+
+def find_src_root() -> Path:
+    for base in [Path(__file__).resolve(), Path.cwd().resolve()]:
+        for parent in [base.parent, *base.parents]:
+            src_root = parent / "src"
+            if (src_root / "onecode").is_dir():
+                return src_root
+    raise RuntimeError("cannot find OneCode src root")
+
+
+src_root = find_src_root()
+sys.path.insert(0, str(src_root))
+
+from onecode.cli import main
+
+if __name__ == "__main__":
+    raise SystemExit(main())

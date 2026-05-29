@@ -1,0 +1,2 @@
+# OneCode TUI dependencies (optional, kernel runs without these)
+textual==8.2.7
