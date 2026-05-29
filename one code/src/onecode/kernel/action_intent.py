@@ -6,6 +6,7 @@ from typing import Any
 class ActionType(StrEnum):
     NOOP = "noop"
     WRITE_TEXT = "write_text"
+    PATCH_TEXT = "patch_text"
     EXECUTE_PYTEST = "execute_pytest"
     BASH_EXECUTION = "bash_execution"
     INVALID_INTENT = "invalid_intent"
@@ -31,6 +32,10 @@ class ActionIntent:
         if action_type == ActionType.WRITE_TEXT:
             self._require_string("path")
             self._require_string("content")
+        elif action_type == ActionType.PATCH_TEXT:
+            self._require_string("path")
+            self._require_string("search_block")
+            self._require_string("replace_block")
         elif action_type == ActionType.BASH_EXECUTION:
             self._require_string("command")
         elif action_type == ActionType.EXECUTE_PYTEST:
@@ -48,6 +53,17 @@ class ActionIntent:
     @classmethod
     def write_text(cls, path: str, content: str) -> "ActionIntent":
         return cls(ActionType.WRITE_TEXT, {"path": path, "content": content})
+
+    @classmethod
+    def patch_text(cls, path: str, search_block: str, replace_block: str) -> "ActionIntent":
+        return cls(
+            ActionType.PATCH_TEXT,
+            {
+                "path": path,
+                "search_block": search_block,
+                "replace_block": replace_block,
+            },
+        )
 
     @classmethod
     def bash_execution(cls, command: str) -> "ActionIntent":

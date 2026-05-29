@@ -29,6 +29,22 @@ class ActionIntentTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ActionIntent(ActionType.WRITE_TEXT, {"content": "x"})
 
+    def test_patch_text_requires_path_search_and_replace_blocks(self):
+        intent = ActionIntent.patch_text("src/generated.py", "old", "new")
+
+        self.assertEqual(intent.action_type, ActionType.PATCH_TEXT)
+        self.assertEqual(intent.payload["path"], "src/generated.py")
+        self.assertEqual(intent.payload["search_block"], "old")
+        self.assertEqual(intent.payload["replace_block"], "new")
+
+    def test_patch_text_rejects_missing_required_fields(self):
+        with self.assertRaises(ValueError):
+            ActionIntent(ActionType.PATCH_TEXT, {"path": "src/generated.py", "search_block": "old"})
+        with self.assertRaises(ValueError):
+            ActionIntent(ActionType.PATCH_TEXT, {"path": "src/generated.py", "replace_block": "new"})
+        with self.assertRaises(ValueError):
+            ActionIntent(ActionType.PATCH_TEXT, {"search_block": "old", "replace_block": "new"})
+
     def test_rejects_unknown_action_type(self):
         with self.assertRaises(ValueError):
             ActionIntent("unknown", {})

@@ -13,6 +13,13 @@ class PermissionMatrixTests(unittest.TestCase):
         self.assertIsNone(decision.reason)
         self.assertEqual(decision.evidence_required, ["path", "sha256"])
 
+    def test_allows_patch_text_in_build_entry_state(self):
+        decision = PermissionMatrix().evaluate(BUILD_ENTRY, ActionIntent.patch_text("src/a.py", "old", "new"))
+
+        self.assertEqual(decision.decision, Decision.ALLOWED)
+        self.assertIsNone(decision.reason)
+        self.assertEqual(decision.evidence_required, ["path", "sha256"])
+
     def test_denies_bash_execution_in_build_entry_state(self):
         decision = PermissionMatrix().evaluate(BUILD_ENTRY, ActionIntent.bash_execution("echo no"))
 

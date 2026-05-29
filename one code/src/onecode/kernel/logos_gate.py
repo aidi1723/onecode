@@ -19,7 +19,7 @@ class LogosGate:
         if matrix_decision.decision != Decision.ALLOWED:
             return matrix_decision
 
-        if intent.action_type == ActionType.WRITE_TEXT:
+        if intent.action_type in {ActionType.WRITE_TEXT, ActionType.PATCH_TEXT}:
             try:
                 PathGuard.resolve_target(context.workspace_root, intent.payload["path"])
             except PathGuardError:

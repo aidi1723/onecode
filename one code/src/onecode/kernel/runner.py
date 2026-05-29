@@ -2,12 +2,13 @@ import time
 from pathlib import Path
 from typing import Any
 
-from onecode.kernel.action_intent import ActionIntent
+from onecode.kernel.action_intent import ActionIntent, ActionType
 from onecode.kernel.checkpoint import write_checkpoint, write_ledger
 from onecode.kernel.context import create_context
 from onecode.kernel.hexagram import COMPLETE, IchingKernel, IchingTransition
 from onecode.kernel.logos_gate import LogosGate
 from onecode.kernel.path_guard import PathGuard
+from onecode.kernel.patching import PatchIntent, commit_patch
 from onecode.kernel.permission_matrix import Decision
 from onecode.kernel.resumption import ReadyAsset
 
@@ -53,7 +54,14 @@ def build_intent(
     write_path: str | None,
     write_content: str | None,
     command: str | None,
+    patch_path: str | None = None,
+    search_block: str | None = None,
+    replace_block: str | None = None,
 ) -> ActionIntent:
+    if intent_type == "patch_text" or patch_path is not None or search_block is not None or replace_block is not None:
+        if patch_path is None or search_block is None or replace_block is None:
+            return ActionIntent.invalid_intent("patch_text")
+        return ActionIntent.patch_text(patch_path, search_block, replace_block)
     if write_path is not None or write_content is not None:
         if write_path is None or write_content is None:
             return ActionIntent.invalid_intent("write_text")
@@ -74,16 +82,43 @@ def parse_write_text(value: str) -> tuple[str, str]:
     return path, content
 
 
+def build_intents_from_plan_actions(plan_actions: list[dict[str, Any]]) -> list[ActionIntent]:
+    intents = []
+    for index, action in enumerate(plan_actions, start=1):
+        if not isinstance(action, dict):
+            raise ValueError(f"plan action {index} must be an object")
+        action_type = action.get("action_type")
+        if action_type == "write_text":
+            intents.append(ActionIntent.write_text(action.get("path", ""), action.get("content", "")))
+        elif action_type == "patch_text":
+            intents.append(
+                ActionIntent.patch_text(
+                    action.get("path", ""),
+                    action.get("search_block", ""),
+                    action.get("replace_block", ""),
+                )
+            )
+        else:
+            intents.append(ActionIntent.invalid_intent(str(action_type)))
+    return intents
+
+
 def build_intents(
     intent_type: str,
     write_path: str | None,
     write_content: str | None,
     command: str | None,
     write_texts: list[str] | None,
+    patch_path: str | None = None,
+    search_block: str | None = None,
+    replace_block: str | None = None,
+    plan_actions: list[dict[str, Any]] | None = None,
 ) -> list[ActionIntent]:
+    if plan_actions is not None:
+        return build_intents_from_plan_actions(plan_actions)
     if write_texts is not None:
         return [ActionIntent.write_text(*parse_write_text(write_text)) for write_text in write_texts]
-    return [build_intent(intent_type, write_path, write_content, command)]
+    return [build_intent(intent_type, write_path, write_content, command, patch_path, search_block, replace_block)]
 
 
 def ready_asset_for_intent(context: Any, intent: ActionIntent) -> ReadyAsset | None:
@@ -152,15 +187,40 @@ def run_intent(
     def action() -> dict[str, Any]:
         if simulated_action_seconds > 0:
             time.sleep(simulated_action_seconds)
-        if intent.action_type.value == "write_text":
+        if intent.action_type == ActionType.WRITE_TEXT:
             return PathGuard.write_text(context.workspace_root, intent.payload["path"], intent.payload["content"])
+        if intent.action_type == ActionType.PATCH_TEXT:
+            return commit_patch(
+                context.workspace_root,
+                PatchIntent(
+                    path=intent.payload["path"],
+                    search_block=intent.payload["search_block"],
+                    replace_block=intent.payload["replace_block"],
+                ),
+            )
         return {
             "task": task,
             "run_id": context.run_id,
             "turn_index": context.turn_index + 1,
         }
 
-    return gate.run_bounded_action(action), preflight
+    gate_result = gate.run_bounded_action(action)
+    if intent.action_type == ActionType.PATCH_TEXT and gate_result["status"] == "completed":
+        patch_result = gate_result["payload"]
+        patch_payload = {
+            key: value
+            for key, value in patch_result.items()
+            if key not in {"status", "partial", "reason"}
+        }
+        if "path" in patch_payload:
+            patch_payload["path"] = intent.payload["path"]
+        return {
+            "status": patch_result.get("status", "completed"),
+            "partial": patch_result.get("partial", False),
+            "reason": patch_result.get("reason"),
+            "payload": patch_payload,
+        }, preflight
+    return gate_result, preflight
 
 
 def asset_entry(
@@ -205,6 +265,10 @@ def run_task(
     resume_from_run_id: str | None = None,
     write_texts: list[str] | None = None,
     run_metadata: dict[str, Any] | None = None,
+    patch_path: str | None = None,
+    search_block: str | None = None,
+    replace_block: str | None = None,
+    plan_actions: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     context = create_context(
         workspace_root=workspace,
@@ -213,7 +277,17 @@ def run_task(
         resume_from_run_id=resume_from_run_id,
     )
     gate = LogosGate(http_timeout_seconds=http_timeout_seconds)
-    intents = build_intents(intent_type, write_path, write_content, command, write_texts)
+    intents = build_intents(
+        intent_type,
+        write_path,
+        write_content,
+        command,
+        write_texts,
+        patch_path,
+        search_block,
+        replace_block,
+        plan_actions,
+    )
     assets = []
 
     for index, intent in enumerate(intents, start=1):
@@ -222,7 +296,9 @@ def run_task(
         iching_profile = IchingKernel.cross_cutting_profile(iching_transition.status_code)
         checkpoint_payload = gate_result["payload"]
         entry_payload = checkpoint_payload
-        if intent.action_type.value == "write_text" and "sha256" in checkpoint_payload:
+        if intent.action_type == ActionType.WRITE_TEXT and "sha256" in checkpoint_payload:
+            entry_payload = {**checkpoint_payload, "path": intent.payload["path"]}
+        if intent.action_type == ActionType.PATCH_TEXT and "sha256" in checkpoint_payload:
             entry_payload = {**checkpoint_payload, "path": intent.payload["path"]}
 
         write_checkpoint(
@@ -258,8 +334,9 @@ def run_task(
     completed_count = sum(asset["status"] == "completed" for asset in assets)
     skipped_count = sum(asset["status"] == "skipped" for asset in assets)
     failed_count = sum(asset["status"] in {"denied", "halted"} for asset in assets)
-    aggregate_success = write_texts is not None and failed_count == 0
-    result_payload = last_asset["payload"] if write_texts is not None else last_asset["raw_payload"]
+    is_multi_action_run = write_texts is not None or plan_actions is not None
+    aggregate_success = is_multi_action_run and failed_count == 0
+    result_payload = last_asset["payload"] if is_multi_action_run else last_asset["raw_payload"]
     result = {
         "run_id": context.run_id,
         "status": "completed" if aggregate_success else last_asset["status"],

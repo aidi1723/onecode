@@ -48,6 +48,18 @@ class LogosGatePreflightTests(unittest.TestCase):
             self.assertEqual(decision.intent_type, "write_text")
             self.assertEqual(decision.evidence_required, ["path", "sha256"])
 
+    def test_preflight_allows_scoped_patch_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="preflight-patch-allowed")
+            gate = LogosGate(http_timeout_seconds=1)
+
+            decision = gate.preflight(context, ActionIntent.patch_text("src/a.py", "old", "new"))
+
+            self.assertEqual(decision.decision, Decision.ALLOWED)
+            self.assertIsNone(decision.reason)
+            self.assertEqual(decision.intent_type, "patch_text")
+            self.assertEqual(decision.evidence_required, ["path", "sha256"])
+
     def test_preflight_denies_bash_execution(self):
         with tempfile.TemporaryDirectory() as tmp:
             context = create_context(Path(tmp), run_id="preflight-denied")
@@ -64,6 +76,16 @@ class LogosGatePreflightTests(unittest.TestCase):
             gate = LogosGate(http_timeout_seconds=1)
 
             decision = gate.preflight(context, ActionIntent.write_text("../outside.txt", "blocked"))
+
+            self.assertEqual(decision.decision, Decision.HALTED)
+            self.assertEqual(decision.reason, "sovereignty_breach")
+
+    def test_preflight_halts_patch_path_traversal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="preflight-patch-halted")
+            gate = LogosGate(http_timeout_seconds=1)
+
+            decision = gate.preflight(context, ActionIntent.patch_text("../outside.txt", "old", "new"))
 
             self.assertEqual(decision.decision, Decision.HALTED)
             self.assertEqual(decision.reason, "sovereignty_breach")
