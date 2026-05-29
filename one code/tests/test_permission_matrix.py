@@ -18,7 +18,16 @@ class PermissionMatrixTests(unittest.TestCase):
 
         self.assertEqual(decision.decision, Decision.ALLOWED)
         self.assertIsNone(decision.reason)
-        self.assertEqual(decision.evidence_required, ["path", "sha256"])
+        self.assertEqual(
+            decision.evidence_required,
+            [
+                "path",
+                "pre_sha256",
+                "post_sha256",
+                "search_block_sha256",
+                "replace_block_sha256",
+            ],
+        )
 
     def test_denies_bash_execution_in_build_entry_state(self):
         decision = PermissionMatrix().evaluate(BUILD_ENTRY, ActionIntent.bash_execution("echo no"))

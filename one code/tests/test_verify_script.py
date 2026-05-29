@@ -14,13 +14,15 @@ class VerifyScriptTests(unittest.TestCase):
         script = Path("scripts/verify.sh")
         text = script.read_text(encoding="utf-8")
 
-        self.assertIn("python3 -m onecode doctor", text)
-        self.assertNotIn("python3 -m onecode.cli doctor", text)
+        self.assertIn('"$PYTHON_BIN" -m onecode doctor', text)
+        self.assertNotIn("-m onecode.cli doctor", text)
 
-    def test_verify_script_installs_editable_package_before_running_tests(self):
+    def test_verify_script_uses_overridable_python_interpreter(self):
         text = Path("scripts/verify.sh").read_text(encoding="utf-8")
 
-        self.assertIn("python3 -m pip install -e .[tui]", text)
+        self.assertIn('PYTHON_BIN="${PYTHON:-}"', text)
+        self.assertIn('"$PYTHON_BIN" -m pip install -e .[tui]', text)
+        self.assertIn('"$PYTHON_BIN" -m unittest discover -s tests -v', text)
         self.assertNotIn("export PYTHONPATH", text)
 
     def test_verify_script_runs_non_recursive_smoke_check(self):

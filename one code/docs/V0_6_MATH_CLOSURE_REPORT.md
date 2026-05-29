@@ -84,6 +84,23 @@ Runner and execution evidence now expose the mathematical surface directly:
 
 The profile includes `liangyi`, `overlapping_four_symbols`, `four_symbol_balance`, yin-yang pressure, trigrams, five-element dynamics, evolved element modulation, and transition output.
 
+## Post-Audit Corrections
+
+The entropy gate must preserve polarity direction: low entropy is polarization, not rollback.
+
+- Positive low entropy means consistent yang completion. It is accepted as `accept_positive_polarity`, then macro transition applies cooldown (`QIAN/QIAN = 63` -> `GEN/QIAN = 39`).
+- Negative low entropy means consistent yin stasis or failure. It collapses to `rollback_negative_polarity` and the recovery status.
+
+The rule discovery branch is live:
+
+```text
+KUN/KUN = 0
+```
+
+This maps to `discover + stop`, so unmapped empty-state evidence does not silently continue as activation.
+
+Patch evidence is multi-hash evidence: `patch_text evidence requires pre/post and block hashes`, namely `pre_sha256`, `post_sha256`, `search_block_sha256`, and `replace_block_sha256`.
+
 ## Audit Conclusion
 
 The verified OneCode kernel now closes the rule chain from bit-level polarity to macro execution state without adding parallel control variables. External facts are evidence, not law; they are collapsed into the 6-bit tensor and interpreted through the rule surface above.

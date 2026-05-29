@@ -3,7 +3,9 @@ import os
 import subprocess
 import sys
 import unittest
+from pathlib import Path
 
+from onecode.kernel.self_audit import audit_check, audit_self
 from onecode.kernel.hexagram import IchingKernel
 
 
@@ -39,6 +41,21 @@ class SelfAuditCliTests(unittest.TestCase):
         self.assertTrue(all(check["passed"] for check in result["checks"]))
         self.assertEqual(result["checks"][1]["detail"]["shell"], "tui")
         self.assertEqual(result["checks"][2]["detail"]["providers"], ["qwen", "deepseek", "kimi", "zhipu"])
+
+    def test_audit_self_failed_check_stops_dispatch(self):
+        def failed_doctor():
+            return {"status": "failed", "checks": [audit_check("doctor-smoke", False)]}
+
+        result = audit_self(
+            project_root=Path.cwd(),
+            doctor_runner=failed_doctor,
+            run_unittest=False,
+        )
+
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["iching_status_code"], IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN))
+        self.assertEqual(result["iching_transition_action"], "halt")
+        self.assertEqual(result["dispatch_decision"], "stop")
 
 
 if __name__ == "__main__":

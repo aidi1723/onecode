@@ -61,7 +61,10 @@ def audit_self(
     checks.append(audit_check("doctor", doctor_result.get("status") == "ok", doctor_result))
 
     status = "ok" if all(check["passed"] for check in checks) else "failed"
-    status_code = IchingKernel.classify_outcome("completed" if status == "ok" else "halted", None)
+    status_code = IchingKernel.classify_outcome(
+        "completed" if status == "ok" else "halted",
+        None if status == "ok" else "self_audit_check_failed",
+    )
     transition = IchingKernel.transition(status_code)
     return {
         "status": status,

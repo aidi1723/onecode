@@ -32,7 +32,18 @@ class PermissionDecision:
 class PermissionMatrix:
     def evaluate(self, state: HexagramStatusCode, intent: ActionIntent) -> PermissionDecision:
         if state == BUILD_ENTRY and intent.action_type in {ActionType.NOOP, ActionType.WRITE_TEXT, ActionType.PATCH_TEXT}:
-            evidence = ["path", "sha256"] if intent.action_type in {ActionType.WRITE_TEXT, ActionType.PATCH_TEXT} else []
+            if intent.action_type == ActionType.WRITE_TEXT:
+                evidence = ["path", "sha256"]
+            elif intent.action_type == ActionType.PATCH_TEXT:
+                evidence = [
+                    "path",
+                    "pre_sha256",
+                    "post_sha256",
+                    "search_block_sha256",
+                    "replace_block_sha256",
+                ]
+            else:
+                evidence = []
             return PermissionDecision(
                 decision=Decision.ALLOWED,
                 reason=None,

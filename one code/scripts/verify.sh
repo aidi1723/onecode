@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+PYTHON_BIN="${PYTHON:-}"
+if [[ -z "$PYTHON_BIN" && -n "${VIRTUAL_ENV:-}" && -x "$VIRTUAL_ENV/bin/python" ]]; then
+  PYTHON_BIN="$VIRTUAL_ENV/bin/python"
+fi
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+
 echo "install"
-python3 -m pip install -e .[tui]
+"$PYTHON_BIN" -m pip install -e .[tui]
 
 echo "compileall"
-python3 -m compileall src tests
+"$PYTHON_BIN" -m compileall src tests
 
 if [[ "${1:-}" != "--skip-tests" ]]; then
   echo "unittest"
-  python3 -m unittest discover -s tests -v
+  "$PYTHON_BIN" -m unittest discover -s tests -v
 fi
 
 echo "doctor"
-python3 -m onecode doctor
+"$PYTHON_BIN" -m onecode doctor

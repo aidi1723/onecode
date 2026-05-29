@@ -1,3 +1,4 @@
+import math
 import unittest
 from unittest.mock import patch
 
@@ -9,10 +10,23 @@ class TestIchingKernel(unittest.TestCase):
         status = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI)
         self.assertEqual(status, 59)
         self.assertTrue(IchingKernel.should_skip(status))
+        self.assertEqual(
+            IchingKernel.skip_decision(status),
+            {
+                "should_skip": True,
+                "reason": "asset_ready_without_sovereignty_fire",
+                "inner_trigram": IchingKernel.DUI,
+                "outer_trigram": IchingKernel.QIAN,
+                "inner_element": "metal",
+                "outer_element": "metal",
+                "rule": "inner_dui_ready_and_outer_not_li",
+            },
+        )
 
         poisoned_status = IchingKernel.compute_status(IchingKernel.LI, IchingKernel.DUI)
         self.assertEqual(poisoned_status, 51)
         self.assertFalse(IchingKernel.should_skip(poisoned_status))
+        self.assertEqual(IchingKernel.skip_decision(poisoned_status)["reason"], "sovereignty_fire_blocks_skip")
 
     def test_classify_outcome_maps_runtime_results_to_status_codes(self):
         self.assertEqual(
@@ -61,14 +75,14 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(cooled_transition.action, "cooldown")
         self.assertEqual(cooled_transition.reason, "yang_overload_cooldown")
 
-        pure_yin_transition = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN))
-        self.assertEqual(pure_yin_transition.action, "activate")
-        self.assertEqual(pure_yin_transition.reason, "yin_stasis_requires_activation")
+        unmapped_transition = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN))
+        self.assertEqual(unmapped_transition.action, "discover")
+        self.assertEqual(unmapped_transition.reason, "rule_gap_requires_discovery")
 
     def test_transition_expands_yin_and_element_scheduling_actions(self):
         pure_yin = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN))
-        self.assertEqual(pure_yin.action, "activate")
-        self.assertEqual(pure_yin.reason, "yin_stasis_requires_activation")
+        self.assertEqual(pure_yin.action, "discover")
+        self.assertEqual(pure_yin.reason, "rule_gap_requires_discovery")
 
         yin_excess = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.DUI))
         self.assertEqual(yin_excess.action, "activate")
@@ -101,7 +115,8 @@ class TestIchingKernel(unittest.TestCase):
         self.assertIn("cooldown", actions)
         self.assertIn("checkpoint", actions)
         self.assertIn("halt", actions)
-        self.assertGreaterEqual(len(actions), 8)
+        self.assertIn("discover", actions)
+        self.assertGreaterEqual(len(actions), 9)
 
     def test_transition_consumes_element_dynamics_modulation(self):
         status = IchingKernel.compute_status(IchingKernel.LI, IchingKernel.QIAN)
@@ -605,7 +620,7 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(modulation["inner_label"], "metal+")
         self.assertEqual(modulation["coefficient"], 0.0)
 
-    def test_entropy_regulated_status_collapses_low_entropy_parallel_work(self):
+    def test_entropy_regulated_status_uses_polarity_direction_for_low_entropy_work(self):
         pure_yang_statuses = [
             IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN),
             IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN),
@@ -615,9 +630,18 @@ class TestIchingKernel(unittest.TestCase):
         regulated = IchingKernel.entropy_regulated_status(pure_yang_statuses)
 
         self.assertEqual(entropy["entropy"], 0.0)
-        self.assertEqual(entropy["polarity_state"], "low_entropy_extreme")
-        self.assertEqual(regulated["status_code"], IchingKernel.ROLLBACK_STATUS)
-        self.assertEqual(regulated["decision"], "rollback")
+        self.assertEqual(math.copysign(1.0, entropy["entropy"]), 1.0)
+        self.assertEqual(entropy["polarity_state"], "low_entropy_positive")
+        self.assertEqual(regulated["status_code"], IchingKernel.aggregate_status(pure_yang_statuses))
+        self.assertEqual(regulated["decision"], "accept_positive_polarity")
+
+        pure_yin_statuses = [
+            IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN),
+            IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN),
+        ]
+        yin_regulated = IchingKernel.entropy_regulated_status(pure_yin_statuses)
+        self.assertEqual(yin_regulated["status_code"], IchingKernel.ROLLBACK_STATUS)
+        self.assertEqual(yin_regulated["decision"], "rollback_negative_polarity")
 
         mixed_statuses = [
             IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.KUN),

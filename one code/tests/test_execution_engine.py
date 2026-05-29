@@ -313,11 +313,11 @@ class ExecutionEngineTests(unittest.TestCase):
             self.assertEqual(trace.global_entropy_decision, "accept")
             self.assertGreaterEqual(trace.global_entropy, IchingKernel.ENTROPY_THRESHOLD)
 
-    def test_execute_plan_uses_entropy_rollback_for_low_entropy_parallel_statuses(self):
+    def test_execute_plan_accepts_positive_low_entropy_parallel_success(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
             plan = ExecutionPlan(
-                task="entropy rollback",
+                task="entropy accepts all success",
                 steps=[
                     ExecutionStep(
                         id="first",
@@ -342,12 +342,12 @@ class ExecutionEngineTests(unittest.TestCase):
                 ],
             )
 
-            trace = execute_plan(plan, workspace=workspace, run_id="entropy-rollback-run")
+            trace = execute_plan(plan, workspace=workspace, run_id="entropy-success-run")
 
             self.assertTrue(trace.success)
-            self.assertEqual(trace.global_status_code, IchingKernel.ROLLBACK_STATUS)
-            self.assertEqual(trace.global_entropy_decision, "rollback")
-            self.assertEqual(trace.global_transition.action, IchingKernel.transition(IchingKernel.ROLLBACK_STATUS).action)
+            self.assertEqual(trace.global_status_code, IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN))
+            self.assertEqual(trace.global_entropy_decision, "accept_positive_polarity")
+            self.assertEqual(trace.global_transition.action, "cooldown")
 
     def test_execution_trace_dict_exports_global_status_and_transition(self):
         with tempfile.TemporaryDirectory() as tmp:

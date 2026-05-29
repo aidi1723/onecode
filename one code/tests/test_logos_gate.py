@@ -115,7 +115,16 @@ class LogosGatePreflightTests(unittest.TestCase):
             self.assertEqual(decision.decision, Decision.ALLOWED)
             self.assertIsNone(decision.reason)
             self.assertEqual(decision.intent_type, "patch_text")
-            self.assertEqual(decision.evidence_required, ["path", "sha256"])
+            self.assertEqual(
+                decision.evidence_required,
+                [
+                    "path",
+                    "pre_sha256",
+                    "post_sha256",
+                    "search_block_sha256",
+                    "replace_block_sha256",
+                ],
+            )
 
     def test_preflight_denies_bash_execution(self):
         with tempfile.TemporaryDirectory() as tmp:

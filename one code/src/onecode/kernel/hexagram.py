@@ -446,26 +446,47 @@ class IchingKernel:
     @classmethod
     def global_entropy(cls, status_codes: list[int]) -> dict[str, float | str]:
         if not status_codes:
-            return {"p1": 0.0, "p0": 1.0, "entropy": 0.0, "polarity_state": "low_entropy_extreme"}
+            return {"p1": 0.0, "p0": 1.0, "entropy": 0.0, "polarity_index": -1.0, "polarity_state": "low_entropy_negative"}
         total_bits = 6 * len(status_codes)
         yang_count = sum((status_code & 0b111111).bit_count() for status_code in status_codes)
         p1 = yang_count / total_bits
         p0 = 1 - p1
+        polarity_index = (yang_count - (total_bits / 2)) / (total_bits / 2)
 
         def term(probability: float) -> float:
             return 0.0 if probability == 0.0 else probability * math.log2(probability)
 
-        entropy = -(term(p0) + term(p1))
-        polarity_state = "low_entropy_extreme" if entropy < cls.ENTROPY_THRESHOLD else "entropy_balanced"
-        return {"p1": p1, "p0": p0, "entropy": entropy, "polarity_state": polarity_state}
+        entropy = max(0.0, -(term(p0) + term(p1)))
+        if entropy >= cls.ENTROPY_THRESHOLD:
+            polarity_state = "entropy_balanced"
+        elif polarity_index > 0:
+            polarity_state = "low_entropy_positive"
+        elif polarity_index < 0:
+            polarity_state = "low_entropy_negative"
+        else:
+            polarity_state = "low_entropy_neutral"
+        return {
+            "p1": p1,
+            "p0": p0,
+            "entropy": entropy,
+            "polarity_index": polarity_index,
+            "polarity_state": polarity_state,
+        }
 
     @classmethod
     def entropy_regulated_status(cls, status_codes: list[int]) -> dict[str, float | int | str]:
         entropy = cls.global_entropy(status_codes)
         if entropy["entropy"] < cls.ENTROPY_THRESHOLD:
+            if entropy["polarity_index"] > 0:
+                return {
+                    "status_code": cls.aggregate_status(status_codes),
+                    "decision": "accept_positive_polarity",
+                    "entropy": entropy["entropy"],
+                    "threshold": cls.ENTROPY_THRESHOLD,
+                }
             return {
                 "status_code": cls.ROLLBACK_STATUS,
-                "decision": "rollback",
+                "decision": "rollback_negative_polarity",
                 "entropy": entropy["entropy"],
                 "threshold": cls.ENTROPY_THRESHOLD,
             }
@@ -583,9 +604,30 @@ class IchingKernel:
 
     @classmethod
     def should_skip(cls, status_code: int) -> bool:
+        return bool(cls.skip_decision(status_code)["should_skip"])
+
+    @classmethod
+    def skip_decision(cls, status_code: int) -> dict[str, bool | int | str]:
         inner = status_code & 0b111
         outer = (status_code >> 3) & 0b111
-        return inner == cls.DUI and outer != cls.LI
+        if outer == cls.LI:
+            reason = "sovereignty_fire_blocks_skip"
+            should_skip = False
+        elif inner == cls.DUI:
+            reason = "asset_ready_without_sovereignty_fire"
+            should_skip = True
+        else:
+            reason = "asset_not_ready_for_skip"
+            should_skip = False
+        return {
+            "should_skip": should_skip,
+            "reason": reason,
+            "inner_trigram": inner,
+            "outer_trigram": outer,
+            "inner_element": cls.element_for_trigram(inner),
+            "outer_element": cls.element_for_trigram(outer),
+            "rule": "inner_dui_ready_and_outer_not_li",
+        }
 
     @classmethod
     def classify_outcome(cls, status: str, reason: str | None) -> int:
@@ -594,6 +636,8 @@ class IchingKernel:
         if reason == "http_timeout":
             return cls.compute_status(cls.KAN, cls.ZHEN)
         if reason == "invalid_intent":
+            return cls.compute_status(cls.LI, cls.KUN)
+        if reason == "self_audit_check_failed":
             return cls.compute_status(cls.LI, cls.KUN)
         if status == "skipped":
             return cls.compute_status(cls.QIAN, cls.DUI)
@@ -615,6 +659,13 @@ class IchingKernel:
     def transition(cls, status_code: int) -> IchingTransition:
         inner = status_code & 0b111
         dynamics = cls.element_dynamics(status_code)
+
+        if status_code == cls.compute_status(cls.KUN, cls.KUN):
+            return IchingTransition(
+                status_code=status_code,
+                action="discover",
+                reason="rule_gap_requires_discovery",
+            )
 
         if dynamics["modulation"] == "hard_control":
             return IchingTransition(
