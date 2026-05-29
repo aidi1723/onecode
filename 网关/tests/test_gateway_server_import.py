@@ -3094,6 +3094,29 @@ class GatewayServerImportTest(unittest.TestCase):
 
         self.assertEqual(result["metadata"]["workspace"], str(Path(tmpdir).resolve()))
 
+    def test_chat_completions_payload_honors_request_workspace_inside_configured_root(self):
+        import agent_skill_dictionary.gateway_server as gateway_server
+
+        dictionary = gateway_server.load_dictionary(gateway_server.DICTIONARY_PATH)
+        with TemporaryDirectory() as tmpdir, patch.dict(
+            gateway_server.os.environ,
+            {"ONEWORD_WORKSPACE_ROOT": tmpdir},
+            clear=False,
+        ):
+            root = Path(tmpdir).resolve()
+            child = root / "bench" / "guarded"
+            child.mkdir(parents=True)
+            result = gateway_server.chat_completions_payload(
+                {
+                    "model": "gpt-test",
+                    "metadata": {"workspace": str(child)},
+                    "messages": [{"role": "user", "content": "造：写一个 demo 项目"}],
+                },
+                dictionary,
+            )
+
+        self.assertEqual(result["metadata"]["workspace"], str(child.resolve()))
+
     def test_openai_responses_payload_injects_native_context_for_inspect(self):
         import agent_skill_dictionary.gateway_server as gateway_server
 

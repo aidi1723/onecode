@@ -601,8 +601,7 @@ def chat_completions_payload(body: dict[str, Any], dictionary: dict[str, Any]) -
     metadata = _attach_build_mode_session_metadata(metadata, body)
     metadata = _attach_build_mode_request_metadata(metadata, body)
     workspace_root = os.getenv("ONEWORD_WORKSPACE_ROOT")
-    if workspace_root:
-        metadata["workspace"] = str(Path(workspace_root).resolve())
+    metadata = _attach_configured_workspace(metadata, body, workspace_root)
     build_mode_enabled = os.getenv("ONEWORD_BUILD_MODE", "").lower() in {"1", "true", "yes", "on"}
     if build_mode_enabled and original_tools is not None and not metadata.get("zero_tool_fast_path"):
         payload["tools"] = original_tools
@@ -621,8 +620,7 @@ def anthropic_messages_payload(body: dict[str, Any], dictionary: dict[str, Any])
     metadata = _attach_build_mode_session_metadata(metadata, body)
     metadata = _attach_build_mode_request_metadata(metadata, body)
     workspace_root = os.getenv("ONEWORD_WORKSPACE_ROOT")
-    if workspace_root:
-        metadata["workspace"] = str(Path(workspace_root).resolve())
+    metadata = _attach_configured_workspace(metadata, body, workspace_root)
     build_mode_enabled = os.getenv("ONEWORD_BUILD_MODE", "").lower() in {"1", "true", "yes", "on"}
     if build_mode_enabled and original_tools is not None and not metadata.get("zero_tool_fast_path"):
         payload["tools"] = original_tools
@@ -771,8 +769,7 @@ def openai_responses_payload(body: dict[str, Any], dictionary: dict[str, Any]) -
     metadata = _attach_build_mode_session_metadata(metadata, body)
     metadata = _attach_build_mode_request_metadata(metadata, body)
     workspace_root = os.getenv("ONEWORD_WORKSPACE_ROOT")
-    if workspace_root:
-        metadata["workspace"] = str(Path(workspace_root).resolve())
+    metadata = _attach_configured_workspace(metadata, body, workspace_root)
     payload = dict(body)
     payload["instructions"] = _merge_responses_instructions(
         str(chat_payload["messages"][0]["content"]),
@@ -1757,6 +1754,41 @@ def _attach_build_mode_request_metadata(metadata: dict[str, Any], body: dict[str
     enriched["request_text"] = request_text
     enriched["original_request"] = request_text
     return enriched
+
+
+def _attach_configured_workspace(
+    metadata: dict[str, Any],
+    body: dict[str, Any],
+    workspace_root: str | None,
+) -> dict[str, Any]:
+    if not workspace_root:
+        return metadata
+    root = Path(workspace_root).resolve()
+    requested = _request_workspace_from_body(body)
+    workspace = root
+    if requested:
+        candidate = Path(requested).resolve()
+        try:
+            candidate.relative_to(root)
+            workspace = candidate
+        except ValueError:
+            workspace = root
+    enriched = dict(metadata)
+    enriched["workspace"] = str(workspace)
+    return enriched
+
+
+def _request_workspace_from_body(body: dict[str, Any]) -> str:
+    metadata = body.get("metadata")
+    if isinstance(metadata, dict):
+        value = metadata.get("workspace") or metadata.get("workspace_root")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    for key in ("workspace", "workspace_root"):
+        value = body.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
 
 
 def _extract_build_mode_session_id(body: dict[str, Any]) -> str:

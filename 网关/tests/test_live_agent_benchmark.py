@@ -20,10 +20,21 @@ class LiveAgentBenchmarkTest(unittest.TestCase):
         self.assertEqual(preset["fixture_path"], Path("tests/fixtures/b2b_mesh_processor"))
         self.assertIn("calculate_profile_weight", preset["task_prompt"])
         self.assertIn("../../etc/passwd", preset["task_prompt"])
+        self.assertIn("read_file", preset["task_prompt"])
+        self.assertIn("edit_scoped_file", preset["task_prompt"])
+        self.assertIn("run_pytest", preset["task_prompt"])
         self.assertEqual(
             live_agent_benchmark._artifact_paths_for_prompt(preset["task_prompt"]),
             ["src/processor.py"],
         )
+
+    def test_benchmark_tools_expose_required_argument_schemas(self):
+        tools = {tool["function"]["name"]: tool["function"]["parameters"] for tool in live_agent_benchmark._benchmark_tools()}
+
+        self.assertEqual(tools["read_file"]["required"], ["path"])
+        self.assertEqual(tools["edit_scoped_file"]["required"], ["path", "content"])
+        self.assertEqual(tools["run_pytest"]["required"], ["command"])
+        self.assertEqual(tools["run_pytest"]["properties"]["command"]["default"], "python3 -m unittest discover -s tests -v")
 
     def test_b2b_mesh_fake_benchmark_uses_processor_fixture_and_repair_case(self):
         with TemporaryDirectory() as tmpdir:
@@ -219,6 +230,16 @@ class LiveAgentBenchmarkTest(unittest.TestCase):
                     "active_code": "修",
                     "hexagram": {"action": "LAUNCH_ISOLATED_SANDBOX"},
                     "tool_guard": {"allowed": True},
+                    "build_mode_tool_results": [
+                        {
+                            "status": "completed",
+                            "hexagram": "001",
+                            "next_hexagram": "000",
+                            "shadow_action": "sandbox_runner",
+                            "tool": "run_pytest",
+                            "exit_code": 0,
+                        }
+                    ],
                 },
             },
         ]
@@ -254,11 +275,57 @@ class LiveAgentBenchmarkTest(unittest.TestCase):
             self.assertEqual(report["groups"]["bare"]["tokens"]["total_tokens"], 1200)
             self.assertEqual(report["groups"]["guarded"]["tokens"]["total_tokens"], 620)
             self.assertEqual(report["groups"]["bare"]["tool_calls"], ["read_file", "unknown_probe"])
-            self.assertEqual(report["groups"]["guarded"]["gateway_actions"], ["LAUNCH_ISOLATED_SANDBOX"])
+            self.assertEqual(
+                report["groups"]["guarded"]["gateway_actions"],
+                ["LAUNCH_ISOLATED_SANDBOX", "sandbox_runner"],
+            )
             self.assertEqual(report["comparison"]["token_savings"], 580)
             self.assertEqual(calls[0][0], "http://upstream.test/v1/chat/completions")
             self.assertEqual(calls[1][0], "http://gateway.test/v1/chat/completions")
             self.assertTrue(output_json.exists())
+
+    def test_real_http_guarded_request_passes_workspace_metadata_to_gateway(self):
+        calls = []
+
+        def fake_urlopen(request, timeout):
+            body = json.loads(request.data.decode("utf-8"))
+            calls.append((request.full_url, body))
+            response = Mock()
+            response.__enter__ = Mock(return_value=response)
+            response.__exit__ = Mock(return_value=False)
+            response.status = 200
+            response.read.return_value = json.dumps(
+                {
+                    "choices": [{"message": {"content": "ok", "tool_calls": []}}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+                    "yizijue_gateway": {"active_code": "总"},
+                }
+            ).encode("utf-8")
+            return response
+
+        with TemporaryDirectory() as tmpdir, patch(
+            "scripts.live_agent_benchmark.urlrequest.urlopen",
+            side_effect=fake_urlopen,
+        ):
+            workspace_parent = Path(tmpdir) / "workspaces"
+            live_agent_benchmark.run_benchmark(
+                model="same-model",
+                runner_mode="real-http",
+                upstream_base_url="http://upstream.test/v1",
+                gateway_base_url="http://gateway.test/v1",
+                api_key="test-key",
+                gateway_token="gateway-token",
+                output_json=Path(tmpdir) / "live-http.json",
+                output_md=Path(tmpdir) / "live-http.md",
+                workspace_parent=workspace_parent,
+                max_turns=1,
+            )
+
+        guarded_body = [body for url, body in calls if url == "http://gateway.test/v1/chat/completions"][0]
+        self.assertEqual(
+            guarded_body["metadata"]["workspace"],
+            str((workspace_parent / "guarded").resolve()),
+        )
 
     def test_real_http_benchmark_reports_multi_artifact_hashes(self):
         responses = [
@@ -329,6 +396,8 @@ class LiveAgentBenchmarkTest(unittest.TestCase):
                     gateway_base_url="http://gateway.test/v1",
                     api_key="test-key",
                     gateway_token="gateway-token",
+                    output_json=Path(tmpdir) / "live-http.json",
+                    output_md=Path(tmpdir) / "live-http.md",
                     workspace_parent=Path(tmpdir) / "workspaces",
                     max_turns=1,
                 )
@@ -626,6 +695,8 @@ class LiveAgentBenchmarkTest(unittest.TestCase):
                     gateway_base_url="http://gateway.test/v1",
                     api_key="test-key",
                     gateway_token="gateway-token",
+                    output_json=Path(tmpdir) / "live-http.json",
+                    output_md=Path(tmpdir) / "live-http.md",
                     workspace_parent=Path(tmpdir) / "workspaces",
                     max_turns=2,
                 )
@@ -709,6 +780,8 @@ class LiveAgentBenchmarkTest(unittest.TestCase):
                     gateway_base_url="http://gateway.test/v1",
                     api_key="test-key",
                     gateway_token="gateway-token",
+                    output_json=Path(tmpdir) / "live-http.json",
+                    output_md=Path(tmpdir) / "live-http.md",
                     workspace_parent=Path(tmpdir) / "workspaces",
                     max_turns=1,
                 )
@@ -721,6 +794,34 @@ class LiveAgentBenchmarkTest(unittest.TestCase):
         self.assertEqual(guarded["final_trace"], ["修", "测", "总"])
         self.assertEqual(guarded["tool_results"][0]["tool"], "edit_scoped_file")
         self.assertEqual(guarded["tool_results"][1]["tool"], "run_pytest")
+        self.assertFalse(guarded["success"])
+
+    def test_guarded_real_http_without_tool_or_test_evidence_is_not_success(self):
+        result = live_agent_benchmark._final_real_http_group_result(
+            label="guarded",
+            model="same-model",
+            task_prompt="请修改 src/processor.py 并跑测试",
+            workspace=Path("/tmp/benchmark"),
+            started=0.0,
+            messages=[{"role": "user", "content": "请修改 src/processor.py 并跑测试"}],
+            usages=[{"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}],
+            tool_calls=[],
+            external_tool_calls=[],
+            gateway_actions=[],
+            http_statuses=[200],
+            http_errors=[],
+            transient_http_errors=[],
+            final_trace=["修"],
+            tool_results=[],
+            invalid_patch_count=0,
+            test_exit_codes=[],
+            turns_completed=1,
+            hexagram_trajectory=["111111"],
+            partial=False,
+            partial_reason="",
+        )
+
+        self.assertFalse(result["success"])
 
     def test_real_http_benchmark_compacts_large_tool_outputs_in_report(self):
         large_stdout = "x" * 9000
@@ -782,6 +883,8 @@ class LiveAgentBenchmarkTest(unittest.TestCase):
                     gateway_base_url="http://gateway.test/v1",
                     api_key="test-key",
                     gateway_token="gateway-token",
+                    output_json=Path(tmpdir) / "live-http.json",
+                    output_md=Path(tmpdir) / "live-http.md",
                     workspace_parent=Path(tmpdir) / "workspaces",
                     max_turns=1,
                 )
@@ -877,6 +980,25 @@ class LiveAgentBenchmarkTest(unittest.TestCase):
         self.assertEqual(comparison["winner"], "guarded")
         self.assertEqual(comparison["winner_reason"], "quality_score_delta")
         self.assertEqual(comparison["quality_delta"], 0.25)
+
+    def test_compare_prefers_physical_success_over_quality_score_delta(self):
+        bare = {
+            "success": False,
+            "quality_score": 0.308,
+            "turns_used": 6,
+            "tokens": {"total_tokens": 5553},
+        }
+        guarded = {
+            "success": True,
+            "quality_score": 0.033,
+            "turns_used": 6,
+            "tokens": {"total_tokens": 13952},
+        }
+
+        comparison = live_agent_benchmark._compare(bare, guarded)
+
+        self.assertEqual(comparison["winner"], "guarded")
+        self.assertEqual(comparison["winner_reason"], "success")
 
 
 if __name__ == "__main__":
