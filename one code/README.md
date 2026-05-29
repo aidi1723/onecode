@@ -142,6 +142,8 @@ PYTHONPATH=src python3 -m onecode run-plan \
 Generate a local verifier policy and require a controlled verifier before delivery:
 
 ```bash
+PYTHONPATH=src python3 -m onecode list-verifier-presets
+
 PYTHONPATH=src python3 -m onecode init-verifier-policy \
   --workspace /tmp/onecode-demo \
   --preset python-unittest

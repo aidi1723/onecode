@@ -33,6 +33,7 @@ from onecode.kernel.verifier import (
     run_verifier,
     task_status_from_results,
     validate_selected_verifiers,
+    verifier_policy_presets_summary,
     write_verifier_policy,
 )
 
@@ -110,6 +111,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     list_runs_parser = subparsers.add_parser("list-runs")
     list_runs_parser.add_argument("--workspace", default=".")
+
+    subparsers.add_parser("list-verifier-presets")
 
     init_verifier_policy_parser = subparsers.add_parser("init-verifier-policy")
     init_verifier_policy_parser.add_argument("--workspace", default=".")
@@ -802,6 +805,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.subcommand == "list-runs":
         result = list_runs(Path(args.workspace))
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return 0
+
+    if args.subcommand == "list-verifier-presets":
+        print(json.dumps(verifier_policy_presets_summary(), ensure_ascii=False, sort_keys=True))
         return 0
 
     if args.subcommand == "init-verifier-policy":

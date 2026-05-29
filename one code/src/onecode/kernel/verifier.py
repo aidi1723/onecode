@@ -123,6 +123,20 @@ def verifier_policy_data(preset_ids: list[str] | None = None) -> dict[str, Any]:
     return {"verifiers": verifiers}
 
 
+def verifier_policy_presets_summary() -> dict[str, Any]:
+    return {
+        "presets": [
+            {
+                "id": preset_id,
+                "command": list(preset["command"]),
+                "cwd": preset["cwd"],
+                "timeout_ms": preset["timeout_ms"],
+            }
+            for preset_id, preset in sorted(VERIFIER_POLICY_PRESETS.items())
+        ]
+    }
+
+
 def workspace_relative_path(workspace: Path, path: Path) -> str:
     try:
         return path.relative_to(workspace).as_posix()

@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,6 +10,26 @@ from onecode.kernel.verifier import load_verifier_policy
 
 
 class VerifierPolicyInitCliTests(unittest.TestCase):
+    def test_cli_list_verifier_presets_prints_read_only_summary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            previous_cwd = Path.cwd()
+            os.chdir(tmp)
+            try:
+                with patch("builtins.print") as print_mock:
+                    exit_code = main(["list-verifier-presets"])
+            finally:
+                os.chdir(previous_cwd)
+            result = json.loads(print_mock.call_args.args[0])
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(
+                [preset["id"] for preset in result["presets"]],
+                ["python-compileall", "python-unittest"],
+            )
+            self.assertEqual(result["presets"][0]["cwd"], ".")
+            self.assertIn("compileall", result["presets"][0]["command"])
+            self.assertFalse((Path(tmp) / ".onecode" / "verifier-policy.json").exists())
+
     def test_cli_init_verifier_policy_writes_default_policy(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

@@ -16,6 +16,7 @@ class ReadmeTests(unittest.TestCase):
             "python3 -m onecode run",
             "python3 -m onecode run-plan",
             "python3 -m onecode init-verifier-policy",
+            "python3 -m onecode list-verifier-presets",
             "python3 -m onecode inspect",
             "python3 -m onecode list-runs",
             "onecode audit-self",
