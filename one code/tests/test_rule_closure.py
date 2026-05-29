@@ -26,6 +26,30 @@ class RuleClosureTests(unittest.TestCase):
         self.assertIn("Bug reports are rule-gap probes", text)
         self.assertIn("discover", text)
 
+    def test_v06_math_closure_report_matches_verified_rule_surface(self):
+        report = Path("docs/V0_6_MATH_CLOSURE_REPORT.md")
+
+        self.assertTrue(report.exists())
+        text = report.read_text(encoding="utf-8")
+
+        for snippet in [
+            "49a505d",
+            "228 tests OK",
+            "doctor status: ok",
+            "audit-self status: ok",
+            "cooldown + continue",
+            "QIAN/QIAN = 63",
+            "GEN/QIAN = 39",
+            "balance_mask() is local yin-yang feedback",
+            "transition() performs macro cooldown",
+            "Taiyi -> Liangyi -> Sixiang -> Bagua -> 64-hexagram",
+            "liangyi",
+            "overlapping_four_symbols",
+            "four_symbol_balance",
+            "global_entropy_decision",
+        ]:
+            self.assertIn(snippet, text)
+
     def test_kernel_source_forbids_parallel_control_variables(self):
         offending_names = set()
         for source_path in Path("src/onecode/kernel").glob("*.py"):
