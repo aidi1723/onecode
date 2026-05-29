@@ -134,10 +134,11 @@ python3 scripts/http_gateway_smoke.py \
   --token "$ONEWORD_GATEWAY_TOKEN"
 ```
 
-N100 + Aider 外部 Agent 联调流程见：
+外部 Agent 联调流程见：
 
 ```text
-docs/n100-aider-integration-test.md
+docs/existing-agent-gateway-integration.md
+docs/private-beta-distribution.md
 ```
 
 ## 7. 交付通过标准

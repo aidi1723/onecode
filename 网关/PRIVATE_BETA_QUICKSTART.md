@@ -16,10 +16,10 @@ cp .env.example .env
 ONEWORD_GATEWAY_TOKEN=本机自定义网关 token
 ONEWORD_WORKSPACE_ROOT=/要测试的项目绝对路径
 ONEWORD_ANTHROPIC_BASE_URL=https://你的上游/v1
-ONEWORD_ANTHROPIC_API_KEY=真实上游 key
+ONEWORD_ANTHROPIC_API_KEY=<upstream-api-key>
 ONEWORD_ANTHROPIC_MODEL=模型名
 ONEWORD_UPSTREAM_BASE_URL=https://你的 OpenAI-compatible 上游/v1
-ONEWORD_UPSTREAM_API_KEY=真实上游 key
+ONEWORD_UPSTREAM_API_KEY=<upstream-api-key>
 ONEWORD_CODEX_MODEL=模型名
 ```
 
@@ -105,5 +105,5 @@ bash deploy/private_repo_release_check.sh
 ```text
 deploy/README_PRIVATE_BETA.md
 docs/private-beta-distribution.md
-docs/agentos-test-summary-20260525.md
+docs/gateway-security-audit-closeout-2026-05-29.md
 ```

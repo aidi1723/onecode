@@ -25,10 +25,10 @@ cp .env.example .env
 ONEWORD_GATEWAY_TOKEN=给本机客户端使用的网关 token
 ONEWORD_WORKSPACE_ROOT=/要测试的项目绝对路径
 ONEWORD_ANTHROPIC_BASE_URL=https://你的 Anthropic-compatible endpoint/v1
-ONEWORD_ANTHROPIC_API_KEY=真实上游 key
+ONEWORD_ANTHROPIC_API_KEY=<upstream-api-key>
 ONEWORD_ANTHROPIC_MODEL=模型名
 ONEWORD_UPSTREAM_BASE_URL=https://你的 OpenAI-compatible endpoint/v1
-ONEWORD_UPSTREAM_API_KEY=真实上游 key
+ONEWORD_UPSTREAM_API_KEY=<upstream-api-key>
 ONEWORD_CODEX_MODEL=模型名
 ```
 

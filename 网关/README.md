@@ -7,17 +7,15 @@
 当前阶段总结见：
 
 ```text
-docs/build-mode-local-closeout-20260526.md
-docs/phase3-temporary-closeout-20260525.md
+docs/gateway-rule-sync-closeout-2026-05-29.md
+docs/gateway-security-audit-closeout-2026-05-29.md
 ```
 
 ## 当前网关基线
 
 当前网关基线是 Build Mode V2 + Kernel Runtime Policy：真实本地 HTTP 网关 + mock upstream 已覆盖 Chat Completions、OpenAI Responses、Anthropic Messages 三路协议，并检查 `111 -> 001 -> 110 -> 101 -> 111 -> 001 -> 000` 的结构化证据链、状态文件、manifest 和 SHA256。历史 V0.3/V0.4 文档仍保留为演进记录，不再代表当前运行基线。
 
-尚未完成的是 Codex Desktop / Claude Code 真实客户端端到端验证。最新边界见：
-
-- `docs/build-mode-local-closeout-20260526.md`
+尚未完成的是公开生产 SLA、多节点调度和长期真实客户端压测。最新边界见 `docs/gateway-security-audit-closeout-2026-05-29.md`。
 
 设计与实施文档见：
 
@@ -36,12 +34,7 @@ docs/private-beta-distribution.md
 
 本轮关键结论：Codex CLI `gpt-5.5` 同任务 A/B 中，一字诀把总 token 从 `183,726` 降到 `8,736`，耗时从 `66.74s` 降到 `21.51s`，本地命令调用从至少 `19` 次降到 `0`。当前适合本机与私密仓库 Beta 测试，公开生产版仍需继续验证。
 
-这个项目当前有两条线：
-
-- `data/`：字溯东方 / 大字典的汉字知识库数据。
-- `agent_skill_dictionary/`：一字诀 Agent Skill 词典与网关内核。
-
-两条线共享仓库但版本边界分开处理：`data/` 的主验收是 JSON/CSV 数据契约、lookup 同步和复核队列一致性；`agent_skill_dictionary/` 的主验收是网关权限、词典 validator、单元测试和 Python 编译检查。发布网关时不要把数据扩库状态当作网关功能完成证据；扩库时也不要把网关测试通过当作数据质量复核。
+本仓库只发布一字诀 Agent 网关产品线。汉字知识库、私有评测报告和其它上层产品线不属于本开源仓库。
 
 ## 当前能力
 
@@ -288,19 +281,19 @@ python3 -m agent_skill_dictionary.cli audit --path .oneword/audit.jsonl
 
 1. [架构说明](docs/architecture.md)
 2. [项目状态](docs/project-status.md)
-3. [更新日记](docs/update-diary.md)
-4. [交付测试计划](docs/delivery-test-plan.md)
-5. [阴阳二进制内核](docs/yin-yang-binary-kernel.md)
-6. [八个根字 / Opcode 原型架构](docs/eight-opcode-primitives.md)
-7. [OneWord-Agent FSM 框架](docs/oneword-agent-framework.md)
-8. [根字 Skill Mount 注册表](docs/root-skill-mount-registry.md)
-9. [V1.0 官方内核设计手册](docs/oneword-agentos-v1-kernel-manual.md)
-10. [现有 Agent 网关接入路线](docs/existing-agent-gateway-integration.md)
-11. [V0.3 行动框架](docs/v0.3-action-framework.md)
-12. [社区优秀 Skill 思想映射](docs/community-skill-inspirations.md)
-13. [社区优秀 Skill 与 Agent Workflow 调研](docs/community-skill-research-2026.md)
-14. [网关快速启动](docs/yizijue-gateway-quickstart.md)
-15. [N100 + Aider 外部 Agent 联调指南](docs/n100-aider-integration-test.md)
+3. [网关规则同步收尾](docs/gateway-rule-sync-closeout-2026-05-29.md)
+4. [网关安全审计收尾](docs/gateway-security-audit-closeout-2026-05-29.md)
+5. [交付测试计划](docs/delivery-test-plan.md)
+6. [阴阳二进制内核](docs/yin-yang-binary-kernel.md)
+7. [八个根字 / Opcode 原型架构](docs/eight-opcode-primitives.md)
+8. [OneWord-Agent FSM 框架](docs/oneword-agent-framework.md)
+9. [根字 Skill Mount 注册表](docs/root-skill-mount-registry.md)
+10. [V1.0 官方内核设计手册](docs/oneword-agentos-v1-kernel-manual.md)
+11. [现有 Agent 网关接入路线](docs/existing-agent-gateway-integration.md)
+12. [V0.3 行动框架](docs/v0.3-action-framework.md)
+13. [社区优秀 Skill 思想映射](docs/community-skill-inspirations.md)
+14. [社区优秀 Skill 与 Agent Workflow 调研](docs/community-skill-research-2026.md)
+15. [网关快速启动](docs/yizijue-gateway-quickstart.md)
 16. [词典契约](docs/dictionary-contract.md)
 17. [开发与验证](docs/development.md)
 18. [V0.3 白皮书](docs/one-character-agent-workflow-whitepaper.md)

@@ -2,9 +2,9 @@
 
 Target license: Apache License 2.0
 
-This project should be published as a new standalone repository rooted at `网关/`.
+This project should be published as a new standalone repository rooted at this gateway project directory.
 
-Do not publish the parent `/Users/aidi/大字典` repository as-is. It contains unrelated product lines, research files, reports, images, and local workspace artifacts.
+Do not publish the parent monorepo as-is. It contains unrelated product lines, research files, reports, images, and local workspace artifacts.
 
 ## Recommended Repository Name
 
@@ -125,7 +125,7 @@ git diff --check
 Run a secret scan before the first push:
 
 ```bash
-rg -n 'sk-[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{20,}|10\.0\.0\.184|/Users/|/home/aidi|真实上游 key' .
+rg -n 'sk-[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{20,}|10\.0\.0\.184|/Users/|/home/[A-Za-z0-9_-]+' .
 ```
 
 The only acceptable hits should be deliberate placeholders or already-redacted examples.
