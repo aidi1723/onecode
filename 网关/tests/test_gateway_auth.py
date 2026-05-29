@@ -40,6 +40,30 @@ class GatewayAuthTest(unittest.TestCase):
             )
         )
 
+    def test_gateway_request_fails_closed_without_configured_token(self):
+        import agent_skill_dictionary.gateway_server as gateway_server
+
+        self.assertFalse(gateway_server.gateway_request_authorized({}))
+
+    def test_gateway_request_uses_constant_time_token_compare(self):
+        import agent_skill_dictionary.gateway_server as gateway_server
+
+        calls: list[tuple[str, str]] = []
+
+        def fake_compare(left: str, right: str) -> bool:
+            calls.append((left, right))
+            return left == right
+
+        with unittest.mock.patch("agent_skill_dictionary.gateway_server.hmac.compare_digest", side_effect=fake_compare):
+            self.assertTrue(
+                gateway_server.gateway_request_authorized(
+                    {"authorization": "Bearer gateway-token"},
+                    required_token="gateway-token",
+                )
+            )
+
+        self.assertIn(("gateway-token", "gateway-token"), calls)
+
     def test_chat_proxy_requires_gateway_token_when_configured(self):
         import agent_skill_dictionary.gateway_server as gateway_server
 
@@ -113,14 +137,11 @@ class GatewayAuthTest(unittest.TestCase):
             protect_preflight=True,
         )
 
-    def test_preflight_auth_can_remain_open_for_test_gateways(self):
+    def test_preflight_auth_is_required_by_default(self):
         import agent_skill_dictionary.gateway_server as gateway_server
 
-        gateway_server.authorize_preflight_request(
-            {},
-            required_token="gateway-token",
-            protect_preflight=False,
-        )
+        with self.assertRaises(gateway_server.GatewayAuthRequired):
+            gateway_server.authorize_preflight_request({}, required_token="gateway-token")
 
 
 if __name__ == "__main__":

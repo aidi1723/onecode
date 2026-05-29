@@ -11,9 +11,9 @@ docs/build-mode-local-closeout-20260526.md
 docs/phase3-temporary-closeout-20260525.md
 ```
 
-## Build Mode V2
+## 当前网关基线
 
-Build Mode V2 的本地网关闭环已经通过。当前已验证范围是：真实本地 HTTP 网关 + mock upstream，覆盖 Chat Completions、OpenAI Responses、Anthropic Messages 三路协议，并检查 `111 -> 001 -> 110 -> 101 -> 111 -> 001 -> 000` 的结构化证据链、状态文件、manifest 和 SHA256。
+当前网关基线是 Build Mode V2 + Kernel Runtime Policy：真实本地 HTTP 网关 + mock upstream 已覆盖 Chat Completions、OpenAI Responses、Anthropic Messages 三路协议，并检查 `111 -> 001 -> 110 -> 101 -> 111 -> 001 -> 000` 的结构化证据链、状态文件、manifest 和 SHA256。历史 V0.3/V0.4 文档仍保留为演进记录，不再代表当前运行基线。
 
 尚未完成的是 Codex Desktop / Claude Code 真实客户端端到端验证。最新边界见：
 
@@ -66,7 +66,7 @@ docs/private-beta-distribution.md
 - 支持响应侧 tool-call 守卫标注，识别写文件、安装依赖和高风险 shell 命令。
 - 支持 `/v1/yizijue/preflight-tool` 执行前工具检查接口。
 - 支持系统证据摘要工具，为后续审计日志落盘打底。
-- 支持 `/v1/chat/completions` 对 `stream=true` 返回明确拒绝，避免外部 Agent 误以为流式代理已经可用。
+- 支持 `/v1/chat/completions` 与 Anthropic Messages 的 `stream=true` 流式转发，并在流式 chunk 中检查/拦截工具调用；命中 Build Mode 工具调用时会返回结构化 SSE 证据通知。
 - 支持本地 validator，检查只读字、审计字段、熔断规则和 `源` 的依赖安装禁用规则。
 - 支持真实 OneWord-Agent 执行器：`查` 工作区只读扫描、`修` 受控补丁写入、`测` 真实命令验证、`卫` 策略化安全扫描、`停` 熔断快照、`问` 人工确认票据、`记` 归档、`总` 交付摘要。
 - 支持端到端运行入口：`python3 -m agent_skill_dictionary.runner` 和 `/v1/yizijue/run` 会返回 trace、审计日志路径和交付产物。
@@ -74,7 +74,7 @@ docs/private-beta-distribution.md
 
 ## 当前阶段
 
-当前版本主线是 `V0.3`，并已开始进入 `V0.4 Kernel Runtime Policy + OneWord-Agent FSM`。第二阶段已完成，八大 Opcode 原型、根字 workflow 加载、内核运行策略 MVP 和状态机框架原型已落地。
+当前阶段主线是 Build Mode V2 + Kernel Runtime Policy 的私测基线。V0.3 行动框架与 V0.4 Kernel Runtime Policy 是历史演进层，当前运行面以真实 HTTP 网关、Build Mode 工具执行、证据链、工作区边界和安全鉴权为验收标准。
 
 第二阶段完成的定义：
 
@@ -86,9 +86,9 @@ docs/private-beta-distribution.md
 - 工具守卫支持响应侧标注和 `/v1/yizijue/preflight-tool` 执行前检查。
 - 本地测试、词典 validator 和 Python 编译检查作为当前验证基线。
 
-第三阶段核心已经落地：8 个根字的专业协议已拆成可加载 workflow 文件，并接入 workflow loader 与网关注入。V0.4 进一步补上 Kernel Runtime Policy、Macro Chain 和 OneWord-Agent FSM 框架原型。后续仍需要继续完善上下文预算加载策略、审计日志落盘、workflow 热加载和具体 Agent 工具执行层的强制接入。
+8 个根字的专业协议已拆成可加载 workflow 文件，并接入 workflow loader 与网关注入。当前仍需要继续完善上下文预算加载策略、workflow 热加载、真实客户端端到端验证和具体 Agent 工具执行层的强制接入。
 
-V0.3 已经把 `查 / 修 / 测 / 卫 / 停 / 问 / 记 / 总` 八个根字落成底层 Opcode 原型，并让现有 22 个字继承这些根字。64 字只作为未来扩展，不进入当前行动范围。
+`查 / 修 / 测 / 卫 / 停 / 问 / 记 / 总` 八个根字已经作为底层 Opcode 原型运行，现有 22 个执行字继承这些根字。64 字仍作为未来扩展，不进入当前行动范围。
 
 ## 核心设计：一个字背后一套专业规范
 
@@ -229,9 +229,11 @@ uvicorn agent_skill_dictionary.gateway_server:app --host 0.0.0.0 --port 8080
 http://localhost:8080/v1
 ```
 
-如果设置了 `ONEWORD_GATEWAY_TOKEN`，外部 Agent 的 `OPENAI_API_KEY` 应填写该 gateway token；真实上游模型 key 只放在网关侧的 `ONEWORD_UPSTREAM_API_KEY`。
+`ONEWORD_WORKSPACE_ROOT` 与 `ONEWORD_GATEWAY_TOKEN` 是安全必需配置。未配置 gateway token 时受保护端点会拒绝请求；未配置 workspace root 时 `/v1/yizijue/run`、证据写入和 Build Mode 工具执行会拒绝工作区动作。
+
+外部 Agent 的 `OPENAI_API_KEY` 应填写 gateway token；真实上游模型 key 只放在网关侧的 `ONEWORD_UPSTREAM_API_KEY`。
 网关不会把客户端传入的 `Authorization` 转发给上游；上游鉴权只使用网关进程环境里的真实 key。
-没有配置上游 key 时，控制面 `/v1/yizijue/*` 仍可测试，但 `/v1/chat/completions` 会返回 `upstream_api_key_missing`。
+没有配置上游 key 时，控制面 `/v1/yizijue/*` 仍可测试，但 `/v1/chat/completions` 会返回 `upstream_api_key_missing`。`/v1/yizijue/resolve`、`/v1/yizijue/preflight-tool`、`/v1/yizijue/run` 等控制面端点默认也需要 gateway token。
 
 也可以直接调用端到端执行接口：
 
@@ -305,6 +307,6 @@ python3 -m agent_skill_dictionary.cli audit --path .oneword/audit.jsonl
 
 ## 当前边界
 
-当前版本已经达到可交付 MVP：8 个根字都有可测试的内核策略，OneWord-Agent 具备真实执行、审计证据、交付产物、端到端运行入口和通用 Agent 接入协议。Build Mode V2 本地网关闭环也已经通过 live-smoke，三路协议均能完成写入、验证、失败修复、上下文检查和归档证据链。`测` 已支持可选 Docker 沙盒执行，默认加 `--network none --memory 1g --cpus 2`，并支持 `require_docker` 防止误降级到宿主机；`卫` 已支持可选 Semgrep / OSV-Scanner 外部扫描器接入；缺少本地二进制时会稳定降级。
+当前版本已经达到私测 MVP：8 个根字都有可测试的内核策略，OneWord-Agent 具备真实执行、审计证据、交付产物、端到端运行入口和通用 Agent 接入协议。Build Mode V2 本地网关闭环也已经通过 live-smoke，三路协议均能完成写入、验证、失败修复、上下文检查和归档证据链。`测` 已支持可选 Docker 沙盒执行，默认加 `--network none --memory 1g --cpus 2`，并支持 `require_docker` 防止误降级到宿主机；`卫` 已支持可选 Semgrep / OSV-Scanner 外部扫描器接入；缺少本地二进制时会稳定降级。
 
 仍未覆盖的生产增强项是真实 Codex Desktop / Claude Code 客户端端到端验证、真实上游模型长任务 A/B、WebSocket 兼容、多节点调度和词典热加载。真正完整的物理阻断仍需要具体 Agent 在执行工具前调用 `/v1/yizijue/preflight-tool`，或统一接入本项目网关。

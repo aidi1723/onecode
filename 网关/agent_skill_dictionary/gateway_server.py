@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from copy import deepcopy
+import hmac
 import os
 import shutil
 import json
@@ -75,9 +76,16 @@ def protocol_payload() -> dict[str, Any]:
 def run_task_payload(body: dict[str, Any]) -> dict[str, Any]:
     user_input = str(body.get("input") or body.get("message") or "")
     workspace = str(body.get("workspace") or os.getcwd())
-    workspace_error = _workspace_error(workspace)
+    workspace_error = _workspace_error(
+        workspace,
+        require_configured_root=bool(body.get("require_configured_workspace_root", True)),
+    )
     if workspace_error is not None:
         return workspace_error
+    if bool(body.get("require_safe_verification_command", True)):
+        command_error = _verification_command_error(body.get("verification_command"))
+        if command_error is not None:
+            return command_error
     return run_oneword_task(
         user_input,
         workspace=workspace,
@@ -354,7 +362,14 @@ def create_app() -> Any:
 
     @app.post("/v1/yizijue/resolve")
     async def resolve(request: Request) -> dict[str, Any]:
-        body = await request.json()
+        if not gateway_request_authorized(request.headers):
+            return JSONResponse(
+                content=gateway_unauthorized_response(),
+                status_code=401,
+            )
+        body, json_error = await _request_json_payload(request)
+        if json_error is not None:
+            return JSONResponse(content=json_error["payload"], status_code=json_error["status_code"])
         user_message = body.get("input") or body.get("message") or ""
         return resolve_execution_plan(str(user_message), dictionary)
 
@@ -367,7 +382,9 @@ def create_app() -> Any:
                 content=gateway_unauthorized_response(),
                 status_code=401,
             )
-        body = await request.json()
+        body, json_error = await _request_json_payload(request)
+        if json_error is not None:
+            return JSONResponse(content=json_error["payload"], status_code=json_error["status_code"])
         return preflight_tool_payload(body, dictionary)
 
     @app.post("/v1/yizijue/submit-evidence")
@@ -377,7 +394,9 @@ def create_app() -> Any:
                 content=gateway_unauthorized_response(),
                 status_code=401,
             )
-        body = await request.json()
+        body, json_error = await _request_json_payload(request)
+        if json_error is not None:
+            return JSONResponse(content=json_error["payload"], status_code=json_error["status_code"])
         return submit_evidence_payload(body)
 
     @app.post("/v1/yizijue/build-tool")
@@ -387,7 +406,9 @@ def create_app() -> Any:
                 content=gateway_unauthorized_response(),
                 status_code=401,
             )
-        body = await request.json()
+        body, json_error = await _request_json_payload(request)
+        if json_error is not None:
+            return JSONResponse(content=json_error["payload"], status_code=json_error["status_code"])
         return build_tool_payload(body)
 
     @app.post("/v1/yizijue/expert-handoff")
@@ -397,7 +418,9 @@ def create_app() -> Any:
                 content=gateway_unauthorized_response(),
                 status_code=401,
             )
-        body = await request.json()
+        body, json_error = await _request_json_payload(request)
+        if json_error is not None:
+            return JSONResponse(content=json_error["payload"], status_code=json_error["status_code"])
         return expert_handoff_payload(body)
 
     @app.post("/v1/yizijue/run")
@@ -410,7 +433,9 @@ def create_app() -> Any:
         if control_plane_requires_upstream_key(str(request.url.path)) and not UPSTREAM_API_KEY:
             payload, status_code = missing_upstream_key_response()
             return JSONResponse(content=payload, status_code=status_code)
-        body = await request.json()
+        body, json_error = await _request_json_payload(request)
+        if json_error is not None:
+            return JSONResponse(content=json_error["payload"], status_code=json_error["status_code"])
         return run_task_payload(body)
 
     @app.post("/v1/chat/completions")
@@ -420,7 +445,9 @@ def create_app() -> Any:
                 content=gateway_unauthorized_response(),
                 status_code=401,
             )
-        body = await request.json()
+        body, json_error = await _request_json_payload(request)
+        if json_error is not None:
+            return JSONResponse(content=json_error["payload"], status_code=json_error["status_code"])
         prepared = chat_completions_payload(body, dictionary)
         rewritten = prepared["payload"]
         metadata = prepared["metadata"]
@@ -490,7 +517,9 @@ def create_app() -> Any:
         if control_plane_requires_upstream_key(str(request.url.path)) and not UPSTREAM_API_KEY:
             payload, status_code = missing_upstream_key_response()
             return JSONResponse(content=payload, status_code=status_code)
-        body = await request.json()
+        body, json_error = await _request_json_payload(request)
+        if json_error is not None:
+            return JSONResponse(content=json_error["payload"], status_code=json_error["status_code"])
         rewritten = openai_responses_payload(body, dictionary)
         metadata = rewritten["metadata"]
         if should_halt_model_forwarding(metadata):
@@ -543,7 +572,9 @@ def create_app() -> Any:
         if control_plane_requires_upstream_key(str(request.url.path)) and not ANTHROPIC_API_KEY:
             payload, status_code = missing_upstream_key_response("anthropic")
             return JSONResponse(content=payload, status_code=status_code)
-        body = await request.json()
+        body, json_error = await _request_json_payload(request)
+        if json_error is not None:
+            return JSONResponse(content=json_error["payload"], status_code=json_error["status_code"])
         rewritten = anthropic_messages_payload(body, dictionary)
         metadata = rewritten["metadata"]
         if should_halt_model_forwarding(metadata):
@@ -2566,13 +2597,13 @@ def gateway_request_authorized(
 ) -> bool:
     token = required_token if required_token is not None else os.getenv("ONEWORD_GATEWAY_TOKEN")
     if not token:
-        return True
+        return False
     authorization = str(inbound_headers.get("authorization", ""))
-    if authorization == f"Bearer {token}":
+    if authorization.startswith("Bearer ") and hmac.compare_digest(authorization[7:], token):
         return True
-    if str(inbound_headers.get("x-oneword-token", "")) == token:
+    if hmac.compare_digest(str(inbound_headers.get("x-oneword-token", "")), token):
         return True
-    return str(inbound_headers.get("x-api-key", "")) == token
+    return hmac.compare_digest(str(inbound_headers.get("x-api-key", "")), token)
 
 
 def gateway_unauthorized_response() -> dict[str, Any]:
@@ -2583,6 +2614,35 @@ def gateway_unauthorized_response() -> dict[str, Any]:
             "message": "Missing or invalid 一字诀 gateway token.",
         },
     }
+
+
+async def _request_json_payload(request: Any) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    try:
+        body = await request.json()
+    except Exception as exc:
+        return {}, {
+            "status_code": 400,
+            "payload": {
+                "error": {
+                    "type": "invalid_json",
+                    "message": "Request body must be valid JSON.",
+                    "detail": exc.__class__.__name__,
+                },
+                "yizijue_gateway": {"blocked": True},
+            },
+        }
+    if not isinstance(body, dict):
+        return {}, {
+            "status_code": 400,
+            "payload": {
+                "error": {
+                    "type": "invalid_json",
+                    "message": "Request JSON body must be an object.",
+                },
+                "yizijue_gateway": {"blocked": True},
+            },
+        }
+    return body, None
 
 
 def authorize_preflight_request(
@@ -2600,7 +2660,7 @@ def control_plane_requires_upstream_key(path: str) -> bool:
 
 
 def _preflight_protected() -> bool:
-    return os.getenv("ONEWORD_PROTECT_PREFLIGHT", "").lower() in {"1", "true", "yes", "on"}
+    return os.getenv("ONEWORD_PROTECT_PREFLIGHT", "1").lower() not in {"0", "false", "no", "off"}
 
 
 def _evidence_payload_error(body: dict[str, Any]) -> dict[str, Any] | None:
@@ -2715,9 +2775,17 @@ def readiness_payload(
     }
 
 
-def _workspace_error(workspace: str) -> dict[str, Any] | None:
+def _workspace_error(workspace: str, require_configured_root: bool = False) -> dict[str, Any] | None:
     allowed_root = os.getenv("ONEWORD_WORKSPACE_ROOT")
     if not allowed_root:
+        if require_configured_root:
+            return {
+                "status": "rejected",
+                "error": {
+                    "type": "workspace_root_required",
+                    "message": "ONEWORD_WORKSPACE_ROOT must be configured before executing /v1/yizijue/run.",
+                },
+            }
         return None
     workspace_path = Path(workspace).resolve()
     root = Path(allowed_root).resolve()
@@ -2732,6 +2800,34 @@ def _workspace_error(workspace: str) -> dict[str, Any] | None:
             "allowed_root": str(root),
         },
     }
+
+
+def _verification_command_error(command: Any) -> dict[str, Any] | None:
+    if command is None:
+        return None
+    if not _verification_command_allowed(command):
+        return {
+            "status": "rejected",
+            "error": {
+                "type": "verification_command_not_allowed",
+                "message": "verification_command must be an approved test command.",
+            },
+        }
+    return None
+
+
+def _verification_command_allowed(command: Any) -> bool:
+    if not isinstance(command, list) or not command:
+        return False
+    parts = [str(item) for item in command]
+    executable = Path(parts[0]).name
+    if executable in {"pytest", "py.test"}:
+        return True
+    if executable not in {"python", "python3"}:
+        return False
+    if len(parts) >= 3 and parts[1] == "-m" and parts[2] in {"unittest", "pytest"}:
+        return True
+    return False
 
 
 try:

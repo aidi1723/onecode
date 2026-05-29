@@ -1,4 +1,5 @@
 import unittest
+import asyncio
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -16,7 +17,11 @@ class GatewayServerImportTest(unittest.TestCase):
     def test_run_endpoint_handler_returns_oneword_result_without_fastapi(self):
         import agent_skill_dictionary.gateway_server as gateway_server
 
-        with TemporaryDirectory() as tmpdir:
+        with TemporaryDirectory() as tmpdir, patch.dict(
+            gateway_server.os.environ,
+            {"ONEWORD_WORKSPACE_ROOT": tmpdir},
+            clear=False,
+        ):
             workspace = Path(tmpdir)
             (workspace / "README.md").write_text("# Demo\n", encoding="utf-8")
 
@@ -27,6 +32,21 @@ class GatewayServerImportTest(unittest.TestCase):
             self.assertEqual(result["status"], "completed")
             self.assertEqual(result["trace"], ["查", "总"])
             self.assertTrue(Path(result["audit_log_path"]).exists())
+
+    def test_run_endpoint_rejects_when_workspace_root_is_not_configured(self):
+        import agent_skill_dictionary.gateway_server as gateway_server
+
+        with TemporaryDirectory() as tmpdir, patch.dict(
+            gateway_server.os.environ,
+            {},
+            clear=True,
+        ):
+            result = gateway_server.run_task_payload(
+                {"input": "帮我看看项目结构", "workspace": tmpdir}
+            )
+
+        self.assertEqual(result["status"], "rejected")
+        self.assertEqual(result["error"]["type"], "workspace_root_required")
 
     def test_run_endpoint_rejects_workspace_outside_allowed_root(self):
         import agent_skill_dictionary.gateway_server as gateway_server
@@ -43,6 +63,38 @@ class GatewayServerImportTest(unittest.TestCase):
 
         self.assertEqual(result["status"], "rejected")
         self.assertEqual(result["error"]["type"], "workspace_not_allowed")
+
+    def test_run_endpoint_rejects_unapproved_verification_command(self):
+        import agent_skill_dictionary.gateway_server as gateway_server
+
+        with TemporaryDirectory() as tmpdir, patch.dict(
+            gateway_server.os.environ,
+            {"ONEWORD_WORKSPACE_ROOT": tmpdir},
+            clear=False,
+        ):
+            result = gateway_server.run_task_payload(
+                {
+                    "input": "请运行验证",
+                    "workspace": tmpdir,
+                    "verification_command": ["/bin/rm", "-rf", "/tmp/demo"],
+                }
+            )
+
+        self.assertEqual(result["status"], "rejected")
+        self.assertEqual(result["error"]["type"], "verification_command_not_allowed")
+
+    def test_request_json_payload_returns_stable_error_for_invalid_body(self):
+        import agent_skill_dictionary.gateway_server as gateway_server
+
+        class BadJsonRequest:
+            async def json(self):
+                raise ValueError("invalid json")
+
+        body, error = asyncio.run(gateway_server._request_json_payload(BadJsonRequest()))
+
+        self.assertEqual(body, {})
+        self.assertEqual(error["status_code"], 400)
+        self.assertEqual(error["payload"]["error"]["type"], "invalid_json")
 
     def test_submit_evidence_payload_writes_audit_record_inside_workspace(self):
         import agent_skill_dictionary.gateway_server as gateway_server

@@ -55,6 +55,53 @@ class GatewayServerRoutesTest(unittest.TestCase):
 
             self.assertEqual(response.status_code, 401)
 
+    def test_resolve_route_requires_gateway_auth(self):
+        import agent_skill_dictionary.gateway_server as gateway_server
+
+        with patch.dict(
+            gateway_server.os.environ,
+            {"ONEWORD_GATEWAY_TOKEN": "test-token"},
+            clear=False,
+        ):
+            client = TestClient(gateway_server.create_app())
+            response = client.post("/v1/yizijue/resolve", json={"input": "查：看看项目结构"})
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_preflight_tool_route_requires_gateway_auth_by_default(self):
+        import agent_skill_dictionary.gateway_server as gateway_server
+
+        with patch.dict(
+            gateway_server.os.environ,
+            {"ONEWORD_GATEWAY_TOKEN": "test-token"},
+            clear=False,
+        ):
+            client = TestClient(gateway_server.create_app())
+            response = client.post(
+                "/v1/yizijue/preflight-tool",
+                json={"active_code": "修", "tool_name": "edit_scoped_file", "arguments": {}},
+            )
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_invalid_json_body_returns_stable_400(self):
+        import agent_skill_dictionary.gateway_server as gateway_server
+
+        with patch.dict(
+            gateway_server.os.environ,
+            {"ONEWORD_GATEWAY_TOKEN": "test-token"},
+            clear=False,
+        ):
+            client = TestClient(gateway_server.create_app(), raise_server_exceptions=False)
+            response = client.post(
+                "/v1/yizijue/resolve",
+                headers={"authorization": "Bearer test-token", "content-type": "application/json"},
+                content="{",
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"]["type"], "invalid_json")
+
     def test_chat_completions_route_executes_upstream_build_mode_tool_call(self):
         import tempfile
         from pathlib import Path

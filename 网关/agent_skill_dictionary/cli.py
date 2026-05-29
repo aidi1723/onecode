@@ -119,6 +119,8 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
             {
                 "input": args.input,
                 "workspace": args.workspace,
+                "require_configured_workspace_root": False,
+                "require_safe_verification_command": False,
                 "enable_all": not args.disable_executors,
                 "verification_command": json.loads(getattr(args, "verification_command_json", None))
                 if getattr(args, "verification_command_json", None)
