@@ -476,6 +476,82 @@ class ModelLoopTests(unittest.TestCase):
             self.assertIn("src/generated.py", provider.calls[1]["task"])
             self.assertEqual((workspace / "src" / "generated.py").read_text(encoding="utf-8"), "def status():\n    return True\n")
 
+    def test_model_task_uses_multiple_repair_attempts_until_completed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            provider = SequenceModelProvider(
+                [
+                    ModelPlan(
+                        task="build broken module",
+                        execution_steps=[
+                            ModelExecutionStep(
+                                id="write",
+                                description="write invalid python",
+                                tool_calls=[
+                                    ModelToolCall(
+                                        tool_name="write_text",
+                                        params={"path": "src/generated.py", "content": "def status():\n    return (\n"},
+                                    )
+                                ],
+                            ),
+                            ModelExecutionStep(
+                                id="patch",
+                                description="compile-gated patch should fail",
+                                depends_on=["write"],
+                                tool_calls=[
+                                    ModelToolCall(
+                                        tool_name="patch_text",
+                                        params={
+                                            "path": "src/generated.py",
+                                            "search_block": "return (",
+                                            "replace_block": "return [",
+                                        },
+                                    )
+                                ],
+                            ),
+                        ],
+                    ),
+                    ModelPlan(
+                        task="first repair still invalid",
+                        patches=[
+                            ModelPlanPatch(
+                                path="src/generated.py",
+                                search_block="return (",
+                                replace_block="return [",
+                            )
+                        ],
+                    ),
+                    ModelPlan(
+                        task="second repair succeeds",
+                        patches=[
+                            ModelPlanPatch(
+                                path="src/generated.py",
+                                search_block="return (",
+                                replace_block="return True",
+                            )
+                        ],
+                    ),
+                ]
+            )
+
+            result = run_model_task(
+                "build module with repeated repair",
+                workspace=workspace,
+                run_id="multi-repair-run",
+                model="test-model",
+                api_key="test-key",
+                provider=provider,
+                max_repair_attempts=2,
+            )
+
+            self.assertEqual(result["status"], "completed")
+            self.assertTrue(result["repaired"])
+            self.assertEqual(result["repair_attempt_count"], 2)
+            self.assertEqual(len(provider.calls), 3)
+            self.assertIn("patch_compile_error", provider.calls[1]["task"])
+            self.assertIn("patch_compile_error", provider.calls[2]["task"])
+            self.assertEqual((workspace / "src" / "generated.py").read_text(encoding="utf-8"), "def status():\n    return True\n")
+
     def test_model_repair_rejects_followup_assets_and_execution_plan(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

@@ -11,6 +11,12 @@ class PathGuardError(ValueError):
 
 class PathGuard:
     DENIED_ROOT_FILES = {"pyproject.toml", ".gitignore", ".env"}
+    DENIED_EXECUTABLE_ROOT_FILES = {
+        ".pre-commit-config.yaml",
+        "Makefile",
+        "setup.cfg",
+        "setup.py",
+    }
 
     @classmethod
     def write_text(cls, workspace_root: Path, relative_path: str, content: str) -> dict[str, str]:
@@ -40,7 +46,13 @@ class PathGuard:
             raise PathGuardError("path must not be empty")
         if parts[0] == ".git":
             raise PathGuardError("paths under .git are not allowed")
-        if len(parts) == 1 and (parts[0] in cls.DENIED_ROOT_FILES or parts[0].startswith(".env.")):
+        if parts[0] == ".github":
+            raise PathGuardError("github automation writes are not allowed")
+        if len(parts) == 1 and (
+            parts[0] in cls.DENIED_ROOT_FILES
+            or parts[0] in cls.DENIED_EXECUTABLE_ROOT_FILES
+            or parts[0].startswith(".env.")
+        ):
             raise PathGuardError("root configuration writes are not allowed")
 
         root = workspace_root.resolve()

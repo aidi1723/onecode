@@ -162,11 +162,12 @@ Run evidence is stored under:
 <workspace>/.onecode/runs/<run-id>/
 ```
 
-Each run contains `manifest.json`, `ledger.json`, and checkpoint files.
+Each run contains `manifest.json`, `ledger.json`, `ledger.jsonl`, and checkpoint files.
+`ledger.json` is the latest user-facing result. `ledger.jsonl` is the append-only result history for repeated writes to the same run evidence directory.
 
 ## Safety Model
 
-All physical writes go through `PathGuard.write_text()` after `LogosGate.preflight()`. The current write surface is intentionally limited to `write_text`.
+All physical writes go through `PathGuard.write_text()` after `LogosGate.preflight()`. The current write surface is intentionally limited to guarded `write_text` and `patch_text`. `bash_execution` and `execute_pytest` are auditable intent types, but Phase 1 denies them before execution.
 
 The kernel records an `iching_profile` in run evidence. This profile is a deterministic control view over status bits, yin-yang balance, four-symbol windows, trigram records, five-element relations, and runtime transition decisions.
 

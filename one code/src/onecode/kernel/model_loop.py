@@ -107,18 +107,37 @@ def build_provider(api_key: str, provider_kind: str, endpoint: str | None) -> An
 def repair_prompt(task: str, failed_result: dict[str, Any]) -> str:
     trace = failed_result.get("execution_trace", {})
     paths = []
+    failure_details = []
     if isinstance(trace, dict):
         for runner_result in trace.get("runner_results", []):
             payload = runner_result.get("payload", {}) if isinstance(runner_result, dict) else {}
             if isinstance(payload, dict) and isinstance(payload.get("path"), str):
                 paths.append(payload["path"])
+            if isinstance(runner_result, dict):
+                reason = runner_result.get("reason")
+                status = runner_result.get("status")
+                if reason or status:
+                    failure_details.append(f"runner status={status} reason={reason} payload={payload}")
+        for step_result in trace.get("step_results", []):
+            if not isinstance(step_result, dict):
+                continue
+            reason = step_result.get("reason")
+            if reason:
+                failure_details.append(f"step {step_result.get('step_id')}: {reason}")
+            for tool_result in step_result.get("tool_results", []):
+                if isinstance(tool_result, dict) and tool_result.get("reason"):
+                    failure_details.append(
+                        f"tool {tool_result.get('tool_name')}: {tool_result.get('reason')}"
+                    )
     path_summary = ", ".join(sorted(set(paths))) if paths else "unknown"
+    details = "\n".join(f"- {detail}" for detail in failure_details[:10]) or "- unavailable"
     return (
         "Repair the previous OneCode run using patches only.\n"
         f"Original task: {task}\n"
         f"Failure status: {failed_result.get('status')}\n"
         f"Failure reason: {failed_result.get('reason')}\n"
         f"Affected paths: {path_summary}\n"
+        f"Failure details:\n{details}\n"
         "Return JSON with patches only. Do not return assets or execution_plan."
     )
 
@@ -131,6 +150,7 @@ def repair_rejected_result(
     initial_result: dict[str, Any],
     run_id: str | None,
     reason: str,
+    repair_attempt_count: int = 1,
 ) -> dict[str, Any]:
     return {
         **initial_result,
@@ -139,7 +159,7 @@ def repair_rejected_result(
         "reason": reason,
         "partial": True,
         "repaired": False,
-        "repair_attempt_count": 1,
+        "repair_attempt_count": repair_attempt_count,
         "initial_status": initial_result.get("status"),
         "initial_reason": initial_result.get("reason"),
     }
@@ -259,27 +279,38 @@ def run_model_task(
     if result["status"] == "completed" or max_repair_attempts <= 0:
         return result
 
-    repair_plan = active_provider.create_plan(
-        repair_prompt(task, result),
-        model=resolved_model,
-        http_timeout_seconds=http_timeout_seconds,
-    )
-    if not is_patch_only_repair_plan(repair_plan):
-        return repair_rejected_result(result, run_id, "repair_plan_must_use_patches_only")
-    repair_metadata = {
-        **run_metadata,
-        "model_plan_task": repair_plan.task,
-        "model_plan_asset_count": len(repair_plan.assets),
-        "model_plan_patch_count": len(repair_plan.patches),
-        "model_plan_execution_step_count": len(repair_plan.execution_steps),
-        "repair_of_run_id": run_id,
-    }
-    repair_result = execute_model_plan(
-        repair_plan,
-        workspace=workspace,
-        http_timeout_seconds=http_timeout_seconds,
-        run_id=run_id,
-        resume_from_run_id=resume_from_run_id,
-        run_metadata=repair_metadata,
-    )
-    return merge_repair_result(result, repair_result, repair_attempt_count=1)
+    failed_result = result
+    for attempt in range(1, max_repair_attempts + 1):
+        repair_plan = active_provider.create_plan(
+            repair_prompt(task, failed_result),
+            model=resolved_model,
+            http_timeout_seconds=http_timeout_seconds,
+        )
+        if not is_patch_only_repair_plan(repair_plan):
+            return repair_rejected_result(
+                result,
+                run_id,
+                "repair_plan_must_use_patches_only",
+                repair_attempt_count=attempt,
+            )
+        repair_metadata = {
+            **run_metadata,
+            "model_plan_task": repair_plan.task,
+            "model_plan_asset_count": len(repair_plan.assets),
+            "model_plan_patch_count": len(repair_plan.patches),
+            "model_plan_execution_step_count": len(repair_plan.execution_steps),
+            "repair_of_run_id": run_id,
+        }
+        repair_result = execute_model_plan(
+            repair_plan,
+            workspace=workspace,
+            http_timeout_seconds=http_timeout_seconds,
+            run_id=run_id,
+            resume_from_run_id=resume_from_run_id,
+            run_metadata=repair_metadata,
+        )
+        merged = merge_repair_result(result, repair_result, repair_attempt_count=attempt)
+        if repair_result.get("status") == "completed":
+            return merged
+        failed_result = merged
+    return failed_result

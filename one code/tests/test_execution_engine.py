@@ -141,6 +141,49 @@ class ExecutionEngineTests(unittest.TestCase):
             self.assertEqual(trace.step_results[1].reason, "dependencies_not_met")
             self.assertFalse((workspace / "src" / "after.py").exists())
 
+    def test_execute_plan_breaks_immediately_on_sovereignty_breach(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan = ExecutionPlan(
+                task="unsafe then next",
+                steps=[
+                    ExecutionStep(
+                        id="unsafe",
+                        description="escape workspace",
+                        tool_calls=[
+                            ToolCallSpec(
+                                tool_name="write_text",
+                                params={"path": "../outside.py", "content": "BAD = True\n"},
+                            )
+                        ],
+                    ),
+                    ExecutionStep(
+                        id="next",
+                        description="must not run after safety breach",
+                        tool_calls=[
+                            ToolCallSpec(
+                                tool_name="write_text",
+                                params={"path": "src/after.py", "content": "AFTER = True\n"},
+                            )
+                        ],
+                    ),
+                ],
+            )
+
+            trace = execute_plan(
+                plan,
+                workspace=workspace,
+                run_id="execution-safety-break-run",
+                tool_registry=default_tool_registry(),
+                guardrails=GuardrailConfig(max_consecutive_failures=3),
+            )
+
+            self.assertFalse(trace.success)
+            self.assertEqual(len(trace.step_results), 1)
+            self.assertEqual(trace.step_results[0].status, "failed")
+            self.assertEqual(trace.step_results[0].reason, "sovereignty_breach")
+            self.assertFalse((workspace / "src" / "after.py").exists())
+
     def test_execute_plan_requires_approval_for_guarded_tools(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

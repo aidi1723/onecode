@@ -19,6 +19,9 @@ from onecode.kernel.execution_tools import ToolRegistry, default_tool_registry
 from onecode.kernel.runner import run_task
 
 
+SAFETY_BREAK_REASONS = {"sovereignty_breach", "permission_denied"}
+
+
 def execute_plan(
     plan: ExecutionPlan,
     workspace: Path,
@@ -44,8 +47,11 @@ def execute_plan(
     step_results: list[StepResult] = []
     runner_results: list[dict] = []
     consecutive_failures = 0
+    safety_break = False
 
     for step in plan.steps:
+        if safety_break:
+            break
         if time_budget_exceeded(started_at, config):
             step_results.append(StepResult(step_id=step.id, status="failed", reason="time_budget_exceeded"))
             break
@@ -91,6 +97,8 @@ def execute_plan(
             )
             if not success:
                 step_failed_reason = reason or "tool_failed"
+                if step_failed_reason in SAFETY_BREAK_REASONS:
+                    safety_break = True
                 break
 
         step_status = "failed" if step_failed_reason is not None else "completed"
@@ -104,6 +112,8 @@ def execute_plan(
         )
 
         if step_status == "failed":
+            if step_failed_reason in SAFETY_BREAK_REASONS:
+                break
             consecutive_failures += 1
             if consecutive_failures >= config.max_consecutive_failures:
                 break

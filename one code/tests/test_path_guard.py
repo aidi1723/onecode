@@ -48,6 +48,23 @@ class PathGuardTests(unittest.TestCase):
                         PathGuard.write_text(workspace, path, "blocked")
                     self.assertFalse((workspace / path).exists())
 
+    def test_rejects_executable_configuration_surfaces(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            paths = [
+                ".github/workflows/ci.yml",
+                "Makefile",
+                "setup.py",
+                "setup.cfg",
+                ".pre-commit-config.yaml",
+            ]
+
+            for path in paths:
+                with self.subTest(path=path):
+                    with self.assertRaises(PathGuardError):
+                        PathGuard.write_text(workspace, path, "blocked")
+                    self.assertFalse((workspace / path).exists())
+
 
 if __name__ == "__main__":
     unittest.main()

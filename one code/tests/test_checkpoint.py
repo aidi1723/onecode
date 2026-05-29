@@ -49,6 +49,23 @@ class CheckpointTests(unittest.TestCase):
             self.assertEqual(ledger["run_id"], "ledger-test")
             self.assertEqual(ledger["status"], "completed")
 
+    def test_write_ledger_keeps_append_only_history(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="ledger-history-test")
+
+            write_ledger(context, {"run_id": "ledger-history-test", "status": "halted"})
+            ledger_path = write_ledger(context, {"run_id": "ledger-history-test", "status": "completed"})
+
+            latest = json.loads(ledger_path.read_text(encoding="utf-8"))
+            history_path = ledger_path.with_suffix(".jsonl")
+            history = [
+                json.loads(line)
+                for line in history_path.read_text(encoding="utf-8").splitlines()
+                if line
+            ]
+            self.assertEqual(latest["status"], "completed")
+            self.assertEqual([entry["status"] for entry in history], ["halted", "completed"])
+
 
 class AppendOnlyManifestTests(unittest.TestCase):
     def test_write_checkpoint_preserves_prior_checkpoint_records(self):

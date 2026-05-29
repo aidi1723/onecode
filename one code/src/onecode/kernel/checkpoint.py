@@ -33,6 +33,15 @@ def atomic_write_json(path: Path, data: dict[str, Any]) -> None:
     temp_path.replace(path)
 
 
+def append_json_line(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    encoded = json.dumps(data, ensure_ascii=False, sort_keys=True) + "\n"
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(encoded)
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
 def read_manifest(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
@@ -147,4 +156,5 @@ def write_checkpoint(
 def write_ledger(context: OneCodeContext, result: dict[str, Any]) -> Path:
     ledger_path = context.evidence_root / "ledger.json"
     atomic_write_json(ledger_path, result)
+    append_json_line(context.evidence_root / "ledger.jsonl", result)
     return ledger_path
