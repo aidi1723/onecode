@@ -261,6 +261,8 @@ class TestIchingKernel(unittest.TestCase):
 
         self.assertEqual(profile["global"], {"yang_count": 5, "yin_count": 1, "balance": "yang_excess"})
         self.assertEqual(profile["pressure"], "cooldown")
+        self.assertEqual(profile["polarity_index"], 2 / 3)
+        self.assertEqual(profile["balance_mask"], 0b100000)
         self.assertEqual(profile["lines"][0], {"line_index": 0, "value": 1, "polarity": "yang"})
         self.assertEqual(profile["lines"][2], {"line_index": 2, "value": 0, "polarity": "yin"})
         self.assertEqual(profile["inner_trigram"], {"yang_count": 2, "yin_count": 1, "balance": "balanced"})
@@ -487,6 +489,8 @@ class TestIchingKernel(unittest.TestCase):
                 "outer_trigram",
                 "trigram_records",
                 "yin_yang",
+                "polarity_index",
+                "balance_mask",
                 "four_symbols",
             ],
         )
@@ -499,9 +503,13 @@ class TestIchingKernel(unittest.TestCase):
                 "element_matrix",
                 "element_relation",
                 "element_dynamics",
+                "evolved_element_modulation",
             ],
         )
-        self.assertEqual(profile["rule_layers"]["onecode_runtime"], ["transition", "dispatch_decision"])
+        self.assertEqual(
+            profile["rule_layers"]["onecode_runtime"],
+            ["transition", "dispatch_decision", "execution_bandwidth", "global_entropy"],
+        )
 
     def test_rule_layers_returns_defensive_copies(self):
         first = IchingKernel.rule_layers()
@@ -518,6 +526,64 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(IchingKernel.flip_line(0b000001, 0), 0b000000)
         self.assertEqual(IchingKernel.flip_line(0b000000, 5), 0b100000)
         self.assertEqual(IchingKernel.flip_line(0b111111, 3), 0b110111)
+
+    def test_polarity_index_and_balance_mask_apply_threshold_feedback(self):
+        self.assertEqual(IchingKernel.polarity_index(0b111111), 1.0)
+        self.assertEqual(IchingKernel.polarity_index(0b000000), -1.0)
+        self.assertEqual(IchingKernel.polarity_index(0b100011), 0.0)
+        self.assertEqual(IchingKernel.polarity_index(0b100111), 1 / 3)
+
+        self.assertEqual(IchingKernel.balance_mask(0b001111), 0b000000)
+        self.assertEqual(IchingKernel.balance_mask(0b011111), 0b100000)
+        self.assertEqual(IchingKernel.balance_mask(0b000001), 0b000001)
+        self.assertEqual(IchingKernel.balance_mask(0b000000), 0b000001)
+
+    def test_apply_event_can_include_adaptive_balance_feedback(self):
+        start = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN)
+
+        self.assertEqual(IchingKernel.apply_event(start, "completed"), start)
+        self.assertEqual(IchingKernel.apply_balanced_event(start, "completed"), 0b011111)
+
+        stasis = IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN)
+        self.assertEqual(IchingKernel.apply_balanced_event(stasis, "unknown"), 0b000001)
+
+    def test_evolved_element_tensor_splits_elements_by_polarity(self):
+        labels = IchingKernel.evolved_element_labels()
+        self.assertEqual(labels, ["metal+", "wood+", "water+", "fire+", "earth+", "metal-", "wood-", "water-", "fire-", "earth-"])
+
+        tensor = IchingKernel.evolved_element_tensor(0b111111)
+        self.assertEqual(len(tensor), 10)
+        self.assertTrue(all(len(row) == 10 for row in tensor))
+        self.assertEqual(tensor[3][0], 0.0)
+        self.assertGreater(tensor[0][8], IchingKernel.ELEMENT_EXECUTION_BANDWIDTH[("metal", "fire")])
+
+        status = IchingKernel.compute_status(IchingKernel.LI, IchingKernel.QIAN)
+        modulation = IchingKernel.evolved_element_modulation(status)
+        self.assertEqual(modulation["outer_label"], "fire+")
+        self.assertEqual(modulation["inner_label"], "metal+")
+        self.assertEqual(modulation["coefficient"], 0.0)
+
+    def test_entropy_regulated_status_collapses_low_entropy_parallel_work(self):
+        pure_yang_statuses = [
+            IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN),
+            IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN),
+        ]
+
+        entropy = IchingKernel.global_entropy(pure_yang_statuses)
+        regulated = IchingKernel.entropy_regulated_status(pure_yang_statuses)
+
+        self.assertEqual(entropy["entropy"], 0.0)
+        self.assertEqual(entropy["polarity_state"], "low_entropy_extreme")
+        self.assertEqual(regulated["status_code"], IchingKernel.ROLLBACK_STATUS)
+        self.assertEqual(regulated["decision"], "rollback")
+
+        mixed_statuses = [
+            IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.KUN),
+            IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.QIAN),
+        ]
+        mixed = IchingKernel.entropy_regulated_status(mixed_statuses)
+        self.assertEqual(mixed["decision"], "accept")
+        self.assertEqual(mixed["status_code"], IchingKernel.aggregate_status(mixed_statuses))
 
         with self.assertRaises(ValueError):
             IchingKernel.flip_line(0b000000, -1)

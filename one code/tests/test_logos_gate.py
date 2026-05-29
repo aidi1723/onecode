@@ -70,6 +70,27 @@ class LogosGateTests(unittest.TestCase):
         finally:
             gate.close()
 
+    def test_executor_pool_reports_yin_yang_polarity(self):
+        gate = LogosGate(http_timeout_seconds=1, executor_pool_size=4)
+
+        try:
+            self.assertEqual(
+                gate.pool_polarity(busy_count=0),
+                {"capacity": 4, "busy": 0, "idle": 4, "delta_phi": -1.0, "flow_control": "activate"},
+            )
+            self.assertEqual(
+                gate.pool_polarity(busy_count=4),
+                {"capacity": 4, "busy": 4, "idle": 0, "delta_phi": 1.0, "flow_control": "throttle"},
+            )
+            self.assertEqual(
+                gate.pool_polarity(busy_count=2),
+                {"capacity": 4, "busy": 2, "idle": 2, "delta_phi": 0.0, "flow_control": "stable"},
+            )
+            self.assertEqual(gate.next_executor_slot([1, 0, 1, 0]), 1)
+            self.assertIsNone(gate.next_executor_slot([1, 1, 1, 1]))
+        finally:
+            gate.close()
+
 
 class LogosGatePreflightTests(unittest.TestCase):
     def test_preflight_allows_scoped_write_text(self):

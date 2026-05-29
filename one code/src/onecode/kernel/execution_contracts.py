@@ -96,6 +96,8 @@ class ExecutionTrace:
     reason: str | None = None
     global_status_code: int = 0
     global_transition: IchingTransition | None = None
+    global_entropy: float = 0.0
+    global_entropy_decision: str = "accept"
 
 
 ToolHandler = Callable[[dict[str, Any]], dict[str, Any]]

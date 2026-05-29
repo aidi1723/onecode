@@ -243,7 +243,8 @@ def execute_plan(
         )
         for step in step_results
     ]
-    global_status_code = IchingKernel.aggregate_status(status_codes)
+    entropy_regulated = IchingKernel.entropy_regulated_status(status_codes)
+    global_status_code = int(entropy_regulated["status_code"])
     return ExecutionTrace(
         task=plan.task,
         success=success,
@@ -252,4 +253,6 @@ def execute_plan(
         reason=reason,
         global_status_code=global_status_code,
         global_transition=IchingKernel.transition(global_status_code),
+        global_entropy=float(entropy_regulated["entropy"]),
+        global_entropy_decision=str(entropy_regulated["decision"]),
     )

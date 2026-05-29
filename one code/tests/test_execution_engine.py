@@ -310,6 +310,44 @@ class ExecutionEngineTests(unittest.TestCase):
             self.assertFalse(trace.success)
             self.assertEqual(trace.global_status_code, expected)
             self.assertEqual(trace.global_transition.action, IchingKernel.transition(expected).action)
+            self.assertEqual(trace.global_entropy_decision, "accept")
+            self.assertGreaterEqual(trace.global_entropy, IchingKernel.ENTROPY_THRESHOLD)
+
+    def test_execute_plan_uses_entropy_rollback_for_low_entropy_parallel_statuses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan = ExecutionPlan(
+                task="entropy rollback",
+                steps=[
+                    ExecutionStep(
+                        id="first",
+                        description="first pure yang write",
+                        tool_calls=[
+                            ToolCallSpec(
+                                tool_name="write_text",
+                                params={"path": "src/first.py", "content": "FIRST = True\n"},
+                            )
+                        ],
+                    ),
+                    ExecutionStep(
+                        id="second",
+                        description="second pure yang write",
+                        tool_calls=[
+                            ToolCallSpec(
+                                tool_name="write_text",
+                                params={"path": "src/second.py", "content": "SECOND = True\n"},
+                            )
+                        ],
+                    ),
+                ],
+            )
+
+            trace = execute_plan(plan, workspace=workspace, run_id="entropy-rollback-run")
+
+            self.assertTrue(trace.success)
+            self.assertEqual(trace.global_status_code, IchingKernel.ROLLBACK_STATUS)
+            self.assertEqual(trace.global_entropy_decision, "rollback")
+            self.assertEqual(trace.global_transition.action, IchingKernel.transition(IchingKernel.ROLLBACK_STATUS).action)
 
     def test_execution_trace_dict_exports_global_status_and_transition(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -337,6 +375,8 @@ class ExecutionEngineTests(unittest.TestCase):
             self.assertEqual(trace_dict["global_transition"]["status_code"], trace.global_transition.status_code)
             self.assertEqual(trace_dict["global_transition"]["action"], trace.global_transition.action)
             self.assertEqual(trace_dict["global_transition"]["reason"], trace.global_transition.reason)
+            self.assertEqual(trace_dict["global_entropy_decision"], trace.global_entropy_decision)
+            self.assertEqual(trace_dict["global_entropy"], trace.global_entropy)
 
     def test_execute_plan_blocks_zero_bandwidth_steps_before_running_tools(self):
         with tempfile.TemporaryDirectory() as tmp:

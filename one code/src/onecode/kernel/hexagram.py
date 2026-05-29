@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import math
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,11 @@ class IchingKernel:
         "fire": "metal",
         "metal": "wood",
     }
+    ELEMENT_ORDER = ("metal", "wood", "water", "fire", "earth")
+    POLARITY_THRESHOLD = 1 / 3
+    ROLLBACK_STATUS = 0b010001
+    ENTROPY_THRESHOLD = 0.5
+    ELEMENT_DAMPING_ALPHA = 1.0
     ELEMENT_EXECUTION_BANDWIDTH = {
         ("metal", "metal"): 1.0,
         ("metal", "wood"): 0.0,
@@ -94,6 +100,8 @@ class IchingKernel:
             "outer_trigram",
             "trigram_records",
             "yin_yang",
+            "polarity_index",
+            "balance_mask",
             "four_symbols",
         ],
         "correspondence_derived": [
@@ -103,8 +111,9 @@ class IchingKernel:
             "element_matrix",
             "element_relation",
             "element_dynamics",
+            "evolved_element_modulation",
         ],
-        "onecode_runtime": ["transition", "dispatch_decision"],
+        "onecode_runtime": ["transition", "dispatch_decision", "execution_bandwidth", "global_entropy"],
     }
 
     @classmethod
@@ -226,6 +235,8 @@ class IchingKernel:
             "balance": global_profile["balance"],
             "global": global_profile,
             "pressure": cls.balance_pressure(global_profile["balance"]),
+            "polarity_index": cls.polarity_index(normalized),
+            "balance_mask": cls.balance_mask(normalized),
             "lines": lines,
             "four_symbol_windows": [
                 {"pair_index": pair_index}
@@ -315,6 +326,104 @@ class IchingKernel:
         return cls.compute_status(outer_global, inner_global)
 
     @classmethod
+    def polarity_index(cls, status_code: int) -> float:
+        return (((status_code & 0b111111).bit_count()) - 3) / 3
+
+    @classmethod
+    def balance_mask(cls, status_code: int, threshold: float | None = None) -> int:
+        polarity = cls.polarity_index(status_code)
+        active_threshold = cls.POLARITY_THRESHOLD if threshold is None else threshold
+        if abs(polarity) <= active_threshold:
+            return 0b000000
+        if polarity > active_threshold:
+            return 0b100000
+        return 0b000001
+
+    @classmethod
+    def apply_balanced_event(cls, status_code: int, event: str, threshold: float | None = None) -> int:
+        normalized = status_code & 0b111111
+        return normalized ^ cls.change_mask_for_event(normalized, event) ^ cls.balance_mask(normalized, threshold)
+
+    @classmethod
+    def evolved_element_labels(cls) -> list[str]:
+        return [f"{element}+" for element in cls.ELEMENT_ORDER] + [f"{element}-" for element in cls.ELEMENT_ORDER]
+
+    @classmethod
+    def element_polarity(cls, trigram: int) -> str:
+        profile = cls.yin_yang_profile_for_bits(trigram, width=3)
+        return "+" if profile["yang_count"] >= profile["yin_count"] else "-"
+
+    @classmethod
+    def evolved_element_tensor(cls, status_code: int, alpha: float | None = None) -> list[list[float]]:
+        polarity = cls.polarity_index(status_code)
+        damping_alpha = cls.ELEMENT_DAMPING_ALPHA if alpha is None else alpha
+        positive_to_negative = math.exp(damping_alpha * max(0.0, polarity))
+        negative_to_positive = math.exp(damping_alpha * max(0.0, -polarity))
+        tensor: list[list[float]] = []
+        for source_label in cls.evolved_element_labels():
+            source_element, source_polarity = source_label[:-1], source_label[-1]
+            row = []
+            for target_label in cls.evolved_element_labels():
+                target_element, target_polarity = target_label[:-1], target_label[-1]
+                coefficient = cls.ELEMENT_EXECUTION_BANDWIDTH[(source_element, target_element)]
+                if source_polarity == "+" and target_polarity == "-":
+                    coefficient *= positive_to_negative
+                elif source_polarity == "-" and target_polarity == "+":
+                    coefficient *= negative_to_positive
+                row.append(coefficient)
+            tensor.append(row)
+        return tensor
+
+    @classmethod
+    def evolved_element_modulation(cls, status_code: int) -> dict[str, float | str]:
+        normalized = status_code & 0b111111
+        inner = normalized & 0b111
+        outer = (normalized >> 3) & 0b111
+        outer_label = f"{cls.element_for_trigram(outer)}{cls.element_polarity(outer)}"
+        inner_label = f"{cls.element_for_trigram(inner)}{cls.element_polarity(inner)}"
+        labels = cls.evolved_element_labels()
+        tensor = cls.evolved_element_tensor(normalized)
+        return {
+            "outer_label": outer_label,
+            "inner_label": inner_label,
+            "coefficient": tensor[labels.index(outer_label)][labels.index(inner_label)],
+            "polarity_index": cls.polarity_index(normalized),
+        }
+
+    @classmethod
+    def global_entropy(cls, status_codes: list[int]) -> dict[str, float | str]:
+        if not status_codes:
+            return {"p1": 0.0, "p0": 1.0, "entropy": 0.0, "polarity_state": "low_entropy_extreme"}
+        total_bits = 6 * len(status_codes)
+        yang_count = sum((status_code & 0b111111).bit_count() for status_code in status_codes)
+        p1 = yang_count / total_bits
+        p0 = 1 - p1
+
+        def term(probability: float) -> float:
+            return 0.0 if probability == 0.0 else probability * math.log2(probability)
+
+        entropy = -(term(p0) + term(p1))
+        polarity_state = "low_entropy_extreme" if entropy < cls.ENTROPY_THRESHOLD else "entropy_balanced"
+        return {"p1": p1, "p0": p0, "entropy": entropy, "polarity_state": polarity_state}
+
+    @classmethod
+    def entropy_regulated_status(cls, status_codes: list[int]) -> dict[str, float | int | str]:
+        entropy = cls.global_entropy(status_codes)
+        if entropy["entropy"] < cls.ENTROPY_THRESHOLD:
+            return {
+                "status_code": cls.ROLLBACK_STATUS,
+                "decision": "rollback",
+                "entropy": entropy["entropy"],
+                "threshold": cls.ENTROPY_THRESHOLD,
+            }
+        return {
+            "status_code": cls.aggregate_status(status_codes),
+            "decision": "accept",
+            "entropy": entropy["entropy"],
+            "threshold": cls.ENTROPY_THRESHOLD,
+        }
+
+    @classmethod
     def element_dynamics(cls, status_code: int) -> dict[str, str]:
         normalized = status_code & 0b111111
         inner = normalized & 0b111
@@ -370,6 +479,7 @@ class IchingKernel:
             "element_relation": cls.element_relation(outer_element, inner_element),
             "element_dynamics": cls.element_dynamics(normalized),
             "execution_bandwidth": cls.execution_bandwidth(normalized),
+            "evolved_element_modulation": cls.evolved_element_modulation(normalized),
             "yin_yang": cls.yin_yang_cross_profile(normalized),
             "four_symbols": cls.four_symbols(normalized),
             "transition": {

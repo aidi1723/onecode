@@ -39,6 +39,30 @@ class LogosGate:
             self._executor = ThreadPoolExecutor(max_workers=self.executor_pool_size)
         return self._executor
 
+    def pool_polarity(self, busy_count: int = 0) -> dict[str, float | int | str]:
+        busy = min(max(busy_count, 0), self.executor_pool_size)
+        idle = self.executor_pool_size - busy
+        delta_phi = (busy - idle) / self.executor_pool_size
+        if delta_phi > 1 / 3:
+            flow_control = "throttle"
+        elif delta_phi < -1 / 3:
+            flow_control = "activate"
+        else:
+            flow_control = "stable"
+        return {
+            "capacity": self.executor_pool_size,
+            "busy": busy,
+            "idle": idle,
+            "delta_phi": delta_phi,
+            "flow_control": flow_control,
+        }
+
+    def next_executor_slot(self, occupancy: list[int]) -> int | None:
+        for index, busy in enumerate(occupancy[: self.executor_pool_size]):
+            if busy == 0:
+                return index
+        return None
+
     def preflight(self, context: OneCodeContext, intent: ActionIntent) -> PermissionDecision:
         matrix_decision = self.permission_matrix.evaluate(context.state, intent)
         if matrix_decision.decision != Decision.ALLOWED:
