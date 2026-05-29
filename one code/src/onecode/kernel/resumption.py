@@ -12,6 +12,7 @@ class ReadyAsset:
     sha256: str
     source_run_id: str
     source_turn_index: int
+    intent_type: str = "write_text"
 
 
 @dataclass(frozen=True)
@@ -43,13 +44,19 @@ def normalize_asset_path(workspace_root: Path, payload_path: str) -> str | None:
         return None
 
 
-def audit_event(path: str | None, status: str, reason: str | None, status_code: int) -> dict:
+def audit_event(
+    path: str | None,
+    status: str,
+    reason: str | None,
+    status_code: int,
+    **details: object,
+) -> dict:
     return {
         "path": path,
         "status": status,
         "reason": reason,
         "iching_status_code": status_code,
-    }
+    } | details
 
 
 def checkpoint_to_ready_asset(
@@ -59,7 +66,8 @@ def checkpoint_to_ready_asset(
 ) -> tuple[ReadyAsset | None, dict | None]:
     if checkpoint.get("status") != "completed":
         return None, None
-    if checkpoint.get("intent_type") != "write_text":
+    intent_type = checkpoint.get("intent_type")
+    if intent_type not in {"write_text", "patch_text"}:
         return None, None
     if checkpoint.get("decision") != "allowed":
         return None, None
@@ -89,12 +97,55 @@ def checkpoint_to_ready_asset(
             reason="missing_file",
             status_code=IchingKernel.classify_resume_audit("ignored", "missing_file"),
         )
-    if sha256_file(asset_path) != payload_sha:
+    current_sha256 = sha256_file(asset_path)
+    if intent_type == "patch_text":
+        replace_block = payload.get("replace_block")
+        if not isinstance(replace_block, str) or replace_block == "":
+            return None, None
+        try:
+            current_content = asset_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            return None, audit_event(
+                path=relative_path,
+                status="ignored",
+                reason="patch_target_unreadable",
+                status_code=IchingKernel.classify_resume_audit("ignored", "patch_target_unreadable"),
+                intent_type=intent_type,
+            )
+        if replace_block not in current_content:
+            return None, audit_event(
+                path=relative_path,
+                status="ignored",
+                reason="patch_replace_block_missing",
+                status_code=IchingKernel.classify_resume_audit("ignored", "patch_replace_block_missing"),
+                intent_type=intent_type,
+                current_sha256=current_sha256,
+                expected_sha256=payload_sha,
+            )
+        ready_asset = ReadyAsset(
+            path=relative_path,
+            sha256=current_sha256,
+            source_run_id=source_run_id,
+            source_turn_index=int(checkpoint.get("turn_index", 0)),
+            intent_type=intent_type,
+        )
+        return ready_asset, audit_event(
+            path=relative_path,
+            status="ready",
+            reason=None,
+            status_code=IchingKernel.classify_resume_audit("ready", None),
+            intent_type=intent_type,
+        )
+
+    if current_sha256 != payload_sha:
         return None, audit_event(
             path=relative_path,
             status="ignored",
             reason="sha256_mismatch",
             status_code=IchingKernel.classify_resume_audit("ignored", "sha256_mismatch"),
+            intent_type=intent_type,
+            current_sha256=current_sha256,
+            expected_sha256=payload_sha,
         )
 
     ready_asset = ReadyAsset(
@@ -102,12 +153,14 @@ def checkpoint_to_ready_asset(
         sha256=payload_sha,
         source_run_id=source_run_id,
         source_turn_index=int(checkpoint.get("turn_index", 0)),
+        intent_type=intent_type,
     )
     return ready_asset, audit_event(
         path=relative_path,
         status="ready",
         reason=None,
         status_code=IchingKernel.classify_resume_audit("ready", None),
+        intent_type=intent_type,
     )
 
 

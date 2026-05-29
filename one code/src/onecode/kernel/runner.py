@@ -122,11 +122,16 @@ def build_intents(
 
 
 def ready_asset_for_intent(context: Any, intent: ActionIntent) -> ReadyAsset | None:
-    if intent.action_type.value != "write_text":
+    if intent.action_type.value not in {"write_text", "patch_text"}:
         return None
     if context.resume_state is None:
         return None
-    return context.resume_state.ready_assets.get(intent.payload["path"])
+    ready_asset = context.resume_state.ready_assets.get(intent.payload["path"])
+    if ready_asset is None:
+        return None
+    if ready_asset.intent_type != intent.action_type.value:
+        return None
+    return ready_asset
 
 
 def should_skip_ready_asset(ready_asset: ReadyAsset | None, preflight: Any) -> bool:
@@ -182,6 +187,14 @@ def run_intent(
                 "source_run_id": ready_asset.source_run_id,
                 "source_turn_index": ready_asset.source_turn_index,
             },
+        }, preflight
+    if simulated_action_seconds > gate.http_timeout_seconds:
+        time.sleep(gate.http_timeout_seconds)
+        return {
+            "status": "halted",
+            "partial": True,
+            "reason": "http_timeout",
+            "payload": {},
         }, preflight
 
     def action() -> dict[str, Any]:
@@ -276,58 +289,66 @@ def run_task(
         run_id=run_id,
         resume_from_run_id=resume_from_run_id,
     )
-    gate = LogosGate(http_timeout_seconds=http_timeout_seconds)
-    intents = build_intents(
-        intent_type,
-        write_path,
-        write_content,
-        command,
-        write_texts,
-        patch_path,
-        search_block,
-        replace_block,
-        plan_actions,
-    )
-    assets = []
-
-    for index, intent in enumerate(intents, start=1):
-        gate_result, preflight = run_intent(task, context, gate, intent, simulated_action_seconds)
-        iching_transition = iching_transition_for_result(gate_result)
-        iching_profile = IchingKernel.cross_cutting_profile(iching_transition.status_code)
-        checkpoint_payload = gate_result["payload"]
-        entry_payload = checkpoint_payload
-        if intent.action_type == ActionType.WRITE_TEXT and "sha256" in checkpoint_payload:
-            entry_payload = {**checkpoint_payload, "path": intent.payload["path"]}
-        if intent.action_type == ActionType.PATCH_TEXT and "sha256" in checkpoint_payload:
-            entry_payload = {**checkpoint_payload, "path": intent.payload["path"]}
-
-        write_checkpoint(
-            context=context,
-            payload=checkpoint_payload,
-            next_state=COMPLETE,
-            status=gate_result["status"],
-            partial=gate_result["partial"],
-            reason=gate_result["reason"],
-            intent_type=intent.action_type.value,
-            decision=preflight.decision.value,
-            iching_status_code=iching_transition.status_code,
-            iching_transition_action=iching_transition.action,
-            iching_transition_reason=iching_transition.reason,
-            iching_profile=iching_profile,
+    with LogosGate(http_timeout_seconds=http_timeout_seconds) as gate:
+        intents = build_intents(
+            intent_type,
+            write_path,
+            write_content,
+            command,
+            write_texts,
+            patch_path,
+            search_block,
+            replace_block,
+            plan_actions,
         )
-        assets.append(
-            asset_entry(
-                index,
-                gate_result,
-                preflight,
-                intent.action_type.value,
-                iching_transition,
-                iching_profile,
-                entry_payload,
+        assets = []
+
+        for index, intent in enumerate(intents, start=1):
+            gate_result, preflight = run_intent(task, context, gate, intent, simulated_action_seconds)
+            iching_transition = iching_transition_for_result(gate_result)
+            iching_profile = IchingKernel.cross_cutting_profile(iching_transition.status_code)
+            checkpoint_payload = gate_result["payload"]
+            entry_payload = checkpoint_payload
+            if intent.action_type == ActionType.WRITE_TEXT and "sha256" in checkpoint_payload:
+                entry_payload = {**checkpoint_payload, "path": intent.payload["path"]}
+            if intent.action_type == ActionType.PATCH_TEXT and "sha256" in checkpoint_payload:
+                checkpoint_payload = {
+                    **checkpoint_payload,
+                    "search_block": intent.payload["search_block"],
+                    "replace_block": intent.payload["replace_block"],
+                }
+                entry_payload = {
+                    **checkpoint_payload,
+                    "path": intent.payload["path"],
+                }
+
+            write_checkpoint(
+                context=context,
+                payload=checkpoint_payload,
+                next_state=COMPLETE,
+                status=gate_result["status"],
+                partial=gate_result["partial"],
+                reason=gate_result["reason"],
+                intent_type=intent.action_type.value,
+                decision=preflight.decision.value,
+                iching_status_code=iching_transition.status_code,
+                iching_transition_action=iching_transition.action,
+                iching_transition_reason=iching_transition.reason,
+                iching_profile=iching_profile,
             )
-        )
-        if IchingKernel.dispatch_decision(iching_transition) == "stop":
-            break
+            assets.append(
+                asset_entry(
+                    index,
+                    gate_result,
+                    preflight,
+                    intent.action_type.value,
+                    iching_transition,
+                    iching_profile,
+                    entry_payload,
+                )
+            )
+            if IchingKernel.dispatch_decision(iching_transition) == "stop":
+                break
 
     ledger_path = context.evidence_root / "ledger.json"
     last_asset = assets[-1]

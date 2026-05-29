@@ -13,6 +13,23 @@ class LogosGate:
             raise ValueError("http_timeout_seconds must be greater than zero")
         self.http_timeout_seconds = http_timeout_seconds
         self.permission_matrix = permission_matrix or PermissionMatrix()
+        self._executor: ThreadPoolExecutor | None = None
+
+    def __enter__(self) -> "LogosGate":
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
+        self.close()
+
+    def close(self) -> None:
+        if self._executor is not None:
+            self._executor.shutdown(wait=True, cancel_futures=True)
+            self._executor = None
+
+    def executor(self) -> ThreadPoolExecutor:
+        if self._executor is None:
+            self._executor = ThreadPoolExecutor(max_workers=1)
+        return self._executor
 
     def preflight(self, context: OneCodeContext, intent: ActionIntent) -> PermissionDecision:
         matrix_decision = self.permission_matrix.evaluate(context.state, intent)
@@ -34,22 +51,17 @@ class LogosGate:
         return matrix_decision
 
     def run_bounded_action(self, action: Callable[[], dict[str, Any] | None]) -> dict[str, Any]:
-        executor = ThreadPoolExecutor(max_workers=1)
-        future = executor.submit(action)
+        future = self.executor().submit(action)
         try:
             payload = future.result(timeout=self.http_timeout_seconds)
         except TimeoutError:
             future.cancel()
-            executor.shutdown(wait=False, cancel_futures=True)
             return {
                 "status": "halted",
                 "partial": True,
                 "reason": "http_timeout",
                 "payload": {},
             }
-        finally:
-            if future.done():
-                executor.shutdown(wait=True, cancel_futures=True)
 
         return {
             "status": "completed",

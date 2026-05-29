@@ -61,9 +61,47 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(cooled_transition.action, "cooldown")
         self.assertEqual(cooled_transition.reason, "yang_overload_cooldown")
 
-        unmapped_transition = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN))
-        self.assertEqual(unmapped_transition.action, "discover")
-        self.assertEqual(unmapped_transition.reason, "rule_gap_requires_mapping")
+        pure_yin_transition = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN))
+        self.assertEqual(pure_yin_transition.action, "activate")
+        self.assertEqual(pure_yin_transition.reason, "yin_stasis_requires_activation")
+
+    def test_transition_expands_yin_and_element_scheduling_actions(self):
+        pure_yin = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN))
+        self.assertEqual(pure_yin.action, "activate")
+        self.assertEqual(pure_yin.reason, "yin_stasis_requires_activation")
+
+        yin_excess = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.DUI))
+        self.assertEqual(yin_excess.action, "activate")
+        self.assertEqual(yin_excess.reason, "yin_excess_requires_activation")
+
+        fuel = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.ZHEN, IchingKernel.LI))
+        self.assertEqual(fuel.action, "accelerate")
+        self.assertEqual(fuel.reason, "wood_fuels_fire_execution")
+
+        quench = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.LI))
+        self.assertEqual(quench.action, "halt")
+        self.assertEqual(quench.reason, "water_quenches_fire_boundary")
+
+        prune = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.DUI, IchingKernel.ZHEN))
+        self.assertEqual(prune.action, "prune")
+        self.assertEqual(prune.reason, "metal_prunes_wood_scope")
+
+        dam = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KAN))
+        self.assertEqual(dam.action, "throttle")
+        self.assertEqual(dam.reason, "earth_dams_water_flow")
+
+    def test_transition_assigns_differentiated_actions_across_all_states(self):
+        actions = {IchingKernel.transition(status_code).action for status_code in range(64)}
+
+        self.assertIn("activate", actions)
+        self.assertIn("accelerate", actions)
+        self.assertIn("prune", actions)
+        self.assertIn("throttle", actions)
+        self.assertIn("continue", actions)
+        self.assertIn("cooldown", actions)
+        self.assertIn("checkpoint", actions)
+        self.assertIn("halt", actions)
+        self.assertGreaterEqual(len(actions), 8)
 
     def test_transition_consumes_element_dynamics_modulation(self):
         status = IchingKernel.compute_status(IchingKernel.LI, IchingKernel.QIAN)
@@ -339,6 +377,19 @@ class TestIchingKernel(unittest.TestCase):
         steady_same = IchingKernel.element_dynamics(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.GEN))
         self.assertEqual(steady_same["relation"], "same")
         self.assertEqual(steady_same["modulation"], "normal")
+
+    def test_element_dynamics_covers_control_and_generation_modulations(self):
+        cases = [
+            (IchingKernel.KAN, IchingKernel.LI, "quench"),
+            (IchingKernel.DUI, IchingKernel.ZHEN, "prune"),
+            (IchingKernel.ZHEN, IchingKernel.LI, "fuel"),
+            (IchingKernel.KUN, IchingKernel.KAN, "dam"),
+        ]
+
+        for outer, inner, modulation in cases:
+            with self.subTest(modulation=modulation):
+                dynamics = IchingKernel.element_dynamics(IchingKernel.compute_status(outer, inner))
+                self.assertEqual(dynamics["modulation"], modulation)
 
     def test_hexagram_records_cover_all_sixty_four_states(self):
         records = IchingKernel.hexagram_records()

@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 import json
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -183,6 +184,77 @@ class ExecutionEngineTests(unittest.TestCase):
             self.assertEqual(trace.step_results[0].status, "failed")
             self.assertEqual(trace.step_results[0].reason, "sovereignty_breach")
             self.assertFalse((workspace / "src" / "after.py").exists())
+
+    def test_execute_plan_runs_independent_steps_in_parallel_with_stable_results(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan = ExecutionPlan(
+                task="parallel independent writes",
+                steps=[
+                    ExecutionStep(
+                        id="first",
+                        description="first independent write",
+                        tool_calls=[
+                            ToolCallSpec(
+                                tool_name="write_text",
+                                params={"path": "src/first.py", "content": "FIRST = True\n"},
+                            )
+                        ],
+                    ),
+                    ExecutionStep(
+                        id="second",
+                        description="second independent write",
+                        tool_calls=[
+                            ToolCallSpec(
+                                tool_name="write_text",
+                                params={"path": "src/second.py", "content": "SECOND = True\n"},
+                            )
+                        ],
+                    ),
+                    ExecutionStep(
+                        id="after",
+                        description="dependent write",
+                        depends_on=["first", "second"],
+                        tool_calls=[
+                            ToolCallSpec(
+                                tool_name="write_text",
+                                params={"path": "src/after.py", "content": "AFTER = True\n"},
+                            )
+                        ],
+                    ),
+                ],
+            )
+            call_times: dict[str, float] = {}
+
+            def slow_run_task(task, *, workspace, run_id, resume_from_run_id, plan_actions):
+                path = plan_actions[0]["path"]
+                call_times[path] = time.monotonic()
+                time.sleep(0.08)
+                target = workspace / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(plan_actions[0]["content"], encoding="utf-8")
+                return {
+                    "status": "completed",
+                    "reason": None,
+                    "payload": {"path": str(target)},
+                    "intent_type": plan_actions[0]["action_type"],
+                }
+
+            started = time.monotonic()
+            with patch("onecode.kernel.execution_engine.run_task", side_effect=slow_run_task):
+                trace = execute_plan(
+                    plan,
+                    workspace=workspace,
+                    run_id="parallel-run",
+                    tool_registry=default_tool_registry(),
+                )
+            duration = time.monotonic() - started
+
+            self.assertTrue(trace.success)
+            self.assertEqual([step.step_id for step in trace.step_results], ["first", "second", "after"])
+            self.assertLess(duration, 0.22)
+            self.assertLess(abs(call_times["src/first.py"] - call_times["src/second.py"]), 0.05)
+            self.assertGreater(call_times["src/after.py"], max(call_times["src/first.py"], call_times["src/second.py"]))
 
     def test_execute_plan_requires_approval_for_guarded_tools(self):
         with tempfile.TemporaryDirectory() as tmp:

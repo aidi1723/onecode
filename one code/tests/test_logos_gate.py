@@ -2,6 +2,7 @@ import time
 import unittest
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 from onecode.kernel.action_intent import ActionIntent
 from onecode.kernel.context import create_context
@@ -33,6 +34,32 @@ class LogosGateTests(unittest.TestCase):
     def test_rejects_non_positive_timeout(self):
         with self.assertRaises(ValueError):
             LogosGate(http_timeout_seconds=0)
+
+    def test_run_bounded_action_reuses_executor_until_closed(self):
+        created = []
+        real_executor = __import__("concurrent.futures").futures.ThreadPoolExecutor
+
+        def tracking_executor(*args, **kwargs):
+            executor = real_executor(*args, **kwargs)
+            created.append(executor)
+            return executor
+
+        with patch("onecode.kernel.logos_gate.ThreadPoolExecutor", side_effect=tracking_executor):
+            gate = LogosGate(http_timeout_seconds=1)
+            self.assertEqual(gate.run_bounded_action(lambda: {"value": 1})["status"], "completed")
+            self.assertEqual(gate.run_bounded_action(lambda: {"value": 2})["status"], "completed")
+            gate.close()
+
+        self.assertEqual(len(created), 1)
+        self.assertTrue(created[0]._shutdown)
+
+    def test_context_manager_closes_executor(self):
+        with LogosGate(http_timeout_seconds=1) as gate:
+            self.assertEqual(gate.run_bounded_action(lambda: {"value": 1})["status"], "completed")
+            executor = gate._executor
+
+        self.assertIsNotNone(executor)
+        self.assertTrue(executor._shutdown)
 
 
 class LogosGatePreflightTests(unittest.TestCase):

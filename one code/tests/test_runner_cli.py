@@ -170,7 +170,7 @@ class RunnerSovereigntyTests(unittest.TestCase):
             self.assertEqual(result["decision"], "denied")
             self.assertEqual(result["reason"], "permission_denied")
 
-    def test_run_task_unknown_intent_records_discovery_gap(self):
+    def test_run_task_unknown_intent_records_invalid_intent_halt(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = run_task(
                 "unknown intent",
@@ -182,10 +182,10 @@ class RunnerSovereigntyTests(unittest.TestCase):
             self.assertEqual(result["status"], "halted")
             self.assertEqual(result["decision"], "halted")
             self.assertEqual(result["reason"], "invalid_intent")
-            self.assertEqual(result["iching_transition_action"], "discover")
-            self.assertEqual(result["iching_transition_reason"], "rule_gap_requires_mapping")
+            self.assertEqual(result["iching_transition_action"], "halt")
+            self.assertEqual(result["iching_transition_reason"], "sovereignty_fire_boundary_halt")
 
-    def test_run_task_incomplete_write_request_records_discovery_gap(self):
+    def test_run_task_incomplete_write_request_records_invalid_intent_halt(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = run_task(
                 "incomplete write",
@@ -197,8 +197,8 @@ class RunnerSovereigntyTests(unittest.TestCase):
             self.assertEqual(result["status"], "halted")
             self.assertEqual(result["decision"], "halted")
             self.assertEqual(result["reason"], "invalid_intent")
-            self.assertEqual(result["iching_transition_action"], "discover")
-            self.assertEqual(result["iching_transition_reason"], "rule_gap_requires_mapping")
+            self.assertEqual(result["iching_transition_action"], "halt")
+            self.assertEqual(result["iching_transition_reason"], "sovereignty_fire_boundary_halt")
             self.assertFalse((Path(tmp) / "src" / "missing_content.py").exists())
 
 
@@ -662,6 +662,38 @@ class RunnerMultiAssetTests(unittest.TestCase):
             self.assertEqual(result["status"], "completed")
             self.assertFalse(result["resumed"])
             self.assertEqual((workspace / "src" / "mesh.py").read_text(encoding="utf-8"), "mesh = 'rewritten'\n")
+
+    def test_run_task_skips_ready_patch_without_reapplying(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            target = workspace / "src" / "mesh.py"
+            target.parent.mkdir(parents=True)
+            target.write_text("def status():\n    return False\n", encoding="utf-8")
+
+            source = run_task(
+                "source patch",
+                workspace=workspace,
+                run_id="source-patch-run",
+                patch_path="src/mesh.py",
+                search_block="return False",
+                replace_block="return True",
+            )
+
+            result = run_task(
+                "resume patch",
+                workspace=workspace,
+                run_id="resume-patch-run",
+                resume_from_run_id="source-patch-run",
+                patch_path="src/mesh.py",
+                search_block="return False",
+                replace_block="return True",
+            )
+
+            self.assertEqual(result["status"], "skipped")
+            self.assertEqual(result["reason"], "resumed_asset_ready")
+            self.assertEqual(result["intent_type"], "patch_text")
+            self.assertEqual(result["sha256"], source["sha256"])
+            self.assertEqual(target.read_text(encoding="utf-8"), "def status():\n    return True\n")
 
     def test_run_task_halts_on_middle_asset_and_does_not_write_later_asset(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -279,6 +279,14 @@ class IchingKernel:
             modulation = "hard_control"
         elif relation == "generates" and outer_element == "water" and inner_element == "wood":
             modulation = "recovery_seed"
+        elif relation == "controls" and outer_element == "water" and inner_element == "fire":
+            modulation = "quench"
+        elif relation == "controls" and outer_element == "metal" and inner_element == "wood":
+            modulation = "prune"
+        elif relation == "generates" and outer_element == "wood" and inner_element == "fire":
+            modulation = "fuel"
+        elif relation == "controls" and outer_element == "earth" and inner_element == "water":
+            modulation = "dam"
         else:
             modulation = "normal"
         return {
@@ -351,7 +359,7 @@ class IchingKernel:
         if reason == "http_timeout":
             return cls.compute_status(cls.KAN, cls.ZHEN)
         if reason == "invalid_intent":
-            return cls.compute_status(cls.KUN, cls.KUN)
+            return cls.compute_status(cls.LI, cls.KUN)
         if status == "skipped":
             return cls.compute_status(cls.QIAN, cls.DUI)
         if status == "completed":
@@ -391,6 +399,30 @@ class IchingKernel:
                 action="checkpoint",
                 reason="network_water_preserves_resume_seed",
             )
+        if dynamics["modulation"] == "quench":
+            return IchingTransition(
+                status_code=status_code,
+                action="halt",
+                reason="water_quenches_fire_boundary",
+            )
+        if dynamics["modulation"] == "prune":
+            return IchingTransition(
+                status_code=status_code,
+                action="prune",
+                reason="metal_prunes_wood_scope",
+            )
+        if dynamics["modulation"] == "dam":
+            return IchingTransition(
+                status_code=status_code,
+                action="throttle",
+                reason="earth_dams_water_flow",
+            )
+        if dynamics["modulation"] == "fuel":
+            return IchingTransition(
+                status_code=status_code,
+                action="accelerate",
+                reason="wood_fuels_fire_execution",
+            )
         profile = cls.yin_yang_profile(status_code)
         if profile["balance"] in {"pure_yang", "yang_excess"}:
             return IchingTransition(
@@ -398,11 +430,29 @@ class IchingKernel:
                 action="cooldown",
                 reason="yang_overload_cooldown",
             )
-        if status_code == cls.compute_status(cls.KUN, cls.KUN):
+        if profile["balance"] == "pure_yin":
             return IchingTransition(
                 status_code=status_code,
-                action="discover",
-                reason="rule_gap_requires_mapping",
+                action="activate",
+                reason="yin_stasis_requires_activation",
+            )
+        if profile["balance"] == "yin_excess":
+            return IchingTransition(
+                status_code=status_code,
+                action="activate",
+                reason="yin_excess_requires_activation",
+            )
+        if dynamics["relation"] == "generates":
+            return IchingTransition(
+                status_code=status_code,
+                action="accelerate",
+                reason="generating_relation_accelerates_execution",
+            )
+        if dynamics["relation"] == "controls":
+            return IchingTransition(
+                status_code=status_code,
+                action="throttle",
+                reason="controlling_relation_throttles_execution",
             )
         return IchingTransition(status_code=status_code, action="continue", reason=None)
 

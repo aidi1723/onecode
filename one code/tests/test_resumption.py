@@ -111,10 +111,51 @@ class ResumeManifestAuditTests(unittest.TestCase):
             self.assertEqual(state.audit_events[0]["path"], "src/bad.py")
             self.assertEqual(state.audit_events[0]["status"], "ignored")
             self.assertEqual(state.audit_events[0]["reason"], "sha256_mismatch")
+            self.assertEqual(state.audit_events[0]["current_sha256"], sha256_file(asset))
             self.assertEqual(
                 state.audit_events[0]["iching_status_code"],
                 IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN),
             )
+
+    def test_audit_loads_completed_patch_when_replacement_is_present(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            asset = workspace / "src" / "patched.py"
+            asset.parent.mkdir(parents=True)
+            asset.write_text("def status():\n    return True\n", encoding="utf-8")
+            asset_hash = sha256_file(asset)
+
+            run_root = workspace / ".onecode" / "runs" / "source-run"
+            checkpoint_path = run_root / "checkpoints" / "0001.json"
+            checkpoint_path.parent.mkdir(parents=True)
+            checkpoint_path.write_text(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "intent_type": "patch_text",
+                        "decision": "allowed",
+                        "turn_index": 1,
+                        "payload": {
+                            "path": str(asset),
+                            "sha256": asset_hash,
+                            "search_block": "return False",
+                            "replace_block": "return True",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (run_root / "manifest.json").write_text(
+                json.dumps({"run_id": "source-run", "checkpoints": [{"path": str(checkpoint_path)}]}),
+                encoding="utf-8",
+            )
+
+            state = load_resume_state(workspace, "source-run")
+
+            self.assertIn("src/patched.py", state.ready_assets)
+            self.assertEqual(state.ready_assets["src/patched.py"].sha256, asset_hash)
+            self.assertEqual(state.audit_events[0]["status"], "ready")
+            self.assertEqual(state.audit_events[0]["intent_type"], "patch_text")
 
     def test_audit_ignores_non_completed_checkpoint(self):
         with tempfile.TemporaryDirectory() as tmp:
