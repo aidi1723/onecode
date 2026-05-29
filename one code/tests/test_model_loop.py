@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -257,6 +258,41 @@ class ModelLoopTests(unittest.TestCase):
             self.assertEqual(result["model_plan_asset_count"], 2)
             self.assertEqual(provider.calls, [{"task": "build project", "model": "test-model", "http_timeout_seconds": 60}])
             self.assertEqual((workspace / "src" / "generated.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+
+    def test_model_api_key_never_persists_to_run_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            secret = "sk-test-secret-should-not-leak"
+            provider = FakeModelProvider(
+                ModelPlan(
+                    task="build generated project",
+                    assets=[ModelPlanAsset(path="src/generated.py", content="VALUE = 1\n")],
+                )
+            )
+
+            result = run_model_task(
+                "build project",
+                workspace=workspace,
+                run_id="secret-run",
+                model="test-model",
+                api_key=secret,
+                provider=provider,
+            )
+
+            evidence_root = Path(result["ledger_path"]).parent
+            evidence_text = "\n".join(
+                path.read_text(encoding="utf-8")
+                for path in [
+                    Path(result["ledger_path"]),
+                    Path(result["manifest_path"]),
+                    *sorted((evidence_root / "checkpoints").glob("*.json")),
+                ]
+            )
+            self.assertNotIn(secret, evidence_text)
+            self.assertNotIn("Authorization", evidence_text)
+            ledger = json.loads(Path(result["ledger_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(ledger["model"], "test-model")
+            self.assertEqual(ledger["model_provider"], "openai")
 
     def test_run_model_task_executes_mock_patch_plan_through_runner(self):
         with tempfile.TemporaryDirectory() as tmp:
