@@ -1,2 +1,4 @@
 .superpowers/
 src/*.egg-info/
+.env
+.env.*
