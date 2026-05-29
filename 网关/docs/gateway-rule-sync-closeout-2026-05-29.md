@@ -80,10 +80,13 @@ Fresh verification run on this branch:
 
 ```text
 python3 -m unittest tests.test_gateway_compression_adapter tests.test_gateway_rule_adapter tests.test_gateway_core tests.test_gateway_plan tests.test_minimal_gateway_mvp -v
-Ran 50 tests ... OK
+Ran 51 tests ... OK
+
+/private/tmp/gateway-route-test-venv-39/bin/python -m unittest tests.test_gateway_server_routes -v
+Ran 10 tests ... OK
 
 python3 -m unittest discover -s tests -p 'test_gateway*.py' -v
-Ran 155 tests ... OK (skipped=10)
+Ran 156 tests ... OK (skipped=10)
 
 python3 -m unittest discover -s tests -p 'test_build_mode*.py' -v
 Ran 124 tests ... OK
@@ -92,11 +95,16 @@ git diff --check
 OK
 ```
 
-The 10 skipped gateway route tests are due to missing FastAPI TestClient in the local environment.
+The default Python environment skips 10 route tests when FastAPI TestClient is unavailable. A Python 3.9 temporary validation environment with `requirements-gateway.txt` installed ran those route tests directly and passed.
+
+Additional closeout hardening:
+
+- `gateway_rule_adapter` avoids Python 3.10+ `int.bit_count()` so the rule evidence layer runs on Python 3.9 route-test environments.
+- A focused compatibility test locks this requirement.
 
 ## Remaining Non-Blocking Items
 
-- FastAPI TestClient route tests are skipped locally when the dependency is unavailable.
+- FastAPI TestClient route tests are skipped in dependency-light local environments, but pass when `requirements-gateway.txt` is installed.
 - Upper-level repository files outside `网关/` remain untracked and unrelated to this gateway closeout.
 - This branch is not merged into `main` yet.
 

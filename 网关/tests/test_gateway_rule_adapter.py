@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 from agent_skill_dictionary.gateway_rule_adapter import (
     aggregate_gateway_statuses,
@@ -69,6 +70,11 @@ class GatewayRuleAdapterTest(unittest.TestCase):
         self.assertEqual(failure["gateway_status_code"], 17)
         self.assertEqual(failure["reason"], "entropy_negative_polarity_rollback")
         self.assertEqual(failure["dispatch_decision"], "stop")
+
+    def test_rule_adapter_keeps_python39_compatible_popcount(self):
+        source = Path("agent_skill_dictionary/gateway_rule_adapter.py").read_text()
+
+        self.assertNotIn(".bit_count(", source)
 
 
 if __name__ == "__main__":

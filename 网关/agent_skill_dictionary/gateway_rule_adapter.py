@@ -207,7 +207,11 @@ def _envelope(
 
 
 def _polarity(status_code: int) -> float:
-    return ((int(status_code) & 0b111111).bit_count() - 3) / 3
+    return (_popcount6(status_code) - 3) / 3
+
+
+def _popcount6(status_code: int) -> int:
+    return bin(int(status_code) & 0b111111).count("1")
 
 
 def _element_relation(outer: int, inner: int) -> str:
@@ -224,7 +228,7 @@ def _element_relation(outer: int, inner: int) -> str:
 
 def _global_entropy(status_codes: list[int]) -> float:
     total_bits = len(status_codes) * 6
-    ones = sum((int(code) & 0b111111).bit_count() for code in status_codes)
+    ones = sum(_popcount6(code) for code in status_codes)
     p1 = ones / total_bits
     p0 = 1.0 - p1
     entropy = -sum(p * log2(p) for p in (p0, p1) if p > 0)
