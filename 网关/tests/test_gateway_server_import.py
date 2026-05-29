@@ -322,6 +322,16 @@ class GatewayServerImportTest(unittest.TestCase):
             self.assertIn("repair_card", state)
             self.assertIn("Build Mode Repair Card", state["repair_card"])
             self.assertIn("failure_summary", state["results"][0])
+            self.assertEqual(state["gateway_rule"]["aggregation_decision"], "accept_entropy_balanced")
+            self.assertIn("gateway_status_code", state["gateway_rule"])
+            self.assertEqual(state["gateway_rule"]["source"], "build_mode_state")
+            self.assertIn("compressed_summary", state)
+            self.assertEqual(state["compression_rule"]["mode"], "internal_caveman")
+            self.assertIn("Build Mode Repair Card", state["repair_card"])
+            self.assertLessEqual(
+                state["compression_rule"]["compressed_chars"],
+                state["compression_rule"]["raw_chars"],
+            )
 
     def test_build_tool_payload_timeout_triggers_secure_b2b_expert_handoff(self):
         import json
@@ -352,6 +362,8 @@ class GatewayServerImportTest(unittest.TestCase):
             self.assertEqual(state["last_exit_code"], 0)
             self.assertEqual(state["consecutive_failures"], 0)
             self.assertEqual(state["results"][-1]["source"], "expert_handoff")
+            self.assertEqual(state["gateway_rule"]["gateway_status_code"], 63)
+            self.assertEqual(state["gateway_rule"]["source"], "expert_handoff_state")
 
     def test_chat_tool_timeout_uses_request_text_for_flash_handoff_plan(self):
         import shutil
@@ -730,6 +742,44 @@ class GatewayServerImportTest(unittest.TestCase):
         self.assertEqual(tool_names, ["run_pytest"])
         self.assertEqual(result["metadata"]["oneword_build_mode"]["hexagram"], "001")
         self.assertEqual(result["metadata"]["build_mode_state_injection"]["next_hexagram"], "001")
+        self.assertIn("gateway_rule", result["metadata"])
+        self.assertIn("gateway_status_code", result["metadata"]["gateway_rule"])
+        self.assertEqual(result["metadata"]["gateway_rule"]["outer_plane"], "environment")
+
+    def test_compact_build_mode_results_adds_gateway_rule(self):
+        import agent_skill_dictionary.gateway_server as gateway_server
+
+        compacted = gateway_server._compact_build_mode_results(
+            [
+                {
+                    "status": "completed",
+                    "hexagram": "111",
+                    "next_hexagram": "000",
+                    "evidence": {"changed_files": ["mesh.py"], "exit_code": 0},
+                }
+            ]
+        )
+
+        self.assertEqual(compacted[0]["gateway_rule"]["gateway_status_code"], 63)
+        self.assertEqual(compacted[0]["gateway_rule"]["dispatch_decision"], "continue")
+
+    def test_preflight_tool_payload_adds_gateway_rule_for_policy_breach(self):
+        import agent_skill_dictionary.gateway_server as gateway_server
+
+        dictionary = gateway_server.load_dictionary(gateway_server.DICTIONARY_PATH)
+        payload = gateway_server.preflight_tool_payload(
+            {
+                "active_code": "查",
+                "tool_name": "write_file",
+                "arguments": {"path": "app.py", "content": "print(1)\n"},
+            },
+            dictionary,
+        )
+
+        self.assertFalse(payload["allowed"])
+        self.assertEqual(payload["gateway_rule"]["gateway_status_code"], 48)
+        self.assertEqual(payload["gateway_rule"]["transition_action"], "halt")
+        self.assertEqual(payload["gateway_rule"]["dispatch_decision"], "stop")
 
     def test_chat_completions_payload_uses_write_file_fallback_after_empty_patch_retry(self):
         import agent_skill_dictionary.gateway_server as gateway_server

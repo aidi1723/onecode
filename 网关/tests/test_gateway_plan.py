@@ -20,6 +20,8 @@ class GatewayPlanTest(unittest.TestCase):
         self.assertEqual(plan["temperature"], 0.0)
         self.assertTrue(plan["verification_required"])
         self.assertEqual(plan["tool_policy"]["write"], "scoped_to_impact_files")
+        self.assertEqual(plan["gateway_rule"]["gateway_status_code"], 63)
+        self.assertEqual(plan["gateway_rule"]["dispatch_decision"], "continue")
 
     def test_resolve_execution_plan_for_source_prefix(self):
         plan = resolve_execution_plan("源：检查依赖和 License 风险", self.dictionary)

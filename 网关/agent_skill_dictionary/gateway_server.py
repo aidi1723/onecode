@@ -18,6 +18,8 @@ except ImportError:  # pragma: no cover - POSIX path is used on supported deploy
 
 from .agent_protocol import build_agent_protocol_manifest
 from .audit import append_audit_record, build_evidence_record
+from .gateway_compression_adapter import build_compression_record
+from .gateway_rule_adapter import aggregate_gateway_rule_envelope, build_gateway_rule
 from .gateway_core import (
     ZERO_TOOL_MAX_TOKENS,
     annotate_chat_completion_response,
@@ -91,6 +93,28 @@ def run_task_payload(body: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _attach_gateway_rule_metadata(metadata: dict[str, Any], source: str = "gateway_server") -> dict[str, Any]:
+    updated = dict(metadata)
+    previous_rule = updated.get("gateway_rule") if isinstance(updated.get("gateway_rule"), dict) else {}
+    updated["gateway_rule"] = build_gateway_rule(
+        {
+            "source": source,
+            "event": _gateway_rule_event_from_metadata(updated),
+            "evidence_required": previous_rule.get("evidence_required", []),
+        }
+    )
+    return updated
+
+
+def _gateway_rule_event_from_metadata(metadata: dict[str, Any]) -> str | None:
+    if metadata.get("build_mode_sovereignty"):
+        return "sovereignty_breach"
+    build_mode = metadata.get("oneword_build_mode")
+    if isinstance(build_mode, dict) and build_mode.get("failure_gate_locked"):
+        return "policy_gap"
+    return None
+
+
 def submit_evidence_payload(body: dict[str, Any]) -> dict[str, Any]:
     workspace = str(body.get("workspace") or os.getcwd())
     workspace_error = _workspace_error(workspace)
@@ -119,6 +143,26 @@ def submit_evidence_payload(body: dict[str, Any]) -> dict[str, Any]:
         "audit_log_path": str(audit_log_path),
         "evidence": written,
     }
+
+
+def preflight_tool_payload(body: dict[str, Any], dictionary: dict[str, Any]) -> dict[str, Any]:
+    payload = preflight_tool_call(
+        dictionary,
+        active_code=str(body.get("active_code", "")),
+        tool_name=str(body.get("tool_name", "")),
+        arguments=body.get("arguments", {}),
+    )
+    payload["gateway_rule"] = build_gateway_rule(
+        {
+            "source": "preflight_tool_payload",
+            "event": None if payload.get("allowed") else "preflight_breach",
+            "evidence_collected": {
+                "tool": payload.get("tool"),
+                "violations": payload.get("violations", []),
+            },
+        }
+    )
+    return payload
 
 
 def build_tool_payload(body: dict[str, Any]) -> dict[str, Any]:
@@ -324,12 +368,7 @@ def create_app() -> Any:
                 status_code=401,
             )
         body = await request.json()
-        return preflight_tool_call(
-            dictionary,
-            active_code=str(body.get("active_code", "")),
-            tool_name=str(body.get("tool_name", "")),
-            arguments=body.get("arguments", {}),
-        )
+        return preflight_tool_payload(body, dictionary)
 
     @app.post("/v1/yizijue/submit-evidence")
     async def submit_evidence(request: Request) -> dict[str, Any]:
@@ -572,6 +611,7 @@ def chat_completions_payload(body: dict[str, Any], dictionary: dict[str, Any]) -
     payload, metadata = _apply_build_mode_failure_gate(payload, metadata)
     payload = _inject_build_mode_artifact_instruction(payload, metadata, body, original_tools)
     payload = _inject_build_mode_state_context(payload, metadata)
+    metadata = _attach_gateway_rule_metadata(metadata, "chat_completions_payload")
     return {"payload": payload, "metadata": metadata}
 
 
@@ -598,6 +638,7 @@ def anthropic_messages_payload(body: dict[str, Any], dictionary: dict[str, Any])
             "chars": len(build_mode_context),
         }
     payload = inject_native_inspect_context(payload, metadata)
+    metadata = _attach_gateway_rule_metadata(metadata, "anthropic_messages_payload")
     return {"payload": payload, "metadata": metadata}
 
 
@@ -809,6 +850,7 @@ def openai_responses_payload(body: dict[str, Any], dictionary: dict[str, Any]) -
             "message_count": len(chat_payload.get("messages", [])),
         },
     )
+    metadata = _attach_gateway_rule_metadata(metadata, "openai_responses_payload")
     return {"payload": payload, "chat_payload": chat_payload, "metadata": metadata}
 
 
@@ -1008,11 +1050,15 @@ def _persist_build_mode_state(
         consecutive_failures = _next_consecutive_failures(previous, compact_results)
         last_exit_code = _last_exit_code(compact_results, previous)
         repair_card = _latest_repair_card(results, previous)
+        compression_record = _build_state_compression_record(repair_card, compact_results)
         state = {
             "status": "updated",
             "consecutive_failures": consecutive_failures,
             "last_exit_code": last_exit_code,
             "results": compact_results,
+            "gateway_rule": _gateway_rule_for_compact_results(compact_results, "build_mode_state"),
+            "compressed_summary": compression_record["compressed_summary"],
+            "compression_rule": compression_record,
             "repo_card": repo_card,
         }
         if repair_card:
@@ -1043,12 +1089,14 @@ def _persist_expert_handoff_state(
             "next_hexagram": "000",
             "source": "expert_handoff",
             "exit_code": 0,
+            "gateway_rule": build_gateway_rule({"source": "expert_handoff_result"}),
         }
         state = {
             "status": "updated",
             "consecutive_failures": 0,
             "last_exit_code": 0,
             "results": [*results, compact_result],
+            "gateway_rule": _gateway_rule_for_compact_results([*results, compact_result], "expert_handoff_state"),
             "repo_card": repo_card,
             "expert_handoff": {
                 "status": result.get("status"),
@@ -1153,9 +1201,62 @@ def _compact_build_mode_results(results: list[dict[str, Any]]) -> list[dict[str,
                 "reason": result.get("reason"),
                 "audit": result.get("audit") if isinstance(result.get("audit"), dict) else None,
                 "decay": result.get("decay") if isinstance(result.get("decay"), dict) else None,
+                "gateway_rule": build_gateway_rule(_gateway_rule_source_from_build_mode_result(result)),
             }
         )
     return compacted
+
+
+def _gateway_rule_source_from_build_mode_result(result: dict[str, Any]) -> dict[str, Any]:
+    evidence = result.get("evidence") if isinstance(result.get("evidence"), dict) else {}
+    if result.get("status") == "completed":
+        return {
+            "source": "build_mode_result",
+            "sovereignty": True,
+            "upstream": True,
+            "policy": True,
+            "artifact": True,
+            "execution": True,
+            "time": True,
+            "evidence_collected": evidence,
+        }
+    if result.get("status") in {"blocked", "rejected"}:
+        return {
+            "source": "build_mode_result",
+            "event": "sovereignty_breach",
+            "evidence_collected": evidence,
+        }
+    return {
+        "source": "build_mode_result",
+        "sovereignty": True,
+        "upstream": True,
+        "policy": True,
+        "artifact": bool(evidence),
+        "execution": False,
+        "time": True,
+        "evidence_collected": evidence,
+    }
+
+
+def _gateway_rule_for_compact_results(results: list[dict[str, Any]], source: str) -> dict[str, Any]:
+    status_codes: list[int] = []
+    for result in results:
+        rule = result.get("gateway_rule") if isinstance(result.get("gateway_rule"), dict) else {}
+        code = rule.get("gateway_status_code")
+        if isinstance(code, int):
+            status_codes.append(code)
+    return aggregate_gateway_rule_envelope(status_codes, source)
+
+
+def _build_state_compression_record(repair_card: str, compact_results: list[dict[str, Any]]) -> dict[str, Any]:
+    if repair_card:
+        return build_compression_record(repair_card)
+    summaries = []
+    for result in compact_results:
+        value = result.get("failure_summary") or result.get("reason") or result.get("status")
+        if isinstance(value, str) and value.strip():
+            summaries.append(value.strip())
+    return build_compression_record(" | ".join(summaries))
 
 
 def _latest_repair_card(results: list[dict[str, Any]], previous: dict[str, Any]) -> str:

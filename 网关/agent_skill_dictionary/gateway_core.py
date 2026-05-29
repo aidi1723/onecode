@@ -4,6 +4,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
+from .gateway_rule_adapter import build_gateway_rule
 from .kernel_contract import HexagramRouter, assert_preflight_contract
 from .kernel_policy import filter_allowed_tools, format_kernel_rule, get_kernel_policy, kernel_policy_metadata
 from .loader import lookup_entry
@@ -232,6 +233,7 @@ def rewrite_chat_completion_request(
         "tool_policy": active_entry.tool_policy,
         "zero_tool_fast_path": zero_tool_fast_path,
         "hexagram_route": hexagram_route,
+        "gateway_rule": build_gateway_rule({"source": "gateway_core", "evidence_required": []}),
     }
     return rewritten, metadata
 
@@ -300,6 +302,7 @@ def rewrite_anthropic_messages_request(
         "zero_tool_fast_path": zero_tool_fast_path,
         "hexagram_route": hexagram_route,
         "shadow_tool_injection": shadow_tool_injection,
+        "gateway_rule": build_gateway_rule({"source": "gateway_core", "evidence_required": []}),
     }
     return rewritten, metadata
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .gateway_rule_adapter import build_gateway_rule
 from .gateway_core import build_execution_stack, normalize_intent
 from .loader import lookup_entry
 from .macro_chain import compile_macro_chain, macro_chain_to_dict
@@ -29,6 +30,14 @@ def resolve_execution_plan(user_message: str, dictionary: dict[str, Any]) -> dic
         "forbidden_actions": raw["forbidden_actions"],
         "verification_required": raw["verification"]["required"],
         "verification": raw["verification"],
+        "gateway_rule": build_gateway_rule(
+            {
+                "source": "gateway_plan",
+                "evidence_required": raw["verification"].get("evidence", [])
+                if isinstance(raw.get("verification"), dict)
+                else [],
+            }
+        ),
         "fallback": active_entry.fallback,
         "macro_chain": macro_chain_to_dict(macro_chain),
     }

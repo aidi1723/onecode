@@ -64,6 +64,9 @@ class GatewayCoreTest(unittest.TestCase):
         self.assertIn("参考工作流模式", rewritten["messages"][0]["content"])
         self.assertIn("专业运行逻辑", rewritten["messages"][0]["content"])
         self.assertEqual(rewritten["messages"][1]["role"], "user")
+        self.assertEqual(metadata["gateway_rule"]["gateway_status_code"], 63)
+        self.assertEqual(metadata["gateway_rule"]["transition_action"], "cooldown")
+        self.assertEqual(metadata["gateway_rule"]["dispatch_decision"], "continue")
 
     def test_rewritten_chat_request_passes_kernel_preflight_contract(self):
         body = {
@@ -202,6 +205,9 @@ class GatewayCoreTest(unittest.TestCase):
         self.assertIn("一字诀网关已接管本次请求。", rewritten["system"])
         self.assertEqual([tool["name"] for tool in rewritten["tools"]], ["native_inspect_card"])
         self.assertEqual(rewritten["temperature"], 0.0)
+        self.assertEqual(metadata["gateway_rule"]["gateway_status_binary"], "111111")
+        self.assertEqual(metadata["gateway_rule"]["outer_plane"], "environment")
+        self.assertEqual(metadata["gateway_rule"]["inner_plane"], "asset")
 
     def test_inspect_anthropic_messages_injects_native_tool_for_claude_read_tools(self):
         body = {
