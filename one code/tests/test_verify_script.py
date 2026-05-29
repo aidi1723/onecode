@@ -6,6 +6,39 @@ from pathlib import Path
 
 
 class VerifyScriptTests(unittest.TestCase):
+    def test_demo_v07_script_exists_and_is_executable(self):
+        script = Path("scripts/demo_v07.sh")
+
+        self.assertTrue(script.exists())
+        self.assertTrue(script.stat().st_mode & 0o111)
+
+    def test_demo_v07_script_documents_v07_commands(self):
+        text = Path("scripts/demo_v07.sh").read_text(encoding="utf-8")
+
+        for snippet in [
+            "list-verifier-presets",
+            "init-verifier-policy",
+            "run-plan",
+            "inspect",
+            "list-runs",
+        ]:
+            self.assertIn(snippet, text)
+
+    def test_demo_v07_script_runs_with_current_interpreter(self):
+        env = os.environ.copy()
+        env["PYTHON"] = sys.executable
+
+        completed = subprocess.run(
+            ["bash", "scripts/demo_v07.sh"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+
+        self.assertIn("demo workspace", completed.stdout)
+        self.assertIn("demo-plan-verified", completed.stdout)
+
     def test_verify_script_exists_and_is_executable(self):
         script = Path("scripts/verify.sh")
 

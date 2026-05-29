@@ -36,6 +36,14 @@ This runs:
 - `python3 -m unittest discover -s tests -v`
 - `python3 -m onecode doctor`
 
+## Local Demo
+
+Run the v0.7 local verifier workflow in a temporary workspace:
+
+```bash
+bash scripts/demo_v07.sh
+```
+
 ## Doctor
 
 Run the built-in smoke check:

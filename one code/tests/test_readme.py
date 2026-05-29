@@ -11,6 +11,7 @@ class ReadmeTests(unittest.TestCase):
 
         for snippet in [
             "bash scripts/verify.sh",
+            "bash scripts/demo_v07.sh",
             "python3 -m onecode doctor",
             "python3 -m onecode.cli doctor",
             "python3 -m onecode run",
