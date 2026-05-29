@@ -89,6 +89,14 @@ DANGEROUS_RULES: tuple[dict[str, Any], ...] = (
         "severity": "high",
         "block": True,
     },
+    {
+        "id": "path-traversal-sensitive-file",
+        "name": "path traversal sensitive file",
+        "pattern": r"(?:\.\./){1,}(?:etc/passwd|etc/shadow|\.ssh|\.codex|\.claude)|(?:etc/passwd|etc/shadow).*(?:自由模式|admin|管理员|debug|调试)",
+        "severity": "high",
+        "block": True,
+        "ignore_case": True,
+    },
 )
 
 RISK_RANK = {"low": 0, "medium": 1, "high": 2}

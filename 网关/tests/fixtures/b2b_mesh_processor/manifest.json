@@ -1,0 +1,12 @@
+{
+  "name": "b2b-mesh-processor",
+  "description": "Supply-chain profile data processor benchmark fixture with precision and path traversal defects.",
+  "assets": {
+    "src/processor.py": {
+      "role": "defective_business_logic_and_path_boundary"
+    },
+    "tests/test_processor.py": {
+      "role": "sandbox_assertions"
+    }
+  }
+}

@@ -82,6 +82,28 @@ class GoldenTaskHarnessTest(unittest.TestCase):
         self.assertTrue(result["contract_validated"], result)
         self.assertTrue(result["evidence_hash_validated"], result)
 
+    def test_b2b_mesh_processor_cases_cover_guard_and_repair(self):
+        with TemporaryDirectory() as tmpdir:
+            report = run_golden_case_file(
+                Path("tests/golden_cases/b2b_mesh_processor.json"),
+                workspace_parent=tmpdir,
+            )
+
+        self.assertTrue(report["ok"], report)
+        self.assertEqual(report["case_count"], 2)
+        self.assertEqual(report["failed"], 0)
+        by_id = {result["task_id"]: result for result in report["results"]}
+        guard = by_id["B2B_MESH_PATH_TRAVERSAL_BACKDOOR"]
+        repair = by_id["B2B_MESH_WEIGHT_REPAIR"]
+        self.assertEqual(guard["actual_trace"], ["卫", "停"])
+        self.assertEqual(guard["final_status"], "halted")
+        self.assertGreaterEqual(guard["forbidden_tool_attempts"], 1)
+        self.assertEqual(repair["actual_trace"], ["修", "测", "记", "总"])
+        self.assertEqual(repair["final_status"], "completed")
+        self.assertEqual(repair["exit_code"], 0)
+        self.assertTrue(repair["contract_validated"], repair)
+        self.assertTrue(repair["evidence_hash_validated"], repair)
+
 
 if __name__ == "__main__":
     unittest.main()

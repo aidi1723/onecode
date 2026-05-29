@@ -13,6 +13,41 @@ from scripts import live_agent_benchmark
 
 
 class LiveAgentBenchmarkTest(unittest.TestCase):
+    def test_b2b_mesh_task_preset_selects_fixture_prompt_and_artifacts(self):
+        preset = live_agent_benchmark.resolve_task_preset("B2B_MESH_PROCESSOR", None, None)
+
+        self.assertEqual(preset["task_id"], "B2B_MESH_PROCESSOR")
+        self.assertEqual(preset["fixture_path"], Path("tests/fixtures/b2b_mesh_processor"))
+        self.assertIn("calculate_profile_weight", preset["task_prompt"])
+        self.assertIn("../../etc/passwd", preset["task_prompt"])
+        self.assertEqual(
+            live_agent_benchmark._artifact_paths_for_prompt(preset["task_prompt"]),
+            ["src/processor.py"],
+        )
+
+    def test_b2b_mesh_fake_benchmark_uses_processor_fixture_and_repair_case(self):
+        with TemporaryDirectory() as tmpdir:
+            output_json = Path(tmpdir) / "b2b-mesh.json"
+            output_md = Path(tmpdir) / "b2b-mesh.md"
+            report = live_agent_benchmark.run_benchmark(
+                model="fake-cheap-model",
+                task_id="B2B_MESH_PROCESSOR",
+                task_prompt=None,
+                fixture_path=None,
+                output_json=output_json,
+                output_md=output_md,
+                workspace_parent=Path(tmpdir) / "workspaces",
+                max_turns=10,
+                runner_mode="fake",
+            )
+
+        self.assertTrue(report["ok"], report)
+        self.assertEqual(report["task_id"], "B2B_MESH_PROCESSOR")
+        self.assertEqual(report["comparison"]["winner"], "guarded")
+        self.assertEqual(report["groups"]["guarded"]["final_trace"], ["修", "测", "记", "总"])
+        self.assertEqual(set(report["groups"]["guarded"]["artifact_sha256"]), {"src/processor.py"})
+        self.assertTrue(report["groups"]["guarded"]["artifact_sha256"]["src/processor.py"])
+
     def test_fake_benchmark_writes_bare_vs_guarded_report(self):
         with TemporaryDirectory() as tmpdir:
             output_json = Path(tmpdir) / "live.json"
@@ -81,6 +116,39 @@ class LiveAgentBenchmarkTest(unittest.TestCase):
             self.assertTrue(output_json.exists())
             payload = json.loads(output_json.read_text(encoding="utf-8"))
             self.assertTrue(payload["ok"], payload)
+
+    def test_script_can_run_b2b_mesh_fake_mode_from_cli(self):
+        with TemporaryDirectory() as tmpdir:
+            output_json = Path(tmpdir) / "b2b-mesh.json"
+            output_md = Path(tmpdir) / "b2b-mesh.md"
+            workspace_parent = Path(tmpdir) / "workspaces"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "scripts/live_agent_benchmark.py",
+                    "--model",
+                    "fake-cheap-model",
+                    "--runner-mode",
+                    "fake",
+                    "--task-id",
+                    "B2B_MESH_PROCESSOR",
+                    "--output-json",
+                    str(output_json),
+                    "--output-md",
+                    str(output_md),
+                    "--workspace-parent",
+                    str(workspace_parent),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(output_json.read_text(encoding="utf-8"))
+            self.assertTrue(payload["ok"], payload)
+            self.assertEqual(payload["task_id"], "B2B_MESH_PROCESSOR")
+            self.assertEqual(set(payload["groups"]["guarded"]["artifact_sha256"]), {"src/processor.py"})
 
     def test_real_http_cli_reads_sensitive_configuration_from_environment(self):
         with TemporaryDirectory() as tmpdir:
