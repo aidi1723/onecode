@@ -18,6 +18,14 @@ class VerificationError(Exception):
     """Raised when an artifact cannot be evaluated at all."""
 
 
+class InvalidArtifactError(VerificationError):
+    """Raised when an artifact is malformed and cannot be listed."""
+
+
+class EvalCaseExecutionError(VerificationError):
+    """Raised when a single eval case fails during artifact execution."""
+
+
 def compute_artifact_sha256(artifact: str) -> str:
     return hashlib.sha256(artifact.encode("utf-8")).hexdigest()
 
@@ -28,9 +36,9 @@ def verify_artifact(
     sandbox_policy: SandboxPolicy,
 ) -> Scorecard:
     if not artifact.strip():
-        raise VerificationError("artifact is empty")
+        raise InvalidArtifactError("artifact is empty")
     if len(eval_pack.cases) > sandbox_policy.max_cases:
-        raise VerificationError("eval pack exceeds sandbox max_cases")
+        raise InvalidArtifactError("eval pack exceeds sandbox max_cases")
 
     artifact_sha256 = compute_artifact_sha256(artifact)
     case_results: list[CaseResult] = []
@@ -39,10 +47,13 @@ def verify_artifact(
         start = time.monotonic()
         passed = False
         error = ""
-        output = _run_case(artifact, case.input, sandbox_policy.timeout_ms)
-        passed = output == case.expected_output
-        if not passed:
-            error = f"expected {case.expected_output!r}, got {output!r}"
+        try:
+            output = _run_case(artifact, case.input, sandbox_policy.timeout_ms)
+            passed = output == case.expected_output
+            if not passed:
+                error = f"expected {case.expected_output!r}, got {output!r}"
+        except EvalCaseExecutionError as exc:
+            error = str(exc)
         duration_ms = max(0, int((time.monotonic() - start) * 1000))
         case_results.append(
             CaseResult(
@@ -96,7 +107,9 @@ print(json.dumps(result, sort_keys=True, separators=(",", ":")))
     try:
         input_json = json.dumps(input_value)
     except (TypeError, ValueError) as exc:
-        raise VerificationError(f"eval input is not json-serializable: {exc}") from exc
+        raise EvalCaseExecutionError(
+            f"eval input is not json-serializable: {exc}"
+        ) from exc
 
     with tempfile.TemporaryDirectory() as tmpdir:
         artifact_path = Path(tmpdir) / "artifact.py"
@@ -110,15 +123,18 @@ print(json.dumps(result, sort_keys=True, separators=(",", ":")))
                 check=False,
             )
         except subprocess.TimeoutExpired as exc:
-            raise VerificationError("artifact execution timed out") from exc
+            raise EvalCaseExecutionError("artifact execution timed out") from exc
 
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
-        raise VerificationError(detail or "artifact execution failed")
+        message = detail or "artifact execution failed"
+        if "artifact must define callable run(input)" in message:
+            raise InvalidArtifactError(message)
+        raise EvalCaseExecutionError(message)
     try:
         output = json.loads(completed.stdout)
     except json.JSONDecodeError as exc:
-        raise VerificationError(f"artifact returned non-json output: {exc}") from exc
+        raise InvalidArtifactError(f"artifact returned non-json output: {exc}") from exc
     if not isinstance(output, dict):
-        raise VerificationError("artifact run(input) must return a JSON object")
+        raise InvalidArtifactError("artifact run(input) must return a JSON object")
     return output

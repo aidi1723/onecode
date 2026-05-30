@@ -19,7 +19,7 @@ from .manifest import (
 )
 from .quote import Quote, QuoteBook
 from .registry import CapabilityRegistry
-from .verifier import VerificationError, verify_artifact
+from .verifier import InvalidArtifactError, verify_artifact
 
 
 class RegisterCapabilityRequest(BaseModel):
@@ -110,7 +110,7 @@ def create_app(
     def register(req: RegisterCapabilityRequest) -> RegisterResponse:
         try:
             scorecard = verify_artifact(req.artifact, req.eval_pack, req.sandbox_policy)
-        except VerificationError as exc:
+        except InvalidArtifactError as exc:
             raise HTTPException(status_code=422, detail=str(exc))
 
         verification_status = "verified" if scorecard.verified else "failed"
@@ -163,13 +163,16 @@ def create_app(
         if quote_book.is_expired(quote):
             raise HTTPException(status_code=410, detail="quote expired")
 
-        quote = quote_book.consume(req.quote_id)
-        if quote is None:
-            raise HTTPException(status_code=409, detail="quote already consumed")
-
         cap = registry.get_by_hash(quote.artifact_sha256)
         if cap is None:
             raise HTTPException(status_code=409, detail="quoted capability version unavailable")
+
+        if credit.get_or_create_balance(quote.buyer_agent_id) < quote.price_tokens:
+            raise HTTPException(status_code=402, detail="insufficient credit")
+
+        quote = quote_book.consume(req.quote_id)
+        if quote is None:
+            raise HTTPException(status_code=409, detail="quote already consumed")
 
         ok = credit.execute_purchase(quote.buyer_agent_id, quote.price_tokens)
         if not ok:
