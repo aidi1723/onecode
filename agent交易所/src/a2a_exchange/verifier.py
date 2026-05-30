@@ -39,13 +39,10 @@ def verify_artifact(
         start = time.monotonic()
         passed = False
         error = ""
-        try:
-            output = _run_case(artifact, case.input, sandbox_policy.timeout_ms)
-            passed = output == case.expected_output
-            if not passed:
-                error = f"expected {case.expected_output!r}, got {output!r}"
-        except VerificationError as exc:
-            error = str(exc)
+        output = _run_case(artifact, case.input, sandbox_policy.timeout_ms)
+        passed = output == case.expected_output
+        if not passed:
+            error = f"expected {case.expected_output!r}, got {output!r}"
         duration_ms = max(0, int((time.monotonic() - start) * 1000))
         case_results.append(
             CaseResult(
@@ -76,17 +73,16 @@ def verify_artifact(
 
 def _run_case(artifact: str, input_value: Dict[str, Any], timeout_ms: int) -> Dict[str, Any]:
     runner = """
-import importlib.util
 import json
 import pathlib
 import sys
 
 artifact_path = pathlib.Path(sys.argv[1])
 payload = json.loads(sys.argv[2])
-spec = importlib.util.spec_from_file_location("capability_artifact", artifact_path)
-module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(module)
-run = getattr(module, "run", None)
+namespace = {"__name__": "capability_artifact", "__file__": str(artifact_path)}
+source = artifact_path.read_text(encoding="utf-8")
+exec(compile(source, str(artifact_path), "exec"), namespace)
+run = namespace.get("run")
 if not callable(run):
     raise RuntimeError("artifact must define callable run(input)")
 result = run(payload)
@@ -96,13 +92,16 @@ print(json.dumps(result, sort_keys=True, separators=(",", ":")))
     with tempfile.TemporaryDirectory() as tmpdir:
         artifact_path = Path(tmpdir) / "artifact.py"
         artifact_path.write_text(artifact, encoding="utf-8")
-        completed = subprocess.run(
-            [sys.executable, "-c", runner, str(artifact_path), json.dumps(input_value)],
-            capture_output=True,
-            text=True,
-            timeout=timeout_ms / 1000,
-            check=False,
-        )
+        try:
+            completed = subprocess.run(
+                [sys.executable, "-c", runner, str(artifact_path), json.dumps(input_value)],
+                capture_output=True,
+                text=True,
+                timeout=timeout_ms / 1000,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise VerificationError("artifact execution timed out") from exc
 
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
