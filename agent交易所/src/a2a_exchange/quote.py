@@ -25,6 +25,7 @@ class QuoteBook:
     def __init__(self, ttl_seconds: int = 300) -> None:
         self.ttl_seconds = ttl_seconds
         self._quotes: Dict[str, Quote] = {}
+        self._consumed: set[str] = set()
         self._lock = threading.Lock()
 
     def create(
@@ -53,6 +54,14 @@ class QuoteBook:
             quote = self._quotes.get(quote_id)
             if quote is None:
                 return None
+            return quote.model_copy(deep=True)
+
+    def consume(self, quote_id: str) -> Optional[Quote]:
+        with self._lock:
+            quote = self._quotes.get(quote_id)
+            if quote is None or quote_id in self._consumed:
+                return None
+            self._consumed.add(quote_id)
             return quote.model_copy(deep=True)
 
     def is_expired(self, quote: Quote) -> bool:

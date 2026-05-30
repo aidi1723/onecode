@@ -145,7 +145,7 @@ def create_app(
         cap = registry.get(req.capability_id)
         if cap is None:
             raise HTTPException(status_code=404, detail="capability not found")
-        if not cap.scorecard.verified:
+        if cap.verification_status != "verified" or not cap.scorecard.verified:
             raise HTTPException(status_code=409, detail="capability is not verified")
         return quote_book.create(
             buyer_agent_id=req.buyer_agent_id,
@@ -162,6 +162,10 @@ def create_app(
             raise HTTPException(status_code=404, detail="quote not found")
         if quote_book.is_expired(quote):
             raise HTTPException(status_code=410, detail="quote expired")
+
+        quote = quote_book.consume(req.quote_id)
+        if quote is None:
+            raise HTTPException(status_code=409, detail="quote already consumed")
 
         cap = registry.get_by_hash(quote.artifact_sha256)
         if cap is None:
