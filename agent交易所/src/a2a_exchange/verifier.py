@@ -73,6 +73,8 @@ def verify_artifact(
 
 def _run_case(artifact: str, input_value: Dict[str, Any], timeout_ms: int) -> Dict[str, Any]:
     runner = """
+import contextlib
+import io
 import json
 import pathlib
 import sys
@@ -85,16 +87,22 @@ exec(compile(source, str(artifact_path), "exec"), namespace)
 run = namespace.get("run")
 if not callable(run):
     raise RuntimeError("artifact must define callable run(input)")
-result = run(payload)
+with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+    result = run(payload)
 print(json.dumps(result, sort_keys=True, separators=(",", ":")))
 """.strip()
+
+    try:
+        input_json = json.dumps(input_value)
+    except (TypeError, ValueError) as exc:
+        raise VerificationError(f"eval input is not json-serializable: {exc}") from exc
 
     with tempfile.TemporaryDirectory() as tmpdir:
         artifact_path = Path(tmpdir) / "artifact.py"
         artifact_path.write_text(artifact, encoding="utf-8")
         try:
             completed = subprocess.run(
-                [sys.executable, "-c", runner, str(artifact_path), json.dumps(input_value)],
+                [sys.executable, "-c", runner, str(artifact_path), input_json],
                 capture_output=True,
                 text=True,
                 timeout=timeout_ms / 1000,
