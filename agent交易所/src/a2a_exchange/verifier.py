@@ -74,8 +74,8 @@ def verify_artifact(
 def _run_case(artifact: str, input_value: Dict[str, Any], timeout_ms: int) -> Dict[str, Any]:
     runner = """
 import contextlib
-import io
 import json
+import os
 import pathlib
 import sys
 
@@ -87,8 +87,9 @@ exec(compile(source, str(artifact_path), "exec"), namespace)
 run = namespace.get("run")
 if not callable(run):
     raise RuntimeError("artifact must define callable run(input)")
-with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-    result = run(payload)
+with open(os.devnull, "w", encoding="utf-8") as devnull:
+    with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
+        result = run(payload)
 print(json.dumps(result, sort_keys=True, separators=(",", ":")))
 """.strip()
 
