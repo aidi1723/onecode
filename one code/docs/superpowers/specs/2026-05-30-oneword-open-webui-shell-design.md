@@ -1,8 +1,14 @@
 # OneWord Open WebUI Shell Design
 
 Date: 2026-05-30
-Status: Approved direction, pending implementation plan
+Status: Superseded by `2026-05-30-oneword-librechat-shell-design.md`
 Scope: OneWord Web shell based on an Open WebUI fork plus `oneword-agent-gateway`
+
+## Supersession Note
+
+This Open WebUI shell direction is no longer the recommended implementation base. The decisive blocker is Open WebUI's current branding restriction: deployments or distributions above the 50-user rolling window cannot alter, remove, obscure, or replace Open WebUI branding without written permission or an enterprise license. That makes it a poor fit for a first-class OneWord-branded shell.
+
+Use the LibreChat-based design instead.
 
 ## Decision
 
