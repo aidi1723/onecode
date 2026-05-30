@@ -123,6 +123,11 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("doctor")
     subparsers.add_parser("audit-self")
 
+    serve_parser = subparsers.add_parser("serve")
+    serve_parser.description = "Serve OneCode as an OpenAI-compatible endpoint for LibreChat."
+    serve_parser.add_argument("--host", default="127.0.0.1")
+    serve_parser.add_argument("--port", type=int, default=8080)
+
     tui_parser = subparsers.add_parser("tui")
     tui_parser.add_argument("--workspace", default=None)
     tui_parser.add_argument("--model", default=None)
@@ -831,6 +836,12 @@ def main(argv: list[str] | None = None) -> int:
             model=args.model,
             provider_kind=args.provider,
         )
+        return 0
+
+    if args.subcommand == "serve":
+        from onecode.web.api import run_server
+
+        run_server(host=args.host, port=args.port)
         return 0
 
     if args.subcommand == "doctor":

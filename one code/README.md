@@ -90,6 +90,23 @@ TUI output is also written as plain text under the active workspace:
 
 Use `/export` or `/export-last` in the TUI to print those paths when terminal box selection is inconvenient.
 
+## LibreChat Shell API
+
+Start OneCode's OpenAI-compatible HTTP API for a LibreChat custom endpoint:
+
+```bash
+PYTHONPATH=src ONECODE_API_TOKEN=dev-local-token python3 -m onecode serve --host 127.0.0.1 --port 8080
+```
+
+LibreChat should point its custom endpoint at:
+
+```text
+ONECODE_API_BASE_URL=http://localhost:8080/v1
+ONECODE_API_TOKEN=dev-local-token
+```
+
+The API exposes `/health`, `/v1/models`, and `/v1/chat/completions`. It calls OneCode core directly and does not depend on any OneWord gateway service.
+
 ## Run
 
 Write one asset:
