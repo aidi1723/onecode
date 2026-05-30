@@ -27,7 +27,7 @@ def not_run(input):
 
 
 def register_payload(artifact=GOOD_ARTIFACT, price=500, expected=None):
-    expected_output = expected or {"upper": "HELLO"}
+    expected_output = {"upper": "HELLO"} if expected is None else expected
     return {
         "manifest": {
             "name": "uppercase-tool",
@@ -96,7 +96,9 @@ class TrustedCapabilityFlowTest(unittest.TestCase):
         self.assertEqual(resp.status_code, 422, resp.text)
 
     def test_discover_filters_and_never_returns_artifact(self):
-        self.client.post("/register", json=register_payload(price=500))
+        registered = self.client.post("/register", json=register_payload(price=500))
+        self.assertEqual(registered.status_code, 200, registered.text)
+
         resp = self.client.post(
             "/discover",
             json={
@@ -114,10 +116,14 @@ class TrustedCapabilityFlowTest(unittest.TestCase):
         self.assertTrue(hits[0]["scorecard"]["verified"])
 
         too_cheap = self.client.post("/discover", json={"max_price": 100})
+        self.assertEqual(too_cheap.status_code, 200, too_cheap.text)
         self.assertEqual(too_cheap.json(), [])
 
     def test_quote_locks_price_hash_and_scorecard(self):
-        registered = self.client.post("/register", json=register_payload()).json()
+        registered_resp = self.client.post("/register", json=register_payload())
+        self.assertEqual(registered_resp.status_code, 200, registered_resp.text)
+        registered = registered_resp.json()
+
         quote = self.client.post(
             "/quote",
             json={"buyer_agent_id": "buyer-1", "capability_id": registered["capability_id"]},
@@ -134,11 +140,16 @@ class TrustedCapabilityFlowTest(unittest.TestCase):
         self.assertEqual(body["scorecard_snapshot"]["pass_rate"], 1.0)
 
     def test_checkout_requires_quote_and_releases_artifact_after_debit(self):
-        registered = self.client.post("/register", json=register_payload()).json()
-        quote = self.client.post(
+        registered_resp = self.client.post("/register", json=register_payload())
+        self.assertEqual(registered_resp.status_code, 200, registered_resp.text)
+        registered = registered_resp.json()
+
+        quote_resp = self.client.post(
             "/quote",
             json={"buyer_agent_id": "buyer-1", "capability_id": registered["capability_id"]},
-        ).json()
+        )
+        self.assertEqual(quote_resp.status_code, 200, quote_resp.text)
+        quote = quote_resp.json()
 
         checkout = self.client.post("/checkout", json={"quote_id": quote["quote_id"]})
         self.assertEqual(checkout.status_code, 200, checkout.text)
@@ -156,12 +167,20 @@ class TrustedCapabilityFlowTest(unittest.TestCase):
         self.assertEqual(missing.status_code, 404)
 
     def test_settle_releases_or_disputes_escrow(self):
-        registered = self.client.post("/register", json=register_payload()).json()
-        quote = self.client.post(
+        registered_resp = self.client.post("/register", json=register_payload())
+        self.assertEqual(registered_resp.status_code, 200, registered_resp.text)
+        registered = registered_resp.json()
+
+        quote_resp = self.client.post(
             "/quote",
             json={"buyer_agent_id": "buyer-1", "capability_id": registered["capability_id"]},
-        ).json()
-        checkout = self.client.post("/checkout", json={"quote_id": quote["quote_id"]}).json()
+        )
+        self.assertEqual(quote_resp.status_code, 200, quote_resp.text)
+        quote = quote_resp.json()
+
+        checkout_resp = self.client.post("/checkout", json={"quote_id": quote["quote_id"]})
+        self.assertEqual(checkout_resp.status_code, 200, checkout_resp.text)
+        checkout = checkout_resp.json()
 
         released = self.client.post(
             "/settle",
@@ -174,14 +193,46 @@ class TrustedCapabilityFlowTest(unittest.TestCase):
         self.assertEqual(released.status_code, 200, released.text)
         self.assertEqual(released.json()["status"], "released")
 
+        dispute_quote_resp = self.client.post(
+            "/quote",
+            json={"buyer_agent_id": "buyer-1", "capability_id": registered["capability_id"]},
+        )
+        self.assertEqual(dispute_quote_resp.status_code, 200, dispute_quote_resp.text)
+        dispute_quote = dispute_quote_resp.json()
+
+        dispute_checkout_resp = self.client.post(
+            "/checkout", json={"quote_id": dispute_quote["quote_id"]}
+        )
+        self.assertEqual(
+            dispute_checkout_resp.status_code, 200, dispute_checkout_resp.text
+        )
+        dispute_checkout = dispute_checkout_resp.json()
+
+        disputed = self.client.post(
+            "/settle",
+            json={
+                "buyer_agent_id": "buyer-1",
+                "escrow_id": dispute_checkout["escrow_id"],
+                "accepted": False,
+            },
+        )
+        self.assertEqual(disputed.status_code, 200, disputed.text)
+        self.assertEqual(disputed.json()["status"], "disputed")
+
     def test_existing_quote_survives_later_price_change(self):
-        first = self.client.post("/register", json=register_payload(price=500)).json()
-        quote = self.client.post(
+        first_resp = self.client.post("/register", json=register_payload(price=500))
+        self.assertEqual(first_resp.status_code, 200, first_resp.text)
+        first = first_resp.json()
+
+        quote_resp = self.client.post(
             "/quote",
             json={"buyer_agent_id": "buyer-1", "capability_id": first["capability_id"]},
-        ).json()
+        )
+        self.assertEqual(quote_resp.status_code, 200, quote_resp.text)
+        quote = quote_resp.json()
 
-        self.client.post("/register", json=register_payload(price=900))
+        second_resp = self.client.post("/register", json=register_payload(price=900))
+        self.assertEqual(second_resp.status_code, 200, second_resp.text)
 
         checkout = self.client.post("/checkout", json={"quote_id": quote["quote_id"]})
         self.assertEqual(checkout.status_code, 200, checkout.text)
