@@ -51,7 +51,7 @@ class CapabilityRecord(BaseModel):
     capability_id: str
     manifest: CapabilityManifest
     artifact: str
-    artifact_sha256: str
+    artifact_sha256: str = Field(..., min_length=64, max_length=64)
     sandbox_policy: SandboxPolicy
     scorecard: Scorecard
     verification_status: Literal["verified", "failed"]
@@ -79,3 +79,7 @@ def to_listing(record: CapabilityRecord) -> CapabilityListing:
         verification_status=record.verification_status,
         scorecard=record.scorecard,
     )
+
+
+# Temporary compatibility alias while app/registry/discovery are replaced in later tasks.
+AgentCapabilityManifest = CapabilityManifest
