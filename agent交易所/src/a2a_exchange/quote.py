@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .manifest import Scorecard
 
@@ -16,7 +16,7 @@ class Quote(BaseModel):
     buyer_agent_id: str
     capability_id: str
     artifact_sha256: str
-    price_tokens: int
+    price_tokens: int = Field(..., ge=0)
     scorecard_snapshot: Scorecard
     expires_at: datetime
 
@@ -46,11 +46,14 @@ class QuoteBook:
         )
         with self._lock:
             self._quotes[quote.quote_id] = quote
-        return quote
+        return quote.model_copy(deep=True)
 
     def get(self, quote_id: str) -> Optional[Quote]:
         with self._lock:
-            return self._quotes.get(quote_id)
+            quote = self._quotes.get(quote_id)
+            if quote is None:
+                return None
+            return quote.model_copy(deep=True)
 
     def is_expired(self, quote: Quote) -> bool:
         return datetime.now(timezone.utc) >= quote.expires_at
