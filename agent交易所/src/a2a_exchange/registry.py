@@ -16,8 +16,12 @@ class CapabilityRegistry:
 
     def register(self, record: CapabilityRecord) -> CapabilityRecord:
         with self._lock:
+            previous = self._by_id.get(record.capability_id)
+            if previous is not None and previous.artifact_sha256 != record.artifact_sha256:
+                if self._by_hash.get(previous.artifact_sha256) is previous:
+                    del self._by_hash[previous.artifact_sha256]
             self._by_id[record.capability_id] = record
-            self._by_hash[record.artifact_sha256] = record
+            self._by_hash.setdefault(record.artifact_sha256, record)
         return record
 
     def next_capability_id(self) -> str:
