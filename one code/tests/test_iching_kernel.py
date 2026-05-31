@@ -90,7 +90,7 @@ class TestIchingKernel(unittest.TestCase):
 
         fuel = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.ZHEN, IchingKernel.LI))
         self.assertEqual(fuel.action, "accelerate")
-        self.assertEqual(fuel.reason, "wood_fuels_fire_execution")
+        self.assertEqual(fuel.reason, "generating_relation_accelerates_execution")
 
         quench = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.LI))
         self.assertEqual(quench.action, "halt")
