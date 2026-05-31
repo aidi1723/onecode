@@ -716,23 +716,6 @@ class IchingKernel:
                 reason="mountain_contains_local_executor_fault",
             )
 
-        if dynamics["modulation"] == "recovery_seed":
-            return IchingTransition(
-                status_code=normalized,
-                action="checkpoint",
-                reason="network_water_preserves_resume_seed",
-            )
-        if dynamics["modulation"] in {"quench", "prune", "dam", "break_ground"}:
-            action, reason = cls.runtime_relation_policy(dynamics["cross_relation"], dynamics["modulation"])
-            return IchingTransition(status_code=normalized, action=action, reason=reason)
-        if dynamics["modulation"] == "fuel":
-            action, _ = cls.runtime_relation_policy(dynamics["cross_relation"], dynamics["modulation"])
-            return IchingTransition(
-                status_code=normalized,
-                action=action,
-                reason="wood_fuels_fire_execution",
-            )
-
         profile = cls.yin_yang_profile(normalized)
         if profile["balance"] in {"pure_yang", "yang_excess"}:
             return IchingTransition(
@@ -751,6 +734,23 @@ class IchingKernel:
                 status_code=normalized,
                 action="activate",
                 reason="yin_excess_requires_activation",
+            )
+
+        if dynamics["modulation"] == "recovery_seed":
+            return IchingTransition(
+                status_code=normalized,
+                action="checkpoint",
+                reason="network_water_preserves_resume_seed",
+            )
+        if dynamics["modulation"] in {"quench", "prune", "dam", "break_ground"}:
+            action, reason = cls.runtime_relation_policy(dynamics["cross_relation"], dynamics["modulation"])
+            return IchingTransition(status_code=normalized, action=action, reason=reason)
+        if dynamics["modulation"] == "fuel":
+            action, _ = cls.runtime_relation_policy(dynamics["cross_relation"], dynamics["modulation"])
+            return IchingTransition(
+                status_code=normalized,
+                action=action,
+                reason="wood_fuels_fire_execution",
             )
 
         action, reason = cls.runtime_relation_policy(dynamics["cross_relation"], dynamics["modulation"])

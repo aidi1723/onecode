@@ -66,8 +66,8 @@ class TestIchingKernel(unittest.TestCase):
         water_over_write_momentum = IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)
         water_transition = IchingKernel.transition(water_over_write_momentum)
         self.assertEqual(water_transition.status_code, water_over_write_momentum)
-        self.assertEqual(water_transition.action, "checkpoint")
-        self.assertEqual(water_transition.reason, "network_water_preserves_resume_seed")
+        self.assertEqual(water_transition.action, "activate")
+        self.assertEqual(water_transition.reason, "yin_excess_requires_activation")
 
         pure_qian = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN)
         cooled_transition = IchingKernel.transition(pure_qian)
@@ -101,8 +101,8 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(prune.reason, "metal_prunes_wood_scope")
 
         dam = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KAN))
-        self.assertEqual(dam.action, "throttle")
-        self.assertEqual(dam.reason, "earth_dams_water_flow")
+        self.assertEqual(dam.action, "activate")
+        self.assertEqual(dam.reason, "yin_excess_requires_activation")
 
     def test_element_dynamics_uses_cross_relation_and_break_ground_modulation(self):
         status = IchingKernel.compute_status(IchingKernel.ZHEN, IchingKernel.KUN)
@@ -152,7 +152,7 @@ class TestIchingKernel(unittest.TestCase):
         self.assertIn("activate", actions)
         self.assertIn("accelerate", actions)
         self.assertIn("prune", actions)
-        self.assertIn("throttle", actions)
+        self.assertIn("recover", actions)
         self.assertIn("continue", actions)
         self.assertIn("cooldown", actions)
         self.assertIn("checkpoint", actions)
@@ -189,7 +189,7 @@ class TestIchingKernel(unittest.TestCase):
         ):
             transition = IchingKernel.transition(status)
 
-        self.assertEqual(transition.reason, "network_water_preserves_resume_seed")
+        self.assertEqual(transition.reason, "yin_excess_requires_activation")
 
     def test_dispatch_decision_derives_loop_control_from_transition(self):
         halt_transition = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN))
@@ -197,7 +197,7 @@ class TestIchingKernel(unittest.TestCase):
         continue_transition = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI))
 
         self.assertEqual(IchingKernel.dispatch_decision(halt_transition), "stop")
-        self.assertEqual(IchingKernel.dispatch_decision(checkpoint_transition), "stop")
+        self.assertEqual(IchingKernel.dispatch_decision(checkpoint_transition), "continue")
         self.assertEqual(IchingKernel.dispatch_decision(continue_transition), "continue")
 
     def test_delivery_decision_derives_inspection_actions_from_evidence(self):
@@ -685,7 +685,7 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(yin_regulated["status_code"], IchingKernel.ROLLBACK_STATUS)
         self.assertEqual(yin_regulated["decision"], "rollback_negative_polarity")
         self.assertEqual(yin_regulated["reason"], "entropy_negative_polarity_rollback")
-        self.assertEqual(IchingKernel.transition(int(yin_regulated["status_code"])).reason, "network_water_preserves_resume_seed")
+        self.assertEqual(IchingKernel.transition(int(yin_regulated["status_code"])).reason, "yin_excess_requires_activation")
 
         mixed_statuses = [
             IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.KUN),
