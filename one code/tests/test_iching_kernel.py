@@ -146,6 +146,28 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(IchingKernel.runtime_relation_policy("controls", "break_ground"), ("activate", "wood_breaks_inert_ground"))
         self.assertEqual(IchingKernel.runtime_relation_policy("controls", "normal"), ("throttle", "controlling_relation_throttles_execution"))
 
+    def test_bit_state_primitives_generate_cartesian_state_space(self):
+        self.assertEqual(IchingKernel.liangyi_values(), (0, 1))
+        self.assertEqual(IchingKernel.cartesian_states(0), [0])
+        self.assertEqual(IchingKernel.cartesian_states(1), [0, 1])
+        self.assertEqual(IchingKernel.cartesian_states(2), [0, 1, 2, 3])
+        self.assertEqual(IchingKernel.cartesian_states(3), list(range(8)))
+        self.assertEqual(IchingKernel.cartesian_states(6), list(range(64)))
+
+    def test_bits_round_trip_in_bottom_to_top_order(self):
+        self.assertEqual(IchingKernel.bits_for_state(0b101101, 6), [1, 0, 1, 1, 0, 1])
+        self.assertEqual(IchingKernel.state_for_bits([1, 0, 1, 1, 0, 1]), 0b101101)
+        self.assertEqual(IchingKernel.state_for_bits(IchingKernel.bits_for_state(0b111000, 6)), 0b111000)
+
+    def test_named_projection_helpers_match_existing_kernel_conventions(self):
+        self.assertEqual(IchingKernel.four_symbol_for_pair(0b00), "tai_yin")
+        self.assertEqual(IchingKernel.four_symbol_for_pair(0b01), "shao_yang")
+        self.assertEqual(IchingKernel.hexagram_status(IchingKernel.QIAN, IchingKernel.DUI), 0b111011)
+        record = IchingKernel.trigram_for_bits(0b101)
+        self.assertEqual(record["trigram"], IchingKernel.XUN)
+        self.assertEqual(record["name"], "xun")
+        self.assertEqual(record["element"], "wood")
+
     def test_transition_assigns_differentiated_actions_across_all_states(self):
         actions = {IchingKernel.transition(status_code).action for status_code in range(64)}
 

@@ -145,6 +145,43 @@ class IchingKernel:
         return ((outer_trigram & 0b111) << 3) | (inner_trigram & 0b111)
 
     @classmethod
+    def liangyi_values(cls) -> tuple[int, int]:
+        return (0, 1)
+
+    @classmethod
+    def cartesian_states(cls, width: int) -> list[int]:
+        if width < 0:
+            raise ValueError(f"width must be non-negative: {width!r}")
+        return list(range(1 << width))
+
+    @classmethod
+    def bits_for_state(cls, value: int, width: int) -> list[int]:
+        if width < 0:
+            raise ValueError(f"width must be non-negative: {width!r}")
+        return [(value >> bit_index) & 1 for bit_index in range(width)]
+
+    @classmethod
+    def state_for_bits(cls, bits: list[int]) -> int:
+        value = 0
+        for bit_index, bit in enumerate(bits):
+            if bit not in {0, 1}:
+                raise ValueError(f"bits must contain only 0 or 1: {bit!r}")
+            value |= bit << bit_index
+        return value
+
+    @classmethod
+    def four_symbol_for_pair(cls, bits: int) -> str:
+        return cls.four_symbol_for_bits(bits)
+
+    @classmethod
+    def trigram_for_bits(cls, bits: int) -> dict:
+        return cls.standalone_trigram_record(bits)
+
+    @classmethod
+    def hexagram_status(cls, outer: int, inner: int) -> int:
+        return cls.compute_status(outer, inner)
+
+    @classmethod
     def rule_layers(cls) -> dict[str, list[str]]:
         return {layer: list(fields) for layer, fields in cls.RULE_LAYERS.items()}
 
