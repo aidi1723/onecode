@@ -530,26 +530,30 @@ class IchingKernel:
         outer_element = cls.element_for_trigram(outer)
         inner_element = cls.element_for_trigram(inner)
         relation = cls.element_relation(outer_element, inner_element)
+        cross_relation = cls.element_cross_relation(outer_element, inner_element)
         pressure = cls.yin_yang_cross_profile(normalized)["pressure"]
-        if relation == "controls" and outer_element == "fire" and inner_element == "metal":
+        if cross_relation == "controls" and outer_element == "fire" and inner_element == "metal":
             modulation = "hard_control"
-        elif relation == "generates" and outer_element == "water" and inner_element == "wood":
+        elif cross_relation == "generates" and outer_element == "water" and inner_element == "wood":
             modulation = "recovery_seed"
-        elif relation == "controls" and outer_element == "water" and inner_element == "fire":
+        elif cross_relation == "controls" and outer_element == "water" and inner_element == "fire":
             modulation = "quench"
-        elif relation == "controls" and outer_element == "metal" and inner_element == "wood":
+        elif cross_relation == "controls" and outer_element == "metal" and inner_element == "wood":
             modulation = "prune"
-        elif relation == "generates" and outer_element == "wood" and inner_element == "fire":
+        elif cross_relation == "generates" and outer_element == "wood" and inner_element == "fire":
             modulation = "fuel"
-        elif relation == "controls" and outer_element == "earth" and inner_element == "water":
+        elif cross_relation == "controls" and outer_element == "earth" and inner_element == "water":
             modulation = "dam"
+        elif cross_relation == "controls" and outer_element == "wood" and inner_element == "earth":
+            modulation = "break_ground"
         else:
             modulation = "normal"
         return {
             "outer_element": outer_element,
             "inner_element": inner_element,
             "relation": relation,
-            "yin_yang_pressure": pressure,
+            "cross_relation": cross_relation,
+            "yin_yang_pressure": str(pressure),
             "modulation": modulation,
         }
 
@@ -682,12 +686,14 @@ class IchingKernel:
 
     @classmethod
     def transition(cls, status_code: int) -> IchingTransition:
-        inner = status_code & 0b111
-        dynamics = cls.element_dynamics(status_code)
+        normalized = status_code & 0b111111
+        inner = normalized & 0b111
+        outer = (normalized >> 3) & 0b111
+        dynamics = cls.element_dynamics(normalized)
 
-        if status_code == cls.compute_status(cls.KUN, cls.KUN):
+        if normalized == cls.compute_status(cls.KUN, cls.KUN):
             return IchingTransition(
-                status_code=status_code,
+                status_code=normalized,
                 action="discover",
                 reason="rule_gap_requires_discovery",
             )
@@ -697,43 +703,37 @@ class IchingKernel:
                 action="halt",
                 reason="sovereignty_fire_suppresses_asset",
             )
-        if (status_code >> 3) & 0b111 == cls.LI:
+        if outer == cls.LI:
             return IchingTransition(
-                status_code=status_code,
+                status_code=normalized,
                 action="halt",
                 reason="sovereignty_fire_boundary_halt",
             )
+        if normalized == cls.compute_status(cls.GEN, cls.KUN):
+            return IchingTransition(
+                status_code=normalized,
+                action="checkpoint",
+                reason="mountain_contains_local_executor_fault",
+            )
+
         if dynamics["modulation"] == "recovery_seed":
             return IchingTransition(
-                status_code=status_code,
+                status_code=normalized,
                 action="checkpoint",
                 reason="network_water_preserves_resume_seed",
             )
-        if dynamics["modulation"] == "quench":
-            return IchingTransition(
-                status_code=status_code,
-                action="halt",
-                reason="water_quenches_fire_boundary",
-            )
-        if dynamics["modulation"] == "prune":
-            return IchingTransition(
-                status_code=status_code,
-                action="prune",
-                reason="metal_prunes_wood_scope",
-            )
-        if dynamics["modulation"] == "dam":
-            return IchingTransition(
-                status_code=status_code,
-                action="throttle",
-                reason="earth_dams_water_flow",
-            )
+        if dynamics["modulation"] in {"quench", "prune", "dam", "break_ground"}:
+            action, reason = cls.runtime_relation_policy(dynamics["cross_relation"], dynamics["modulation"])
+            return IchingTransition(status_code=normalized, action=action, reason=reason)
         if dynamics["modulation"] == "fuel":
+            action, _ = cls.runtime_relation_policy(dynamics["cross_relation"], dynamics["modulation"])
             return IchingTransition(
-                status_code=status_code,
-                action="accelerate",
+                status_code=normalized,
+                action=action,
                 reason="wood_fuels_fire_execution",
             )
-        profile = cls.yin_yang_profile(status_code)
+
+        profile = cls.yin_yang_profile(normalized)
         if profile["balance"] in {"pure_yang", "yang_excess"}:
             return IchingTransition(
                 status_code=cls.compute_status(cls.GEN, inner),
@@ -742,29 +742,19 @@ class IchingKernel:
             )
         if profile["balance"] == "pure_yin":
             return IchingTransition(
-                status_code=status_code,
-                action="activate",
-                reason="yin_stasis_requires_activation",
+                status_code=normalized,
+                action="discover",
+                reason="rule_gap_requires_discovery",
             )
-        if profile["balance"] == "yin_excess":
+        if profile["balance"] == "yin_excess" and inner != cls.KUN:
             return IchingTransition(
-                status_code=status_code,
+                status_code=normalized,
                 action="activate",
                 reason="yin_excess_requires_activation",
             )
-        if dynamics["relation"] == "generates":
-            return IchingTransition(
-                status_code=status_code,
-                action="accelerate",
-                reason="generating_relation_accelerates_execution",
-            )
-        if dynamics["relation"] == "controls":
-            return IchingTransition(
-                status_code=status_code,
-                action="throttle",
-                reason="controlling_relation_throttles_execution",
-            )
-        return IchingTransition(status_code=status_code, action="continue", reason=None)
+
+        action, reason = cls.runtime_relation_policy(dynamics["cross_relation"], dynamics["modulation"])
+        return IchingTransition(status_code=normalized, action=action, reason=reason)
 
     @classmethod
     def dispatch_decision(cls, transition: IchingTransition) -> str:

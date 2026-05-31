@@ -104,6 +104,28 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(dam.action, "throttle")
         self.assertEqual(dam.reason, "earth_dams_water_flow")
 
+    def test_element_dynamics_uses_cross_relation_and_break_ground_modulation(self):
+        status = IchingKernel.compute_status(IchingKernel.ZHEN, IchingKernel.KUN)
+        dynamics = IchingKernel.element_dynamics(status)
+
+        self.assertEqual(dynamics["outer_element"], "wood")
+        self.assertEqual(dynamics["inner_element"], "earth")
+        self.assertEqual(dynamics["relation"], "controls")
+        self.assertEqual(dynamics["cross_relation"], "controls")
+        self.assertEqual(dynamics["modulation"], "break_ground")
+
+    def test_transition_uses_policy_after_safety_and_pressure_gates(self):
+        break_ground = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.ZHEN, IchingKernel.KUN))
+        generated_by = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.GEN))
+        controlled_by = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.DUI, IchingKernel.LI))
+
+        self.assertEqual(break_ground.action, "activate")
+        self.assertEqual(break_ground.reason, "wood_breaks_inert_ground")
+        self.assertEqual(generated_by.action, "recover")
+        self.assertEqual(generated_by.reason, "generated_by_relation_recovers_execution")
+        self.assertEqual(controlled_by.action, "checkpoint")
+        self.assertEqual(controlled_by.reason, "controlled_by_relation_requires_verifier")
+
     def test_runtime_relation_policy_covers_all_cross_relations(self):
         expected = {
             "generates": ("accelerate", "generating_relation_accelerates_execution"),
