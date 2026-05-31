@@ -98,6 +98,21 @@ class IchingKernel:
         ("earth", "fire"): 0.0,
         ("earth", "earth"): 1.0,
     }
+    RUNTIME_RELATION_POLICY = {
+        "generates": ("accelerate", "generating_relation_accelerates_execution"),
+        "same": ("continue", None),
+        "generated_by": ("recover", "generated_by_relation_recovers_execution"),
+        "controlled_by": ("checkpoint", "controlled_by_relation_requires_verifier"),
+        "neutral": ("discover", "neutral_relation_requires_discovery"),
+    }
+    RUNTIME_CONTROL_MODULATION_POLICY = {
+        "hard_control": ("halt", "sovereignty_fire_suppresses_asset"),
+        "quench": ("halt", "water_quenches_fire_boundary"),
+        "prune": ("prune", "metal_prunes_wood_scope"),
+        "dam": ("throttle", "earth_dams_water_flow"),
+        "break_ground": ("activate", "wood_breaks_inert_ground"),
+        "normal": ("throttle", "controlling_relation_throttles_execution"),
+    }
     RULE_LAYERS = {
         "bit_derived": [
             "status_code",
@@ -356,6 +371,15 @@ class IchingKernel:
         if cls.CONTROLS.get(target) == source:
             return "controlled_by"
         return "neutral"
+
+    @classmethod
+    def runtime_relation_policy(cls, relation: str, modulation: str) -> tuple[str, str | None]:
+        if relation == "controls":
+            return cls.RUNTIME_CONTROL_MODULATION_POLICY.get(
+                modulation,
+                cls.RUNTIME_CONTROL_MODULATION_POLICY["normal"],
+            )
+        return cls.RUNTIME_RELATION_POLICY.get(relation, cls.RUNTIME_RELATION_POLICY["neutral"])
 
     @classmethod
     def execution_bandwidth(cls, status_code: int, base: float = 1.0) -> float:

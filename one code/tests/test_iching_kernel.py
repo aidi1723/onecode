@@ -104,6 +104,26 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(dam.action, "throttle")
         self.assertEqual(dam.reason, "earth_dams_water_flow")
 
+    def test_runtime_relation_policy_covers_all_cross_relations(self):
+        expected = {
+            "generates": ("accelerate", "generating_relation_accelerates_execution"),
+            "same": ("continue", None),
+            "generated_by": ("recover", "generated_by_relation_recovers_execution"),
+            "controlled_by": ("checkpoint", "controlled_by_relation_requires_verifier"),
+            "neutral": ("discover", "neutral_relation_requires_discovery"),
+        }
+
+        for relation, expected_policy in expected.items():
+            self.assertEqual(IchingKernel.runtime_relation_policy(relation, "normal"), expected_policy)
+
+    def test_runtime_relation_policy_differentiates_control_modulations(self):
+        self.assertEqual(IchingKernel.runtime_relation_policy("controls", "quench"), ("halt", "water_quenches_fire_boundary"))
+        self.assertEqual(IchingKernel.runtime_relation_policy("controls", "hard_control"), ("halt", "sovereignty_fire_suppresses_asset"))
+        self.assertEqual(IchingKernel.runtime_relation_policy("controls", "prune"), ("prune", "metal_prunes_wood_scope"))
+        self.assertEqual(IchingKernel.runtime_relation_policy("controls", "dam"), ("throttle", "earth_dams_water_flow"))
+        self.assertEqual(IchingKernel.runtime_relation_policy("controls", "break_ground"), ("activate", "wood_breaks_inert_ground"))
+        self.assertEqual(IchingKernel.runtime_relation_policy("controls", "normal"), ("throttle", "controlling_relation_throttles_execution"))
+
     def test_transition_assigns_differentiated_actions_across_all_states(self):
         actions = {IchingKernel.transition(status_code).action for status_code in range(64)}
 
