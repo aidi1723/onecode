@@ -742,9 +742,6 @@ class IchingKernel:
                 action="checkpoint",
                 reason="network_water_preserves_resume_seed",
             )
-        if dynamics["modulation"] in {"quench", "prune", "dam", "break_ground"}:
-            action, reason = cls.runtime_relation_policy(dynamics["cross_relation"], dynamics["modulation"])
-            return IchingTransition(status_code=normalized, action=action, reason=reason)
 
         action, reason = cls.runtime_relation_policy(dynamics["cross_relation"], dynamics["modulation"])
         return IchingTransition(status_code=normalized, action=action, reason=reason)
