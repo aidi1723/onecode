@@ -459,6 +459,26 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(IchingKernel.element_relation("metal", "metal"), "same")
         self.assertEqual(IchingKernel.element_relation("wood", "water"), "neutral")
 
+    def test_five_element_mod_arithmetic_matches_generation_and_control_cycles(self):
+        self.assertEqual(IchingKernel.ELEMENT_GENERATION_ORDER, ("wood", "fire", "earth", "metal", "water"))
+
+        self.assertEqual(IchingKernel.generate_element("wood"), "fire")
+        self.assertEqual(IchingKernel.generate_element("water"), "wood")
+        self.assertEqual(IchingKernel.control_element("wood"), "earth")
+        self.assertEqual(IchingKernel.control_element("water"), "fire")
+
+        self.assertEqual(IchingKernel.element_distance("wood", "wood"), 0)
+        self.assertEqual(IchingKernel.element_distance("wood", "fire"), 1)
+        self.assertEqual(IchingKernel.element_distance("wood", "earth"), 2)
+        self.assertEqual(IchingKernel.element_distance("wood", "metal"), 3)
+        self.assertEqual(IchingKernel.element_distance("wood", "water"), 4)
+
+    def test_element_records_are_backed_by_mod_arithmetic(self):
+        for element in IchingKernel.ELEMENT_GENERATION_ORDER:
+            record = IchingKernel.element_records()[element]
+            self.assertEqual(record["generates"], IchingKernel.generate_element(element))
+            self.assertEqual(record["controls"], IchingKernel.control_element(element))
+
     def test_five_element_records_cover_generation_and_control_cross_matrix(self):
         records = IchingKernel.element_records()
 

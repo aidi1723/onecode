@@ -67,6 +67,7 @@ class IchingKernel:
         "metal": "wood",
     }
     ELEMENT_ORDER = ("metal", "wood", "water", "fire", "earth")
+    ELEMENT_GENERATION_ORDER = ("wood", "fire", "earth", "metal", "water")
     POLARITY_THRESHOLD = 1 / 3
     ROLLBACK_STATUS = 0b010001
     ENTROPY_THRESHOLD = 0.5
@@ -366,12 +367,37 @@ class IchingKernel:
         return cls.TRIGRAM_ELEMENTS[trigram & 0b111]
 
     @classmethod
+    def element_distance(cls, source: str, target: str) -> int:
+        if source not in cls.ELEMENT_GENERATION_ORDER:
+            raise ValueError(f"unknown source element: {source!r}")
+        if target not in cls.ELEMENT_GENERATION_ORDER:
+            raise ValueError(f"unknown target element: {target!r}")
+        source_index = cls.ELEMENT_GENERATION_ORDER.index(source)
+        target_index = cls.ELEMENT_GENERATION_ORDER.index(target)
+        return (target_index - source_index) % len(cls.ELEMENT_GENERATION_ORDER)
+
+    @classmethod
+    def generate_element(cls, element: str) -> str:
+        if element not in cls.ELEMENT_GENERATION_ORDER:
+            raise ValueError(f"unknown element: {element!r}")
+        index = cls.ELEMENT_GENERATION_ORDER.index(element)
+        return cls.ELEMENT_GENERATION_ORDER[(index + 1) % len(cls.ELEMENT_GENERATION_ORDER)]
+
+    @classmethod
+    def control_element(cls, element: str) -> str:
+        if element not in cls.ELEMENT_GENERATION_ORDER:
+            raise ValueError(f"unknown element: {element!r}")
+        index = cls.ELEMENT_GENERATION_ORDER.index(element)
+        return cls.ELEMENT_GENERATION_ORDER[(index + 2) % len(cls.ELEMENT_GENERATION_ORDER)]
+
+    @classmethod
     def element_relation(cls, source: str, target: str) -> str:
-        if source == target:
+        distance = cls.element_distance(source, target)
+        if distance == 0:
             return "same"
-        if cls.GENERATES.get(source) == target:
+        if distance == 1:
             return "generates"
-        if cls.CONTROLS.get(source) == target:
+        if distance == 2:
             return "controls"
         return "neutral"
 
