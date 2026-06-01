@@ -35,6 +35,19 @@ If you already have the repository, pull the latest `main` branch.
 
 ## 2. Install The Kernel / 安装内核
 
+Optional preflight check:
+
+可选部署前检查：
+
+```bash
+bash scripts/doctor-local.sh --skip-shell-deps
+```
+
+This checks Python, pip, Node.js, npm, the bundled shell tree, and default port
+availability. Use `--skip-shell` for kernel-only deployments.
+
+该命令会检查 Python、pip、Node.js、npm、内置壳目录和默认端口可用性。只部署内核时可使用 `--skip-shell`。
+
 Recommended local install:
 
 推荐本地安装方式：
@@ -47,6 +60,14 @@ This installs the Python kernel, runs `doctor`, and installs bundled shell npm
 dependencies.
 
 该脚本会安装 Python 内核、运行 `doctor`，并安装内置壳的 npm 依赖。
+
+Kernel-only install:
+
+只安装内核：
+
+```bash
+bash scripts/install-local.sh --skip-shell
+```
 
 Editable local install:
 
@@ -117,6 +138,11 @@ From the repository root:
 ```bash
 bash scripts/start-local.sh
 ```
+
+The start script runs the local deployment doctor before launching. It fails
+early if `14080`, `19080`, or `39017` is already occupied.
+
+启动脚本会在启动前运行本地部署诊断。如果 `14080`、`19080` 或 `39017` 已被占用，会提前失败并给出提示。
 
 Manual equivalent:
 
@@ -253,6 +279,14 @@ If port `14080`, `19080`, or `39017` is occupied, either stop the existing
 process or start OneCode with custom ports.
 
 如果 `14080`、`19080` 或 `39017` 端口被占用，停止已有进程，或用自定义端口启动 OneCode。
+
+Run the local deployment doctor for a direct diagnosis:
+
+可直接运行本地部署诊断：
+
+```bash
+bash scripts/doctor-local.sh
+```
 
 If the browser shows an old frontend after frontend edits, rebuild the shell:
 

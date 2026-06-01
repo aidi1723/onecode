@@ -4,6 +4,7 @@ set -euo pipefail
 DRY_RUN=0
 WITH_TUI=0
 SKIP_SHELL=0
+SKIP_PREFLIGHT=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -19,16 +20,22 @@ while [[ $# -gt 0 ]]; do
       SKIP_SHELL=1
       shift
       ;;
+    --skip-preflight)
+      SKIP_PREFLIGHT=1
+      shift
+      ;;
     -h|--help)
       cat <<'USAGE'
-Usage: bash scripts/install-local.sh [--with-tui] [--skip-shell] [--dry-run]
+Usage: bash scripts/install-local.sh [--with-tui] [--skip-shell]
+                                     [--skip-preflight] [--dry-run]
 
 Installs the OneCode kernel and, by default, the bundled LibreChat shell.
 
 Options:
-  --with-tui    Install the optional Textual TUI dependency.
-  --skip-shell  Install only the Python kernel.
-  --dry-run     Print commands without executing them.
+  --with-tui         Install the optional Textual TUI dependency.
+  --skip-shell       Install only the Python kernel.
+  --skip-preflight   Skip local environment checks.
+  --dry-run          Print commands without executing them.
 USAGE
       exit 0
       ;;
@@ -42,7 +49,8 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 SHELL_DIR="$ROOT_DIR/shell/onecode-librechat"
-PYTHON_BIN="${PYTHON:-python3}"
+# shellcheck source=scripts/lib/local-deploy.sh
+source "$SCRIPT_DIR/lib/local-deploy.sh"
 
 run() {
   if [[ "$DRY_RUN" -eq 1 ]]; then
@@ -54,9 +62,25 @@ run() {
 
 echo "OneCode local install"
 echo "root: $ROOT_DIR"
-echo "python: $PYTHON_BIN"
 
 cd "$ROOT_DIR"
+PYTHON_BIN="$(onecode_python_bin)"
+echo "python: $PYTHON_BIN"
+
+if [[ "$SKIP_PREFLIGHT" -eq 0 && "$DRY_RUN" -eq 0 ]]; then
+  if [[ "$SKIP_SHELL" -eq 1 ]]; then
+    bash "$SCRIPT_DIR/doctor-local.sh" --skip-ports --skip-shell
+  else
+    bash "$SCRIPT_DIR/doctor-local.sh" --skip-ports --skip-shell-deps
+  fi
+elif [[ "$SKIP_PREFLIGHT" -eq 0 ]]; then
+  if [[ "$SKIP_SHELL" -eq 1 ]]; then
+    echo "+ bash $SCRIPT_DIR/doctor-local.sh --skip-ports --skip-shell"
+  else
+    echo "+ bash $SCRIPT_DIR/doctor-local.sh --skip-ports --skip-shell-deps"
+  fi
+fi
+
 if [[ "$WITH_TUI" -eq 1 ]]; then
   run "$PYTHON_BIN" -m pip install -e ".[tui]"
 else
@@ -66,10 +90,6 @@ fi
 run "$PYTHON_BIN" -m onecode doctor
 
 if [[ "$SKIP_SHELL" -eq 0 ]]; then
-  if [[ ! -f "$SHELL_DIR/package.json" ]]; then
-    echo "bundled shell package.json not found: $SHELL_DIR/package.json" >&2
-    exit 1
-  fi
   echo "Installing bundled shell dependencies in shell/onecode-librechat"
   run npm install --prefix "$SHELL_DIR"
 fi

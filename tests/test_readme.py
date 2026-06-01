@@ -11,6 +11,7 @@ class ReadmeTests(unittest.TestCase):
 
         for snippet in [
             "bash scripts/verify.sh",
+            "bash scripts/doctor-local.sh",
             "bash scripts/install-local.sh",
             "bash scripts/start-local.sh",
             "DEPLOYMENT.md",

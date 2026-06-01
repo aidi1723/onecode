@@ -175,6 +175,14 @@ OneCode 本身不提供法律、审计、金融或监管认证。在受监管环
 
 ## Install / 安装
 
+Optional preflight check:
+
+可选部署前检查：
+
+```bash
+bash scripts/doctor-local.sh --skip-shell-deps
+```
+
 Recommended local install:
 
 推荐本地安装方式：
@@ -190,6 +198,11 @@ Then start the bundled kernel and shell:
 ```bash
 bash scripts/start-local.sh
 ```
+
+The start script checks default ports before launching and prints the browser
+URL. If a port is occupied, stop the existing process or pass custom ports.
+
+启动脚本会在启动前检查默认端口并输出浏览器地址。如果端口被占用，停止已有进程，或传入自定义端口。
 
 Manual kernel-only install:
 

@@ -1,4 +1,5 @@
 import os
+import socket
 import subprocess
 import sys
 import unittest
@@ -6,6 +7,27 @@ from pathlib import Path
 
 
 class VerifyScriptTests(unittest.TestCase):
+    def test_doctor_local_script_exists_and_supports_skip_flags(self):
+        script = Path("scripts/doctor-local.sh")
+
+        self.assertTrue(script.exists())
+        self.assertTrue(script.stat().st_mode & 0o111)
+
+        completed = subprocess.run(
+            [
+                "bash",
+                str(script),
+                "--skip-ports",
+                "--skip-shell",
+            ],
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+
+        self.assertIn("OneCode local deployment doctor", completed.stdout)
+        self.assertIn("status: ok", completed.stdout)
+
     def test_install_local_script_exists_and_supports_dry_run(self):
         script = Path("scripts/install-local.sh")
 
@@ -20,6 +42,7 @@ class VerifyScriptTests(unittest.TestCase):
         )
 
         self.assertIn("pip install -e .", completed.stdout)
+        self.assertIn("doctor-local.sh --skip-ports", completed.stdout)
         self.assertIn("npm install", completed.stdout)
         self.assertIn("shell/onecode-librechat", completed.stdout)
 
@@ -39,6 +62,49 @@ class VerifyScriptTests(unittest.TestCase):
         self.assertIn("onecode shell", completed.stdout)
         self.assertIn("--show-credentials", completed.stdout)
         self.assertIn("http://127.0.0.1:14080/c/new", completed.stdout)
+        self.assertIn("doctor-local.sh", completed.stdout)
+
+    def test_start_local_dry_run_uses_custom_landing_port(self):
+        completed = subprocess.run(
+            [
+                "bash",
+                "scripts/start-local.sh",
+                "--librechat-port",
+                "14180",
+                "--dry-run",
+            ],
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+
+        self.assertIn("http://127.0.0.1:14180/c/new", completed.stdout)
+        self.assertIn("--librechat-port 14180", completed.stdout)
+
+    def test_doctor_local_reports_busy_port(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.bind(("127.0.0.1", 0))
+            sock.listen(1)
+            busy_port = str(sock.getsockname()[1])
+
+            completed = subprocess.run(
+                [
+                    "bash",
+                    "scripts/doctor-local.sh",
+                    "--skip-shell",
+                    "--librechat-port",
+                    busy_port,
+                    "--onecode-port",
+                    "1",
+                    "--mongo-port",
+                    "2",
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn(f"busy: LibreChat shell port {busy_port}", completed.stderr)
 
     def test_demo_v07_script_exists_and_is_executable(self):
         script = Path("scripts/demo_v07.sh")
