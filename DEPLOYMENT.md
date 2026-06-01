@@ -35,9 +35,30 @@ If you already have the repository, pull the latest `main` branch.
 
 ## 2. Install The Kernel / 安装内核
 
-Optional preflight check:
+One-command local bootstrap:
 
-可选部署前检查：
+一条命令本地安装并启动：
+
+```bash
+bash scripts/bootstrap-local.sh
+```
+
+Equivalent Make shortcut:
+
+等价 Make 快捷命令：
+
+```bash
+make bootstrap
+```
+
+The bootstrap script runs install first, then starts the bundled kernel and Web
+shell in the foreground.
+
+该脚本会先安装，再以前台进程启动内置内核和 Web 壳。
+
+Step-by-step preflight check:
+
+分步部署前检查：
 
 ```bash
 bash scripts/doctor-local.sh --skip-shell-deps

@@ -121,9 +121,25 @@ OneCode 本身不提供法律、审计、金融或监管认证。在受监管环
 
 ## Install / 安装
 
-Optional preflight check:
+One-command local bootstrap:
 
-可选部署前检查：
+一条命令本地安装并启动：
+
+```bash
+bash scripts/bootstrap-local.sh
+```
+
+Equivalent Make shortcut:
+
+等价 Make 快捷命令：
+
+```bash
+make bootstrap
+```
+
+Step-by-step preflight check:
+
+分步部署前检查：
 
 ```bash
 bash scripts/doctor-local.sh --skip-shell-deps

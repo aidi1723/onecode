@@ -7,6 +7,42 @@ from pathlib import Path
 
 
 class VerifyScriptTests(unittest.TestCase):
+    def test_bootstrap_local_script_exists_and_supports_dry_run(self):
+        script = Path("scripts/bootstrap-local.sh")
+
+        self.assertTrue(script.exists())
+        self.assertTrue(script.stat().st_mode & 0o111)
+
+        completed = subprocess.run(
+            ["bash", str(script), "--dry-run"],
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+
+        self.assertIn("install-local.sh", completed.stdout)
+        self.assertIn("start-local.sh", completed.stdout)
+        self.assertIn("http://127.0.0.1:14080/c/new", completed.stdout)
+
+    def test_makefile_documents_customer_shortcuts(self):
+        makefile = Path("Makefile")
+
+        self.assertTrue(makefile.exists())
+        text = makefile.read_text(encoding="utf-8")
+
+        for snippet in [
+            "bootstrap:",
+            "doctor:",
+            "install:",
+            "start:",
+            "verify:",
+            "scripts/bootstrap-local.sh",
+            "scripts/doctor-local.sh",
+            "scripts/install-local.sh",
+            "scripts/start-local.sh",
+        ]:
+            self.assertIn(snippet, text)
+
     def test_doctor_local_script_exists_and_supports_skip_flags(self):
         script = Path("scripts/doctor-local.sh")
 

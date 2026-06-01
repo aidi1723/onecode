@@ -11,9 +11,11 @@ class ReadmeTests(unittest.TestCase):
 
         for snippet in [
             "bash scripts/verify.sh",
+            "bash scripts/bootstrap-local.sh",
             "bash scripts/doctor-local.sh",
             "bash scripts/install-local.sh",
             "bash scripts/start-local.sh",
+            "make bootstrap",
             "DEPLOYMENT.md",
             "bash scripts/demo_v07.sh",
             "python3 -m onecode doctor",
