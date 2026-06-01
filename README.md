@@ -1,280 +1,203 @@
 # OneCode
 
-OneCode is a local-first agent kernel prototype. It focuses on scoped file writes, append-only run evidence, stateful resumption, and deterministic Iching-derived status profiles.
+> English and 中文 are maintained together in this README.
+>
+> 本 README 同步维护英文与中文内容，GitHub 首页可直接阅读中文说明。
 
-The core kernel has no runtime third-party dependency. Textual is an optional TUI dependency.
+OneCode is a trusted industrial AI kernel for enterprise-grade local agent
+workflows. It reduces model error propagation by turning model outputs into
+candidates that must pass deterministic state, safety, evidence, and recovery
+checks before they can affect project files.
+
+OneCode 是面向企业级本地 Agent 工作流的可信任工业级 AI 内核。它把大模型输出视为候选结果，必须经过确定性状态、安全、证据和恢复检查后，才能影响项目文件，从而降低模型错误扩散。
+
+OneCode is not a general-purpose autonomous assistant. It is a controllable
+execution kernel for guarded file changes, deterministic state transitions,
+append-only run evidence, and resumable task execution.
+
+OneCode 不是全能型自主助手，而是一个可控执行内核，聚焦受保护文件变更、确定性状态转移、追加式运行证据和可恢复任务执行。
+
+The core kernel has no runtime third-party dependency. Optional shells and UI
+layers can connect through the CLI or the local OpenAI-compatible HTTP API.
+
+核心内核运行时不依赖第三方库。可选壳层和 UI 可以通过 CLI 或本地 OpenAI-compatible HTTP API 接入。
+
+Textual is an optional TUI dependency.
+
+Textual 是可选 TUI 依赖。
 
 OneCode is licensed under the Apache License, Version 2.0.
 
-The short module entrypoint is `python3 -m onecode`. The older explicit CLI module form, such as `python3 -m onecode.cli doctor`, remains supported.
+OneCode 使用 Apache License 2.0 开源协议。
 
-## Install
+## Core Capabilities / 核心能力
 
-Install the core CLI:
+- Guarded workspace writes through a path and intent gate.
+  通过路径与意图门控保护工作区写入。
+- Deterministic 6-bit state profile for every run outcome.
+  为每次运行结果生成确定性的 6-bit 状态画像。
+- Append-only WAL evidence with hash-chain validation.
+  通过追加式 WAL 证据和哈希链校验提供可追溯记录。
+- Stateful resume logic for completed, skipped, halted, and tampered runs.
+  对完成、跳过、中止和篡改场景提供状态化恢复逻辑。
+- Shell projection contract for CLI, Web API, and UI adapters.
+  为 CLI、Web API 和 UI 适配器提供稳定的壳层投影契约。
+- Local doctor and release verification scripts.
+  提供本地 doctor 与发布验证脚本。
+- Benchmark harness for rule, safety, sandbox, approval, and trace coverage.
+  提供覆盖规则、安全、沙箱、审批和追踪的基准测试框架。
+- Model-independent control layer for OpenAI-compatible, local, or third-party
+  candidate generators.
+  提供模型无关的控制层，可接入 OpenAI-compatible、本地或第三方候选生成器。
+- Low-disk-pressure evidence mode for normal completed runs.
+  为正常完成路径提供低磁盘压力证据模式。
+
+## Why It Matters / 为什么重要
+
+Large models can propose useful edits, but they can also hallucinate tools,
+paths, schemas, permissions, and completion status. OneCode inserts a
+deterministic control layer between the model and the workspace.
+
+大模型可以提出有用修改，但也可能幻觉工具、路径、schema、权限和完成状态。OneCode 在模型和工作区之间加入确定性控制层。
+
+The benchmark harness measures:
+
+基准测试框架衡量：
+
+- lower invalid-action propagation / 降低无效动作传播
+- higher verified task completion / 提高可验证任务完成率
+- fewer unsafe writes / 减少不安全写入
+- less repeated repair work / 减少重复修复
+- lower token use from fewer failed retries / 通过减少失败重试降低 token 使用
+- lower disk I/O from compact append-only evidence / 通过紧凑追加式证据降低磁盘 I/O
+- better task quality through verifier and evidence checks / 通过验证器和证据检查提升任务质量
+
+Verified local deterministic benchmark data is published in
+[`release/BENCHMARK_RESULTS.md`](release/BENCHMARK_RESULTS.md). That benchmark
+does not call a live model or external API, so token metrics are intentionally
+marked as not applicable for that run.
+
+已验证的本地确定性基准测试数据发布在
+[`release/BENCHMARK_RESULTS.md`](release/BENCHMARK_RESULTS.md)。该轮基准测试不调用真实模型或外部 API，因此 token 指标在该轮数据中明确标记为不适用。
+
+## Install / 安装
 
 ```bash
 pip install -e .
 ```
 
-Install the optional conversational TUI:
+Optional conversational TUI:
+
+可选对话式 TUI：
 
 ```bash
 pip install -e .[tui]
 ```
 
-The pinned TUI dependency is also mirrored in `requirements-tui.txt` for local virtualenv workflows.
+## Verify / 验证
 
-## Verify
+Fast core gate:
 
-Run the core local check when you want a fast gate without installing optional
-TUI dependencies:
+快速核心门禁：
 
 ```bash
 bash scripts/verify-core.sh
 ```
 
-This runs:
+Full local gate:
 
-- `python3 -m compileall src tests`
-- focused core `unittest` suites for runner, inspect/list-runs, execution,
-  model loop, benchmark, shell projection, Iching integration, resumption, and
-  task resume
-- `python3 -m onecode doctor`
-
-Run the complete local check, including optional TUI installation and all tests:
+完整本地门禁：
 
 ```bash
 bash scripts/verify.sh
 ```
 
-This runs:
+## Run / 运行
 
-- `python3 -m compileall src tests`
-- `python3 -m unittest discover -s tests -v`
-- `python3 -m onecode doctor`
+Doctor smoke check:
 
-## v0.2 Hardening Foundations
-
-OneCode v0.2 adds four maturity foundations around the existing local kernel:
-
-- Docker sandbox command construction in `onecode.kernel.sandbox`
-- append-only trace event JSONL records in `onecode.kernel.trace`, emitted
-  through runner, model-call, checkpoint, and verifier paths
-- human approval decision JSONL records in `onecode.kernel.approval`
-- benchmark task loading, execution, scoring, and report writing in
-  `onecode.benchmark`
-
-List the current benchmark task set:
-
-```bash
-PYTHONPATH=src python3 -m onecode benchmark
-```
-
-Run the default benchmark task set and write a report:
-
-```bash
-PYTHONPATH=src python3 -m onecode benchmark --run \
-  --workspace-root /tmp/onecode-benchmark-workspaces \
-  --report /tmp/onecode-benchmark-report.json
-```
-
-The default benchmark set contains 20 executable local tasks. The sandbox
-adapter is available to verifier callers as an explicit option, but OneCode does
-not yet force all kernel execution paths through Docker.
-
-## Shell Projection Contract
-
-Shell-facing adapters should consume `shell_projection` instead of inferring
-status from raw kernel evidence. The current projection schema is versioned as
-`version: 1` and exposes:
-
-- `status_label`, `severity`, `next_action`, and `compact_message` for concise
-  UI/CLI rendering
-- `rule_state` for Iching-derived status code, transition action/reason, and
-  dispatch decision
-- `delivery_state` for requested/completed/skipped/failed counts
-- `evidence_ref` for WAL/full evidence references and profile hash lookup
-- `resume_state` for resumed run relationships
-
-Raw run dictionaries, ledgers, manifests, and WAL records remain kernel/audit
-data. Shells may display them, but should not mutate them or rely on incidental
-raw field combinations when `shell_projection` is present.
-
-Shell adapters can discover the contract without reading source code:
-
-```bash
-PYTHONPATH=src python3 -m onecode shell-schema
-```
-
-The same contract is exposed over the local Web API:
-
-```text
-GET /v1/onecode/shell/schema
-Authorization: Bearer <ONECODE_API_TOKEN>
-```
-
-Run the Docker sandbox smoke check:
-
-```bash
-mkdir -p /tmp/onecode-sandbox-smoke
-PYTHONPATH=src python3 -m onecode sandbox-smoke \
-  --workspace /tmp/onecode-sandbox-smoke \
-  --report /tmp/onecode-sandbox-smoke/report.json
-```
-
-If Docker is not installed, the command exits with code `2` and writes a
-structured `blocked` report with `reason: docker_not_found`.
-
-## Local Demo
-
-Run the v0.7 local verifier workflow in a temporary workspace:
-
-```bash
-bash scripts/demo_v07.sh
-```
-
-## Doctor
-
-Run the built-in smoke check:
+Doctor 冒烟检查：
 
 ```bash
 PYTHONPATH=src python3 -m onecode doctor
 ```
 
-`doctor` runs four real local paths in a temporary workspace:
+Run a guarded file write:
 
-- `write_text`
-- `resume_skip`
-- `sovereignty_breach`
-- `http_timeout`
+运行一次受保护文件写入：
 
-It prints JSON and exits non-zero if any check fails.
+```bash
+PYTHONPATH=src python3 -m onecode run \
+  --workspace . \
+  --intent write_text \
+  --path demo.txt \
+  --content "hello OneCode"
+```
 
-## Self Audit
+Start the local API:
 
-Run the project-level self audit:
+启动本地 API：
+
+```bash
+PYTHONPATH=src ONECODE_API_TOKEN=dev-local-token \
+  python3 -m onecode serve --host 127.0.0.1 --port 8080
+```
+
+Discover the shell projection schema:
+
+查看壳层投影 schema：
+
+```bash
+PYTHONPATH=src python3 -m onecode shell-schema
+```
+
+## Command Reference / 命令速查
+
+The short module entrypoint is `python3 -m onecode`. The older explicit CLI
+module form, such as `python3 -m onecode.cli doctor`, remains supported.
+
+简写模块入口是 `python3 -m onecode`。旧的显式 CLI 模块形式仍然支持，例如 `python3 -m onecode.cli doctor`。
+
+Run the local verifier demo:
+
+运行本地验证器演示：
+
+```bash
+bash scripts/demo_v07.sh
+```
+
+Run the project self audit:
+
+运行项目自审计：
 
 ```bash
 onecode audit-self
 ```
 
-`audit-self` reviews the CLI shell, TUI bootstrap, model provider matrix, `compileall`, unittest, and `doctor`. The final status is collapsed through `IchingKernel` into an `iching_status_code`, transition action, and dispatch decision.
+Start the optional TUI:
 
-## TUI
-
-Start the conversational shell:
+启动可选 TUI：
 
 ```bash
 onecode tui
 ```
 
-The TUI is optional and requires Textual. It routes chat through the configured model endpoint, while task execution still flows through the kernel loop, `LogosGate`, `PathGuard`, and ledger evidence.
+The TUI writes plain-text exports under the active workspace:
 
-TUI output is also written as plain text under the active workspace:
+TUI 会在当前工作区写入纯文本导出：
 
 ```text
 .onecode/tui-transcript.txt
 .onecode/tui-last-output.txt
 ```
 
-Use `/export` or `/export-last` in the TUI to print those paths when terminal box selection is inconvenient.
+Use `/export-last` in the TUI to print the latest output path.
 
-## LibreChat Shell API
-
-Start OneCode's OpenAI-compatible HTTP API for a LibreChat custom endpoint:
-
-```bash
-PYTHONPATH=src ONECODE_API_TOKEN=dev-local-token python3 -m onecode serve --host 127.0.0.1 --port 8080
-```
-
-LibreChat should point its custom endpoint at:
-
-```text
-ONECODE_API_BASE_URL=http://localhost:8080/v1
-ONECODE_API_TOKEN=dev-local-token
-```
-
-The API exposes `/health`, `/v1/models`, and `/v1/chat/completions`. It calls OneCode core directly and does not depend on any OneWord gateway service.
-
-This server uses Python's stdlib HTTP stack and is intended for local preview
-or a trusted loopback bridge. Keep it on `127.0.0.1` unless it is placed behind
-an explicit production gateway with TLS, rate limiting, request-size limits, and
-operator-owned authentication. Token checks use constant-time comparison when a
-token is configured; unauthenticated mode is only available through the explicit
-loopback-only local flag.
-
-## Local Agent Shell
-
-If the LibreChat shell repository is installed next to this repository as `../onecode-librechat`, start the full local OneCode Agent shell with:
-
-```bash
-PYTHONPATH=src python3 -m onecode shell
-```
-
-This launches a temporary local MongoDB, the OneCode API, and the LibreChat Web shell. Open:
-
-```text
-http://127.0.0.1:3080
-```
-
-Local preview login:
-
-```text
-Email: onecode@local.test
-Password: OneCode123!
-```
-
-Registration is enabled by the launcher, so you can also create a local account from the login screen. Use `Ctrl+C` in the launcher terminal to stop all local services.
-
-## Run
-
-Write one asset:
-
-```bash
-PYTHONPATH=src python3 -m onecode run "write asset" \
-  --workspace /tmp/onecode-demo \
-  --run-id demo-run \
-  --write-path src/demo.py \
-  --write-content "value = 1\n" \
-  --max-write-bytes 5000000
-```
-
-Write multiple assets:
-
-```bash
-PYTHONPATH=src python3 -m onecode run "write assets" \
-  --workspace /tmp/onecode-demo \
-  --run-id demo-multi \
-  --write-text "src/a.py=a = 1\n" \
-  --write-text "tests/test_a.py=def test_a():\n    assert True\n"
-```
-
-Resume from an earlier run:
-
-```bash
-PYTHONPATH=src python3 -m onecode run "resume asset" \
-  --workspace /tmp/onecode-demo \
-  --run-id demo-resume \
-  --resume-from demo-run \
-  --write-path src/demo.py \
-  --write-content "value = 2\n"
-```
-
-If the prior asset exists and its SHA256 matches the old manifest, OneCode skips the write and records `resumed_asset_ready`.
-
-## Run Plan
+可在 TUI 中使用 `/export-last` 打印最近输出路径。
 
 Run a structured task plan:
 
-```json
-{
-  "task": "build demo",
-  "assets": [
-    {"path": "src/demo.py", "content": "value = 1\n"},
-    {"path": "tests/test_demo.py", "content": "def test_demo():\n    assert True\n"}
-  ]
-}
-```
+运行结构化任务计划：
 
 ```bash
 PYTHONPATH=src python3 -m onecode run-plan \
@@ -283,17 +206,31 @@ PYTHONPATH=src python3 -m onecode run-plan \
   --plan /tmp/onecode-demo/task-plan.json
 ```
 
-Resume a plan-backed task through the same checkpoint and skip rules:
+Write multiple assets or resume from prior evidence:
+
+写入多个资产，或从历史证据恢复：
 
 ```bash
-PYTHONPATH=src python3 -m onecode run-plan \
+PYTHONPATH=src python3 -m onecode run "write assets" \
   --workspace /tmp/onecode-demo \
-  --run-id demo-plan-resume \
-  --resume-from demo-plan \
-  --plan /tmp/onecode-demo/task-plan.json
+  --run-id demo-multi \
+  --write-text "src/a.py=a = 1\n" \
+  --write-text "tests/test_a.py=def test_a():\n    assert True\n" \
+  --max-write-bytes 5000000 \
+  --max-trace-bytes 1000000 \
+  --max-run-seconds 30
+
+PYTHONPATH=src python3 -m onecode run "resume asset" \
+  --workspace /tmp/onecode-demo \
+  --run-id demo-resume \
+  --resume-from demo-multi \
+  --write-path src/a.py \
+  --write-content "a = 1\n"
 ```
 
-Generate a local verifier policy and require a controlled verifier before delivery:
+Generate and use a verifier policy:
+
+生成并使用验证器策略：
 
 ```bash
 PYTHONPATH=src python3 -m onecode list-verifier-presets
@@ -301,98 +238,81 @@ PYTHONPATH=src python3 -m onecode list-verifier-presets
 PYTHONPATH=src python3 -m onecode init-verifier-policy \
   --workspace /tmp/onecode-demo \
   --preset python-unittest
-```
 
-After initialization, `run-plan --verifier` reads the workspace default policy at `.onecode/verifier-policy.json`:
-
-```bash
 PYTHONPATH=src python3 -m onecode run-plan \
   --workspace /tmp/onecode-demo \
   --run-id demo-plan-verified \
   --plan /tmp/onecode-demo/task-plan.json \
-  --verifier python-unittest
+  --verifier python-unittest \
+  --verifier-policy /tmp/onecode-demo/.onecode/verifier-policy.json
 ```
 
-Use `--verifier-policy` to override the workspace default policy path.
+After initialization, `run-plan --verifier` reads the workspace default policy
+at `.onecode/verifier-policy.json`.
 
-## Inspect
+初始化后，`run-plan --verifier` 会读取工作区默认策略 `.onecode/verifier-policy.json`。
 
-Inspect one run:
+Inspect evidence:
+
+检查证据：
 
 ```bash
 PYTHONPATH=src python3 -m onecode inspect \
   --workspace /tmp/onecode-demo \
-  --run-id demo-run
-```
+  --run-id demo-plan-verified
 
-List all runs in a workspace:
-
-```bash
 PYTHONPATH=src python3 -m onecode list-runs \
   --workspace /tmp/onecode-demo
 ```
 
-Run evidence is stored under:
-
-```text
-<workspace>/.onecode/runs/<run-id>/
-```
-
-Each run contains `manifest.json`, `ledger.json`, `ledger.jsonl`, `trace.jsonl`, `evidence-chain.jsonl`, and checkpoint files.
-`ledger.json` is the latest user-facing result. `ledger.jsonl` is the append-only result history for repeated writes to the same run evidence directory.
-`evidence-chain.jsonl` records a tamper-evident SHA256 chain over ledger writes.
-`inspect` verifies checkpoint hashes, evidence-chain continuity, and, when a run records `trace_path`, requires a terminal `run_completed` trace event.
-
-## Safety Model
-
-All physical writes go through `PathGuard.write_text()` after `LogosGate.preflight()`. The current write surface is intentionally limited to guarded `write_text` and `patch_text`. `bash_execution` and `execute_pytest` are auditable intent types, but Phase 1 denies them before execution.
-
-`bash_execution` and `execute_pytest` are not dead code and are not advertised as
-usable tools. They are reserved intent names that let the kernel record and test
-high-risk requests as `permission_denied` evidence without executing them.
-
-Runtime action exceptions are contained by `LogosGate.run_bounded_action()` and
-returned as halted evidence with `reason: action_exception`. Controlled
-verifiers keep the compatible `status: failed` shape while also reporting a
-machine-readable `failure_kind` such as `command_failed` or `timeout`.
-
-Run-level failures are collapsed into halted evidence with `reason:
-run_exception` where possible. Resource guardrails such as `--max-task-chars`,
-`--max-write-bytes`, `--max-actions`, `--max-trace-bytes`, and
-`--max-run-seconds` reject oversized or overlong runs with
-`resource_budget_exceeded` before writing further target files where possible,
-while still recording manifest, checkpoint, ledger, evidence-chain, and
-`run_completed` trace evidence.
-
-The Docker sandbox adapter uses local-first defensive defaults: network
-disabled by default, memory and CPU limits, `--pids-limit`, `--cap-drop ALL`, a
-read-only container filesystem where compatible, and a bounded `/tmp` tmpfs.
-The sandbox is available for smoke checks and verifier execution; the main
-write path remains a guarded file-change path rather than an unrestricted
-command runner.
-
-The kernel records an `iching_profile` in run evidence. This profile is a deterministic control view over status bits, yin-yang balance, four-symbol windows, trigram records, five-element relations, and runtime transition decisions.
-
 Run the math-rule audit:
+
+运行数学规则审计：
 
 ```bash
 PYTHONPATH=src python3 -m onecode math-audit
 ```
 
-`math-audit` is read-only. It reports the 64-state transition graph summary,
-attractor count, `Q6` topology closure, stability boundaries, Lyapunov energy
-certificates, entropy-gate efficiency probes, accepted control-theory mappings,
-total-mapping safety certificates, collision-risk checks, and reference-only
-formulas that are intentionally not part of the deterministic kernel.
+The audit reports the transition graph and related deterministic state checks.
 
-## Rule Closure Principle
+该审计会报告 transition graph 以及相关确定性状态检查。
 
-OneCode rule: external facts are evidence, not law. Filesystem presence, SHA256 matches, path traversal, permission denial, and timeout are sampled as physical evidence, then collapsed into the existing rule surface: `6-bit status_code`, yin-yang pressure, four-symbol windows, trigrams, five-element dynamics, and `IchingKernel.transition()`.
+Evidence files include `evidence-chain.jsonl`, terminal `run_completed` trace
+events, and guarded halt reasons such as `resource_budget_exceeded`.
 
-Bug fixes must close inside that rule surface. If a test exposes a runtime split, the fix should refine classification, yin-yang balance, five-element relations, or transition behavior. It must not add forbidden parallel control variables such as confidence levels, model moods, manual priorities, retry scores, or external policy flags.
+证据文件包含 `evidence-chain.jsonl`、终止态 `run_completed` 追踪事件，以及 `resource_budget_exceeded` 等受控中止原因。
 
-## Rule Discovery Protocol
+The Docker sandbox adapter uses defensive flags such as `--cap-drop ALL`.
 
-Bug reports are rule-gap probes. When OneCode cannot process a task, the failure is treated as missing rule coverage until proven otherwise. The fix path is to add a failing test, collapse the observed evidence into an existing or new `6-bit status_code`, refine the yin-yang or five-element transition rule, and verify the resulting manifest, ledger, and checkpoint evidence.
+Docker 沙箱适配器使用 `--cap-drop ALL` 等防御性参数。
 
-If a runtime result cannot yet be mapped to a specific operating rule, the missing mapping must be closed by adding a failing test and extending `IchingKernel.transition()` or its classifiers. That audit output marks the next rule-discovery target; it is not permission to add external control variables.
+## Safety Model / 安全模型
+
+OneCode treats model output as a candidate, not an authority. File changes must
+pass through the kernel's intent, path, evidence, and transition checks before
+they are written.
+
+OneCode 把模型输出视为候选结果，而不是执行权威。文件变更必须先通过内核的意图、路径、证据和状态转移检查。
+
+Normal completed runs can use WAL-only relaxed evidence for low disk pressure.
+Denied or halted paths retain stronger forensic evidence.
+
+正常完成路径可以使用 WAL-only relaxed 低磁盘压力证据模式；拒绝或中止路径保留更强的取证证据。
+
+## Public Release Documents / 公开发布文档
+
+- [`release/PUBLIC_README.md`](release/PUBLIC_README.md) - public project overview / 公开项目介绍
+- [`release/BENCHMARK_RESULTS.md`](release/BENCHMARK_RESULTS.md) - benchmark results / 基准测试结果
+- [`release/RELEASE_NOTES.md`](release/RELEASE_NOTES.md) - release notes / 发布说明
+- [`release/TERMINOLOGY.md`](release/TERMINOLOGY.md) - public terminology / 公开术语
+- [`release/OPEN_SOURCE_CHECKLIST.md`](release/OPEN_SOURCE_CHECKLIST.md) - open-source readiness checklist / 开源准备检查清单
+
+## Status / 状态
+
+This release is suitable as a local development baseline, integration prototype,
+and enterprise evaluation baseline for trusted industrial AI workflows.
+Production deployment still requires an operator-owned gateway, authentication,
+TLS, request-size limits, rate limiting, and environment-specific secret
+management.
+
+当前版本适合作为本地开发基线、集成原型和企业级可信工业 AI 工作流评估基线。生产部署仍需要由使用方掌控的网关、鉴权、TLS、请求大小限制、限流和环境级密钥管理。
