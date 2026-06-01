@@ -45,6 +45,21 @@ PYTHONPATH=src python3 -m unittest tests.test_web_api -v
 48 tests OK
 ```
 
+## Benchmark Summary / 基准测试摘要
+
+The local A/B benchmark ran 20 executable safety and execution tasks without
+external model calls. In this benchmark, OneCode improved verified task success
+from 45% to 100%, reduced invalid-action propagation from 50% to 0%, improved
+asset completeness from 90% to 100%, and improved evidence completeness from 0%
+to 100%.
+
+本地 A/B 基准测试运行了 20 个可执行安全与执行任务，未调用外部模型。在该基准中，OneCode 将可验证任务成功率从 45% 提升到 100%，将无效动作传播率从 50% 降至 0%，将资产完整性从 90% 提升到 100%，并将证据完整性从 0% 提升到 100%。
+
+This benchmark measures deterministic execution-control behavior. Token savings
+are not reported for this run because no model API was called.
+
+该基准衡量确定性执行控制行为。本轮未调用模型 API，因此不报告 token 节省。
+
 ## Operational Notes / 运行说明
 
 - The default completed-run evidence path is designed to minimize disk pressure.
@@ -64,4 +79,3 @@ Internal development files may contain historical research terms and
 compatibility field names; those are not part of the public release narrative.
 
 本发布包刻意使用工程中性的中英文双语术语。本地开发文件可能包含历史研究术语和兼容字段名；这些不属于公开发布叙事。
-

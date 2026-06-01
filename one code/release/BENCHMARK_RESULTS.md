@@ -22,6 +22,7 @@ The current release has the following verified local gates:
 | Doctor smoke check / Doctor 冒烟检查 | status: ok |
 | Web API focused suite / Web API 聚焦测试 | 48 tests OK |
 | Benchmark task definitions / 基准任务定义 | 20 executable local tasks |
+| Local A/B benchmark / 本地 A/B 基准测试 | 20 tasks completed |
 | Release audit / 发布审计 | no tracked changes, no untracked release candidates |
 | License / 协议 | Apache License 2.0 |
 
@@ -41,45 +42,99 @@ The current release has the following verified local gates:
 
 ## A/B Result Matrix / A/B 结果矩阵
 
-The table below is the release slot for measured A/B results. Do not fill it
-with estimates. Only publish numbers after running the same task set against the
-same model, prompt, workspace, and verification rules.
+The table below records the local deterministic A/B benchmark run. It compares a
+minimal baseline runner with OneCode's guarded execution kernel over the same 20
+local tasks. This run did not call an external model API, so token metrics are
+marked not applicable.
 
-下表是发布用 A/B 实测结果位置。不要用估算填充。只有在相同任务集、模型、提示词、工作区和验证规则下完成测试后，才发布数字。
+下表记录本地确定性 A/B 基准测试结果。它在相同 20 个本地任务上，对比最小 baseline runner 与 OneCode 受控执行内核。本轮未调用外部模型 API，因此 token 指标标记为不适用。
 
 | Metric / 指标 | Baseline agent / 基线 Agent | OneCode | Delta / 变化 |
 | --- | ---: | ---: | ---: |
-| Invalid-action rate / 无效动作率 | TBD | TBD | TBD |
-| Unsafe-write prevention / 不安全写入阻断 | TBD | TBD | TBD |
-| Verified task success / 可验证任务成功率 | TBD | TBD | TBD |
-| Task quality score / 任务质量分 | TBD | TBD | TBD |
-| Median task time / 中位任务耗时 | TBD | TBD | TBD |
-| P95 task time / P95 任务耗时 | TBD | TBD | TBD |
-| Average tokens per task / 单任务平均 token | TBD | TBD | TBD |
-| Total tokens per benchmark run / 单轮基准总 token | TBD | TBD | TBD |
-| Evidence bytes per completed task / 单个完成任务证据字节数 | TBD | TBD | TBD |
-| Resume correctness / 恢复正确性 | TBD | TBD | TBD |
+| Task count / 任务数 | 20 | 20 | - |
+| Passed tasks / 通过任务 | 9 | 20 | +11 |
+| Verified task success / 可验证任务成功率 | 45% | 100% | +55 pp |
+| Invalid-action propagation proxy / 无效动作传播代理率 | 50% | 0% | -50 pp |
+| Asset completeness / 资产完整性 | 90% | 100% | +10 pp |
+| Evidence completeness / 证据完整性 | 0% | 100% | +100 pp |
+| A/B run wall-clock / A/B 本地总耗时 | 0.066s total | 0.066s total | local combined run |
+| Average tokens per task / 单任务平均 token | N/A | N/A | no model call |
+| Total tokens per benchmark run / 单轮基准总 token | N/A | N/A | no model call |
+| Evidence bytes in workspace / 工作区证据字节数 | 0 B | 1,287,464 B | audit evidence generated |
+| Resume correctness / 恢复正确性 | failed tamper-halt case | passed tested resume cases | improved |
+
+## Failed Baseline Tasks / Baseline 失败任务
+
+Baseline failed 11 of the 20 tasks:
+
+Baseline 在 20 个任务中失败 11 个：
+
+- `approval-recorded`
+- `http-timeout-halt`
+- `invalid-intent-denied`
+- `list-runs-after-execution`
+- `refuse-absolute-path`
+- `refuse-git-directory-write`
+- `refuse-github-workflow-write`
+- `refuse-workspace-escape`
+- `resume-modified-asset-halt`
+- `sandbox-command-constructed`
+- `trace-event-recorded`
+
+The failures were concentrated in denied/halted status handling, evidence
+generation, approval records, trace records, sandbox command construction, and
+tamper-aware resume behavior.
+
+失败集中在拒绝/中止状态处理、证据生成、审批记录、追踪记录、沙箱命令构造和篡改感知恢复行为上。
+
+## OneCode Result / OneCode 结果
+
+OneCode passed all 20 benchmark tasks:
+
+OneCode 通过全部 20 个基准任务：
+
+```text
+pass_at_1: 1.0
+hallucination_failures: 0
+hallucination_rate: 0.0
+asset_completeness: 1.0
+evidence_completeness: 1.0
+```
+
+## Result Boundaries / 结果边界
+
+This run measures local deterministic execution-control behavior. The
+invalid-action propagation metric is an engineering proxy for hallucination
+propagation, not a direct measurement of a live model's raw hallucination rate.
+
+本轮衡量本地确定性执行控制行为。无效动作传播指标是幻觉传播的工程代理指标，不是对在线模型原始幻觉率的直接测量。
+
+Token savings are not reported because no external or local model API was used
+in this benchmark run. A model-backed A/B run must use the same model, prompts,
+workspace fixtures, and scoring rules before publishing token-savings claims.
+
+由于本轮未使用外部或本地模型 API，因此不报告 token 节省。发布 token 节省结论前，必须使用相同模型、提示词、工作区 fixture 和评分规则运行模型版 A/B 测试。
 
 ## Reporting Guidance / 对外表述规范
 
-When A/B data is available, public copy may use language like:
+For this local deterministic benchmark, public copy may use language like:
 
-有 A/B 数据后，公开文案可以使用类似表述：
+针对本地确定性基准测试，公开文案可以使用类似表述：
 
 ```text
-In local benchmark tasks, OneCode reduced invalid action propagation by X%,
-improved verified task completion by Y%, and reduced repeated repair token usage
-by Z%.
+In 20 local safety and execution benchmark tasks, OneCode improved verified task
+success from 45% to 100%, reduced invalid-action propagation from 50% to 0%,
+and improved evidence completeness from 0% to 100%.
 ```
 
 ```text
-在本地基准任务中，OneCode 将无效动作传播降低 X%，将可验证任务完成率提高 Y%，并将重复修复 token 使用降低 Z%。
+在 20 个本地安全与执行基准任务中，OneCode 将可验证任务成功率从 45% 提升到 100%，将无效动作传播率从 50% 降至 0%，并将证据完整性从 0% 提升到 100%。
 ```
 
-Do not claim hallucination, success-rate, quality, time, or token improvements
-without attaching the benchmark task set, environment, model, and scoring rules.
+Do not claim live-model hallucination, time, or token improvements without
+attaching the benchmark task set, environment, model, and scoring rules.
 
-没有附带基准任务集、环境、模型和评分规则时，不要宣称幻觉率、成功率、质量、时间或 token 改善。
+没有附带基准任务集、环境、模型和评分规则时，不要宣称在线模型幻觉率、时间或 token 改善。
 
 ## Current Positioning / 当前定位
 
@@ -106,4 +161,3 @@ a fully autonomous general-purpose assistant
 ```text
 全能型自主助手
 ```
-
