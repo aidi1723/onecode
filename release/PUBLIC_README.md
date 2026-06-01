@@ -72,6 +72,37 @@ general-purpose Codex replacement.
 
 在相同 20 个 benchmark 任务的模型版补充 A/B 中，OneCode+LM 在资产完整性上看齐 Codex+LM，在 Pass@1 和证据完整性上超过 Codex+LM，并显著降低工作流 token 与墙钟耗时。这是有边界的基准测试结果，不是宣称 OneCode 可以完整替代通用 Codex。
 
+## Application Scenarios / 应用场景
+
+OneCode is best suited to domains where AI output must be controllable,
+auditable, and replayable before it changes files or triggers downstream
+workflow steps.
+
+OneCode 更适合那些要求 AI 输出在修改文件或触发下游流程前必须可控、可审计、可复放的领域。
+
+- Finance operations: controlled report generation, reconciliation scripts,
+  month-end close automation, policy-bound spreadsheet or ledger changes.
+  财务运营：受控报表生成、对账脚本、月结自动化、受策略约束的表格或账本变更。
+- Audit and assurance: evidence-preserving task execution, tamper detection,
+  repeatable workpaper generation, traceable remediation workflows.
+  审计与鉴证：保留证据的任务执行、篡改识别、可复放底稿生成、可追踪整改流程。
+- Security engineering: guarded code changes, sandbox and approval workflows,
+  unsafe write blocking, incident-response runbook execution with evidence.
+  安全工程：受保护代码变更、沙箱与审批流程、不安全写入阻断、带证据链的应急响应 runbook 执行。
+- Financial technology and regulated workflows: deterministic control around
+  model-generated candidates, local API integration, resumable execution, and
+  compact append-only evidence.
+  金融科技与受监管流程：围绕模型候选输出提供确定性控制、本地 API 集成、可恢复执行和紧凑追加式证据。
+- Enterprise internal tooling: local agent kernels for controlled file
+  mutation, verifier-driven automation, and operator-owned deployment.
+  企业内部工具：用于受控文件变更、验证器驱动自动化和使用方自主管理部署的本地 Agent 内核。
+
+OneCode does not by itself provide legal, audit, financial, or regulatory
+certification. In regulated environments it should be deployed behind
+operator-owned identity, approval, logging, retention, and review controls.
+
+OneCode 本身不提供法律、审计、金融或监管认证。在受监管环境中，应部署在使用方掌控的身份、审批、日志、留存和复核控制之后。
+
 ## Install / 安装
 
 ```bash

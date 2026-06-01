@@ -16,6 +16,12 @@ This checklist records the current public-release readiness state.
   工程中性的公开术语。
 - [x] Public positioning: trusted industrial AI kernel for enterprise-grade local agent workflows.
   公开定位：面向企业级本地 Agent 工作流的可信任工业级 AI 内核。
+- [x] Bundled custom Web shell documented and linked from the public README.
+  内置定制 Web 壳已记录，并从公开 README 链接。
+- [x] Kernel and bundled shell deployment guide.
+  内核和内置壳部署说明。
+- [x] Application scenarios and regulated-environment boundary documented.
+  应用场景和受监管环境边界已记录。
 - [x] Core verification gate.
   核心验证门禁。
 - [x] Web API focused test gate.

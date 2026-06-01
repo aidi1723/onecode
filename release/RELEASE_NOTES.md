@@ -30,6 +30,26 @@ evidence.
 - Public release pack with engineering-neutral bilingual terminology.
   提供工程中性、双语同步的公开发布包。
 
+## Application Scenarios / 应用场景
+
+OneCode is appropriate for local agent workflows that require deterministic
+control, evidence preservation, and repeatable recovery before model-generated
+candidates can change project files or trigger downstream actions.
+
+OneCode 适合那些在模型候选结果修改项目文件或触发下游动作前，需要确定性控制、证据留存和可复放恢复的本地 Agent 工作流。
+
+Representative evaluation targets include finance operations, audit and
+assurance workpapers, security engineering automation, financial technology
+tooling, regulated internal workflows, and enterprise development operations.
+
+代表性评估场景包括财务运营、审计与鉴证底稿、安全工程自动化、金融科技工具、受监管内部流程和企业研发运维。
+
+OneCode does not by itself provide legal, audit, financial, or regulatory
+certification. Regulated deployments should add operator-owned identity,
+approval, logging, retention, review, backup, and gateway controls.
+
+OneCode 本身不提供法律、审计、金融或监管认证。受监管部署应增加使用方掌控的身份、审批、日志、留存、复核、备份和网关控制。
+
 ## Verification / 验证
 
 Validated release gates:
