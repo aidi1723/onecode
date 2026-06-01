@@ -35,11 +35,13 @@ class VerifyScriptTests(unittest.TestCase):
             "doctor:",
             "install:",
             "start:",
+            "status:",
             "verify:",
             "scripts/bootstrap-local.sh",
             "scripts/doctor-local.sh",
             "scripts/install-local.sh",
             "scripts/start-local.sh",
+            "scripts/status-local.sh",
         ]:
             self.assertIn(snippet, text)
 
@@ -100,6 +102,23 @@ class VerifyScriptTests(unittest.TestCase):
         self.assertIn("http://127.0.0.1:14080/c/new", completed.stdout)
         self.assertIn("doctor-local.sh", completed.stdout)
 
+    def test_status_local_script_exists_and_supports_dry_run(self):
+        script = Path("scripts/status-local.sh")
+
+        self.assertTrue(script.exists())
+        self.assertTrue(script.stat().st_mode & 0o111)
+
+        completed = subprocess.run(
+            ["bash", str(script), "--dry-run"],
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+
+        self.assertIn("onecode shell-status", completed.stdout)
+        self.assertIn("--onecode-port 19080", completed.stdout)
+        self.assertIn("--librechat-port 14080", completed.stdout)
+
     def test_start_local_dry_run_uses_custom_landing_port(self):
         completed = subprocess.run(
             [
@@ -115,6 +134,25 @@ class VerifyScriptTests(unittest.TestCase):
         )
 
         self.assertIn("http://127.0.0.1:14180/c/new", completed.stdout)
+        self.assertIn("--librechat-port 14180", completed.stdout)
+
+    def test_status_local_dry_run_uses_custom_ports(self):
+        completed = subprocess.run(
+            [
+                "bash",
+                "scripts/status-local.sh",
+                "--onecode-port",
+                "19180",
+                "--librechat-port",
+                "14180",
+                "--dry-run",
+            ],
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+
+        self.assertIn("--onecode-port 19180", completed.stdout)
         self.assertIn("--librechat-port 14180", completed.stdout)
 
     def test_doctor_local_reports_busy_port(self):

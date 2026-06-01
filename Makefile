@@ -1,4 +1,4 @@
-.PHONY: bootstrap doctor install install-kernel start verify verify-core
+.PHONY: bootstrap doctor install install-kernel start status verify verify-core
 
 bootstrap:
 	bash scripts/bootstrap-local.sh
@@ -14,6 +14,9 @@ install-kernel:
 
 start:
 	bash scripts/start-local.sh
+
+status:
+	bash scripts/status-local.sh
 
 verify:
 	bash scripts/verify.sh

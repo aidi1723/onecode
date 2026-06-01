@@ -137,6 +137,16 @@ Equivalent Make shortcut:
 make bootstrap
 ```
 
+Check local service status:
+
+检查本地服务状态：
+
+```bash
+bash scripts/status-local.sh
+# or / 或
+make status
+```
+
 Step-by-step preflight check:
 
 分步部署前检查：

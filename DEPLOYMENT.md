@@ -51,6 +51,16 @@ Equivalent Make shortcut:
 make bootstrap
 ```
 
+Check local service status:
+
+检查本地服务状态：
+
+```bash
+bash scripts/status-local.sh
+# or / 或
+make status
+```
+
 The bootstrap script runs install first, then starts the bundled kernel and Web
 shell in the foreground.
 
@@ -307,6 +317,14 @@ Run the local deployment doctor for a direct diagnosis:
 
 ```bash
 bash scripts/doctor-local.sh
+```
+
+If the shell was started already, check live service reachability:
+
+如果壳已经启动，可检查实时服务可达性：
+
+```bash
+bash scripts/status-local.sh
 ```
 
 If the browser shows an old frontend after frontend edits, rebuild the shell:
