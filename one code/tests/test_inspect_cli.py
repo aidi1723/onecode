@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -10,6 +11,7 @@ from unittest.mock import patch
 
 from onecode.cli import delivery_summary, inspect_run, main
 from onecode.kernel.model_provider import ModelPlan, ModelPlanPatch
+from onecode.kernel.runner import run_task
 from tests.test_run_plan_cli import FakeRepairProvider
 
 
@@ -106,6 +108,10 @@ class InspectCliTests(unittest.TestCase):
                         "src/a.py",
                         "--write-content",
                         "A = 1\n",
+                        "--completed-evidence-mode",
+                        "full",
+                        "--evidence-durability",
+                        "strict",
                     ]
                 )
             with patch("builtins.print"):
@@ -263,6 +269,289 @@ class InspectCliTests(unittest.TestCase):
             self.assertTrue(Path(summary["manifest_path"]).exists())
             self.assertTrue(Path(summary["ledger_path"]).exists())
             self.assertIn("iching_status_code", summary)
+            self.assertEqual(summary["shell_projection"]["run_id"], "inspect-run")
+            self.assertEqual(summary["shell_projection"]["severity"], "ok")
+            self.assertEqual(summary["shell_projection"]["evidence_ref"]["mode"], "full")
+
+    def test_cli_inspect_prints_wal_only_run_summary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "inspect wal",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "inspect-wal",
+                    "--completed-evidence-mode",
+                    "wal",
+                    "--evidence-durability",
+                    "relaxed",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "inspect",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "inspect-wal",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            summary = json.loads(completed.stdout)
+
+            self.assertEqual(summary["run_id"], "inspect-wal")
+            self.assertEqual(summary["status"], "completed")
+            self.assertEqual(summary["evidence_mode"], "wal")
+            self.assertEqual(summary["requested_count"], 1)
+            self.assertEqual(summary["completed_count"], 1)
+            self.assertEqual(summary["failed_count"], 0)
+            self.assertIsNone(summary["manifest_path"])
+            self.assertIsNone(summary["ledger_path"])
+            self.assertTrue(Path(summary["wal_path"]).exists())
+            self.assertIn("profile_sha256", summary)
+            self.assertEqual(summary["shell_projection"]["run_id"], "inspect-wal")
+            self.assertEqual(summary["shell_projection"]["severity"], "ok")
+            self.assertEqual(summary["shell_projection"]["evidence_ref"]["mode"], "wal")
+
+    def test_cli_list_runs_includes_wal_only_runs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "list wal",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "list-wal",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            wal_run_root = Path(tmp) / ".onecode" / "runs" / "list-wal"
+            if wal_run_root.exists():
+                shutil.rmtree(wal_run_root)
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "list full",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "list-full",
+                    "--completed-evidence-mode",
+                    "full",
+                    "--evidence-durability",
+                    "strict",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "list-runs",
+                    "--workspace",
+                    tmp,
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            result = json.loads(completed.stdout)
+            runs = {entry["run_id"]: entry for entry in result["runs"]}
+
+            self.assertEqual(runs["list-wal"]["evidence_mode"], "wal")
+            self.assertEqual(runs["list-wal"]["shell_projection"]["evidence_ref"]["mode"], "wal")
+            self.assertIsNone(runs["list-wal"]["ledger_path"])
+            self.assertEqual(runs["list-full"]["status"], "completed")
+            self.assertEqual(runs["list-full"]["shell_projection"]["evidence_ref"]["mode"], "full")
+            self.assertNotEqual(runs["list-full"].get("evidence_mode"), "wal")
+            self.assertEqual(sorted(runs), ["list-full", "list-wal"])
+
+    def test_cli_inspect_reports_corrupt_global_wal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            wal_path = Path(tmp) / ".onecode" / "global-ledger.jsonl"
+            wal_path.parent.mkdir(parents=True)
+            wal_path.write_text("{not json\n", encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "inspect",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "inspect-wal",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            summary = json.loads(completed.stdout)
+
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertEqual(summary["status"], "corrupt")
+            self.assertEqual(summary["corrupt_reason"], "invalid_global_wal_json")
+            self.assertEqual(summary["wal_path"], str(wal_path.resolve()))
+
+    def test_cli_inspect_reports_tampered_global_wal_chain(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "wal tamper",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "wal-tamper",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            wal_path = Path(tmp) / ".onecode" / "global-ledger.jsonl"
+            entry = json.loads(wal_path.read_text(encoding="utf-8").splitlines()[0])
+            entry["st"] = "halted"
+            wal_path.write_text(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "inspect",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "wal-tamper",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            summary = json.loads(completed.stdout)
+
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertEqual(summary["status"], "corrupt")
+            self.assertEqual(summary["corrupt_reason"], "global_wal_chain_hash_mismatch")
+            self.assertEqual(summary["wal_path"], str(wal_path.resolve()))
+
+    def test_cli_inspect_and_list_runs_read_rotated_global_wal_segments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            env["ONECODE_WAL_ROTATE_BYTES"] = "1"
+            for run_id in ("wal-old", "wal-new"):
+                subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "onecode.cli",
+                        "run",
+                        f"rotate {run_id}",
+                        "--workspace",
+                        tmp,
+                        "--run-id",
+                        run_id,
+                    ],
+                    env=env,
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                )
+
+            archive_path = Path(tmp) / ".onecode" / "global-ledger.1.jsonl"
+            active_path = Path(tmp) / ".onecode" / "global-ledger.jsonl"
+            inspect_old = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "inspect",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "wal-old",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            listed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "list-runs",
+                    "--workspace",
+                    tmp,
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            old_summary = json.loads(inspect_old.stdout)
+            runs = {entry["run_id"]: entry for entry in json.loads(listed.stdout)["runs"]}
+
+            self.assertTrue(archive_path.exists())
+            self.assertTrue(active_path.exists())
+            self.assertEqual(old_summary["status"], "completed")
+            self.assertEqual(old_summary["wal_path"], str(archive_path.resolve()))
+            self.assertEqual(runs["wal-old"]["evidence_mode"], "wal")
+            self.assertEqual(runs["wal-old"]["wal_path"], str(archive_path.resolve()))
+            self.assertEqual(runs["wal-new"]["evidence_mode"], "wal")
+            self.assertEqual(runs["wal-new"]["wal_path"], str(active_path.resolve()))
 
     def test_cli_inspect_reports_resumed_project_dry_run(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -915,6 +1204,93 @@ class InspectCliTests(unittest.TestCase):
             self.assertIn("ledger.json", error["corrupt_path"])
             self.assertEqual(error["corrupt_reason"], "invalid_count")
             self.assertNotIn("Traceback", completed.stderr)
+
+    def test_cli_inspect_halted_run_requires_completed_trace_event(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            result = run_task(
+                "too large",
+                workspace=Path(tmp),
+                run_id="missing-trace-completion",
+                write_path="src/generated.py",
+                write_content="x" * 33,
+                max_write_bytes=32,
+            )
+            trace_path = Path(result["trace_path"])
+            events = [
+                line
+                for line in trace_path.read_text(encoding="utf-8").splitlines()
+                if '"event_type": "run_completed"' not in line
+            ]
+            trace_path.write_text("\n".join(events) + "\n", encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "inspect",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "missing-trace-completion",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            error = json.loads(completed.stdout)
+            self.assertEqual(error["status"], "corrupt")
+            self.assertEqual(error["corrupt_reason"], "missing_trace_run_completed")
+            self.assertIn("trace.jsonl", error["corrupt_path"])
+
+    def test_cli_inspect_rejects_tampered_evidence_chain(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            run_task(
+                "chain inspect",
+                workspace=Path(tmp),
+                run_id="tampered-chain",
+                write_path="src/generated.py",
+                write_content="value = 1\n",
+            )
+            chain_path = Path(tmp) / ".onecode" / "runs" / "tampered-chain" / "evidence-chain.jsonl"
+            records = [
+                json.loads(line)
+                for line in chain_path.read_text(encoding="utf-8").splitlines()
+                if line
+            ]
+            records[-1]["artifact_sha256"] = "0" * 64
+            chain_path.write_text(
+                "\n".join(json.dumps(record, sort_keys=True) for record in records) + "\n",
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "inspect",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "tampered-chain",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            error = json.loads(completed.stdout)
+            self.assertEqual(error["status"], "corrupt")
+            self.assertEqual(error["corrupt_reason"], "evidence_chain_hash_mismatch")
+            self.assertIn("evidence-chain.jsonl", error["corrupt_path"])
 
     def test_cli_inspect_impossible_ledger_count_total_returns_corrupt(self):
         with tempfile.TemporaryDirectory() as tmp:

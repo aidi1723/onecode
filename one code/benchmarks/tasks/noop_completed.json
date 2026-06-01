@@ -1,0 +1,8 @@
+{
+  "id": "noop-completed",
+  "prompt": "执行一个无写入任务并正常完成",
+  "expected_status": "completed",
+  "mode": "rule",
+  "input": {},
+  "assertions": []
+}

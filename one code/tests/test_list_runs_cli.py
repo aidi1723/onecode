@@ -64,7 +64,11 @@ class ListRunsCliTests(unittest.TestCase):
 
             self.assertEqual([run["run_id"] for run in result["runs"]], ["run-a", "run-b"])
             self.assertEqual([run["status"] for run in result["runs"]], ["completed", "completed"])
-            self.assertTrue(all(run["checkpoint_count"] == 1 for run in result["runs"]))
+            self.assertTrue(all(run["evidence_mode"] == "wal" for run in result["runs"]))
+            self.assertTrue(all(run["checkpoint_count"] is None for run in result["runs"]))
+            self.assertTrue(all(run["wal_path"] for run in result["runs"]))
+            self.assertTrue(all(run["shell_projection"]["severity"] == "ok" for run in result["runs"]))
+            self.assertTrue(all(run["shell_projection"]["evidence_ref"]["mode"] == "wal" for run in result["runs"]))
 
     def test_cli_list_runs_includes_corrupt_run_summaries(self):
         with tempfile.TemporaryDirectory() as tmp:

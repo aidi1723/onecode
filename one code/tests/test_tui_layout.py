@@ -5,26 +5,40 @@ from unittest.mock import patch
 
 from onecode.tui.app import (
     API_KEY_WARNING,
-    DEFAULT_ENDPOINT,
     DEFAULT_MODEL,
     DEFAULT_WORKSPACE,
     OneCodeApp,
     WelcomePanel,
+    resolve_endpoint,
 )
 
 
 class TuiLayoutTests(unittest.TestCase):
     def test_tui_defaults_support_single_command_startup(self):
-        app = OneCodeApp()
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_HOME": str(Path(tmp) / "home")},
+            clear=True,
+        ):
+            app = OneCodeApp()
 
         self.assertEqual(app.workspace, DEFAULT_WORKSPACE.resolve())
         self.assertEqual(app.model, DEFAULT_MODEL)
-        self.assertEqual(app.endpoint, DEFAULT_ENDPOINT)
+        self.assertEqual(app.endpoint, "")
+
+    def test_tui_chat_provider_has_no_hardcoded_default_endpoint(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_HOME": str(Path(tmp) / "home")},
+            clear=True,
+        ):
+            self.assertEqual(resolve_endpoint("chat"), "")
 
     def test_tui_can_select_domestic_provider_from_environment(self):
-        with patch.dict(
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
             "os.environ",
             {
+                "ONECODE_HOME": str(Path(tmp) / "home"),
                 "ONECODE_PROVIDER": "qwen",
                 "DASHSCOPE_API_KEY": "dashscope-key",
             },
@@ -42,7 +56,7 @@ class TuiLayoutTests(unittest.TestCase):
 
     def test_welcome_panel_uses_onecode_branding_and_runtime_context(self):
         with tempfile.TemporaryDirectory() as tmp:
-            with patch.dict("os.environ", {}, clear=True):
+            with patch.dict("os.environ", {"ONECODE_HOME": str(Path(tmp) / "home")}, clear=True):
                 app = OneCodeApp(workspace=Path(tmp), model="test-model")
 
             panel = WelcomePanel(app)

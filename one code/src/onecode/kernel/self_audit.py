@@ -93,7 +93,7 @@ def audit_tui_bootstrap() -> dict:
         from onecode.tui.app import OneCodeApp
 
         app = OneCodeApp()
-        passed = app.workspace is not None and bool(app.model) and bool(app.endpoint)
+        passed = app.workspace is not None and bool(app.model) and app.endpoint is not None
         detail = {
             "shell": "tui",
             "workspace": str(app.workspace),

@@ -13,6 +13,7 @@ class SelfAuditCliTests(unittest.TestCase):
     def test_cli_audit_self_reviews_shell_tui_model_and_kernel_with_iching_status(self):
         env = os.environ.copy()
         env["PYTHONPATH"] = "src"
+        env["ONECODE_AUDIT_SELF_DEPTH"] = "1"
         completed = subprocess.run(
             [sys.executable, "-m", "onecode.cli", "audit-self"],
             env=env,

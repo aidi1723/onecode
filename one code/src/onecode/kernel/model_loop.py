@@ -12,7 +12,11 @@ from onecode.kernel.model_provider import (
 from onecode.kernel.execution_contracts import ExecutionPlan, ExecutionStep, ToolCallSpec
 from onecode.kernel.execution_engine import execute_plan
 from onecode.kernel.execution_plan_loader import execution_trace_to_dict
+from onecode.kernel.checkpoint import write_checkpoint, write_ledger
+from onecode.kernel.context import create_context
+from onecode.kernel.hexagram import COMPLETE
 from onecode.kernel.runner import run_task
+from onecode.kernel.trace import TraceEvent, write_trace_event
 
 
 def write_texts_from_plan(plan: ModelPlan) -> list[str]:
@@ -189,19 +193,22 @@ def execute_model_plan(
     run_metadata: dict[str, Any],
 ) -> dict[str, Any]:
     if plan.execution_steps:
+        context = create_context(workspace_root=workspace, run_id=run_id, resume_from_run_id=resume_from_run_id)
         trace = execute_plan(
             execution_plan_from_model_plan(plan),
             workspace=workspace,
-            run_id=run_id,
+            run_id=context.run_id,
             resume_from_run_id=resume_from_run_id,
         )
         trace_dict = execution_trace_to_dict(trace)
-        return {
-            "run_id": run_id,
+        result = {
+            "run_id": context.run_id,
             "status": "completed" if trace.success else "halted",
             "reason": trace.reason,
             "partial": not trace.success,
             "intent_type": "execution_plan",
+            "manifest_path": str(context.manifest_path),
+            "ledger_path": str(context.evidence_root / "ledger.json"),
             "requested_count": len(plan.execution_steps),
             "completed_count": sum(step.status == "completed" for step in trace.step_results),
             "skipped_count": sum(step.status == "skipped" for step in trace.step_results),
@@ -209,6 +216,30 @@ def execute_model_plan(
             "assets": [],
             "execution_trace": trace_dict,
         } | run_metadata
+        write_checkpoint(
+            context=context,
+            payload={"execution_trace": trace_dict},
+            next_state=COMPLETE,
+            status=result["status"],
+            partial=result["partial"],
+            reason=result["reason"],
+            intent_type="execution_plan",
+            decision="allowed",
+            iching_status_code=trace.global_status_code,
+            iching_transition_action=trace.global_transition.action if trace.global_transition else None,
+            iching_transition_reason=trace.global_transition.reason if trace.global_transition else None,
+            duration_ms=0,
+            run_control={
+                "global_status_code": trace.global_status_code,
+                "global_transition_action": trace.global_transition.action if trace.global_transition else None,
+                "global_transition_reason": trace.global_transition.reason if trace.global_transition else None,
+                "global_entropy": trace.global_entropy,
+                "global_entropy_decision": trace.global_entropy_decision,
+                "global_entropy_reason": trace.global_entropy_reason,
+            },
+        )
+        write_ledger(context, result)
+        return result
     return run_task(
         plan.task,
         workspace=workspace,
@@ -241,7 +272,44 @@ def run_model_task(
         raise MissingModelApiKey(f"{provider_config.env_key} is required for model-backed runs")
 
     active_provider = provider or build_provider(resolved_api_key, provider_kind, endpoint)
+    model_context = create_context(workspace_root=workspace, run_id=run_id, resume_from_run_id=resume_from_run_id)
+    trace_path = model_context.evidence_root / "trace.jsonl"
+    trace_id = model_context.run_id
+    write_trace_event(
+        trace_path,
+        TraceEvent(
+            trace_id=trace_id,
+            run_id=model_context.run_id,
+            span_id="model-call",
+            parent_span_id="run",
+            event_type="model_call_started",
+            status="started",
+            payload={
+                "provider": provider_config.provider_kind,
+                "model": resolved_model,
+                "task": task,
+            },
+        ),
+    )
     plan = active_provider.create_plan(task, model=resolved_model, http_timeout_seconds=http_timeout_seconds)
+    write_trace_event(
+        trace_path,
+        TraceEvent(
+            trace_id=trace_id,
+            run_id=model_context.run_id,
+            span_id="model-call",
+            parent_span_id="run",
+            event_type="model_call_completed",
+            status="completed",
+            payload={
+                "provider": provider_config.provider_kind,
+                "model": resolved_model,
+                "asset_count": len(plan.assets),
+                "patch_count": len(plan.patches),
+                "execution_step_count": len(plan.execution_steps),
+            },
+        ),
+    )
     if plan_approval is not None and not plan_approval(plan):
         return {
             "run_id": run_id,

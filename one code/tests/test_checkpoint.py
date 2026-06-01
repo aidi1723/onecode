@@ -2,13 +2,24 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from onecode.kernel.checkpoint import sha256_file, write_checkpoint, write_ledger
+from onecode.kernel.checkpoint import file_lock, sha256_file, write_checkpoint, write_ledger
 from onecode.kernel.context import create_context
 from onecode.kernel.hexagram import COMPLETE
 
 
 class CheckpointTests(unittest.TestCase):
+    def test_file_lock_uses_os_level_flock(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            lock_path = Path(tmp) / "evidence.lock"
+
+            with patch("onecode.kernel.checkpoint.fcntl.flock") as flock:
+                with file_lock(lock_path):
+                    pass
+
+            self.assertEqual(flock.call_count, 2)
+
     def test_write_checkpoint_updates_manifest_with_matching_sha256(self):
         with tempfile.TemporaryDirectory() as tmp:
             context = create_context(Path(tmp), run_id="checkpoint-test")
@@ -68,6 +79,27 @@ class CheckpointTests(unittest.TestCase):
             ]
             self.assertEqual(latest["status"], "completed")
             self.assertEqual([entry["status"] for entry in history], ["halted", "completed"])
+
+    def test_write_ledger_appends_tamper_evident_chain_records(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="ledger-chain-test")
+
+            write_ledger(context, {"run_id": "ledger-chain-test", "status": "halted"})
+            write_ledger(context, {"run_id": "ledger-chain-test", "status": "completed"})
+
+            chain_path = context.evidence_root / "evidence-chain.jsonl"
+            records = [
+                json.loads(line)
+                for line in chain_path.read_text(encoding="utf-8").splitlines()
+                if line
+            ]
+
+            self.assertEqual([record["sequence"] for record in records], [1, 2])
+            self.assertEqual([record["artifact_type"] for record in records], ["ledger", "ledger"])
+            self.assertEqual(records[0]["previous_chain_hash"], "0" * 64)
+            self.assertEqual(records[1]["previous_chain_hash"], records[0]["chain_hash"])
+            self.assertRegex(records[0]["artifact_sha256"], r"^[0-9a-f]{64}$")
+            self.assertRegex(records[0]["chain_hash"], r"^[0-9a-f]{64}$")
 
 
 class AppendOnlyManifestTests(unittest.TestCase):

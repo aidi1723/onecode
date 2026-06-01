@@ -438,7 +438,16 @@ class RunPlanCliTests(unittest.TestCase):
             plan_path = self.write_plan(workspace)
             policy_path = self.write_policy(
                 workspace,
-                [sys.executable, "-c", "import sys; print('bad verifier'); sys.exit(5)"],
+                [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+            )
+            failing_test = workspace / "tests" / "test_bad_verifier.py"
+            failing_test.parent.mkdir(parents=True, exist_ok=True)
+            failing_test.write_text(
+                "import unittest\n\n"
+                "class BadVerifierTests(unittest.TestCase):\n"
+                "    def test_bad_verifier(self):\n"
+                "        self.fail('bad verifier')\n",
+                encoding="utf-8",
             )
 
             with patch("builtins.print") as print_mock:
@@ -463,8 +472,8 @@ class RunPlanCliTests(unittest.TestCase):
             self.assertEqual(result["status"], "halted")
             self.assertEqual(result["reason"], "verifier_failed")
             self.assertEqual(result["delivery_status"], "blocked")
-            self.assertEqual(result["verifier_results"][0]["exit_code"], 5)
-            self.assertIn("bad verifier", result["verifier_results"][0]["stdout_tail"])
+            self.assertEqual(result["verifier_results"][0]["exit_code"], 1)
+            self.assertIn("bad verifier", result["verifier_results"][0]["stderr_tail"])
 
     def test_cli_run_plan_repairs_failed_verifier_with_patch_only_plan(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -697,9 +706,12 @@ class RunPlanCliTests(unittest.TestCase):
             plan_path = self.write_plan(workspace)
             policy_path = self.write_policy(
                 workspace,
-                [sys.executable, "-c", "import time; time.sleep(1)"],
+                [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
                 timeout_ms=10,
             )
+            timeout_test = workspace / "tests" / "test_timeout_verifier.py"
+            timeout_test.parent.mkdir(parents=True, exist_ok=True)
+            timeout_test.write_text("import time\n\ntime.sleep(1)\n", encoding="utf-8")
 
             with patch("builtins.print") as print_mock:
                 exit_code = main(

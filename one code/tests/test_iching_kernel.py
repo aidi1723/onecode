@@ -42,6 +42,10 @@ class TestIchingKernel(unittest.TestCase):
             IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN),
         )
         self.assertEqual(
+            IchingKernel.classify_outcome(status="halted", reason="action_exception"),
+            IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.KUN),
+        )
+        self.assertEqual(
             IchingKernel.classify_outcome(status="skipped", reason="resumed_asset_ready"),
             IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI),
         )
@@ -66,8 +70,14 @@ class TestIchingKernel(unittest.TestCase):
         water_over_write_momentum = IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)
         water_transition = IchingKernel.transition(water_over_write_momentum)
         self.assertEqual(water_transition.status_code, water_over_write_momentum)
-        self.assertEqual(water_transition.action, "activate")
-        self.assertEqual(water_transition.reason, "yin_excess_requires_activation")
+        self.assertEqual(water_transition.action, "checkpoint")
+        self.assertEqual(water_transition.reason, "network_water_preserves_resume_seed")
+
+        local_executor_block = IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.KUN)
+        local_executor_transition = IchingKernel.transition(local_executor_block)
+        self.assertEqual(local_executor_transition.status_code, local_executor_block)
+        self.assertEqual(local_executor_transition.action, "checkpoint")
+        self.assertEqual(local_executor_transition.reason, "mountain_contains_local_executor_fault")
 
         pure_qian = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN)
         cooled_transition = IchingKernel.transition(pure_qian)
@@ -272,7 +282,7 @@ class TestIchingKernel(unittest.TestCase):
         ):
             transition = IchingKernel.transition(status)
 
-        self.assertEqual(transition.reason, "yin_excess_requires_activation")
+        self.assertEqual(transition.reason, "network_water_preserves_resume_seed")
 
     def test_dispatch_decision_derives_loop_control_from_transition(self):
         halt_transition = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN))
@@ -280,7 +290,7 @@ class TestIchingKernel(unittest.TestCase):
         continue_transition = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI))
 
         self.assertEqual(IchingKernel.dispatch_decision(halt_transition), "stop")
-        self.assertEqual(IchingKernel.dispatch_decision(checkpoint_transition), "continue")
+        self.assertEqual(IchingKernel.dispatch_decision(checkpoint_transition), "stop")
         self.assertEqual(IchingKernel.dispatch_decision(continue_transition), "continue")
 
     def test_delivery_decision_derives_inspection_actions_from_evidence(self):
@@ -776,7 +786,25 @@ class TestIchingKernel(unittest.TestCase):
         )
         self.assertEqual(
             profile["rule_layers"]["onecode_runtime"],
-            ["transition", "dispatch_decision", "runtime_policy", "execution_bandwidth", "global_entropy"],
+            [
+                "transition",
+                "dispatch_decision",
+                "runtime_policy",
+                "execution_bandwidth",
+                "global_entropy",
+                "state_distribution_entropy",
+                "transition_graph",
+                "attractor_analysis",
+                "stability_analysis",
+                "topology_certificate",
+                "lyapunov_certificate",
+                "entropy_gate_certificate",
+                "totality_certificate",
+                "safety_dominance_certificate",
+                "collision_risk_certificate",
+                "lyapunov_energy",
+                "hysteresis_gate",
+            ],
         )
 
     def test_rule_layers_returns_defensive_copies(self):
@@ -846,6 +874,13 @@ class TestIchingKernel(unittest.TestCase):
         stasis = IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN)
         self.assertEqual(IchingKernel.apply_balanced_event(stasis, "unknown"), 0b000001)
 
+    def test_action_exception_event_projects_to_local_executor_fault(self):
+        target = IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.KUN)
+
+        self.assertEqual(IchingKernel.target_status_for_event("action_exception"), target)
+        self.assertEqual(IchingKernel.apply_event(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN), "action_exception"), target)
+        self.assertEqual(IchingKernel.apply_balanced_event(target, "action_exception"), target ^ IchingKernel.balance_mask(target))
+
     def test_evolved_element_tensor_splits_elements_by_polarity(self):
         labels = IchingKernel.evolved_element_labels()
         self.assertEqual(labels, ["metal+", "wood+", "water+", "fire+", "earth+", "metal-", "wood-", "water-", "fire-", "earth-"])
@@ -885,7 +920,7 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(yin_regulated["status_code"], IchingKernel.ROLLBACK_STATUS)
         self.assertEqual(yin_regulated["decision"], "rollback_negative_polarity")
         self.assertEqual(yin_regulated["reason"], "entropy_negative_polarity_rollback")
-        self.assertEqual(IchingKernel.transition(int(yin_regulated["status_code"])).reason, "yin_excess_requires_activation")
+        self.assertEqual(IchingKernel.transition(int(yin_regulated["status_code"])).reason, "network_water_preserves_resume_seed")
 
         mixed_statuses = [
             IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.KUN),
@@ -894,6 +929,154 @@ class TestIchingKernel(unittest.TestCase):
         mixed = IchingKernel.entropy_regulated_status(mixed_statuses)
         self.assertEqual(mixed["decision"], "accept")
         self.assertEqual(mixed["status_code"], IchingKernel.aggregate_status(mixed_statuses))
+
+    def test_state_distribution_entropy_counts_full_status_symbols(self):
+        status_a = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN)
+        status_b = IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN)
+
+        single = IchingKernel.state_distribution_entropy([status_a, status_a])
+        mixed = IchingKernel.state_distribution_entropy([status_a, status_b])
+
+        self.assertEqual(single["entropy"], 0.0)
+        self.assertEqual(single["unique_state_count"], 1)
+        self.assertEqual(mixed["entropy"], 1.0)
+        self.assertEqual(mixed["unique_state_count"], 2)
+        self.assertEqual(mixed["max_entropy"], 1.0)
+
+    def test_transition_graph_covers_all_sixty_four_statuses(self):
+        graph = IchingKernel.transition_graph()
+
+        self.assertEqual(set(graph), set(range(64)))
+        self.assertTrue(all(0 <= target < 64 for target in graph.values()))
+        self.assertEqual(
+            graph[IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN)],
+            IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.QIAN),
+        )
+
+    def test_attractor_analysis_finds_terminal_cycles_without_external_input(self):
+        analysis = IchingKernel.attractor_analysis()
+
+        self.assertEqual(analysis["state_count"], 64)
+        self.assertTrue(analysis["attractors"])
+        self.assertTrue(all(isinstance(cycle, list) and cycle for cycle in analysis["attractors"]))
+        self.assertEqual(sorted(analysis["unclassified_states"]), [])
+
+    def test_stability_analysis_summarizes_convergence_and_energy_boundaries(self):
+        analysis = IchingKernel.stability_analysis()
+
+        self.assertEqual(analysis["state_count"], 64)
+        self.assertEqual(analysis["unclassified_state_count"], 0)
+        self.assertEqual(set(analysis["steps_to_attractor"]), set(range(64)))
+        self.assertGreaterEqual(analysis["max_steps_to_attractor"], 0)
+        self.assertLessEqual(analysis["max_steps_to_attractor"], 64)
+        self.assertEqual(
+            analysis["limit_cycle_count"],
+            len(IchingKernel.attractor_analysis()["attractors"]),
+        )
+        self.assertEqual(
+            analysis["energy_increase_transition_count"]
+            + analysis["energy_decrease_transition_count"]
+            + analysis["energy_flat_transition_count"],
+            64,
+        )
+        self.assertLessEqual(analysis["min_energy_delta"], analysis["max_energy_delta"])
+
+    def test_topology_certificate_maps_runtime_to_q6_boundaries(self):
+        certificate = IchingKernel.topology_certificate()
+
+        self.assertEqual(certificate["state_space"], "Q6")
+        self.assertEqual(certificate["vertex_count"], 64)
+        self.assertEqual(certificate["hypercube_edge_count"], 192)
+        self.assertEqual(certificate["transition_count"], 64)
+        self.assertEqual(certificate["closed_transition_count"], 64)
+        self.assertEqual(certificate["unclosed_transition_count"], 0)
+        self.assertEqual(
+            certificate["fixed_point_count"] + certificate["hypercube_edge_transition_count"] + certificate["long_jump_transition_count"],
+            64,
+        )
+        self.assertTrue(all(0 <= distance <= 6 for distance in certificate["hamming_distance_histogram"]))
+
+    def test_lyapunov_certificate_reports_nonincreasing_transition_energy(self):
+        certificate = IchingKernel.lyapunov_certificate()
+
+        self.assertEqual(certificate["state_count"], 64)
+        self.assertEqual(certificate["energy_increase_transition_count"], 0)
+        self.assertTrue(certificate["nonincreasing"])
+        self.assertEqual(len(certificate["violating_transitions"]), 0)
+        self.assertEqual(
+            certificate["energy_decrease_transition_count"] + certificate["energy_flat_transition_count"],
+            64,
+        )
+
+    def test_entropy_gate_certificate_classifies_repeated_and_exploratory_sequences(self):
+        repeated_halt = [
+            IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
+            IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
+            IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
+        ]
+        exploratory = [
+            IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN),
+            IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
+            IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN),
+            IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN),
+        ]
+
+        repeated = IchingKernel.entropy_gate_certificate(repeated_halt)
+        spread = IchingKernel.entropy_gate_certificate(exploratory)
+
+        self.assertEqual(repeated["decision"], "sovereignty_halt")
+        self.assertEqual(repeated["reason"], "low_entropy_repeated_halt")
+        self.assertEqual(repeated["sample_count"], 3)
+        self.assertEqual(repeated["unique_state_count"], 1)
+        self.assertLessEqual(repeated["normalized_entropy"], IchingKernel.ENTROPY_THRESHOLD)
+
+        self.assertEqual(spread["decision"], "observe")
+        self.assertEqual(spread["reason"], "high_entropy_exploration")
+        self.assertGreater(spread["normalized_entropy"], IchingKernel.ENTROPY_THRESHOLD)
+
+    def test_totality_certificate_covers_known_runtime_and_resume_inputs(self):
+        certificate = IchingKernel.totality_certificate()
+
+        self.assertEqual(certificate["codomain"], "Q6")
+        self.assertEqual(certificate["sample_count"], certificate["mapped_count"])
+        self.assertEqual(certificate["unmapped_count"], 0)
+        self.assertTrue(certificate["total_over_known_inputs"])
+        self.assertEqual(certificate["safe_domain"], ["halt", "checkpoint", "discover"])
+
+    def test_safety_dominance_certificate_blocks_dangerous_inputs_from_continue_domain(self):
+        certificate = IchingKernel.safety_dominance_certificate()
+
+        self.assertTrue(certificate["safe"])
+        self.assertEqual(certificate["unsafe_pass_through_count"], 0)
+        self.assertEqual(certificate["unsafe_pass_through_samples"], [])
+        self.assertGreaterEqual(certificate["dangerous_sample_count"], 1)
+        self.assertTrue(
+            all(action in {"halt", "checkpoint", "discover", "activate"} for action in certificate["dangerous_action_histogram"])
+        )
+
+    def test_collision_risk_certificate_flags_only_unsafe_action_collisions(self):
+        certificate = IchingKernel.collision_risk_certificate()
+
+        self.assertEqual(certificate["unsafe_collision_count"], 0)
+        self.assertEqual(certificate["unsafe_collisions"], [])
+        self.assertTrue(certificate["safe"])
+        self.assertGreaterEqual(certificate["collision_state_count"], 1)
+
+    def test_lyapunov_energy_is_lowest_for_balanced_safe_status(self):
+        ready = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI)
+        sovereign_halt = IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN)
+        pure_yang = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN)
+
+        self.assertLess(IchingKernel.lyapunov_energy(ready), IchingKernel.lyapunov_energy(sovereign_halt))
+        self.assertLess(IchingKernel.lyapunov_energy(ready), IchingKernel.lyapunov_energy(pure_yang))
+
+    def test_deterministic_hysteresis_quantizes_continuous_inputs_without_chattering(self):
+        low = IchingKernel.hysteresis_gate(value=0.4, previous=0, low=0.45, high=0.55)
+        held_low = IchingKernel.hysteresis_gate(value=0.5, previous=low, low=0.45, high=0.55)
+        high = IchingKernel.hysteresis_gate(value=0.6, previous=held_low, low=0.45, high=0.55)
+        held_high = IchingKernel.hysteresis_gate(value=0.5, previous=high, low=0.45, high=0.55)
+
+        self.assertEqual([low, held_low, high, held_high], [0, 0, 1, 1])
 
         with self.assertRaises(ValueError):
             IchingKernel.flip_line(0b000000, -1)

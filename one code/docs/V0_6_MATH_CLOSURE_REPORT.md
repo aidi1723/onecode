@@ -101,6 +101,83 @@ This maps to `discover + stop`, so unmapped empty-state evidence does not silent
 
 Patch evidence is multi-hash evidence: `patch_text evidence requires pre/post and block hashes`, namely `pre_sha256`, `post_sha256`, `search_block_sha256`, and `replace_block_sha256`.
 
+## Control-Theory Mapping Closure
+
+The following modern control-theory mappings are accepted into the OneCode rule
+surface because they preserve deterministic execution and do not add a second
+runtime law:
+
+- `transition_graph()` maps all `64` status codes through the existing
+  `transition()` function. This is the formal finite-state graph for orbit and
+  attractor inspection.
+- `attractor_analysis()` enumerates terminal cycles in that graph. It is an
+  audit helper for deadlock and limit-cycle review, not a scheduler.
+- `stability_analysis()` summarizes convergence boundaries over the same graph:
+  steps-to-attractor, nontrivial limit-cycle count, and Lyapunov energy deltas.
+  It is evidence for review, not a proof that every external disturbance
+  converges in a fixed number of steps.
+- `topology_certificate()` records the `Q6` topology boundary: `64` vertices,
+  `192` hypercube edges, closed runtime transitions, and the Hamming-distance
+  histogram of the actual transition map.
+- `lyapunov_certificate()` turns the scalar energy into an explicit audit
+  certificate by enumerating every transition delta and listing any
+  energy-increasing violations.
+- `entropy_gate_certificate()` evaluates a status sequence with Shannon entropy
+  over full 6-bit symbols and emits a deterministic audit recommendation such
+  as `sovereignty_halt`, `checkpoint`, `continue`, or `observe`. It is an
+  efficiency audit for repeated failure or exploratory spread, not a
+  probabilistic scheduler.
+- `totality_certificate()` checks that the known runtime and resume evidence
+  classes map into the closed `Q6` codomain without undefined branches.
+- `safety_dominance_certificate()` checks the safety priority rule: dangerous
+  inputs such as path breach, permission denial, invalid intent, resource
+  budget breach, malformed input, and bad checkpoint evidence must not pass into
+  active execution actions.
+- `collision_risk_certificate()` reviews many-to-one projection collisions and
+  flags any collision where dangerous and non-dangerous samples share a state
+  that still transitions into an active pass-through action.
+- `lyapunov_energy()` gives a deterministic scalar energy over a status code,
+  combining yin-yang imbalance, transition severity, and execution bandwidth.
+  Lower energy means closer to a safe balanced operating posture.
+- `state_distribution_entropy()` computes entropy over full 6-bit status
+  symbols, complementing the existing bit-level `global_entropy()`.
+- `hysteresis_gate()` implements deterministic dual-threshold quantization for
+  continuous inputs, so future timeout/resource projections can avoid boundary
+  chattering without probabilistic sampling.
+
+These mappings are consistent with the existing rule language:
+
+```text
+64 hexagrams        -> finite discrete state space
+line change         -> deterministic transition
+yin-yang balance    -> Lyapunov-style energy pressure
+five-element matrix -> control bandwidth and modulation
+entropy             -> uncertainty gate
+time-position rule  -> hysteresis for continuous evidence
+orbit review        -> stability audit over the 64-state graph
+Q6 boundary         -> topology certificate over 64 vertices and Hamming edges
+energy descent      -> Lyapunov certificate over every deterministic edge
+entropy gate        -> sequence-level damping recommendation without sampling
+total mapping       -> known evidence classes map into Q6 without undefined branches
+safety dominance    -> dangerous evidence cannot override into pass-through action
+collision review    -> dimensionality-loss collisions are checked by action domain
+```
+
+Reference-only ideas that are intentionally not integrated into the kernel:
+
+- probabilistic sigmoid sampling for state bits, because it would weaken
+  replayability;
+- runtime self-learning of the five-element gain matrix, because it would
+  weaken auditability;
+- multi-agent tensor-product state spaces, because OneCode is currently a
+  local-first controlled file-change kernel, not a distributed multi-agent
+  runtime.
+
+The read-only CLI command `onecode math-audit` exposes this mapping as JSON. It
+reports transition graph size, attractor count, Lyapunov energy range, accepted
+mappings, stability boundaries, and reference-only formulas. It does not mutate
+runtime evidence and does not participate in scheduling.
+
 ## Audit Conclusion
 
 The verified OneCode kernel now closes the rule chain from bit-level polarity to macro execution state without adding parallel control variables. External facts are evidence, not law; they are collapsed into the 6-bit tensor and interpreted through the rule surface above.

@@ -261,6 +261,59 @@ class ExecutionEngineTests(unittest.TestCase):
             trace_dict = execution_trace_to_dict(trace)
             self.assertTrue(all(step["duration_ms"] >= 80 for step in trace_dict["step_results"]))
 
+    def test_parallel_steps_append_distinct_checkpoints_to_shared_run_manifest(self):
+        from onecode.cli import inspect_run
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan = ExecutionPlan(
+                task="parallel evidence",
+                steps=[
+                    ExecutionStep(
+                        id="first",
+                        description="first independent write",
+                        tool_calls=[
+                            ToolCallSpec(
+                                tool_name="write_text",
+                                params={"path": "src/first.py", "content": "FIRST = True\n"},
+                            )
+                        ],
+                    ),
+                    ExecutionStep(
+                        id="second",
+                        description="second independent write",
+                        tool_calls=[
+                            ToolCallSpec(
+                                tool_name="write_text",
+                                params={"path": "src/second.py", "content": "SECOND = True\n"},
+                            )
+                        ],
+                    ),
+                ],
+            )
+
+            trace = execute_plan(plan, workspace=workspace, run_id="parallel-evidence")
+
+            run_root = workspace / ".onecode" / "runs" / "parallel-evidence"
+            manifest = json.loads((run_root / "manifest.json").read_text(encoding="utf-8"))
+            checkpoint_paths = sorted((run_root / "checkpoints").glob("*.json"))
+            ledger_lines = (run_root / "ledger.jsonl").read_text(encoding="utf-8").splitlines()
+            final_ledger = json.loads(ledger_lines[-1])
+            inspect_exit_code, inspect_summary = inspect_run(workspace, "parallel-evidence")
+
+            self.assertTrue(trace.success)
+            self.assertEqual(len(manifest["checkpoints"]), 2)
+            self.assertEqual([checkpoint.name for checkpoint in checkpoint_paths], ["0001.json", "0002.json"])
+            self.assertEqual(len(ledger_lines), 3)
+            self.assertEqual(final_ledger["intent_type"], "execution_plan")
+            self.assertEqual(final_ledger["requested_count"], 2)
+            self.assertEqual(final_ledger["completed_count"], 2)
+            self.assertEqual(inspect_exit_code, 0)
+            self.assertEqual(inspect_summary["status"], "completed")
+            self.assertEqual(inspect_summary["requested_count"], 2)
+            self.assertEqual(inspect_summary["completed_count"], 2)
+            self.assertEqual(inspect_summary["checkpoint_count"], 2)
+
     def test_execute_plan_records_global_status_from_parallel_step_statuses(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
@@ -378,6 +431,18 @@ class ExecutionEngineTests(unittest.TestCase):
             self.assertEqual(trace_dict["global_entropy_decision"], trace.global_entropy_decision)
             self.assertEqual(trace_dict["global_entropy"], trace.global_entropy)
             self.assertEqual(trace_dict["global_entropy_reason"], trace.global_entropy_reason)
+            self.assertEqual(trace_dict["shell_projection"]["status_label"], "completed")
+            self.assertEqual(trace_dict["shell_projection"]["severity"], "ok")
+            self.assertEqual(
+                trace_dict["shell_projection"]["rule_state"]["status_code"],
+                trace.global_status_code,
+            )
+            self.assertEqual(trace_dict["runner_results"][0]["shell_projection"]["run_id"], "trace-global-run")
+            self.assertEqual(trace_dict["runner_results"][0]["shell_projection"]["severity"], "ok")
+            self.assertEqual(
+                trace_dict["runner_results"][0]["shell_projection"]["rule_state"]["status_code"],
+                trace_dict["runner_results"][0]["iching_status_code"],
+            )
 
     def test_execute_plan_blocks_zero_bandwidth_steps_before_running_tools(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -487,7 +552,11 @@ class ExecutionEngineTests(unittest.TestCase):
             self.assertEqual((workspace / "src" / "mesh.py").read_text(encoding="utf-8"), "VALUE = 1\n")
             payload = json.loads(print_mock.call_args.args[0])
             self.assertTrue(payload["success"])
+            self.assertEqual(payload["shell_projection"]["status_label"], "completed")
+            self.assertEqual(payload["shell_projection"]["severity"], "ok")
             self.assertEqual(payload["step_results"][0]["status"], "completed")
+            self.assertEqual(payload["runner_results"][0]["shell_projection"]["run_id"], "cli-execution-plan")
+            self.assertEqual(payload["runner_results"][0]["shell_projection"]["severity"], "ok")
 
 
 if __name__ == "__main__":

@@ -77,6 +77,46 @@ class ResumeManifestAuditTests(unittest.TestCase):
                 IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI),
             )
 
+    def test_audit_loads_wal_only_completed_asset(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            run_task(
+                "source",
+                workspace=workspace,
+                run_id="source-run",
+                write_path="src/a.py",
+                write_content="x = 1\n",
+                completed_evidence_mode="wal",
+                evidence_durability="relaxed",
+            )
+
+            state = load_resume_state(workspace, "source-run")
+
+            self.assertIn("src/a.py", state.ready_assets)
+            self.assertEqual(state.ready_assets["src/a.py"].source_run_id, "source-run")
+            self.assertEqual(state.audit_events[0]["path"], "src/a.py")
+            self.assertEqual(state.audit_events[0]["status"], "ready")
+
+    def test_audit_rejects_tampered_wal_only_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            run_task(
+                "source",
+                workspace=workspace,
+                run_id="source-run",
+                write_path="src/a.py",
+                write_content="x = 1\n",
+                completed_evidence_mode="wal",
+                evidence_durability="relaxed",
+            )
+            wal_path = workspace / ".onecode" / "global-ledger.jsonl"
+            entry = json.loads(wal_path.read_text(encoding="utf-8").splitlines()[0])
+            entry["st"] = "completed-but-tampered"
+            wal_path.write_text(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "global_wal_chain_hash_mismatch"):
+                load_resume_state(workspace, "source-run")
+
     def test_audit_ignores_mismatched_sha(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

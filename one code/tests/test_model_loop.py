@@ -259,6 +259,41 @@ class ModelLoopTests(unittest.TestCase):
             self.assertEqual(provider.calls, [{"task": "build project", "model": "test-model", "http_timeout_seconds": 60}])
             self.assertEqual((workspace / "src" / "generated.py").read_text(encoding="utf-8"), "VALUE = 1\n")
 
+    def test_run_model_task_records_model_call_trace_events(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            provider = FakeModelProvider(
+                ModelPlan(
+                    task="build generated project",
+                    assets=[ModelPlanAsset(path="src/generated.py", content="VALUE = 1\n")],
+                )
+            )
+
+            result = run_model_task(
+                "build project",
+                workspace=workspace,
+                run_id="model-trace-run",
+                model="test-model",
+                api_key="test-key",
+                provider=provider,
+            )
+            trace_path = Path(result["trace_path"])
+            events = [
+                json.loads(line)
+                for line in trace_path.read_text(encoding="utf-8").splitlines()
+            ]
+
+            self.assertIn("model_call_started", [event["event_type"] for event in events])
+            self.assertIn("model_call_completed", [event["event_type"] for event in events])
+            self.assertTrue(
+                any(
+                    event["event_type"] == "model_call_completed"
+                    and event["payload"]["asset_count"] == 1
+                    and event["payload"]["model"] == "test-model"
+                    for event in events
+                )
+            )
+
     def test_model_api_key_never_persists_to_run_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
@@ -408,6 +443,46 @@ class ModelLoopTests(unittest.TestCase):
             self.assertEqual(result["execution_trace"]["step_results"][0]["status"], "completed")
             self.assertEqual(result["execution_trace"]["step_results"][1]["status"], "completed")
             self.assertEqual((workspace / "src" / "generated.py").read_text(encoding="utf-8"), "VALUE = 2\n")
+
+    def test_model_execution_plan_writes_top_level_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            provider = FakeModelProvider(
+                ModelPlan(
+                    task="kernel execution",
+                    execution_steps=[
+                        ModelExecutionStep(
+                            id="write",
+                            description="create file",
+                            tool_calls=[
+                                ModelToolCall(
+                                    tool_name="write_text",
+                                    params={"path": "src/generated.py", "content": "VALUE = 1\n"},
+                                )
+                            ],
+                        )
+                    ],
+                )
+            )
+
+            result = run_model_task(
+                "execute project",
+                workspace=workspace,
+                run_id="model-execution-evidence",
+                model="test-model",
+                api_key="test-key",
+                provider=provider,
+            )
+
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["run_id"], "model-execution-evidence")
+            self.assertIn("ledger_path", result)
+            self.assertIn("manifest_path", result)
+            self.assertTrue(Path(result["ledger_path"]).exists())
+            self.assertTrue(Path(result["manifest_path"]).exists())
+            ledger = json.loads(Path(result["ledger_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(ledger["intent_type"], "execution_plan")
+            self.assertEqual(ledger["run_id"], "model-execution-evidence")
 
     def test_model_task_repairs_failed_execution_with_patch_only_followup(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -674,7 +749,7 @@ class ModelLoopTests(unittest.TestCase):
                     return_value={"status": "completed", "reason": None},
                 ) as run_model_task_mock,
                 patch("onecode.cli.IchingKernel.process_exit_code", return_value=0) as process_exit_code,
-                patch("builtins.print"),
+                patch("builtins.print") as printed,
             ):
                 exit_code = main(
                     [
@@ -700,6 +775,9 @@ class ModelLoopTests(unittest.TestCase):
                 )
 
         self.assertEqual(exit_code, 0)
+        printed_payload = json.loads(printed.call_args.args[0])
+        self.assertEqual(printed_payload["shell_projection"]["status_label"], "completed")
+        self.assertEqual(printed_payload["shell_projection"]["severity"], "ok")
         run_model_task_mock.assert_called_once()
         _, kwargs = run_model_task_mock.call_args
         self.assertEqual(kwargs["workspace"], Path(tmp))

@@ -19,11 +19,101 @@ from onecode.kernel.execution_guardrails import (
 )
 from onecode.kernel.execution_tools import ToolRegistry, default_tool_registry
 from onecode.kernel.hexagram import IchingKernel
+from onecode.kernel.checkpoint import write_ledger
+from onecode.kernel.context import create_context
 from onecode.kernel.path_guard import PathGuard, PathGuardError
 from onecode.kernel.runner import run_task
 
 
 SAFETY_BREAK_REASONS = {"sovereignty_breach", "permission_denied"}
+
+
+def write_execution_plan_ledger(
+    plan: ExecutionPlan,
+    workspace: Path,
+    run_id: str | None,
+    resume_from_run_id: str | None,
+    trace: ExecutionTrace,
+) -> None:
+    if run_id is None or not trace.runner_results:
+        return
+    last_result = trace.runner_results[-1]
+    status = "completed" if trace.success else "halted"
+    completed_count = sum(step.status == "completed" for step in trace.step_results)
+    skipped_count = sum(step.status == "skipped" for step in trace.step_results)
+    failed_count = sum(step.status == "failed" for step in trace.step_results)
+    transition = trace.global_transition
+    context = create_context(workspace, run_id=run_id, resume_from_run_id=resume_from_run_id)
+    result = {
+        "run_id": run_id,
+        "status": status,
+        "state": last_result.get("state", "000000"),
+        "manifest_path": str(context.manifest_path),
+        "ledger_path": str(context.evidence_root / "ledger.json"),
+        "trace_id": run_id,
+        "trace_path": str(context.evidence_root / "trace.jsonl"),
+        "partial": not trace.success,
+        "reason": trace.reason,
+        "decision": "allowed" if trace.success else "halted",
+        "intent_type": "execution_plan",
+        "payload": {
+            "task": plan.task,
+            "step_count": len(plan.steps),
+            "runner_result_count": len(trace.runner_results),
+        },
+        "resumed_from": resume_from_run_id,
+        "resumed": resume_from_run_id is not None,
+        "assets": [
+            asset
+            for runner_result in trace.runner_results
+            for asset in runner_result.get("assets", [])
+            if isinstance(runner_result.get("assets"), list)
+        ],
+        "requested_count": len(trace.step_results),
+        "completed_count": completed_count,
+        "skipped_count": skipped_count,
+        "failed_count": failed_count,
+        "global_status_code": trace.global_status_code,
+        "global_transition_action": transition.action if transition is not None else None,
+        "global_transition_reason": transition.reason if transition is not None else None,
+        "global_entropy": trace.global_entropy,
+        "global_entropy_decision": trace.global_entropy_decision,
+        "global_entropy_reason": trace.global_entropy_reason,
+        "iching_status_code": trace.global_status_code,
+        "iching_transition_action": transition.action if transition is not None else None,
+        "iching_transition_reason": transition.reason if transition is not None else None,
+        "execution_plan": {
+            "task": plan.task,
+            "steps": [
+                {
+                    "id": step.id,
+                    "description": step.description,
+                    "depends_on": step.depends_on,
+                    "mode": step.mode,
+                    "tool_count": len(step.tool_calls),
+                }
+                for step in plan.steps
+            ],
+        },
+        "execution_step_results": [
+            {
+                "step_id": step.step_id,
+                "status": step.status,
+                "reason": step.reason,
+                "duration_ms": step.duration_ms,
+                "tool_results": [
+                    {
+                        "tool_name": tool.tool_name,
+                        "success": tool.success,
+                        "reason": tool.reason,
+                    }
+                    for tool in step.tool_results
+                ],
+            }
+            for step in trace.step_results
+        ],
+    }
+    write_ledger(context, result)
 
 
 def ready_layer(plan: ExecutionPlan, completed_step_ids: set[str], processed_step_ids: set[str]) -> list[ExecutionStep]:
@@ -245,7 +335,7 @@ def execute_plan(
     ]
     entropy_regulated = IchingKernel.entropy_regulated_status(status_codes)
     global_status_code = int(entropy_regulated["status_code"])
-    return ExecutionTrace(
+    trace = ExecutionTrace(
         task=plan.task,
         success=success,
         step_results=step_results,
@@ -261,3 +351,5 @@ def execute_plan(
             else None
         ),
     )
+    write_execution_plan_ledger(plan, workspace, run_id, resume_from_run_id, trace)
+    return trace

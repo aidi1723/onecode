@@ -1,0 +1,11 @@
+{
+  "id": "http-timeout-halt",
+  "prompt": "模拟超过 http timeout 的动作并正确中止",
+  "expected_status": "halted",
+  "mode": "rule",
+  "input": {
+    "http_timeout_seconds": 0.01,
+    "simulated_action_seconds": 0.05
+  },
+  "assertions": []
+}

@@ -30,6 +30,31 @@ class RunnerTests(unittest.TestCase):
             self.assertIn("duration_ms", result["assets"][0])
             self.assertEqual(result["assets"][0]["duration_ms"], manifest["checkpoints"][0]["duration_ms"])
 
+    def test_run_task_writes_trace_events(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_task(
+                "trace smoke",
+                workspace=Path(tmp),
+                run_id="trace-runner-test",
+                write_path="src/generated.py",
+                write_content="value = 1\n",
+            )
+
+            trace_path = Path(result["trace_path"])
+            events = [
+                json.loads(line)
+                for line in trace_path.read_text(encoding="utf-8").splitlines()
+            ]
+
+            self.assertTrue(trace_path.exists())
+            self.assertEqual(result["trace_id"], "trace-runner-test")
+            self.assertEqual(events[0]["event_type"], "run_started")
+            self.assertIn("tool_call_started", [event["event_type"] for event in events])
+            self.assertIn("tool_call_completed", [event["event_type"] for event in events])
+            self.assertIn("checkpoint_written", [event["event_type"] for event in events])
+            self.assertEqual(events[-1]["event_type"], "run_completed")
+            self.assertTrue(all(event["run_id"] == "trace-runner-test" for event in events))
+
     def test_run_task_can_force_timeout_for_verification(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = run_task(
@@ -49,6 +74,128 @@ class RunnerTests(unittest.TestCase):
             manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
             self.assertGreaterEqual(manifest["checkpoints"][0]["duration_ms"], 10)
             self.assertEqual(result["assets"][0]["duration_ms"], manifest["checkpoints"][0]["duration_ms"])
+
+    def test_run_task_records_action_exception_without_raising(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("onecode.kernel.runner.PathGuard.write_text", side_effect=OSError("disk write failed")):
+                result = run_task(
+                    "write fails",
+                    workspace=Path(tmp),
+                    run_id="action-exception-test",
+                    write_path="src/generated.py",
+                    write_content="value = 1\n",
+                )
+
+            ledger = json.loads(Path(result["ledger_path"]).read_text(encoding="utf-8"))
+            manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
+
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "action_exception")
+            self.assertEqual(result["payload"]["error_type"], "OSError")
+            self.assertEqual(result["payload"]["error_message_tail"], "disk write failed")
+            self.assertEqual(result["iching_status_code"], IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.KUN))
+            self.assertEqual(result["iching_transition_action"], "checkpoint")
+            self.assertEqual(result["iching_transition_reason"], "mountain_contains_local_executor_fault")
+            self.assertEqual(ledger["reason"], "action_exception")
+            self.assertEqual(manifest["checkpoints"][0]["reason"], "action_exception")
+
+    def test_run_task_records_run_exception_without_raising(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("onecode.kernel.runner.write_checkpoint", side_effect=OSError("manifest write failed")):
+                result = run_task(
+                    "checkpoint fails",
+                    workspace=Path(tmp),
+                    run_id="run-exception-test",
+                    write_path="src/generated.py",
+                    write_content="value = 1\n",
+                )
+
+            ledger = json.loads(Path(result["ledger_path"]).read_text(encoding="utf-8"))
+            trace_events = [
+                json.loads(line)
+                for line in Path(result["trace_path"]).read_text(encoding="utf-8").splitlines()
+            ]
+
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "run_exception")
+            self.assertEqual(result["payload"]["error_type"], "OSError")
+            self.assertEqual(result["payload"]["error_message_tail"], "manifest write failed")
+            self.assertEqual(result["iching_status_code"], IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.KUN))
+            self.assertEqual(ledger["reason"], "run_exception")
+            self.assertEqual(trace_events[-1]["event_type"], "run_completed")
+            self.assertEqual(trace_events[-1]["status"], "halted")
+            self.assertEqual(trace_events[-1]["payload"]["reason"], "run_exception")
+
+    def test_run_task_rejects_oversized_write_content_as_resource_budget(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_task(
+                "too large",
+                workspace=Path(tmp),
+                run_id="resource-budget-test",
+                write_path="src/generated.py",
+                write_content="x" * 33,
+                max_write_bytes=32,
+            )
+
+            manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
+            trace_events = [
+                json.loads(line)
+                for line in Path(result["trace_path"]).read_text(encoding="utf-8").splitlines()
+            ]
+
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "resource_budget_exceeded")
+            self.assertEqual(result["payload"]["budget"], "max_write_bytes")
+            self.assertEqual(manifest["status"], "halted")
+            self.assertEqual(manifest["checkpoints"][0]["reason"], "resource_budget_exceeded")
+            self.assertEqual(manifest["checkpoints"][0]["intent_type"], "resource_budget")
+            self.assertEqual(trace_events[-1]["event_type"], "run_completed")
+            self.assertEqual(trace_events[-1]["status"], "halted")
+            self.assertFalse((Path(tmp) / "src" / "generated.py").exists())
+
+    def test_run_task_rejects_non_positive_resource_budget_limits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "max_actions must be positive"):
+                run_task(
+                    "invalid budget",
+                    workspace=Path(tmp),
+                    run_id="invalid-budget-test",
+                    max_actions=0,
+                )
+
+    def test_run_task_halts_when_trace_budget_is_exceeded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_task(
+                "trace budget",
+                workspace=Path(tmp),
+                run_id="trace-budget-test",
+                write_path="src/generated.py",
+                write_content="value = 1\n",
+                max_trace_bytes=1,
+            )
+
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "resource_budget_exceeded")
+            self.assertEqual(result["payload"]["budget"], "max_trace_bytes")
+            self.assertTrue(Path(result["ledger_path"]).exists())
+            self.assertTrue(Path(result["trace_path"]).exists())
+
+    def test_run_task_halts_when_run_deadline_is_exceeded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_task(
+                "deadline budget",
+                workspace=Path(tmp),
+                run_id="deadline-budget-test",
+                write_path="src/generated.py",
+                write_content="value = 1\n",
+                simulated_action_seconds=0.02,
+                max_run_seconds=0.001,
+            )
+
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "resource_budget_exceeded")
+            self.assertEqual(result["payload"]["budget"], "max_run_seconds")
+            self.assertTrue(Path(result["ledger_path"]).exists())
 
     def test_run_task_persists_run_metadata_in_single_ledger_write(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -92,6 +239,22 @@ class RunnerTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+    def test_cli_shell_schema_prints_projection_contract(self):
+        completed = subprocess.run(
+            [sys.executable, "-m", "onecode", "shell-schema"],
+            check=False,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "PYTHONPATH": "src"},
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        payload = json.loads(completed.stdout)
+        self.assertEqual(payload["name"], "onecode.shell_projection")
+        self.assertEqual(payload["version"], 1)
+        self.assertIn("rule_state", payload["fields"])
+        self.assertEqual(payload["nested_fields"]["rule_state"][0], "status_code")
+
     def test_cli_run_prints_json_result(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = os.environ.copy()
@@ -118,7 +281,266 @@ class CliTests(unittest.TestCase):
             self.assertEqual(result["run_id"], "cli-test")
             self.assertEqual(result["status"], "completed")
             self.assertFalse(result["partial"])
+            self.assertEqual(result["evidence_mode"], "wal")
+            self.assertIsNone(result["manifest_path"])
+            self.assertIsNone(result["ledger_path"])
+            self.assertIsNone(result["trace_path"])
+            self.assertEqual(result["wal_path"], str((Path(tmp) / ".onecode" / "global-ledger.jsonl").resolve()))
+            self.assertTrue(Path(result["wal_path"]).exists())
+            self.assertEqual(result["shell_projection"]["run_id"], "cli-test")
+            self.assertEqual(result["shell_projection"]["severity"], "ok")
+            self.assertEqual(result["shell_projection"]["evidence_ref"]["mode"], "wal")
+            self.assertEqual(
+                result["shell_projection"]["rule_state"]["status_code"],
+                result["iching_status_code"],
+            )
+
+    def test_cli_run_can_force_full_strict_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "strict evidence",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-strict",
+                    "--completed-evidence-mode",
+                    "full",
+                    "--evidence-durability",
+                    "strict",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            result = json.loads(completed.stdout)
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["evidence_mode"], "full")
             self.assertTrue(Path(result["manifest_path"]).exists())
+            self.assertTrue(Path(result["ledger_path"]).exists())
+
+    def test_cli_run_uses_strict_evidence_profile_from_environment(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            env["ONECODE_EVIDENCE_PROFILE"] = "strict"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "env strict",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-env-strict",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            result = json.loads(completed.stdout)
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["evidence_mode"], "full")
+            self.assertTrue(Path(result["manifest_path"]).exists())
+            self.assertTrue(Path(result["ledger_path"]).exists())
+
+    def test_cli_run_rejects_invalid_evidence_profile_without_creating_evidence_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            env["ONECODE_EVIDENCE_PROFILE"] = "heavy"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "bad env profile",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-bad-profile",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(completed.returncode, 2)
+            self.assertIn("ONECODE_EVIDENCE_PROFILE", completed.stderr)
+            self.assertFalse((Path(tmp) / ".onecode").exists())
+
+    def test_cli_run_rejects_invalid_wal_rotate_bytes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            env["ONECODE_WAL_ROTATE_BYTES"] = "bad"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "bad wal rotate",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-bad-wal-rotate",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(completed.returncode, 2)
+            self.assertIn("ONECODE_WAL_ROTATE_BYTES", completed.stderr)
+            self.assertFalse((Path(tmp) / ".onecode" / "global-ledger.jsonl").exists())
+
+    def test_cli_run_accepts_resource_budget_arguments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "too large",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-resource-budget",
+                    "--write-path",
+                    "src/generated.py",
+                    "--write-content",
+                    "xxxxxxxxx",
+                    "--max-write-bytes",
+                    "8",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            result = json.loads(completed.stdout)
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "resource_budget_exceeded")
+            self.assertEqual(result["payload"]["budget"], "max_write_bytes")
+
+    def test_cli_run_accepts_wal_relaxed_evidence_arguments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "wal relaxed cli",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-wal-relaxed",
+                    "--completed-evidence-mode",
+                    "wal",
+                    "--evidence-durability",
+                    "relaxed",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            result = json.loads(completed.stdout)
+            wal_path = Path(tmp) / ".onecode" / "global-ledger.jsonl"
+
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["evidence_mode"], "wal")
+            self.assertIsNone(result["ledger_path"])
+            self.assertIsNone(result["manifest_path"])
+            self.assertEqual(result["wal_path"], str(wal_path.resolve()))
+            self.assertTrue(wal_path.exists())
+
+    def test_cli_run_rejects_non_positive_resource_budget_arguments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "invalid budget",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-invalid-budget",
+                    "--max-actions",
+                    "0",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("argument --max-actions: must be a positive integer", completed.stderr)
+
+    def test_cli_run_accepts_run_level_budget_arguments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "trace budget",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-run-level-budget",
+                    "--write-path",
+                    "src/generated.py",
+                    "--write-content",
+                    "value = 1\n",
+                    "--completed-evidence-mode",
+                    "full",
+                    "--evidence-durability",
+                    "strict",
+                    "--max-trace-bytes",
+                    "1",
+                    "--max-run-seconds",
+                    "10",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            result = json.loads(completed.stdout)
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "resource_budget_exceeded")
+            self.assertEqual(result["payload"]["budget"], "max_trace_bytes")
 
 
 class RunnerSovereigntyTests(unittest.TestCase):
@@ -431,6 +853,10 @@ class CliResumeFlagTests(unittest.TestCase):
                     "src/mesh.py",
                     "--write-content",
                     "mesh = 'ready'\n",
+                    "--completed-evidence-mode",
+                    "full",
+                    "--evidence-durability",
+                    "strict",
                 ],
                 env=env,
                 text=True,
@@ -470,6 +896,64 @@ class CliResumeFlagTests(unittest.TestCase):
             self.assertEqual(result["reason"], "resumed_asset_ready")
             self.assertTrue(result["resumed"])
             self.assertEqual(result["sha256"], first_sha)
+            self.assertEqual(target.read_text(encoding="utf-8"), "mesh = 'ready'\n")
+
+    def test_cli_resume_skips_ready_asset_from_default_wal_only_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            first = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "write wal ready",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "source-wal-run",
+                    "--write-path",
+                    "src/mesh.py",
+                    "--write-content",
+                    "mesh = 'ready'\n",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            first_result = json.loads(first.stdout)
+            second = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "resume wal ready",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "retry-wal-run",
+                    "--resume-from",
+                    "source-wal-run",
+                    "--write-path",
+                    "src/mesh.py",
+                    "--write-content",
+                    "mesh = 'rewritten'\n",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            result = json.loads(second.stdout)
+            target = Path(tmp) / "src" / "mesh.py"
+            self.assertEqual(first_result["evidence_mode"], "wal")
+            self.assertEqual(result["status"], "skipped")
+            self.assertEqual(result["reason"], "resumed_asset_ready")
+            self.assertTrue(result["resumed"])
             self.assertEqual(target.read_text(encoding="utf-8"), "mesh = 'ready'\n")
 
     def test_cli_resume_writes_missing_asset_normally(self):

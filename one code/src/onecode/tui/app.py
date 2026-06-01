@@ -17,7 +17,9 @@ from textual.worker import Worker, WorkerState
 
 from onecode.kernel.runner import run_task
 from onecode.kernel.model_loop import run_model_task
+from onecode.kernel.model_config import read_model_config
 from onecode.kernel.model_provider import api_key_from_env, build_provider_config
+from onecode.kernel.shell_projection import project_run_to_shell
 
 
 # --- Config ---
@@ -25,7 +27,6 @@ from onecode.kernel.model_provider import api_key_from_env, build_provider_confi
 APP_VERSION = "0.1.0-alpha"
 DEFAULT_MODEL = "gpt-5.5"
 DEFAULT_WORKSPACE = Path("/private/tmp/oneword-tui-live")
-DEFAULT_ENDPOINT = "http://10.0.0.184:6780/v1/chat/completions"
 API_KEY_WARNING = "提示: 未检测到 OPENAI_API_KEY。AI 对话功能已禁用，但本地接入命令仍可正常执行。"
 
 TASK_MARKERS = (
@@ -37,6 +38,9 @@ RICH_TAG_PATTERN = re.compile(r"\[/?[a-zA-Z][^\]]*\]")
 
 
 def resolve_api_key(provider_kind: str = "chat") -> str | None:
+    stored = read_model_config(include_secret=True)
+    if stored.get("configured") is True and isinstance(stored.get("api_key"), str) and stored["api_key"]:
+        return stored["api_key"]
     key = api_key_from_env(provider_kind=provider_kind)
     return key if key else None
 
@@ -45,8 +49,11 @@ def resolve_endpoint(provider_kind: str = "chat") -> str:
     endpoint = os.environ.get("ONECODE_ENDPOINT", "").strip()
     if endpoint:
         return endpoint
+    stored = read_model_config(include_secret=True)
+    if stored.get("configured") is True and isinstance(stored.get("endpoint"), str) and stored["endpoint"]:
+        return stored["endpoint"]
     if provider_kind == "chat":
-        return DEFAULT_ENDPOINT
+        return ""
     return build_provider_config(provider_kind, endpoint=None, model=None).endpoint
 
 
@@ -81,6 +88,13 @@ def classify_input(text: str) -> str:
 
 def plain_text(text: str) -> str:
     return RICH_TAG_PATTERN.sub("", text)
+
+
+def shell_projection_for(result: dict) -> dict:
+    projection = result.get("shell_projection")
+    if isinstance(projection, dict):
+        return projection
+    return project_run_to_shell(result)
 
 
 def format_execution_trace(trace: dict) -> str:
@@ -185,13 +199,17 @@ class OneCodeApp(App):
     ) -> None:
         super().__init__(**kwargs)
         self.workspace = (workspace or DEFAULT_WORKSPACE).resolve()
-        self.provider_kind = provider_kind or os.environ.get("ONECODE_PROVIDER", "").strip() or "chat"
+        stored = read_model_config(include_secret=True)
+        stored_configured = stored.get("configured") is True
+        stored_provider = str(stored.get("provider") or "") if stored_configured else ""
+        self.provider_kind = provider_kind or os.environ.get("ONECODE_PROVIDER", "").strip() or stored_provider or "chat"
         provider_model = None if self.provider_kind == "chat" else build_provider_config(
             self.provider_kind,
             endpoint=None,
             model=None,
         ).model
-        self.model = model or os.environ.get("ONECODE_MODEL", "").strip() or provider_model or DEFAULT_MODEL
+        stored_model = str(stored.get("model") or "") if stored_configured else ""
+        self.model = model or os.environ.get("ONECODE_MODEL", "").strip() or provider_model or stored_model or DEFAULT_MODEL
         self.endpoint = resolve_endpoint(self.provider_kind)
         self.api_key = resolve_api_key(self.provider_kind)
         self.transcript_path = self.workspace / ".onecode" / "tui-transcript.txt"
@@ -495,6 +513,10 @@ class OneCodeApp(App):
         if isinstance(result.get("execution_trace"), dict):
             self._handle_execution_trace(result["execution_trace"])
             return
+        projection = shell_projection_for(result)
+        if projection.get("compact_message"):
+            self._assistant(str(projection["compact_message"]))
+            return
         st = result.get("status", "?")
         rid = result.get("run_id", "?")
         action = result.get("iching_transition_action", "")
@@ -520,7 +542,8 @@ class OneCodeApp(App):
         self._assistant(format_execution_trace(result))
 
     def _handle_inspect(self, result: dict) -> None:
-        lines = [f"[b]{result.get('run_id','?')}[/b] ({result.get('status','?')})"]
+        projection = shell_projection_for(result)
+        lines = [str(projection.get("compact_message") or f"[b]{result.get('run_id','?')}[/b] ({result.get('status','?')})")]
         if result.get("reason"):
             lines.append(f"  reason: {result['reason']}")
         assets = result.get("assets", [])
@@ -538,6 +561,10 @@ class OneCodeApp(App):
             return
         lines = [f"[b]{len(runs)} runs:[/b]"]
         for r in runs[-10:]:
+            projection = shell_projection_for(r)
+            if projection.get("compact_message"):
+                lines.append(f"  {projection['compact_message']}")
+                continue
             st = r.get("status", "?")
             color = "green" if st == "completed" else "red" if st in ("denied","halted") else "dim"
             lines.append(f"  [{color}]{st:10}[/{color}] {r.get('run_id','?')}")

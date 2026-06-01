@@ -1,0 +1,15 @@
+{
+  "id": "verifier-pass-unittest",
+  "prompt": "创建一个能通过 unittest 的最小 Python 模块",
+  "expected_status": "completed",
+  "mode": "rule",
+  "input": {
+    "write_texts": [
+      "src/generated.py=VALUE = 1\n",
+      "tests/test_generated.py=def test_generated():\n    assert True\n"
+    ]
+  },
+  "assertions": [
+    { "type": "file_exists", "path": "tests/test_generated.py" }
+  ]
+}

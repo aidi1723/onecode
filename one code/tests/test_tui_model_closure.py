@@ -9,7 +9,8 @@ from onecode.tui.app import OneCodeApp, format_execution_trace
 class TuiModelClosureTests(unittest.TestCase):
     def test_natural_language_task_routes_through_model_loop(self):
         with tempfile.TemporaryDirectory() as tmp:
-            app = OneCodeApp(workspace=Path(tmp), model="test-model")
+            with patch.dict("os.environ", {"ONECODE_HOME": str(Path(tmp) / "home")}, clear=True):
+                app = OneCodeApp(workspace=Path(tmp), model="test-model")
 
             with patch(
                 "onecode.tui.app.run_model_task",
@@ -175,6 +176,27 @@ class TuiModelClosureTests(unittest.TestCase):
             app._handle_task(result)
 
         self.assertIn("repair: attempts=1 initial=halted | patch_compile_error", assistant.call_args.args[0])
+
+    def test_tui_handlers_prefer_shell_projection_compact_message(self):
+        app = OneCodeApp(model="test-model")
+        projected = {
+            "status": "completed",
+            "run_id": "raw-run",
+            "shell_projection": {
+                "compact_message": "OneCode run shell-run: completed; severity=ok; next=idle; evidence=wal",
+                "status_label": "completed",
+                "severity": "ok",
+            },
+        }
+
+        with patch.object(app, "_assistant") as assistant:
+            app._handle_task(projected)
+            app._handle_inspect(projected)
+            app._handle_list_runs({"runs": [projected]})
+
+        messages = [call.args[0] for call in assistant.call_args_list]
+        self.assertTrue(all("shell-run" in message for message in messages))
+        self.assertTrue(all("raw-run" not in message for message in messages))
 
 
 if __name__ == "__main__":

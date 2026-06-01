@@ -31,6 +31,20 @@ class LogosGateTests(unittest.TestCase):
         self.assertEqual(result["reason"], "http_timeout")
         self.assertEqual(result["payload"], {})
 
+    def test_run_bounded_action_halts_on_action_exception(self):
+        gate = LogosGate(http_timeout_seconds=1)
+
+        def failing_action():
+            raise RuntimeError("disk write failed")
+
+        result = gate.run_bounded_action(failing_action)
+
+        self.assertEqual(result["status"], "halted")
+        self.assertTrue(result["partial"])
+        self.assertEqual(result["reason"], "action_exception")
+        self.assertEqual(result["payload"]["error_type"], "RuntimeError")
+        self.assertEqual(result["payload"]["error_message_tail"], "disk write failed")
+
     def test_timeout_rebuilds_executor_before_next_action(self):
         gate = LogosGate(http_timeout_seconds=0.05)
         try:

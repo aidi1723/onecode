@@ -8,9 +8,12 @@ from pathlib import Path
 from typing import Any, Literal
 
 from onecode.kernel.hexagram import IchingKernel
+from onecode.kernel.sandbox import SandboxConfig, run_in_sandbox
+from onecode.kernel.trace import TraceEvent, write_trace_event
 
 
 VerifierStatus = Literal["passed", "failed", "skipped"]
+VerifierFailureKind = Literal["command_failed", "timeout", "exception"]
 TAIL_LIMIT = 4096
 DEFAULT_VERIFIER_POLICY_PATH = ".onecode/verifier-policy.json"
 VERIFIER_POLICY_PRESETS = {
@@ -27,6 +30,29 @@ VERIFIER_POLICY_PRESETS = {
         "timeout_ms": 30000,
     },
 }
+
+ALLOWED_VERIFIER_COMMANDS = {
+    tuple(preset["command"])
+    for preset in VERIFIER_POLICY_PRESETS.values()
+}
+PYTHON_EXECUTABLE_NAMES = {"python", "python3", Path(sys.executable).name}
+
+
+def verifier_command_allowed(command: list[str]) -> bool:
+    command_tuple = tuple(command)
+    if command_tuple in ALLOWED_VERIFIER_COMMANDS:
+        return True
+    if not command:
+        return False
+    executable = Path(command[0]).name
+    if executable not in PYTHON_EXECUTABLE_NAMES:
+        return False
+    for allowed in ALLOWED_VERIFIER_COMMANDS:
+        if not allowed:
+            continue
+        if Path(allowed[0]).name in PYTHON_EXECUTABLE_NAMES and tuple(command[1:]) == tuple(allowed[1:]):
+            return True
+    return False
 
 
 @dataclass(frozen=True)
@@ -54,6 +80,7 @@ class VerifierResult:
     id: str
     status: VerifierStatus
     reason: str | None
+    failure_kind: VerifierFailureKind | None
     exit_code: int | None
     duration_ms: int
     stdout_tail: str
@@ -105,6 +132,8 @@ def load_verifier_policy(path: Path) -> VerifierPolicy:
         )
         if spec.id in specs:
             raise ValueError(f"duplicate verifier id: {spec.id}")
+        if not verifier_command_allowed(spec.command):
+            raise ValueError(f"invalid verifier {index}: verifier command is not allowed")
         specs[spec.id] = spec
     return VerifierPolicy(specs=specs)
 
@@ -190,35 +219,65 @@ def sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
-def run_verifier(workspace: Path, spec: VerifierSpec) -> VerifierResult:
+def run_verifier(
+    workspace: Path,
+    spec: VerifierSpec,
+    trace_path: Path | None = None,
+    trace_id: str | None = None,
+    run_id: str | None = None,
+    sandbox_config: SandboxConfig | None = None,
+) -> VerifierResult:
     resolved_cwd = resolve_verifier_cwd(workspace, spec.cwd)
     started_at = time.monotonic()
+    resolved_trace_id = trace_id or run_id or "verifier"
+    resolved_run_id = run_id or resolved_trace_id
+    if trace_path is not None:
+        write_trace_event(
+            trace_path,
+            TraceEvent(
+                trace_id=resolved_trace_id,
+                run_id=resolved_run_id,
+                span_id=f"verifier-{spec.id}",
+                parent_span_id="run",
+                event_type="verifier_started",
+                status="started",
+                payload={"verifier_id": spec.id, "command": list(spec.command), "cwd": spec.cwd},
+            ),
+        )
     stdout = b""
     stderr = b""
     try:
-        completed = subprocess.run(
-            spec.command,
-            cwd=resolved_cwd,
-            capture_output=True,
-            timeout=spec.timeout_ms / 1000,
-            check=False,
-        )
-        stdout = completed.stdout
-        stderr = completed.stderr
+        if sandbox_config is not None:
+            completed = run_in_sandbox(sandbox_config, spec.command)
+            stdout = completed.stdout.encode("utf-8") if isinstance(completed.stdout, str) else completed.stdout
+            stderr = completed.stderr.encode("utf-8") if isinstance(completed.stderr, str) else completed.stderr
+        else:
+            completed = subprocess.run(
+                spec.command,
+                cwd=resolved_cwd,
+                capture_output=True,
+                timeout=spec.timeout_ms / 1000,
+                check=False,
+            )
+            stdout = completed.stdout
+            stderr = completed.stderr
         status: VerifierStatus = "passed" if completed.returncode == 0 else "failed"
         reason = None if completed.returncode == 0 else "verifier_failed"
+        failure_kind: VerifierFailureKind | None = None if completed.returncode == 0 else "command_failed"
         exit_code: int | None = completed.returncode
     except subprocess.TimeoutExpired as exc:
         stdout = exc.stdout if isinstance(exc.stdout, bytes) else b""
         stderr = exc.stderr if isinstance(exc.stderr, bytes) else b""
         status = "failed"
         reason = "verifier_timeout"
+        failure_kind = "timeout"
         exit_code = None
     duration_ms = int((time.monotonic() - started_at) * 1000)
-    return VerifierResult(
+    result = VerifierResult(
         id=spec.id,
         status=status,
         reason=reason,
+        failure_kind=failure_kind,
         exit_code=exit_code,
         duration_ms=duration_ms,
         stdout_tail=tail_text(stdout),
@@ -228,6 +287,28 @@ def run_verifier(workspace: Path, spec: VerifierSpec) -> VerifierResult:
         cwd=spec.cwd,
         command=list(spec.command),
     )
+    if trace_path is not None:
+        write_trace_event(
+            trace_path,
+            TraceEvent(
+                trace_id=resolved_trace_id,
+                run_id=resolved_run_id,
+                span_id=f"verifier-{spec.id}",
+                parent_span_id="run",
+                event_type="verifier_completed",
+                status=result.status,
+                payload={
+                    "verifier_id": spec.id,
+                    "reason": result.reason,
+                    "failure_kind": result.failure_kind,
+                    "exit_code": result.exit_code,
+                    "stdout_sha256": result.stdout_sha256,
+                    "stderr_sha256": result.stderr_sha256,
+                },
+                duration_ms=result.duration_ms,
+            ),
+        )
+    return result
 
 
 def validate_selected_verifiers(workspace: Path, policy: VerifierPolicy, verifier_ids: list[str]) -> list[VerifierSpec]:

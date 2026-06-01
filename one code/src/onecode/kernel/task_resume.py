@@ -6,6 +6,7 @@ from typing import Any, Literal
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.resumption import sha256_file
 from onecode.kernel.verifier import VerifierSpec
+from onecode.kernel.wal import read_validated_global_wal_entries
 
 
 DecisionKind = Literal["ready", "apply", "verify", "halt", "discover"]
@@ -136,6 +137,50 @@ def verifier_by_id(ledger: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
     }
 
 
+def normalize_payload_path(workspace: Path, payload_path: str) -> str:
+    target = (workspace.resolve() / payload_path).resolve()
+    try:
+        return str(target.relative_to(workspace.resolve()))
+    except ValueError as exc:
+        raise ValueError("checkpoint_path_outside_workspace") from exc
+
+
+def wal_payloads_by_path(workspace: Path, source_run_id: str) -> dict[str, dict[str, Any]]:
+    payloads: dict[str, dict[str, Any]] = {}
+    for entry in read_validated_global_wal_entries(workspace):
+        if entry.get("rid") != source_run_id or entry.get("em") != "wal":
+            continue
+        assets = entry.get("as")
+        if not isinstance(assets, list):
+            continue
+        for asset in assets:
+            if not isinstance(asset, dict):
+                continue
+            path = asset.get("p")
+            sha256 = asset.get("s")
+            intent_type = asset.get("i")
+            if not isinstance(path, str) or not isinstance(sha256, str) or not isinstance(intent_type, str):
+                continue
+            relative_path = normalize_payload_path(workspace, path)
+            payload = {
+                "path": relative_path,
+                "sha256": sha256,
+                "intent_type": intent_type,
+            }
+            if intent_type == "patch_text":
+                for source_key, target_key in (
+                    ("pre", "pre_sha256"),
+                    ("post", "post_sha256"),
+                    ("search", "search_block_sha256"),
+                    ("replace", "replace_block_sha256"),
+                ):
+                    value = asset.get(source_key)
+                    if isinstance(value, str):
+                        payload[target_key] = value
+            payloads[relative_path] = payload
+    return payloads
+
+
 def verifier_matches_spec(result: dict[str, Any], spec: VerifierSpec) -> bool | None:
     command = result.get("command")
     cwd = result.get("cwd")
@@ -194,6 +239,32 @@ def classify_task_resume(
     decisions: list[TaskResumeDecision] = []
 
     if not manifest_path.exists():
+        try:
+            payloads = wal_payloads_by_path(workspace, source_run_id)
+        except (json.JSONDecodeError, ValueError):
+            decisions.append(make_decision("halt", "task", source_run_id, "source_evidence_corrupt"))
+            return aggregate_summary(decisions)
+        if payloads:
+            for asset in planned_assets:
+                payload = payloads.get(asset.path)
+                if payload is None:
+                    decisions.append(make_decision("apply", "asset", asset.path, "missing_asset_evidence"))
+                    continue
+                target = workspace.resolve() / asset.path
+                expected_sha = payload.get("sha256")
+                if not target.exists():
+                    decisions.append(make_decision("apply", "asset", asset.path, "missing_physical_asset"))
+                    continue
+                if not isinstance(expected_sha, str) or sha256_file(target) != expected_sha:
+                    decisions.append(make_decision("halt", "asset", asset.path, "asset_hash_conflict"))
+                    continue
+                if verifier_specs:
+                    decisions.append(make_decision("verify", "asset", asset.path, "missing_verifier_evidence"))
+                else:
+                    decisions.append(make_decision("ready", "asset", asset.path, None))
+            for spec in verifier_specs:
+                decisions.append(make_decision("apply", "verifier", spec.id, "missing_verifier_evidence"))
+            return aggregate_summary(decisions)
         for asset in planned_assets:
             decisions.append(make_decision("apply", "asset", asset.path, "missing_source_manifest"))
         for spec in verifier_specs:

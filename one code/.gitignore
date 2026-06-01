@@ -2,3 +2,14 @@
 src/*.egg-info/
 .env
 .env.*
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+.onecode/
+.playwright-cli/
+.onecode-complex-plan.json
+reports/

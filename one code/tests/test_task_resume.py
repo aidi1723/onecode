@@ -46,6 +46,81 @@ class TaskResumeClassificationTests(unittest.TestCase):
             self.assertEqual(summary.decisions[0].kind, "ready")
             self.assertEqual(summary.decisions[0].reason, None)
 
+    def test_matching_wal_only_completed_asset_classifies_as_ready(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            run_task(
+                "source",
+                workspace=workspace,
+                run_id="source-run",
+                write_path="src/a.py",
+                write_content="A = 1\n",
+                completed_evidence_mode="wal",
+                evidence_durability="relaxed",
+            )
+
+            summary = classify_task_resume(
+                workspace=workspace,
+                source_run_id="source-run",
+                planned_assets=[PlannedAsset(path="src/a.py", content="A = 2\n")],
+                verifier_specs=[],
+            )
+
+            self.assertEqual(summary.decisions[0].kind, "ready")
+            self.assertEqual(summary.decisions[0].reason, None)
+
+    def test_modified_wal_only_completed_asset_classifies_as_halt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            run_task(
+                "source",
+                workspace=workspace,
+                run_id="source-run",
+                write_path="src/a.py",
+                write_content="A = 1\n",
+                completed_evidence_mode="wal",
+                evidence_durability="relaxed",
+            )
+            (workspace / "src" / "a.py").write_text("A = 99\n", encoding="utf-8")
+
+            summary = classify_task_resume(
+                workspace=workspace,
+                source_run_id="source-run",
+                planned_assets=[PlannedAsset(path="src/a.py", content="A = 2\n")],
+                verifier_specs=[],
+            )
+
+            self.assertEqual(summary.decisions[0].kind, "halt")
+            self.assertEqual(summary.decisions[0].reason, "asset_hash_conflict")
+
+    def test_tampered_wal_only_source_classifies_task_as_halt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            run_task(
+                "source",
+                workspace=workspace,
+                run_id="source-run",
+                write_path="src/a.py",
+                write_content="A = 1\n",
+                completed_evidence_mode="wal",
+                evidence_durability="relaxed",
+            )
+            wal_path = workspace / ".onecode" / "global-ledger.jsonl"
+            entry = json.loads(wal_path.read_text(encoding="utf-8").splitlines()[0])
+            entry["st"] = "completed-but-tampered"
+            wal_path.write_text(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+
+            summary = classify_task_resume(
+                workspace=workspace,
+                source_run_id="source-run",
+                planned_assets=[PlannedAsset(path="src/a.py", content="A = 2\n")],
+                verifier_specs=[],
+            )
+
+            self.assertEqual(summary.decisions[0].kind, "halt")
+            self.assertEqual(summary.decisions[0].target_type, "task")
+            self.assertEqual(summary.decisions[0].reason, "source_evidence_corrupt")
+
     def test_modified_completed_asset_classifies_as_halt(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

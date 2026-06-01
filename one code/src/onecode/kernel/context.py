@@ -24,6 +24,7 @@ def create_context(
     http_timeout_seconds: float = 60,
     run_id: str | None = None,
     resume_from_run_id: str | None = None,
+    create_evidence_dirs: bool = True,
 ) -> OneCodeContext:
     if http_timeout_seconds <= 0:
         raise ValueError("http_timeout_seconds must be greater than zero")
@@ -33,7 +34,8 @@ def create_context(
     selected_run_id = run_id or uuid4().hex
     evidence_root = resolved_workspace / ".onecode" / "runs" / selected_run_id
     checkpoints_root = evidence_root / "checkpoints"
-    checkpoints_root.mkdir(parents=True, exist_ok=True)
+    if create_evidence_dirs:
+        checkpoints_root.mkdir(parents=True, exist_ok=True)
     resume_state = load_resume_state(resolved_workspace, resume_from_run_id) if resume_from_run_id else None
 
     return OneCodeContext(

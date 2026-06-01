@@ -100,6 +100,17 @@ class LogosGate:
                 "reason": "http_timeout",
                 "payload": {},
             }
+        except Exception as exc:
+            future.cancel()
+            return {
+                "status": "halted",
+                "partial": True,
+                "reason": "action_exception",
+                "payload": {
+                    "error_type": type(exc).__name__,
+                    "error_message_tail": str(exc)[-1024:],
+                },
+            }
 
         return {
             "status": "completed",

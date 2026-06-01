@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from onecode.kernel.hexagram import IchingKernel
+from onecode.kernel.wal import read_validated_global_wal_entries
 
 
 @dataclass(frozen=True)
@@ -206,11 +207,65 @@ def checkpoint_to_ready_asset(
     )
 
 
+def wal_asset_to_checkpoint(asset: dict, source_run_id: str) -> dict | None:
+    path = asset.get("p")
+    sha256 = asset.get("s")
+    intent_type = asset.get("i")
+    if not isinstance(path, str) or not isinstance(sha256, str) or intent_type not in {"write_text", "patch_text"}:
+        return None
+    payload = {
+        "path": path,
+        "sha256": sha256,
+    }
+    if intent_type == "patch_text":
+        for source_key, target_key in (
+            ("pre", "pre_sha256"),
+            ("post", "post_sha256"),
+            ("search", "search_block_sha256"),
+            ("replace", "replace_block_sha256"),
+        ):
+            value = asset.get(source_key)
+            if isinstance(value, str):
+                payload[target_key] = value
+    return {
+        "status": "completed",
+        "intent_type": intent_type,
+        "decision": "allowed",
+        "turn_index": asset.get("t", 0),
+        "payload": payload,
+        "source": "global_wal",
+        "run_id": source_run_id,
+    }
+
+
+def load_wal_resume_state(workspace_root: Path, resume_from_run_id: str) -> ResumeState:
+    ready_assets: dict[str, ReadyAsset] = {}
+    audit_events: list[dict] = []
+    for entry in read_validated_global_wal_entries(workspace_root):
+        if entry.get("rid") != resume_from_run_id or entry.get("em") != "wal":
+            continue
+        assets = entry.get("as")
+        if not isinstance(assets, list):
+            continue
+        for asset in assets:
+            if not isinstance(asset, dict):
+                continue
+            checkpoint = wal_asset_to_checkpoint(asset, resume_from_run_id)
+            if checkpoint is None:
+                continue
+            ready_asset, event = checkpoint_to_ready_asset(workspace_root, resume_from_run_id, checkpoint)
+            if event is not None:
+                audit_events.append(event)
+            if ready_asset is not None:
+                ready_assets[ready_asset.path] = ready_asset
+    return ResumeState(source_run_id=resume_from_run_id, ready_assets=ready_assets, audit_events=audit_events)
+
+
 def load_resume_state(workspace_root: Path, resume_from_run_id: str) -> ResumeState:
     root = workspace_root.resolve()
     manifest_path = root / ".onecode" / "runs" / resume_from_run_id / "manifest.json"
     if not manifest_path.exists():
-        return ResumeState(source_run_id=resume_from_run_id, ready_assets={}, audit_events=[])
+        return load_wal_resume_state(root, resume_from_run_id)
 
     manifest = load_json(manifest_path)
     ready_assets: dict[str, ReadyAsset] = {}
