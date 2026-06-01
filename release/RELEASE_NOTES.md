@@ -72,6 +72,20 @@ are not reported for this run because no model API was called.
 
 该基准衡量确定性执行控制行为。本轮未调用模型 API，因此不报告 token 节省。
 
+A supplemental model-backed A/B run also compared Codex+LM with OneCode+LM on
+the same 20 benchmark tasks. OneCode+LM passed 20/20 tasks versus Codex+LM
+19/20, matched Codex+LM at 100% asset completeness, improved evidence
+completeness from 0% to 100%, and reduced measured workflow token usage from
+1,623,063 to 9,355 tokens.
+
+另有一轮模型版补充 A/B，在相同 20 个 benchmark 任务上对比 Codex+LM 与 OneCode+LM。OneCode+LM 通过 20/20 个任务，Codex+LM 通过 19/20 个任务；OneCode+LM 在资产完整性上同为 100%，将证据完整性从 0% 提升到 100%，并将测得的工作流 token 使用量从 1,623,063 降至 9,355。
+
+This means OneCode can match or exceed Codex+LM on selected measured workflow
+parameters in this bounded benchmark when the LM is used for instruction
+interpretation and the deterministic kernel owns execution control.
+
+这意味着在该有边界的 benchmark 中，当 LM 用于指令解释、由确定性内核掌控执行控制时，OneCode 可以在部分可测工作流参数上看齐或超过 Codex+LM。
+
 ## Operational Notes / 运行说明
 
 - The default completed-run evidence path is designed to minimize disk pressure.

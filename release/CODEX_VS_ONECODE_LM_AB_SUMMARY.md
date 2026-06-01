@@ -66,6 +66,13 @@ deterministic kernel handle execution, refusal, evidence, and scoring.
 
 这轮比之前的本地内核测试更接近“模型版”对比：两组都使用 LM。OneCode 的主要优势来自把模型职责压缩为“指令解释”，再由确定性内核负责执行、拒绝、留痕和评分。
 
+Within this benchmark boundary, OneCode+LM reached Codex+LM-level asset
+completeness and exceeded Codex+LM on Pass@1, evidence completeness, total
+wall-clock time, and total model-token usage. These are measured workflow
+parameters for this task set, not a claim of universal superiority over Codex.
+
+在本 benchmark 边界内，OneCode+LM 在资产完整性上达到 Codex+LM 同等水平，并在 Pass@1、证据完整性、总墙钟耗时和总模型 token 使用量上超过 Codex+LM。这些是该任务集上的工作流参数测量，不是对 Codex 的泛化全面超越宣称。
+
 The token reduction should be interpreted as workflow-token reduction for this
 benchmark setup. It does not mean OneCode eliminates model usage; OneCode+LM
 still consumed 9,355 model tokens in this run.

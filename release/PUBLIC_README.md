@@ -64,6 +64,14 @@ The target benefits measured by the benchmark harness are:
 - lower disk I/O from compact append-only evidence / 通过紧凑追加式证据降低磁盘 I/O
 - better task quality through verifier and evidence checks / 通过验证器和证据检查提升任务质量
 
+In a supplemental model-backed A/B run on the same 20 benchmark tasks, OneCode+LM
+matched Codex+LM on asset completeness, exceeded Codex+LM on Pass@1 and evidence
+completeness, and used substantially fewer workflow tokens and wall-clock time.
+This is a bounded benchmark result, not a claim that OneCode is a full
+general-purpose Codex replacement.
+
+在相同 20 个 benchmark 任务的模型版补充 A/B 中，OneCode+LM 在资产完整性上看齐 Codex+LM，在 Pass@1 和证据完整性上超过 Codex+LM，并显著降低工作流 token 与墙钟耗时。这是有边界的基准测试结果，不是宣称 OneCode 可以完整替代通用 Codex。
+
 ## Install / 安装
 
 ```bash
@@ -157,4 +165,3 @@ TLS, request-size limits, rate limiting, and environment-specific secret
 management.
 
 当前版本适合作为本地开发基线、集成原型和企业级可信工业 AI 工作流评估基线。生产部署仍需要由使用方掌控的网关、鉴权、TLS、请求大小限制、限流和环境级密钥管理。
-

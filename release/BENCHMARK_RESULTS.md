@@ -150,6 +150,13 @@ deterministic OneCode kernel for execution, refusal, evidence, and scoring.
 - Summary / 摘要: [`CODEX_VS_ONECODE_LM_AB_SUMMARY.md`](CODEX_VS_ONECODE_LM_AB_SUMMARY.md)
 - Sanitized JSON report / 已脱敏 JSON 报告: [`CODEX_VS_ONECODE_LM_AB_REPORT.json`](CODEX_VS_ONECODE_LM_AB_REPORT.json)
 
+Within this benchmark boundary, OneCode+LM reached Codex+LM-level asset
+completeness and exceeded Codex+LM on Pass@1, evidence completeness, total
+wall-clock time, and total model-token usage. This should be read as a bounded
+workflow result, not as a universal replacement claim.
+
+在本 benchmark 边界内，OneCode+LM 在资产完整性上达到 Codex+LM 同等水平，并在 Pass@1、证据完整性、总墙钟耗时和总模型 token 使用量上超过 Codex+LM。该结论应理解为有边界的工作流结果，不是通用替代宣称。
+
 ## Reporting Guidance / 对外表述规范
 
 For this local deterministic benchmark, public copy may use language like:

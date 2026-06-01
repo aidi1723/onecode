@@ -80,6 +80,13 @@ marked as not applicable for that run.
 已验证的本地确定性基准测试数据发布在
 [`release/BENCHMARK_RESULTS.md`](release/BENCHMARK_RESULTS.md)。该轮基准测试不调用真实模型或外部 API，因此 token 指标在该轮数据中明确标记为不适用。
 
+A supplemental model-backed A/B run compares Codex+LM with OneCode+LM on the
+same 20 benchmark tasks. In that bounded setup, OneCode+LM matched Codex+LM on
+asset completeness, exceeded it on Pass@1 and evidence completeness, and used
+substantially fewer workflow tokens and wall-clock time.
+
+另有一轮模型版补充 A/B，在相同 20 个 benchmark 任务上对比 Codex+LM 与 OneCode+LM。在这个有边界的测试设置中，OneCode+LM 在资产完整性上看齐 Codex+LM，在 Pass@1 和证据完整性上超过 Codex+LM，并显著降低工作流 token 与墙钟耗时。
+
 ### Verified A/B Snapshot / 已验证 A/B 快照
 
 | Metric / 指标 | Baseline agent / 基线 Agent | OneCode | Delta / 变化 |
@@ -99,6 +106,25 @@ measures invalid-action propagation as an engineering proxy, not a live model's
 raw hallucination rate.
 
 边界说明：这是一轮本地确定性执行控制基准测试。无效动作传播率是工程代理指标，不是在线模型原始幻觉率。
+
+### Model-Backed A/B Snapshot / 模型版 A/B 快照
+
+| Metric / 指标 | Codex+LM | OneCode+LM | Delta / 变化 |
+| --- | ---: | ---: | ---: |
+| Task count / 任务数 | 20 | 20 | - |
+| Passed tasks / 通过任务 | 19 | 20 | OneCode+LM +1 |
+| Pass@1 | 95% | 100% | OneCode+LM +5 pp |
+| Asset completeness / 资产完整性 | 100% | 100% | matched / 看齐 |
+| Evidence completeness / 证据完整性 | 0% | 100% | OneCode+LM +100 pp |
+| Total elapsed / 总耗时 | 701.365s | 70.398s | OneCode+LM lower |
+| Total model tokens / 模型 token 总量 | 1,623,063 | 9,355 | OneCode+LM lower |
+
+Boundary: this is not a claim that OneCode is a full Codex replacement. It shows
+that when the LM is used mainly for instruction interpretation and the OneCode
+kernel owns execution control, OneCode can match or exceed Codex+LM on several
+measured parameters in this benchmark.
+
+边界说明：这不是宣称 OneCode 可以完整替代 Codex。它说明当 LM 主要负责指令解释、由 OneCode 内核掌控执行控制时，OneCode 在这组 benchmark 的若干可测参数上可以看齐或超过 Codex+LM。
 
 ## Install / 安装
 
