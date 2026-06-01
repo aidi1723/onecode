@@ -16,6 +16,10 @@ This checklist records the current public-release readiness state.
   工程中性的公开术语。
 - [x] Public positioning: trusted industrial AI kernel for enterprise-grade local agent workflows.
   公开定位：面向企业级本地 Agent 工作流的可信任工业级 AI 内核。
+- [x] Core ownership statement: OneCode Core is self-developed and released under Apache License 2.0.
+  核心知识产权声明：OneCode Core 为自研核心，并以 Apache License 2.0 发布。
+- [x] Third-party shell boundary documented for the LibreChat-based bundled Web shell.
+  已记录基于 LibreChat 的内置 Web 壳第三方边界。
 - [x] Bundled custom Web shell documented and linked from the public README.
   内置定制 Web 壳已记录，并从公开 README 链接。
 - [x] Kernel and bundled shell deployment guide.
@@ -68,4 +72,3 @@ OneCode evidence completeness: 100%
   创建签名 release tag。
 - [ ] Publish release artifacts or source archive.
   发布 release 产物或源码归档。
-

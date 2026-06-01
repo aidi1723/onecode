@@ -22,6 +22,22 @@ OneCode is licensed under the Apache License, Version 2.0.
 
 OneCode 使用 Apache License 2.0 开源协议。
 
+## Core Ownership / 核心知识产权
+
+OneCode Core is independently designed and implemented by the OneCode
+development team. The core state machine, execution-control rules, safety
+guards, evidence model, hash-chain inspection, resume logic, benchmark harness,
+and shell projection contract are self-developed project assets released under
+Apache License 2.0.
+
+OneCode Core 由 OneCode 开发团队独立设计和实现。核心状态机、执行控制规则、安全护栏、证据模型、哈希链检查、恢复逻辑、基准测试框架和壳层投影契约，均为项目自研资产，并以 Apache License 2.0 发布。
+
+The bundled Web shell is a custom OneCode integration based on LibreChat and
+keeps the upstream MIT license notices. Third-party runtime, build, and UI
+dependencies remain governed by their own licenses.
+
+内置 Web 壳是基于 LibreChat 的 OneCode 定制集成，并保留上游 MIT 许可声明。第三方运行时、构建和 UI 依赖仍遵循各自许可证。
+
 ## Core Capabilities / 核心能力
 
 - Guarded workspace writes through a path and intent gate.
