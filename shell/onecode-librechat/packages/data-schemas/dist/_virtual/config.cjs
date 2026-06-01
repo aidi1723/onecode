@@ -1,6 +1,4 @@
 'use strict';
 
-var config = require('../node_modules/dotenv/config.cjs');
-
-config.__require();
+require('dotenv/config');
 //# sourceMappingURL=config.cjs.map

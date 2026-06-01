@@ -10,6 +10,7 @@ from onecode.shell_launcher import (
     DEFAULT_LOCAL_PASSWORD,
     DEFAULT_MONGO_PORT,
     DEFAULT_ONECODE_PORT,
+    LIBRECHAT_LOCAL_SECRETS,
     ShellLaunchConfig,
     build_librechat_env,
     build_runtime_config,
@@ -69,7 +70,27 @@ class ShellLauncherConfigTests(unittest.TestCase):
             self.assertEqual(env["ALLOW_UNVERIFIED_EMAIL_LOGIN"], "true")
             self.assertEqual(env["LOGIN_WINDOW"], "1")
             self.assertEqual(env["LOGIN_MAX"], "100")
+            for key, value in LIBRECHAT_LOCAL_SECRETS.items():
+                self.assertEqual(env[key], value)
             self.assertNotIn("ONEWORD_API_BASE_URL", env)
+
+    def test_build_librechat_env_preserves_operator_secrets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = ShellLaunchConfig(
+                onecode_root=Path(tmp) / "one code",
+                librechat_dir=Path(tmp) / "onecode-librechat",
+                onecode_host="127.0.0.1",
+                onecode_port=18080,
+                librechat_host="127.0.0.1",
+                librechat_port=13080,
+                mongo_port=37017,
+                api_token="test-token",
+                workspace_root=Path(tmp) / "workspace",
+            )
+
+            env = build_librechat_env(config, {"JWT_SECRET": "operator-secret"})
+
+        self.assertEqual(env["JWT_SECRET"], "operator-secret")
 
     def test_build_librechat_env_does_not_inherit_openai_credentials(self):
         with tempfile.TemporaryDirectory() as tmp:

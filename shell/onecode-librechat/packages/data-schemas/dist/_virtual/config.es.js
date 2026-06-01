@@ -1,4 +1,2 @@
-import { __require as requireConfig } from '../node_modules/dotenv/config.es.js';
-
-requireConfig();
+import 'dotenv/config';
 //# sourceMappingURL=config.es.js.map

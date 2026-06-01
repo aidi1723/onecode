@@ -17,6 +17,12 @@ DEFAULT_LOCAL_PASSWORD = "OneCode123!"
 DEFAULT_ONECODE_PORT = 19080
 DEFAULT_LIBRECHAT_PORT = 14080
 DEFAULT_MONGO_PORT = 39017
+LIBRECHAT_LOCAL_SECRETS = {
+    "CREDS_KEY": "f34be427ebb29de8d88c107a71546019685ed8b241d8f2ed00c3df97ad2566f0",
+    "CREDS_IV": "e2341419ec3dd3d19b13a1a87fafcbfb",
+    "JWT_SECRET": "16f8c0ef4a5d391b26034086c628469d3f9f497f08163ab9b40137092f2909ef",
+    "JWT_REFRESH_SECRET": "eaa5191f2914e30b9387fd84e254e4ba6fc51b4654968a9b0803b456a54b8418",
+}
 
 
 @dataclass(frozen=True)
@@ -71,6 +77,8 @@ def build_librechat_env(config: ShellLaunchConfig, base_env: Mapping[str, str] |
             "CONFIG_PATH": str(runtime_config_path(config)),
         }
     )
+    for key, value in LIBRECHAT_LOCAL_SECRETS.items():
+        env.setdefault(key, value)
     return env
 
 
