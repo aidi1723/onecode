@@ -1,10 +1,11 @@
-# OneCode Release Notes
+# one code Release Notes
 
 ## Current Release Summary
 
-This release stabilizes OneCode as a local-first agent kernel with a deterministic
-state machine, guarded file writes, resumable execution, and low-overhead
-append-only evidence.
+This release stabilizes one code as a trusted industrial AI kernel for
+enterprise-grade local agent workflows. It combines a deterministic state
+machine, guarded file writes, resumable execution, and low-overhead append-only
+evidence.
 
 ## Highlights
 
@@ -15,6 +16,7 @@ append-only evidence.
 - OpenAI-compatible local HTTP API for shell integration.
 - Benchmark task set for safety, trace, approval, sandbox, and resume behavior.
 - Core verification script and release audit script.
+- Public release pack with engineering-neutral terminology.
 
 ## Verification
 
