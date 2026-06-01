@@ -1,0 +1,345 @@
+import hashlib
+import json
+import subprocess
+import sys
+import time
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any, Literal
+
+from onecode.kernel.hexagram import IchingKernel
+from onecode.kernel.sandbox import SandboxConfig, run_in_sandbox
+from onecode.kernel.trace import TraceEvent, write_trace_event
+
+
+VerifierStatus = Literal["passed", "failed", "skipped"]
+VerifierFailureKind = Literal["command_failed", "timeout", "exception"]
+TAIL_LIMIT = 4096
+DEFAULT_VERIFIER_POLICY_PATH = ".onecode/verifier-policy.json"
+VERIFIER_POLICY_PRESETS = {
+    "python-unittest": {
+        "id": "python-unittest",
+        "command": [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+        "cwd": ".",
+        "timeout_ms": 30000,
+    },
+    "python-compileall": {
+        "id": "python-compileall",
+        "command": [sys.executable, "-m", "compileall", "src", "tests"],
+        "cwd": ".",
+        "timeout_ms": 30000,
+    },
+}
+
+ALLOWED_VERIFIER_COMMANDS = {
+    tuple(preset["command"])
+    for preset in VERIFIER_POLICY_PRESETS.values()
+}
+PYTHON_EXECUTABLE_NAMES = {"python", "python3", Path(sys.executable).name}
+
+
+def verifier_command_allowed(command: list[str]) -> bool:
+    command_tuple = tuple(command)
+    if command_tuple in ALLOWED_VERIFIER_COMMANDS:
+        return True
+    if not command:
+        return False
+    executable = Path(command[0]).name
+    if executable not in PYTHON_EXECUTABLE_NAMES:
+        return False
+    for allowed in ALLOWED_VERIFIER_COMMANDS:
+        if not allowed:
+            continue
+        if Path(allowed[0]).name in PYTHON_EXECUTABLE_NAMES and tuple(command[1:]) == tuple(allowed[1:]):
+            return True
+    return False
+
+
+@dataclass(frozen=True)
+class VerifierSpec:
+    id: str
+    command: list[str]
+    cwd: str
+    timeout_ms: int
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.id, str) or self.id == "":
+            raise ValueError("verifier id must be a non-empty string")
+        if not isinstance(self.command, list) or not self.command:
+            raise ValueError("verifier command must be a non-empty string list")
+        if not all(isinstance(part, str) and part != "" for part in self.command):
+            raise ValueError("verifier command must be a non-empty string list")
+        if not isinstance(self.cwd, str) or self.cwd == "":
+            raise ValueError("verifier cwd must be a non-empty string")
+        if not isinstance(self.timeout_ms, int) or self.timeout_ms <= 0:
+            raise ValueError("verifier timeout_ms must be positive")
+
+
+@dataclass(frozen=True)
+class VerifierResult:
+    id: str
+    status: VerifierStatus
+    reason: str | None
+    failure_kind: VerifierFailureKind | None
+    exit_code: int | None
+    duration_ms: int
+    stdout_tail: str
+    stderr_tail: str
+    stdout_sha256: str
+    stderr_sha256: str
+    cwd: str
+    command: list[str]
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class VerifierPolicy:
+    specs: dict[str, VerifierSpec]
+
+    def require(self, verifier_id: str) -> VerifierSpec:
+        try:
+            return self.specs[verifier_id]
+        except KeyError as exc:
+            raise ValueError(f"unknown verifier id: {verifier_id}") from exc
+
+
+def load_verifier_policy(path: Path) -> VerifierPolicy:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise ValueError("invalid verifier policy: missing_file") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError("invalid verifier policy: invalid_json") from exc
+    if not isinstance(data, dict):
+        raise ValueError("invalid verifier policy: root must be an object")
+    verifiers = data.get("verifiers")
+    if not isinstance(verifiers, list):
+        raise ValueError("invalid verifier policy: verifiers must be a list")
+    specs: dict[str, VerifierSpec] = {}
+    for index, value in enumerate(verifiers, start=1):
+        if not isinstance(value, dict):
+            raise ValueError(f"invalid verifier {index}: verifier must be an object")
+        unknown_fields = sorted(set(value) - {"id", "command", "cwd", "timeout_ms"})
+        if unknown_fields:
+            raise ValueError(f"invalid verifier {index}: unknown fields: {', '.join(unknown_fields)}")
+        spec = VerifierSpec(
+            id=value.get("id", ""),
+            command=value.get("command", []),
+            cwd=value.get("cwd", ""),
+            timeout_ms=value.get("timeout_ms", 0),
+        )
+        if spec.id in specs:
+            raise ValueError(f"duplicate verifier id: {spec.id}")
+        if not verifier_command_allowed(spec.command):
+            raise ValueError(f"invalid verifier {index}: verifier command is not allowed")
+        specs[spec.id] = spec
+    return VerifierPolicy(specs=specs)
+
+
+def verifier_policy_data(preset_ids: list[str] | None = None) -> dict[str, Any]:
+    selected_ids = preset_ids or ["python-unittest"]
+    verifiers = []
+    seen = set()
+    for preset_id in selected_ids:
+        if preset_id not in VERIFIER_POLICY_PRESETS:
+            raise ValueError(f"unknown verifier policy preset: {preset_id}")
+        if preset_id in seen:
+            raise ValueError(f"duplicate verifier policy preset: {preset_id}")
+        seen.add(preset_id)
+        verifiers.append(dict(VERIFIER_POLICY_PRESETS[preset_id]))
+    return {"verifiers": verifiers}
+
+
+def verifier_policy_presets_summary() -> dict[str, Any]:
+    return {
+        "presets": [
+            {
+                "id": preset_id,
+                "command": list(preset["command"]),
+                "cwd": preset["cwd"],
+                "timeout_ms": preset["timeout_ms"],
+            }
+            for preset_id, preset in sorted(VERIFIER_POLICY_PRESETS.items())
+        ]
+    }
+
+
+def workspace_relative_path(workspace: Path, path: Path) -> str:
+    try:
+        return path.relative_to(workspace).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def resolve_policy_output_path(workspace: Path, output: str) -> Path:
+    workspace_root = workspace.resolve()
+    output_path = Path(output)
+    resolved = output_path.resolve() if output_path.is_absolute() else (workspace_root / output_path).resolve()
+    if resolved != workspace_root and workspace_root not in resolved.parents:
+        raise ValueError("verifier policy output outside workspace")
+    return resolved
+
+
+def write_verifier_policy(
+    workspace: Path,
+    output: str = DEFAULT_VERIFIER_POLICY_PATH,
+    preset_ids: list[str] | None = None,
+    force: bool = False,
+) -> dict[str, Any]:
+    workspace_root = workspace.resolve()
+    policy_path = resolve_policy_output_path(workspace_root, output)
+    if policy_path.exists() and not force:
+        raise ValueError("verifier policy output already exists")
+    data = verifier_policy_data(preset_ids)
+    policy_path.parent.mkdir(parents=True, exist_ok=True)
+    policy_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    load_verifier_policy(policy_path)
+    return {
+        "status": "completed",
+        "path": workspace_relative_path(workspace_root, policy_path),
+        "verifier_ids": [verifier["id"] for verifier in data["verifiers"]],
+    }
+
+
+def resolve_verifier_cwd(workspace: Path, cwd: str) -> Path:
+    workspace_root = workspace.resolve()
+    resolved = (workspace_root / cwd).resolve()
+    if resolved != workspace_root and workspace_root not in resolved.parents:
+        raise ValueError("verifier cwd outside workspace")
+    return resolved
+
+
+def tail_text(value: bytes) -> str:
+    return value[-TAIL_LIMIT:].decode("utf-8", errors="replace")
+
+
+def sha256_bytes(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def run_verifier(
+    workspace: Path,
+    spec: VerifierSpec,
+    trace_path: Path | None = None,
+    trace_id: str | None = None,
+    run_id: str | None = None,
+    sandbox_config: SandboxConfig | None = None,
+) -> VerifierResult:
+    resolved_cwd = resolve_verifier_cwd(workspace, spec.cwd)
+    started_at = time.monotonic()
+    resolved_trace_id = trace_id or run_id or "verifier"
+    resolved_run_id = run_id or resolved_trace_id
+    if trace_path is not None:
+        write_trace_event(
+            trace_path,
+            TraceEvent(
+                trace_id=resolved_trace_id,
+                run_id=resolved_run_id,
+                span_id=f"verifier-{spec.id}",
+                parent_span_id="run",
+                event_type="verifier_started",
+                status="started",
+                payload={"verifier_id": spec.id, "command": list(spec.command), "cwd": spec.cwd},
+            ),
+        )
+    stdout = b""
+    stderr = b""
+    try:
+        if sandbox_config is not None:
+            completed = run_in_sandbox(sandbox_config, spec.command)
+            stdout = completed.stdout.encode("utf-8") if isinstance(completed.stdout, str) else completed.stdout
+            stderr = completed.stderr.encode("utf-8") if isinstance(completed.stderr, str) else completed.stderr
+        else:
+            completed = subprocess.run(
+                spec.command,
+                cwd=resolved_cwd,
+                capture_output=True,
+                timeout=spec.timeout_ms / 1000,
+                check=False,
+            )
+            stdout = completed.stdout
+            stderr = completed.stderr
+        status: VerifierStatus = "passed" if completed.returncode == 0 else "failed"
+        reason = None if completed.returncode == 0 else "verifier_failed"
+        failure_kind: VerifierFailureKind | None = None if completed.returncode == 0 else "command_failed"
+        exit_code: int | None = completed.returncode
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout if isinstance(exc.stdout, bytes) else b""
+        stderr = exc.stderr if isinstance(exc.stderr, bytes) else b""
+        status = "failed"
+        reason = "verifier_timeout"
+        failure_kind = "timeout"
+        exit_code = None
+    duration_ms = int((time.monotonic() - started_at) * 1000)
+    result = VerifierResult(
+        id=spec.id,
+        status=status,
+        reason=reason,
+        failure_kind=failure_kind,
+        exit_code=exit_code,
+        duration_ms=duration_ms,
+        stdout_tail=tail_text(stdout),
+        stderr_tail=tail_text(stderr),
+        stdout_sha256=sha256_bytes(stdout),
+        stderr_sha256=sha256_bytes(stderr),
+        cwd=spec.cwd,
+        command=list(spec.command),
+    )
+    if trace_path is not None:
+        write_trace_event(
+            trace_path,
+            TraceEvent(
+                trace_id=resolved_trace_id,
+                run_id=resolved_run_id,
+                span_id=f"verifier-{spec.id}",
+                parent_span_id="run",
+                event_type="verifier_completed",
+                status=result.status,
+                payload={
+                    "verifier_id": spec.id,
+                    "reason": result.reason,
+                    "failure_kind": result.failure_kind,
+                    "exit_code": result.exit_code,
+                    "stdout_sha256": result.stdout_sha256,
+                    "stderr_sha256": result.stderr_sha256,
+                },
+                duration_ms=result.duration_ms,
+            ),
+        )
+    return result
+
+
+def validate_selected_verifiers(workspace: Path, policy: VerifierPolicy, verifier_ids: list[str]) -> list[VerifierSpec]:
+    specs = [policy.require(verifier_id) for verifier_id in verifier_ids]
+    for spec in specs:
+        resolve_verifier_cwd(workspace, spec.cwd)
+    return specs
+
+
+def task_status_from_results(asset_result: dict[str, Any], verifier_results: list[VerifierResult]) -> dict[str, Any]:
+    status_codes = [
+        asset.get("raw_status_code")
+        for asset in asset_result.get("assets", [])
+        if isinstance(asset, dict) and isinstance(asset.get("raw_status_code"), int)
+    ]
+    for result in verifier_results:
+        status_codes.append(
+            IchingKernel.classify_outcome(
+                "completed" if result.status == "passed" else "halted",
+                result.reason,
+            )
+        )
+    entropy = IchingKernel.entropy_regulated_status(status_codes)
+    status_code = int(entropy["status_code"])
+    transition = IchingKernel.transition(status_code)
+    return {
+        "task_status_code": status_code,
+        "task_transition_action": transition.action,
+        "task_transition_reason": transition.reason,
+        "task_dispatch_decision": IchingKernel.dispatch_decision(transition),
+        "task_entropy": entropy["entropy"],
+        "task_entropy_decision": entropy["decision"],
+        "task_entropy_reason": entropy.get("reason"),
+    }

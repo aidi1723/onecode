@@ -1,0 +1,13 @@
+{
+  "id": "write-file-basic",
+  "prompt": "写入 hello.txt，内容为 hello onecode",
+  "expected_status": "completed",
+  "mode": "rule",
+  "input": {
+    "write_path": "hello.txt",
+    "write_content": "hello onecode\n"
+  },
+  "assertions": [
+    { "type": "file_exists", "path": "hello.txt" }
+  ]
+}
