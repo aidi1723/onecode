@@ -19,6 +19,8 @@ evidence.
   WAL 检查和恢复路径支持哈希链校验。
 - Shell projection schema for stable CLI/Web/UI rendering.
   提供稳定的 shell projection schema，便于 CLI、Web 和 UI 渲染。
+- Bundled browser shell and kernel entrypoint at `onecode shell`.
+  通过 `onecode shell` 提供内置浏览器壳与内核一体化入口。
 - OpenAI-compatible local HTTP API for shell integration.
   提供 OpenAI-compatible 本地 HTTP API，便于壳层集成。
 - Benchmark task set for safety, trace, approval, sandbox, and resume behavior.
@@ -95,6 +97,9 @@ interpretation and the deterministic kernel owns execution control.
 - The local API is intended for loopback or trusted bridge use unless placed
   behind production-grade gateway controls.
   本地 API 面向 loopback 或可信桥接场景；如用于生产，应放在生产级网关控制之后。
+- The bundled shell defaults to `http://127.0.0.1:14080`; API-only mode remains
+  available through `onecode serve`.
+  内置壳默认地址为 `http://127.0.0.1:14080`；如只需 API，仍可使用 `onecode serve`。
 - Optional TUI dependencies are not required for the core kernel gate.
   可选 TUI 依赖不是核心内核门禁的必要条件。
 

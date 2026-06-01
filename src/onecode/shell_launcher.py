@@ -29,6 +29,7 @@ class ShellLaunchConfig:
     workspace_root: Path
     email: str = DEFAULT_LOCAL_EMAIL
     password: str = DEFAULT_LOCAL_PASSWORD
+    shell_mode: str = "integrated"
     open_browser: bool = True
     show_credentials: bool = False
 
@@ -203,6 +204,10 @@ def ensure_local_user(config: ShellLaunchConfig, env: Mapping[str, str]) -> None
 
 def launch_shell(config: ShellLaunchConfig) -> int:
     require_path(config.onecode_root / "src" / "onecode", "OneCode source package")
+    if config.shell_mode == "integrated":
+        return launch_integrated_shell(config)
+    if config.shell_mode != "librechat":
+        raise ValueError(f"unknown shell mode: {config.shell_mode}")
     require_path(config.librechat_dir / "package.json", "LibreChat shell package")
 
     build_runtime_config(config)
@@ -288,6 +293,45 @@ def launch_shell(config: ShellLaunchConfig) -> int:
         terminate_processes(processes)
 
 
+def launch_integrated_shell(config: ShellLaunchConfig) -> int:
+    onecode_env = build_onecode_env(config)
+    processes: list[subprocess.Popen] = []
+    try:
+        processes.append(
+            start_process(
+                "onecode integrated shell",
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode",
+                    "serve",
+                    "--host",
+                    config.onecode_host,
+                    "--port",
+                    str(config.onecode_port),
+                    "--allow-unauthenticated-local",
+                ],
+                config.onecode_root,
+                onecode_env,
+            )
+        )
+        url = f"http://{config.onecode_host}:{config.onecode_port}"
+        if not wait_for_url(f"{url}/health", timeout_seconds=20):
+            raise RuntimeError("OneCode integrated shell did not become healthy")
+        print("", flush=True)
+        print(f"OneCode integrated shell is running: {url}", flush=True)
+        print("Press Ctrl+C to stop local services.", flush=True)
+        if config.open_browser:
+            webbrowser.open(url)
+        while all(process_is_running(process) for process in processes):
+            time.sleep(1)
+        return 1
+    except KeyboardInterrupt:
+        return 0
+    finally:
+        terminate_processes(processes)
+
+
 def config_from_args(args: object) -> ShellLaunchConfig:
     onecode_root = Path(getattr(args, "onecode_root", Path.cwd())).resolve()
     librechat_dir_arg = getattr(args, "librechat_dir", None)
@@ -298,7 +342,7 @@ def config_from_args(args: object) -> ShellLaunchConfig:
         onecode_root=onecode_root,
         librechat_dir=librechat_dir,
         onecode_host=getattr(args, "onecode_host", "127.0.0.1"),
-        onecode_port=getattr(args, "onecode_port", 8080),
+        onecode_port=getattr(args, "onecode_port", 14080),
         librechat_host=getattr(args, "librechat_host", "127.0.0.1"),
         librechat_port=getattr(args, "librechat_port", 3080),
         mongo_port=getattr(args, "mongo_port", 27017),
@@ -306,6 +350,7 @@ def config_from_args(args: object) -> ShellLaunchConfig:
         workspace_root=workspace_root,
         email=getattr(args, "email", DEFAULT_LOCAL_EMAIL),
         password=getattr(args, "password", DEFAULT_LOCAL_PASSWORD),
+        shell_mode=getattr(args, "shell_mode", "integrated"),
         open_browser=getattr(args, "open_browser", True),
         show_credentials=getattr(args, "show_credentials", False),
     )

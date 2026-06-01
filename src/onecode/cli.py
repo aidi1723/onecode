@@ -380,12 +380,13 @@ def build_parser() -> argparse.ArgumentParser:
     serve_parser.add_argument("--allow-unauthenticated-local", action="store_true")
 
     shell_parser = subparsers.add_parser("shell")
-    shell_parser.description = "Launch the local OneCode Agent shell with LibreChat."
+    shell_parser.description = "Launch the bundled OneCode Agent shell."
+    shell_parser.add_argument("--shell-mode", choices=["integrated", "librechat"], default="integrated")
     shell_parser.add_argument("--onecode-root", default=str(Path.cwd()))
     shell_parser.add_argument("--librechat-dir", default=None)
     shell_parser.add_argument("--workspace", default=None)
     shell_parser.add_argument("--onecode-host", default="127.0.0.1")
-    shell_parser.add_argument("--onecode-port", type=int, default=8080)
+    shell_parser.add_argument("--onecode-port", type=int, default=14080)
     shell_parser.add_argument("--librechat-host", default="127.0.0.1")
     shell_parser.add_argument("--librechat-port", type=int, default=3080)
     shell_parser.add_argument("--mongo-port", type=int, default=27017)

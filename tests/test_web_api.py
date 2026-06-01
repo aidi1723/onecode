@@ -829,9 +829,10 @@ class OneCodeWebApiTests(unittest.TestCase):
                     html = response.read().decode("utf-8")
 
         self.assertEqual(content_type, "text/html; charset=utf-8")
-        self.assertIn("一字诀 OneCode Gateway", html)
-        self.assertIn("运行演示裁决", html)
+        self.assertIn("OneCode Shell", html)
+        self.assertIn("Run demo adjudication", html)
         self.assertIn("/v1/onecode/gateway/adjudicate?demo=1", html)
+        self.assertNotIn("一字诀", html)
 
     def test_http_server_adjudicates_gateway_candidate(self):
         from onecode.kernel.training_data import assistant_payload

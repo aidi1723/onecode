@@ -682,7 +682,7 @@ def gateway_console_html() -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>一字诀 OneCode Gateway</title>
+  <title>OneCode Shell</title>
   <style>
     :root {
       color-scheme: dark;
@@ -796,26 +796,26 @@ def gateway_console_html() -> str:
     <section class="shell">
       <header>
         <div>
-          <h1>一字诀 OneCode Gateway</h1>
-          <div class="muted">确定性裁决层：模型候选输出必须经过 OneCode / 一字诀复判。</div>
+          <h1>OneCode Shell</h1>
+          <div class="muted">Bundled browser shell for the deterministic OneCode execution kernel.</div>
         </div>
         <div class="badge">service: ok</div>
       </header>
       <div class="grid">
         <div>
-          <label for="input">候选输入</label>
-          <textarea id="input">用户: 随便处理一下这个项目
-模型候选: ALLOW_PATCH_WITH_SHA</textarea>
+          <label for="input">Candidate input</label>
+          <textarea id="input">User: handle this project safely
+Model candidate: ALLOW_PATCH_WITH_SHA</textarea>
         </div>
         <div>
-          <label for="result">裁决结果</label>
-          <pre id="result">点击“运行演示裁决”查看结果。</pre>
+          <label for="result">Kernel result</label>
+          <pre id="result">Click "Run demo adjudication" to inspect a deterministic kernel decision.</pre>
         </div>
       </div>
       <div class="actions">
-        <button id="demo" type="button">运行演示裁决</button>
-        <a class="button secondary" href="/v1/onecode/gateway/adjudicate?demo=1">打开 JSON 演示</a>
-        <a class="button secondary" href="/health">健康检查</a>
+        <button id="demo" type="button">Run demo adjudication</button>
+        <a class="button secondary" href="/v1/onecode/gateway/adjudicate?demo=1">Open JSON demo</a>
+        <a class="button secondary" href="/health">Health check</a>
       </div>
       <div id="status" class="status">POST /v1/onecode/gateway/adjudicate</div>
     </section>

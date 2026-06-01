@@ -180,9 +180,25 @@ PYTHONPATH=src python3 -m onecode run \
   --content "hello OneCode"
 ```
 
-Start the local API:
+Start the bundled shell and kernel:
 
-启动本地 API：
+启动内置壳和内核：
+
+```bash
+PYTHONPATH=src python3 -m onecode shell
+```
+
+Open:
+
+打开：
+
+```text
+http://127.0.0.1:14080
+```
+
+Start API-only mode:
+
+只启动 API：
 
 ```bash
 PYTHONPATH=src ONECODE_API_TOKEN=dev-local-token \
@@ -226,6 +242,16 @@ Start the optional TUI:
 
 ```bash
 onecode tui
+```
+
+Start the optional LibreChat adapter instead of the bundled shell:
+
+启动可选 LibreChat 适配器，而不是内置壳：
+
+```bash
+PYTHONPATH=src python3 -m onecode shell \
+  --shell-mode librechat \
+  --librechat-dir ../onecode-librechat
 ```
 
 The TUI writes plain-text exports under the active workspace:

@@ -175,12 +175,24 @@ class ShellLauncherCliTests(unittest.TestCase):
         from onecode.cli import build_parser
 
         parser = build_parser()
-        args = parser.parse_args(["shell", "--librechat-dir", "/tmp/shell", "--no-browser"])
+        args = parser.parse_args(["shell", "--no-browser"])
 
         self.assertEqual(args.subcommand, "shell")
-        self.assertEqual(args.librechat_dir, "/tmp/shell")
+        self.assertEqual(args.shell_mode, "integrated")
+        self.assertEqual(args.onecode_port, 14080)
+        self.assertIsNone(args.librechat_dir)
         self.assertFalse(args.open_browser)
         self.assertFalse(args.show_credentials)
+
+    def test_shell_subcommand_supports_explicit_librechat_mode(self):
+        from onecode.cli import build_parser
+
+        parser = build_parser()
+        args = parser.parse_args(["shell", "--shell-mode", "librechat", "--librechat-dir", "/tmp/shell"])
+
+        self.assertEqual(args.shell_mode, "librechat")
+        self.assertEqual(args.librechat_dir, "/tmp/shell")
+        self.assertEqual(args.librechat_port, 3080)
 
     def test_shell_subcommand_can_explicitly_show_credentials(self):
         from onecode.cli import build_parser
@@ -194,11 +206,12 @@ class ShellLauncherCliTests(unittest.TestCase):
         from onecode.cli import main
 
         with patch("onecode.shell_launcher.launch_shell", return_value=0) as launcher:
-            exit_code = main(["shell", "--librechat-dir", "/tmp/shell", "--no-browser"])
+            exit_code = main(["shell", "--no-browser"])
 
         self.assertEqual(exit_code, 0)
         self.assertEqual(launcher.call_count, 1)
-        self.assertEqual(launcher.call_args.args[0].librechat_dir, Path("/tmp/shell").resolve())
+        self.assertEqual(launcher.call_args.args[0].shell_mode, "integrated")
+        self.assertEqual(launcher.call_args.args[0].onecode_port, 14080)
         self.assertFalse(launcher.call_args.args[0].open_browser)
         self.assertFalse(launcher.call_args.args[0].show_credentials)
 
