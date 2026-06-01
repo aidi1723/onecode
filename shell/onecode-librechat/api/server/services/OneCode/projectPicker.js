@@ -42,7 +42,7 @@ function requireAllowedWorkspace(workspace) {
 }
 
 function oneCodeApiUrl(pathname) {
-  const base = (process.env.ONECODE_API_BASE_URL || 'http://localhost:8080/v1').replace(/\/$/, '');
+  const base = (process.env.ONECODE_API_BASE_URL || 'http://localhost:19080/v1').replace(/\/$/, '');
   return `${base}${pathname}`;
 }
 

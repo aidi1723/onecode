@@ -1,4 +1,4 @@
-const rawBaseUrl = process.env.ONECODE_API_BASE_URL ?? 'http://localhost:8080/v1';
+const rawBaseUrl = process.env.ONECODE_API_BASE_URL ?? 'http://localhost:19080/v1';
 const baseUrl = rawBaseUrl.replace(/\/$/, '');
 const token = process.env.ONECODE_API_TOKEN ?? 'dev-local-token';
 

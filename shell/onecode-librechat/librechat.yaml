@@ -24,9 +24,9 @@ interface:
 
 endpoints:
   allowedAddresses:
-    - 'host.docker.internal:8080'
-    - '127.0.0.1:8080'
-    - 'localhost:8080'
+    - 'host.docker.internal:19080'
+    - '127.0.0.1:19080'
+    - 'localhost:19080'
   custom:
     - name: 'OneCode'
       apiKey: '${ONECODE_API_TOKEN}'

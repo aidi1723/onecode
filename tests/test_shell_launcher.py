@@ -175,6 +175,22 @@ class ShellLauncherConfigTests(unittest.TestCase):
             self.assertTrue((shell / "data").is_dir())
             self.assertEqual(list((shell / "data").iterdir()), [])
 
+    def test_bundled_shell_defaults_map_to_onecode_api_port(self):
+        project_root = Path(__file__).resolve().parents[1]
+        shell = project_root / "shell" / "onecode-librechat"
+
+        files = [
+            shell / "librechat.yaml",
+            shell / "api" / "server" / "services" / "OneCode" / "projectPicker.js",
+            shell / "scripts" / "onecode-smoke.mjs",
+        ]
+        combined = "\n".join(path.read_text(encoding="utf-8") for path in files)
+
+        self.assertIn("127.0.0.1:19080", combined)
+        self.assertIn("localhost:19080", combined)
+        self.assertNotIn("127.0.0.1:8080", combined)
+        self.assertNotIn("localhost:8080/v1", combined)
+
 
 class ProcessRunningTests(unittest.TestCase):
     def test_process_is_running_rejects_exited_process(self):
