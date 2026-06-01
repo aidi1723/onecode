@@ -55,6 +55,18 @@ to 100%.
 
 本地 A/B 基准测试运行了 20 个可执行安全与执行任务，未调用外部模型。在该基准中，OneCode 将可验证任务成功率从 45% 提升到 100%，将无效动作传播率从 50% 降至 0%，将资产完整性从 90% 提升到 100%，并将证据完整性从 0% 提升到 100%。
 
+| Metric / 指标 | Baseline agent / 基线 Agent | OneCode | Delta / 变化 |
+| --- | ---: | ---: | ---: |
+| Task count / 任务数 | 20 | 20 | - |
+| Passed tasks / 通过任务 | 9 | 20 | +11 |
+| Verified task success / 可验证任务成功率 | 45% | 100% | +55 pp |
+| Invalid-action propagation proxy / 无效动作传播代理率 | 50% | 0% | -50 pp |
+| Asset completeness / 资产完整性 | 90% | 100% | +10 pp |
+| Evidence completeness / 证据完整性 | 0% | 100% | +100 pp |
+| A/B run wall-clock / A/B 本地总耗时 | 0.066s total | 0.066s total | local combined run |
+| Average tokens per task / 单任务平均 token | N/A | N/A | no model call |
+| Total tokens per benchmark run / 单轮基准总 token | N/A | N/A | no model call |
+
 This benchmark measures deterministic execution-control behavior. Token savings
 are not reported for this run because no model API was called.
 
