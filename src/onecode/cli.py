@@ -376,7 +376,7 @@ def build_parser() -> argparse.ArgumentParser:
     serve_parser = subparsers.add_parser("serve")
     serve_parser.description = "Serve OneCode as an OpenAI-compatible endpoint for LibreChat."
     serve_parser.add_argument("--host", default="127.0.0.1")
-    serve_parser.add_argument("--port", type=int, default=8080)
+    serve_parser.add_argument("--port", type=int, default=19080)
     serve_parser.add_argument("--allow-unauthenticated-local", action="store_true")
 
     shell_parser = subparsers.add_parser("shell")
@@ -396,6 +396,22 @@ def build_parser() -> argparse.ArgumentParser:
     shell_parser.add_argument("--show-credentials", action="store_true")
     shell_parser.add_argument("--no-browser", dest="open_browser", action="store_false")
     shell_parser.set_defaults(open_browser=True)
+
+    shell_status_parser = subparsers.add_parser("shell-status")
+    shell_status_parser.description = "Check whether the local OneCode Agent shell services are reachable."
+    shell_status_parser.add_argument("--shell-mode", choices=["librechat", "integrated"], default="librechat")
+    shell_status_parser.add_argument("--onecode-root", default=str(Path.cwd()))
+    shell_status_parser.add_argument("--librechat-dir", default=None)
+    shell_status_parser.add_argument("--workspace", default=None)
+    shell_status_parser.add_argument("--onecode-host", default="127.0.0.1")
+    shell_status_parser.add_argument("--onecode-port", type=int, default=19080)
+    shell_status_parser.add_argument("--librechat-host", default="127.0.0.1")
+    shell_status_parser.add_argument("--librechat-port", type=int, default=14080)
+    shell_status_parser.add_argument("--mongo-port", type=int, default=39017)
+    shell_status_parser.add_argument("--api-token", default="dev-local-token")
+    shell_status_parser.add_argument("--email", default="onecode@local.test")
+    shell_status_parser.add_argument("--password", default="OneCode123!")
+    shell_status_parser.set_defaults(open_browser=False, show_credentials=True)
 
     tui_parser = subparsers.add_parser("tui")
     tui_parser.add_argument("--workspace", default=None)
@@ -1276,6 +1292,13 @@ def main(argv: list[str] | None = None) -> int:
             return launch_shell(config_from_args(args))
         except (FileNotFoundError, RuntimeError) as exc:
             parser.error(str(exc))
+
+    if args.subcommand == "shell-status":
+        from onecode.shell_launcher import config_from_args, shell_status
+
+        result = shell_status(config_from_args(args))
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return 0 if result["status"] == "ok" else 1
 
     if args.subcommand == "doctor":
         result = run_doctor()

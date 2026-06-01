@@ -259,6 +259,17 @@ Open:
 http://127.0.0.1:14080/c/new
 ```
 
+The launcher is a foreground process. Keep that terminal open while using the
+shell. If the browser reports `ERR_CONNECTION_REFUSED`, check the local service
+state with:
+
+壳启动器是前台进程。使用壳时需要保持该终端窗口运行。如果浏览器提示
+`ERR_CONNECTION_REFUSED`，先检查本地服务状态：
+
+```bash
+PYTHONPATH=src python3 -m onecode shell-status
+```
+
 Default local preview login:
 
 默认本地预览账号：

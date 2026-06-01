@@ -58,6 +58,13 @@ Open:
 http://127.0.0.1:14080/c/new
 ```
 
+The launcher must remain running. If the browser reports `ERR_CONNECTION_REFUSED`,
+check the service state from the OneCode repository:
+
+```bash
+PYTHONPATH=src python3 -m onecode shell-status
+```
+
 For the complete kernel and shell deployment guide, see the repository root
 `DEPLOYMENT.md`.
 

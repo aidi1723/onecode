@@ -8,12 +8,15 @@ import webbrowser
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
 DEFAULT_LOCAL_EMAIL = "onecode@local.test"
 DEFAULT_LOCAL_PASSWORD = "OneCode123!"
+DEFAULT_ONECODE_PORT = 19080
+DEFAULT_LIBRECHAT_PORT = 14080
+DEFAULT_MONGO_PORT = 39017
 
 
 @dataclass(frozen=True)
@@ -159,6 +162,54 @@ def wait_for_url(url: str, timeout_seconds: float = 30) -> bool:
         except (OSError, URLError):
             time.sleep(0.5)
     return False
+
+
+def check_url(url: str, *, timeout_seconds: float = 2) -> dict[str, object]:
+    try:
+        with urlopen(Request(url, headers={"accept": "application/json"}), timeout=timeout_seconds) as response:
+            return {"url": url, "ok": True, "status": response.status}
+    except HTTPError as exc:
+        return {"url": url, "ok": False, "status": exc.code, "error": str(exc)}
+    except (OSError, URLError) as exc:
+        return {"url": url, "ok": False, "status": None, "error": str(exc)}
+
+
+def check_tcp(host: str, port: int, *, timeout_seconds: float = 2) -> dict[str, object]:
+    import socket
+
+    try:
+        with socket.create_connection((host, port), timeout=timeout_seconds):
+            return {"host": host, "port": port, "ok": True}
+    except OSError as exc:
+        return {"host": host, "port": port, "ok": False, "error": str(exc)}
+
+
+def shell_status(config: ShellLaunchConfig) -> dict[str, object]:
+    onecode_url = f"http://{config.onecode_host}:{config.onecode_port}/health"
+    if config.shell_mode == "integrated":
+        shell_url = f"http://{config.onecode_host}:{config.onecode_port}"
+        checks = {
+            "onecode_api": check_url(onecode_url),
+            "integrated_shell": check_url(shell_url),
+        }
+    else:
+        shell_url = f"http://{config.librechat_host}:{config.librechat_port}/c/new"
+        checks = {
+            "onecode_api": check_url(onecode_url),
+            "librechat_shell": check_url(shell_url),
+            "mongo": check_tcp("127.0.0.1", config.mongo_port),
+        }
+    ok = all(bool(check.get("ok")) for check in checks.values())
+    return {
+        "status": "ok" if ok else "down",
+        "shell_mode": config.shell_mode,
+        "shell_url": shell_url,
+        "login": {"email": config.email, "password": config.password},
+        "checks": checks,
+        "hint": None
+        if ok
+        else "Run `PYTHONPATH=src python3 -m onecode shell --show-credentials` and keep that terminal open.",
+    }
 
 
 def require_path(path: Path, description: str) -> None:
@@ -374,10 +425,10 @@ def config_from_args(args: object) -> ShellLaunchConfig:
         onecode_root=onecode_root,
         librechat_dir=librechat_dir,
         onecode_host=getattr(args, "onecode_host", "127.0.0.1"),
-        onecode_port=getattr(args, "onecode_port", 19080),
+        onecode_port=getattr(args, "onecode_port", DEFAULT_ONECODE_PORT),
         librechat_host=getattr(args, "librechat_host", "127.0.0.1"),
-        librechat_port=getattr(args, "librechat_port", 14080),
-        mongo_port=getattr(args, "mongo_port", 39017),
+        librechat_port=getattr(args, "librechat_port", DEFAULT_LIBRECHAT_PORT),
+        mongo_port=getattr(args, "mongo_port", DEFAULT_MONGO_PORT),
         api_token=getattr(args, "api_token", "dev-local-token"),
         workspace_root=workspace_root,
         email=getattr(args, "email", DEFAULT_LOCAL_EMAIL),
