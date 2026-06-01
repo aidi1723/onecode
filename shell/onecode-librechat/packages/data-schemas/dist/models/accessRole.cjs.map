@@ -1,0 +1,1 @@
+{"version":3,"file":"accessRole.cjs","sources":["../../src/models/accessRole.ts"],"sourcesContent":[null],"names":["applyTenantIsolation","accessRoleSchema"],"mappings":";;;;;AAIM,SAAU,qBAAqB,CAAC,QAAmC,EAAA;IACvEA,oCAAoB,CAACC,UAAgB,CAAC;AACtC,IAAA,QACE,QAAQ,CAAC,MAAM,CAAC,UAAU,IAAI,QAAQ,CAAC,KAAK,CAAgB,YAAY,EAAEA,UAAgB,CAAC;AAE/F;;;;"}

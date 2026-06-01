@@ -1,0 +1,1 @@
+{"version":3,"file":"role.cjs","sources":["../../src/models/role.ts"],"sourcesContent":[null],"names":["applyTenantIsolation","roleSchema"],"mappings":";;;;;AAIM,SAAU,eAAe,CAAC,QAAmC,EAAA;IACjEA,oCAAoB,CAACC,IAAU,CAAC;AAChC,IAAA,OAAO,QAAQ,CAAC,MAAM,CAAC,IAAI,IAAI,QAAQ,CAAC,KAAK,CAAQ,MAAM,EAAEA,IAAU,CAAC;AAC1E;;;;"}

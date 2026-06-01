@@ -1,0 +1,1 @@
+{"version":3,"file":"principal.d.ts","sourceRoot":"","sources":["../../../src/types/principal.ts"],"names":[],"mappings":";;;;;;;;;;;;;;;;;;;;;;;;;AAAA,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,yBAAyB,CAAC;AAC7D,OAAO,KAAK,EAAE,KAAK,EAAE,MAAM,UAAU,CAAC;AAEtC,MAAM,WAAW,iBAAiB;IAChC,aAAa,EAAE,aAAa,CAAC;IAC7B,WAAW,CAAC,EAAE,MAAM,GAAG,KAAK,CAAC,QAAQ,CAAC;CACvC"}

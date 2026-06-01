@@ -1,0 +1,1 @@
+{"version":3,"file":"group.cjs","sources":["../../src/models/group.ts"],"sourcesContent":[null],"names":["applyTenantIsolation","groupSchema"],"mappings":";;;;;AAIM,SAAU,gBAAgB,CAAC,QAAmC,EAAA;IAClEA,oCAAoB,CAACC,KAAW,CAAC;AACjC,IAAA,OAAO,QAAQ,CAAC,MAAM,CAAC,KAAK,IAAI,QAAQ,CAAC,KAAK,CAAW,OAAO,EAAEA,KAAW,CAAC;AAChF;;;;"}

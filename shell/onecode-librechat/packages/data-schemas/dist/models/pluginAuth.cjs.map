@@ -1,0 +1,1 @@
+{"version":3,"file":"pluginAuth.cjs","sources":["../../src/models/pluginAuth.ts"],"sourcesContent":[null],"names":["applyTenantIsolation","pluginAuthSchema"],"mappings":";;;;;AAIM,SAAU,qBAAqB,CAAC,QAAmC,EAAA;IACvEA,oCAAoB,CAACC,UAAgB,CAAC;AACtC,IAAA,OAAO,QAAQ,CAAC,MAAM,CAAC,UAAU,IAAI,QAAQ,CAAC,KAAK,CAAc,YAAY,EAAEA,UAAgB,CAAC;AAClG;;;;"}

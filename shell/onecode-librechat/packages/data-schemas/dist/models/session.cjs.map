@@ -1,0 +1,1 @@
+{"version":3,"file":"session.cjs","sources":["../../src/models/session.ts"],"sourcesContent":[null],"names":["applyTenantIsolation","sessionSchema"],"mappings":";;;;;AAIM,SAAU,kBAAkB,CAAC,QAAmC,EAAA;IACpEA,oCAAoB,CAACC,OAAa,CAAC;AACnC,IAAA,OAAO,QAAQ,CAAC,MAAM,CAAC,OAAO,IAAI,QAAQ,CAAC,KAAK,CAAa,SAAS,EAAEA,OAAa,CAAC;AACxF;;;;"}

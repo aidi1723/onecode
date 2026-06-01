@@ -1,0 +1,1 @@
+{"version":3,"file":"toolCall.cjs","sources":["../../src/models/toolCall.ts"],"sourcesContent":[null],"names":["applyTenantIsolation","toolCallSchema"],"mappings":";;;;;AAGM,SAAU,mBAAmB,CAAC,QAAmC,EAAA;IACrEA,oCAAoB,CAACC,QAAc,CAAC;AACpC,IAAA,OAAO,QAAQ,CAAC,MAAM,CAAC,QAAQ,IAAI,QAAQ,CAAC,KAAK,CAAgB,UAAU,EAAEA,QAAc,CAAC;AAC9F;;;;"}

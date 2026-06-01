@@ -12,8 +12,8 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 
-DEFAULT_LOCAL_EMAIL = "preview@example.invalid"
-DEFAULT_LOCAL_PASSWORD = "change-me-local-preview"
+DEFAULT_LOCAL_EMAIL = "onecode@local.test"
+DEFAULT_LOCAL_PASSWORD = "OneCode123!"
 
 
 @dataclass(frozen=True)
@@ -29,13 +29,17 @@ class ShellLaunchConfig:
     workspace_root: Path
     email: str = DEFAULT_LOCAL_EMAIL
     password: str = DEFAULT_LOCAL_PASSWORD
-    shell_mode: str = "integrated"
+    shell_mode: str = "librechat"
     open_browser: bool = True
     show_credentials: bool = False
 
 
 def default_librechat_dir(project_root: Path) -> Path:
-    return project_root.resolve().parent / "onecode-librechat"
+    root = project_root.resolve()
+    bundled_shell = root / "shell" / "onecode-librechat"
+    if bundled_shell.exists():
+        return bundled_shell
+    return root.parent / "onecode-librechat"
 
 
 def build_librechat_env(config: ShellLaunchConfig, base_env: Mapping[str, str] | None = None) -> dict[str, str]:
@@ -129,7 +133,8 @@ def build_runtime_config(config: ShellLaunchConfig) -> Path:
 def build_onecode_env(config: ShellLaunchConfig, base_env: Mapping[str, str] | None = None) -> dict[str, str]:
     env = dict(base_env or os.environ)
     src_path = str(config.onecode_root / "src")
-    env["PYTHONPATH"] = src_path if not env.get("PYTHONPATH") else f"{src_path}{os.pathsep}{env['PYTHONPATH']}"
+    if (config.onecode_root / "src" / "onecode").exists():
+        env["PYTHONPATH"] = src_path if not env.get("PYTHONPATH") else f"{src_path}{os.pathsep}{env['PYTHONPATH']}"
     env["ONECODE_API_TOKEN"] = config.api_token
     env["ONECODE_WORKSPACE_ROOT"] = str(config.workspace_root)
     env["ONECODE_ALLOWED_WORKSPACE_ROOTS"] = str(config.workspace_root)
@@ -159,6 +164,23 @@ def wait_for_url(url: str, timeout_seconds: float = 30) -> bool:
 def require_path(path: Path, description: str) -> None:
     if not path.exists():
         raise FileNotFoundError(f"{description} not found: {path}")
+
+
+def require_librechat_dependencies(librechat_dir: Path) -> None:
+    missing = [
+        str(path.relative_to(librechat_dir))
+        for path in [
+            librechat_dir / "node_modules" / "mongodb-memory-server",
+            librechat_dir / "node_modules" / ".bin" / "cross-env",
+        ]
+        if not path.exists()
+    ]
+    if missing:
+        raise FileNotFoundError(
+            "LibreChat shell dependencies are not installed. "
+            f"Run `npm install` in {librechat_dir} before starting `onecode shell`. "
+            f"Missing: {', '.join(missing)}"
+        )
 
 
 def start_process(name: str, command: list[str], cwd: Path, env: Mapping[str, str]) -> subprocess.Popen:
@@ -203,12 +225,13 @@ def ensure_local_user(config: ShellLaunchConfig, env: Mapping[str, str]) -> None
 
 
 def launch_shell(config: ShellLaunchConfig) -> int:
-    require_path(config.onecode_root / "src" / "onecode", "OneCode source package")
     if config.shell_mode == "integrated":
         return launch_integrated_shell(config)
     if config.shell_mode != "librechat":
         raise ValueError(f"unknown shell mode: {config.shell_mode}")
+    require_path(config.onecode_root / "src" / "onecode", "OneCode source package")
     require_path(config.librechat_dir / "package.json", "LibreChat shell package")
+    require_librechat_dependencies(config.librechat_dir)
 
     build_runtime_config(config)
     librechat_env = build_librechat_env(config)
@@ -294,6 +317,7 @@ def launch_shell(config: ShellLaunchConfig) -> int:
 
 
 def launch_integrated_shell(config: ShellLaunchConfig) -> int:
+    config.workspace_root.mkdir(parents=True, exist_ok=True)
     onecode_env = build_onecode_env(config)
     processes: list[subprocess.Popen] = []
     try:
@@ -316,6 +340,9 @@ def launch_integrated_shell(config: ShellLaunchConfig) -> int:
             )
         )
         url = f"http://{config.onecode_host}:{config.onecode_port}"
+        time.sleep(0.2)
+        if not process_is_running(processes[-1]):
+            raise RuntimeError("OneCode integrated shell process exited during startup")
         if not wait_for_url(f"{url}/health", timeout_seconds=20):
             raise RuntimeError("OneCode integrated shell did not become healthy")
         print("", flush=True)
@@ -342,15 +369,15 @@ def config_from_args(args: object) -> ShellLaunchConfig:
         onecode_root=onecode_root,
         librechat_dir=librechat_dir,
         onecode_host=getattr(args, "onecode_host", "127.0.0.1"),
-        onecode_port=getattr(args, "onecode_port", 14080),
+        onecode_port=getattr(args, "onecode_port", 19080),
         librechat_host=getattr(args, "librechat_host", "127.0.0.1"),
-        librechat_port=getattr(args, "librechat_port", 3080),
-        mongo_port=getattr(args, "mongo_port", 27017),
+        librechat_port=getattr(args, "librechat_port", 14080),
+        mongo_port=getattr(args, "mongo_port", 39017),
         api_token=getattr(args, "api_token", "dev-local-token"),
         workspace_root=workspace_root,
         email=getattr(args, "email", DEFAULT_LOCAL_EMAIL),
         password=getattr(args, "password", DEFAULT_LOCAL_PASSWORD),
-        shell_mode=getattr(args, "shell_mode", "integrated"),
+        shell_mode=getattr(args, "shell_mode", "librechat"),
         open_browser=getattr(args, "open_browser", True),
         show_credentials=getattr(args, "show_credentials", False),
     )

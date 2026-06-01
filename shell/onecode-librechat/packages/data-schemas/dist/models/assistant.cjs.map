@@ -1,0 +1,1 @@
+{"version":3,"file":"assistant.cjs","sources":["../../src/models/assistant.ts"],"sourcesContent":[null],"names":["applyTenantIsolation","assistantSchema"],"mappings":";;;;;AAIM,SAAU,oBAAoB,CAAC,QAAmC,EAAA;IACtEA,oCAAoB,CAACC,SAAe,CAAC;AACrC,IAAA,OAAO,QAAQ,CAAC,MAAM,CAAC,SAAS,IAAI,QAAQ,CAAC,KAAK,CAAa,WAAW,EAAEA,SAAe,CAAC;AAC9F;;;;"}

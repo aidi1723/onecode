@@ -1,0 +1,180 @@
+'use strict';
+
+var mongoose = require('mongoose');
+var librechatDataProvider = require('librechat-data-provider');
+
+// Session sub-schema
+const SessionSchema = new mongoose.Schema({
+    refreshToken: {
+        type: String,
+        default: '',
+    },
+}, { _id: false });
+// Backup code sub-schema
+const BackupCodeSchema = new mongoose.Schema({
+    codeHash: { type: String, required: true },
+    used: { type: Boolean, default: false },
+    usedAt: { type: Date, default: null },
+}, { _id: false });
+const userSchema = new mongoose.Schema({
+    name: {
+        type: String,
+    },
+    username: {
+        type: String,
+        lowercase: true,
+        default: '',
+    },
+    email: {
+        type: String,
+        required: [true, "can't be blank"],
+        lowercase: true,
+        match: [/\S+@\S+\.\S+/, 'is invalid'],
+        index: true,
+    },
+    emailVerified: {
+        type: Boolean,
+        required: true,
+        default: false,
+    },
+    password: {
+        type: String,
+        trim: true,
+        minlength: 8,
+        maxlength: 128,
+        select: false,
+    },
+    avatar: {
+        type: String,
+        required: false,
+    },
+    provider: {
+        type: String,
+        required: true,
+        default: 'local',
+    },
+    role: {
+        type: String,
+        default: librechatDataProvider.SystemRoles.USER,
+    },
+    googleId: {
+        type: String,
+    },
+    facebookId: {
+        type: String,
+    },
+    openidId: {
+        type: String,
+    },
+    openidIssuer: {
+        type: String,
+    },
+    samlId: {
+        type: String,
+    },
+    ldapId: {
+        type: String,
+    },
+    githubId: {
+        type: String,
+    },
+    discordId: {
+        type: String,
+    },
+    appleId: {
+        type: String,
+    },
+    plugins: {
+        type: Array,
+    },
+    twoFactorEnabled: {
+        type: Boolean,
+        default: false,
+    },
+    totpSecret: {
+        type: String,
+        select: false,
+    },
+    backupCodes: {
+        type: [BackupCodeSchema],
+        select: false,
+    },
+    pendingTotpSecret: {
+        type: String,
+        select: false,
+    },
+    pendingBackupCodes: {
+        type: [BackupCodeSchema],
+        select: false,
+        default: undefined,
+    },
+    refreshToken: {
+        type: [SessionSchema],
+    },
+    expiresAt: {
+        type: Date,
+        expires: 604800, // 7 days in seconds
+    },
+    termsAccepted: {
+        type: Boolean,
+        default: false,
+    },
+    personalization: {
+        type: {
+            memories: {
+                type: Boolean,
+                default: true,
+            },
+        },
+        default: {},
+    },
+    favorites: {
+        type: [
+            {
+                _id: false,
+                agentId: { type: String, maxlength: 256 },
+                model: { type: String, maxlength: 256 },
+                endpoint: { type: String, maxlength: 256 },
+                spec: { type: String, maxlength: 256 },
+            },
+        ],
+        default: [],
+    },
+    skillStates: {
+        type: Map,
+        of: Boolean,
+        default: () => new Map(),
+    },
+    /** Field for external source identification (for consistency with TPrincipal schema) */
+    idOnTheSource: {
+        type: String,
+        sparse: true,
+    },
+    tenantId: {
+        type: String,
+        index: true,
+    },
+}, { timestamps: true });
+userSchema.index({ email: 1, tenantId: 1 }, { unique: true });
+userSchema.index({ role: 1, tenantId: 1 });
+userSchema.index({ idOnTheSource: 1, openidIssuer: 1, tenantId: 1 });
+const oAuthIdFields = [
+    'googleId',
+    'facebookId',
+    'openidId',
+    'samlId',
+    'ldapId',
+    'githubId',
+    'discordId',
+    'appleId',
+];
+for (const field of oAuthIdFields) {
+    if (field === 'openidId') {
+        userSchema.index({ openidId: 1, openidIssuer: 1, tenantId: 1 }, { unique: true, partialFilterExpression: { openidId: { $exists: true } } });
+        continue;
+    }
+    userSchema.index({ [field]: 1, tenantId: 1 }, { unique: true, partialFilterExpression: { [field]: { $exists: true } } });
+}
+
+module.exports = userSchema;
+//# sourceMappingURL=user.cjs.map

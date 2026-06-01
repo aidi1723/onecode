@@ -1,0 +1,1 @@
+{"version":3,"file":"useLocalize.d.ts","sourceRoot":"","sources":["../../../src/hooks/useLocalize.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,QAAQ,EAAE,MAAM,SAAS,CAAC;AAEnC,OAAO,EAAE,SAAS,EAAE,MAAM,gBAAgB,CAAC;AAE3C,MAAM,MAAM,eAAe,GAAG,MAAM,OAAO,SAAS,CAAC,EAAE,CAAC,WAAW,CAAC;AAEpE,mGAAmG;AACnG,MAAM,CAAC,OAAO,UAAU,WAAW,gBAInB,eAAe,YAAY,QAAQ,YAGlD"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"aclEntry.cjs","sources":["../../src/models/aclEntry.ts"],"sourcesContent":[null],"names":["applyTenantIsolation","aclEntrySchema"],"mappings":";;;;;AAIM,SAAU,mBAAmB,CAAC,QAAmC,EAAA;IACrEA,oCAAoB,CAACC,QAAc,CAAC;AACpC,IAAA,OAAO,QAAQ,CAAC,MAAM,CAAC,QAAQ,IAAI,QAAQ,CAAC,KAAK,CAAc,UAAU,EAAEA,QAAc,CAAC;AAC5F;;;;"}

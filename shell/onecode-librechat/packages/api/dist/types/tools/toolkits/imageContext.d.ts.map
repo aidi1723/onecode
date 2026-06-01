@@ -1,0 +1,1 @@
+{"version":3,"file":"imageContext.d.ts","sourceRoot":"","sources":["../../../../src/tools/toolkits/imageContext.ts"],"names":[],"mappings":"AAAA;;;;;;;GAOG;AACH,wBAAgB,qBAAqB,CAAC,EACpC,UAAU,EACV,QAAQ,EACR,kBAAoC,GACrC,EAAE;IACD,UAAU,EAAE,KAAK,CAAC;QAAE,OAAO,EAAE,MAAM,CAAA;KAAE,CAAC,CAAC;IACvC,QAAQ,EAAE,MAAM,CAAC;IACjB,kBAAkB,CAAC,EAAE,MAAM,CAAC;CAC7B,GAAG,MAAM,CAoBT"}

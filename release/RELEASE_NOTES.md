@@ -97,9 +97,9 @@ interpretation and the deterministic kernel owns execution control.
 - The local API is intended for loopback or trusted bridge use unless placed
   behind production-grade gateway controls.
   本地 API 面向 loopback 或可信桥接场景；如用于生产，应放在生产级网关控制之后。
-- The bundled shell defaults to `http://127.0.0.1:14080`; API-only mode remains
+- The bundled shell defaults to `http://127.0.0.1:14080/c/new`; API-only mode remains
   available through `onecode serve`.
-  内置壳默认地址为 `http://127.0.0.1:14080`；如只需 API，仍可使用 `onecode serve`。
+  内置壳默认地址为 `http://127.0.0.1:14080/c/new`；如只需 API，仍可使用 `onecode serve`。
 - Optional TUI dependencies are not required for the core kernel gate.
   可选 TUI 依赖不是核心内核门禁的必要条件。
 

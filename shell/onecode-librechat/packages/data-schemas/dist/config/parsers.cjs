@@ -1,0 +1,246 @@
+'use strict';
+
+var klona = require('klona');
+var winston = require('winston');
+var objectTraverse = require('../utils/object-traverse.cjs');
+var tenantContext = require('./tenantContext.cjs');
+
+const SPLAT_SYMBOL = Symbol.for('splat');
+const MESSAGE_SYMBOL = Symbol.for('message');
+const CONSOLE_JSON_STRING_LENGTH = parseInt(process.env.CONSOLE_JSON_STRING_LENGTH || '', 10) || 255;
+const DEBUG_MESSAGE_LENGTH = parseInt(process.env.DEBUG_MESSAGE_LENGTH || '', 10) || 150;
+const LOG_CONTEXT_KEYS = ['tenantId', 'userId', 'requestId'];
+const sensitiveKeys = [
+    /^(sk-)[^\s]+/, // OpenAI API key pattern
+    /(Bearer )[^\s]+/, // Header: Bearer token pattern
+    /(api-key:? )[^\s]+/, // Header: API key pattern
+    /(key=)[^\s]+/, // URL query param: sensitive key pattern (Google)
+];
+/**
+ * Determines if a given value string is sensitive and returns matching regex patterns.
+ *
+ * @param valueStr - The value string to check.
+ * @returns An array of regex patterns that match the value string.
+ */
+function getMatchingSensitivePatterns(valueStr) {
+    if (valueStr) {
+        // Filter and return all regex patterns that match the value string
+        return sensitiveKeys.filter((regex) => regex.test(valueStr));
+    }
+    return [];
+}
+/**
+ * Redacts sensitive information from a console message and trims it to a specified length if provided.
+ * @param str - The console message to be redacted.
+ * @param trimLength - The optional length at which to trim the redacted message.
+ * @returns The redacted and optionally trimmed console message.
+ */
+function redactMessage(str, trimLength) {
+    if (!str) {
+        return '';
+    }
+    const patterns = getMatchingSensitivePatterns(str);
+    patterns.forEach((pattern) => {
+        str = str.replace(pattern, '$1[REDACTED]');
+    });
+    return str;
+}
+/**
+ * Redacts sensitive information from log messages if the log level is 'error'.
+ * Note: Intentionally mutates the object.
+ * @param info - The log information object.
+ * @returns The modified log information object.
+ */
+const redactFormat = winston.format((info) => {
+    if (info.level === 'error') {
+        // Type guard to ensure message is a string
+        if (typeof info.message === 'string') {
+            info.message = redactMessage(info.message);
+        }
+        // Handle MESSAGE_SYMBOL with type safety
+        const symbolValue = info[MESSAGE_SYMBOL];
+        if (typeof symbolValue === 'string') {
+            info[MESSAGE_SYMBOL] = redactMessage(symbolValue);
+        }
+    }
+    return info;
+});
+/**
+ * Truncates long strings, especially base64 image data, within log messages.
+ *
+ * @param value - The value to be inspected and potentially truncated.
+ * @param length - The length at which to truncate the value. Default: 100.
+ * @returns The truncated or original value.
+ */
+const truncateLongStrings = (value, length = 100) => {
+    if (typeof value === 'string') {
+        return value.length > length ? value.substring(0, length) + '... [truncated]' : value;
+    }
+    return value;
+};
+/**
+ * An array mapping function that truncates long strings (objects converted to JSON strings).
+ * @param item - The item to be condensed.
+ * @returns The condensed item.
+ */
+const condenseArray = (item) => {
+    if (typeof item === 'string') {
+        return truncateLongStrings(JSON.stringify(item));
+    }
+    else if (typeof item === 'object') {
+        return truncateLongStrings(JSON.stringify(item));
+    }
+    return item;
+};
+function formatRequestContext(metadata) {
+    const context = {};
+    LOG_CONTEXT_KEYS.forEach((key) => {
+        const value = metadata[key];
+        if (key === 'tenantId' && value === tenantContext.SYSTEM_TENANT_ID) {
+            return;
+        }
+        if (typeof value === 'string' && value) {
+            context[key] = value;
+        }
+    });
+    return Object.keys(context).length > 0 ? JSON.stringify(context) : '';
+}
+function appendRequestContext(line, metadata) {
+    const context = formatRequestContext(metadata);
+    return context ? `${line} ${context}` : line;
+}
+/**
+ * Formats log messages for debugging purposes.
+ * - Truncates long strings within log messages.
+ * - Condenses arrays by truncating long strings and objects as strings within array items.
+ * - Redacts sensitive information from log messages if the log level is 'error'.
+ * - Converts log information object to a formatted string.
+ *
+ * @param options - The options for formatting log messages.
+ * @returns The formatted log message.
+ */
+const debugTraverse = winston.format.printf(({ level, message, timestamp, ...metadata }) => {
+    if (!message) {
+        return `${timestamp} ${level}`;
+    }
+    // Type-safe version of the CJS logic: !message?.trim || typeof message !== 'string'
+    if (typeof message !== 'string' || !message.trim) {
+        return `${timestamp} ${level}: ${JSON.stringify(message)}`;
+    }
+    const msgParts = [
+        `${timestamp} ${level}: ${truncateLongStrings(message.trim(), DEBUG_MESSAGE_LENGTH)}`,
+    ];
+    try {
+        if (level !== 'debug') {
+            return appendRequestContext(msgParts[0], metadata);
+        }
+        if (!metadata) {
+            return msgParts[0];
+        }
+        // Type-safe access to SPLAT_SYMBOL using bracket notation
+        const metadataRecord = metadata;
+        const splatArray = metadataRecord[SPLAT_SYMBOL];
+        const debugValue = Array.isArray(splatArray) ? splatArray[0] : undefined;
+        if (!debugValue) {
+            return appendRequestContext(msgParts[0], metadata);
+        }
+        if (debugValue && Array.isArray(debugValue)) {
+            msgParts.push(`\n${JSON.stringify(debugValue.map(condenseArray))}`);
+            return appendRequestContext(msgParts.join(''), metadata);
+        }
+        if (typeof debugValue !== 'object') {
+            msgParts.push(` ${debugValue}`);
+            return appendRequestContext(msgParts.join(''), metadata);
+        }
+        msgParts.push('\n{');
+        const copy = klona.klona(metadata);
+        if (copy.tenantId === tenantContext.SYSTEM_TENANT_ID) {
+            delete copy.tenantId;
+        }
+        try {
+            const traversal = objectTraverse(copy);
+            traversal.forEach(function (value) {
+                var _a;
+                if (typeof (this === null || this === void 0 ? void 0 : this.key) === 'symbol') {
+                    return;
+                }
+                let _parentKey = '';
+                const parent = this.parent;
+                if (typeof (parent === null || parent === void 0 ? void 0 : parent.key) !== 'symbol' && (parent === null || parent === void 0 ? void 0 : parent.key) !== undefined) {
+                    _parentKey = String(parent.key);
+                }
+                const parentKey = `${parent && parent.notRoot ? _parentKey + '.' : ''}`;
+                const tabs = `${parent && parent.notRoot ? '    ' : '  '}`;
+                const currentKey = (_a = this === null || this === void 0 ? void 0 : this.key) !== null && _a !== void 0 ? _a : 'unknown';
+                if (this.isLeaf && typeof value === 'string') {
+                    const truncatedText = truncateLongStrings(value);
+                    msgParts.push(`\n${tabs}${parentKey}${currentKey}: ${JSON.stringify(truncatedText)},`);
+                }
+                else if (this.notLeaf && Array.isArray(value) && value.length > 0) {
+                    const currentMessage = `\n${tabs}// ${value.length} ${String(currentKey).replace(/s$/, '')}(s)`;
+                    this.update(currentMessage);
+                    msgParts.push(currentMessage);
+                    const stringifiedArray = value.map(condenseArray);
+                    msgParts.push(`\n${tabs}${parentKey}${currentKey}: [${stringifiedArray}],`);
+                }
+                else if (this.isLeaf && typeof value === 'function') {
+                    msgParts.push(`\n${tabs}${parentKey}${currentKey}: function,`);
+                }
+                else if (this.isLeaf) {
+                    msgParts.push(`\n${tabs}${parentKey}${currentKey}: ${value},`);
+                }
+            });
+        }
+        catch (e) {
+            const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+            msgParts.push(`\n[LOGGER TRAVERSAL ERROR] ${errorMessage}`);
+        }
+        msgParts.push('\n}');
+        return msgParts.join('');
+    }
+    catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+        msgParts.push(`\n[LOGGER PARSING ERROR] ${errorMessage}`);
+        return msgParts.join('');
+    }
+});
+/**
+ * Truncates long string values in JSON log objects.
+ * Prevents outputting extremely long values (e.g., base64, blobs).
+ */
+const jsonTruncateFormat = winston.format((info) => {
+    const truncateLongStrings = (str, maxLength) => str.length > maxLength ? str.substring(0, maxLength) + '...' : str;
+    const seen = new WeakSet();
+    const truncateObject = (obj) => {
+        if (typeof obj !== 'object' || obj === null) {
+            return obj;
+        }
+        // Handle circular references - now with proper object type
+        if (seen.has(obj)) {
+            return '[Circular]';
+        }
+        seen.add(obj);
+        if (Array.isArray(obj)) {
+            return obj.map((item) => truncateObject(item));
+        }
+        // We know this is an object at this point
+        const objectRecord = obj;
+        const newObj = {};
+        Object.entries(objectRecord).forEach(([key, value]) => {
+            if (typeof value === 'string') {
+                newObj[key] = truncateLongStrings(value, CONSOLE_JSON_STRING_LENGTH);
+            }
+            else {
+                newObj[key] = truncateObject(value);
+            }
+        });
+        return newObj;
+    };
+    return truncateObject(info);
+});
+
+exports.debugTraverse = debugTraverse;
+exports.jsonTruncateFormat = jsonTruncateFormat;
+exports.redactFormat = redactFormat;
+exports.redactMessage = redactMessage;
+//# sourceMappingURL=parsers.cjs.map

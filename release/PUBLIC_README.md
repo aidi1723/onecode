@@ -131,6 +131,9 @@ Start the bundled shell and kernel:
 启动内置壳和内核：
 
 ```bash
+cd shell/onecode-librechat
+npm install
+cd ../..
 PYTHONPATH=src python3 -m onecode shell
 ```
 
@@ -139,7 +142,16 @@ Open:
 打开：
 
 ```text
-http://127.0.0.1:14080
+http://127.0.0.1:14080/c/new
+```
+
+Default local preview login:
+
+默认本地预览账号：
+
+```text
+Email: onecode@local.test
+Password: OneCode123!
 ```
 
 Start API-only mode:

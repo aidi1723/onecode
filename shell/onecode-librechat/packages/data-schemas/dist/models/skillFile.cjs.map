@@ -1,0 +1,1 @@
+{"version":3,"file":"skillFile.cjs","sources":["../../src/models/skillFile.ts"],"sourcesContent":[null],"names":["applyTenantIsolation","skillFileSchema"],"mappings":";;;;;AAIM,SAAU,oBAAoB,CAAC,QAAmC,EAAA;IACtEA,oCAAoB,CAACC,SAAe,CAAC;AACrC,IAAA,QACE,QAAQ,CAAC,MAAM,CAAC,SAAS,IAAI,QAAQ,CAAC,KAAK,CAAqB,WAAW,EAAEA,SAAe,CAAC;AAEjG;;;;"}

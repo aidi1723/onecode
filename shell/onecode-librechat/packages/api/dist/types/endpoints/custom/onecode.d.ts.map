@@ -1,0 +1,1 @@
+{"version":3,"file":"onecode.d.ts","sourceRoot":"","sources":["../../../../src/endpoints/custom/onecode.ts"],"names":[],"mappings":"AAAA,MAAM,MAAM,eAAe,GAAG;IAC5B,SAAS,CAAC,EAAE,MAAM,CAAC;CACpB,CAAC;AAEF,wBAAgB,uBAAuB,CACrC,WAAW,EAAE,MAAM,CAAC,MAAM,EAAE,OAAO,CAAC,GAAG,SAAS,EAChD,QAAQ,EAAE,eAAe,GAAG,SAAS,GACpC,MAAM,CAAC,MAAM,EAAE,OAAO,CAAC,GAAG,SAAS,CAerC"}

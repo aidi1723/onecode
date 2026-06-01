@@ -1,0 +1,1 @@
+{"version":3,"file":"file.cjs","sources":["../../src/models/file.ts"],"sourcesContent":[null],"names":["applyTenantIsolation","fileSchema"],"mappings":";;;;;AAIM,SAAU,eAAe,CAAC,QAAmC,EAAA;IACjEA,oCAAoB,CAACC,IAAU,CAAC;AAChC,IAAA,OAAO,QAAQ,CAAC,MAAM,CAAC,IAAI,IAAI,QAAQ,CAAC,KAAK,CAAa,MAAM,EAAEA,IAAU,CAAC;AAC/E;;;;"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"transaction.cjs","sources":["../../src/models/transaction.ts"],"sourcesContent":[null],"names":["applyTenantIsolation","transactionSchema"],"mappings":";;;;;AAGM,SAAU,sBAAsB,CAAC,QAAmC,EAAA;IACxEA,oCAAoB,CAACC,WAAiB,CAAC;AACvC,IAAA,QACE,QAAQ,CAAC,MAAM,CAAC,WAAW,IAAI,QAAQ,CAAC,KAAK,CAAe,aAAa,EAAEA,WAAiB,CAAC;AAEjG;;;;"}

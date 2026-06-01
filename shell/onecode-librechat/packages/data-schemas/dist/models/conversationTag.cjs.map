@@ -1,0 +1,1 @@
+{"version":3,"file":"conversationTag.cjs","sources":["../../src/models/conversationTag.ts"],"sourcesContent":[null],"names":["applyTenantIsolation","conversationTagSchema"],"mappings":";;;;;AAGM,SAAU,0BAA0B,CAAC,QAAmC,EAAA;IAC5EA,oCAAoB,CAACC,eAAqB,CAAC;AAC3C,IAAA,QACE,QAAQ,CAAC,MAAM,CAAC,eAAe;QAC/B,QAAQ,CAAC,KAAK,CAAmB,iBAAiB,EAAEA,eAAqB,CAAC;AAE9E;;;;"}

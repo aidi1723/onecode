@@ -1,0 +1,1 @@
+{"version":3,"file":"prompt.cjs","sources":["../../src/models/prompt.ts"],"sourcesContent":[null],"names":["applyTenantIsolation","promptSchema"],"mappings":";;;;;AAIM,SAAU,iBAAiB,CAAC,QAAmC,EAAA;IACnEA,oCAAoB,CAACC,MAAY,CAAC;AAClC,IAAA,OAAO,QAAQ,CAAC,MAAM,CAAC,MAAM,IAAI,QAAQ,CAAC,KAAK,CAAU,QAAQ,EAAEA,MAAY,CAAC;AAClF;;;;"}

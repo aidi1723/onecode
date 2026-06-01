@@ -1,0 +1,1 @@
+{"version":3,"file":"preset.cjs","sources":["../../src/models/preset.ts"],"sourcesContent":[null],"names":["applyTenantIsolation","presetSchema"],"mappings":";;;;;AAGM,SAAU,iBAAiB,CAAC,QAAmC,EAAA;IACnEA,oCAAoB,CAACC,MAAY,CAAC;AAClC,IAAA,OAAO,QAAQ,CAAC,MAAM,CAAC,MAAM,IAAI,QAAQ,CAAC,KAAK,CAAU,QAAQ,EAAEA,MAAY,CAAC;AAClF;;;;"}
