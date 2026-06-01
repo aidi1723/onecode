@@ -104,11 +104,11 @@ Console 当前覆盖：
 - benchmark harness 与 20 个任务定义。
 - CI、LICENSE、SECURITY、CONTRIBUTING、release checklist 等开源治理基础。
 
-版权当前按用户确认写为：
+版权与开源协议当前按用户确认写为：
 
 ```text
 Copyright (c) 2026 aidi
-All rights reserved.
+Licensed under the Apache License, Version 2.0.
 ```
 
 ## 4. 验证证据

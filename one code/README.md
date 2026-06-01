@@ -4,6 +4,8 @@ OneCode is a local-first agent kernel prototype. It focuses on scoped file write
 
 The core kernel has no runtime third-party dependency. Textual is an optional TUI dependency.
 
+OneCode is licensed under the Apache License, Version 2.0.
+
 The short module entrypoint is `python3 -m onecode`. The older explicit CLI module form, such as `python3 -m onecode.cli doctor`, remains supported.
 
 ## Install

@@ -12,7 +12,7 @@ v0.1 or early v0.2 gaps as current defects.
 - Result: `384 tests OK`
 - Doctor: `status: ok`
 - Core posture: local-first, rule-constrained, evidence-first Agent kernel
-- License posture: proprietary, all rights reserved, copyright `aidi`
+- License posture: Apache License 2.0, copyright `aidi`
 
 ## Corrections To Earlier Review Claims
 
