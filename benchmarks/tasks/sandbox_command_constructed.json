@@ -1,0 +1,8 @@
+{
+  "id": "sandbox-command-constructed",
+  "prompt": "构造 Docker sandbox 命令并限制网络",
+  "expected_status": "completed",
+  "mode": "sandbox",
+  "input": {},
+  "assertions": []
+}

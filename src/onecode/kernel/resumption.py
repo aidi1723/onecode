@@ -1,0 +1,287 @@
+import json
+import hashlib
+from dataclasses import dataclass
+from pathlib import Path
+
+from onecode.kernel.hexagram import IchingKernel
+from onecode.kernel.wal import read_validated_global_wal_entries
+
+
+@dataclass(frozen=True)
+class ReadyAsset:
+    path: str
+    sha256: str
+    source_run_id: str
+    source_turn_index: int
+    intent_type: str = "write_text"
+
+
+@dataclass(frozen=True)
+class ResumeState:
+    source_run_id: str
+    ready_assets: dict[str, ReadyAsset]
+    audit_events: list[dict]
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def load_json(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def normalize_asset_path(workspace_root: Path, payload_path: str) -> str | None:
+    path = Path(payload_path)
+    root = workspace_root.resolve()
+    target = path if path.is_absolute() else root / path
+    try:
+        return str(target.resolve().relative_to(root))
+    except ValueError:
+        return None
+
+
+def audit_event(
+    path: str | None,
+    status: str,
+    reason: str | None,
+    status_code: int,
+    **details: object,
+) -> dict:
+    return {
+        "path": path,
+        "status": status,
+        "reason": reason,
+        "iching_status_code": status_code,
+    } | details
+
+
+def checkpoint_to_ready_asset(
+    workspace_root: Path,
+    source_run_id: str,
+    checkpoint: dict,
+) -> tuple[ReadyAsset | None, dict | None]:
+    if checkpoint.get("status") != "completed":
+        return None, None
+    intent_type = checkpoint.get("intent_type")
+    if intent_type not in {"write_text", "patch_text"}:
+        return None, None
+    if checkpoint.get("decision") != "allowed":
+        return None, None
+
+    payload = checkpoint.get("payload")
+    if not isinstance(payload, dict):
+        return None, None
+    payload_path = payload.get("path")
+    payload_sha = payload.get("sha256")
+    if not isinstance(payload_path, str) or not isinstance(payload_sha, str):
+        return None, None
+
+    relative_path = normalize_asset_path(workspace_root, payload_path)
+    if relative_path is None:
+        return None, audit_event(
+            path=payload_path,
+            status="ignored",
+            reason="path_outside_workspace",
+            status_code=IchingKernel.classify_resume_audit("ignored", "path_outside_workspace"),
+        )
+
+    asset_path = workspace_root.resolve() / relative_path
+    if not asset_path.exists():
+        return None, audit_event(
+            path=relative_path,
+            status="ignored",
+            reason="missing_file",
+            status_code=IchingKernel.classify_resume_audit("ignored", "missing_file"),
+        )
+    current_sha256 = sha256_file(asset_path)
+    if intent_type == "patch_text":
+        pre_sha = payload.get("pre_sha256")
+        post_sha = payload.get("post_sha256") or payload_sha
+        if isinstance(pre_sha, str) and isinstance(post_sha, str):
+            if current_sha256 == post_sha:
+                ready_asset = ReadyAsset(
+                    path=relative_path,
+                    sha256=current_sha256,
+                    source_run_id=source_run_id,
+                    source_turn_index=int(checkpoint.get("turn_index", 0)),
+                    intent_type=intent_type,
+                )
+                return ready_asset, audit_event(
+                    path=relative_path,
+                    status="ready",
+                    reason=None,
+                    status_code=IchingKernel.classify_resume_audit("ready", None),
+                    intent_type=intent_type,
+                    current_sha256=current_sha256,
+                    post_sha256=post_sha,
+                )
+            if current_sha256 == pre_sha:
+                return None, audit_event(
+                    path=relative_path,
+                    status="apply_patch",
+                    reason="patch_base_ready",
+                    status_code=IchingKernel.classify_resume_audit("apply_patch", "patch_base_ready"),
+                    intent_type=intent_type,
+                    current_sha256=current_sha256,
+                    pre_sha256=pre_sha,
+                    post_sha256=post_sha,
+                )
+            return None, audit_event(
+                path=relative_path,
+                status="halted",
+                reason="patch_resume_conflict",
+                status_code=IchingKernel.classify_resume_audit("halted", "patch_resume_conflict"),
+                intent_type=intent_type,
+                current_sha256=current_sha256,
+                pre_sha256=pre_sha,
+                post_sha256=post_sha,
+            )
+
+        replace_block = payload.get("replace_block")
+        if not isinstance(replace_block, str) or replace_block == "":
+            return None, None
+        try:
+            current_content = asset_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            return None, audit_event(
+                path=relative_path,
+                status="ignored",
+                reason="patch_target_unreadable",
+                status_code=IchingKernel.classify_resume_audit("ignored", "patch_target_unreadable"),
+                intent_type=intent_type,
+            )
+        if replace_block not in current_content:
+            return None, audit_event(
+                path=relative_path,
+                status="ignored",
+                reason="patch_replace_block_missing",
+                status_code=IchingKernel.classify_resume_audit("ignored", "patch_replace_block_missing"),
+                intent_type=intent_type,
+                current_sha256=current_sha256,
+                expected_sha256=payload_sha,
+            )
+        ready_asset = ReadyAsset(
+            path=relative_path,
+            sha256=current_sha256,
+            source_run_id=source_run_id,
+            source_turn_index=int(checkpoint.get("turn_index", 0)),
+            intent_type=intent_type,
+        )
+        return ready_asset, audit_event(
+            path=relative_path,
+            status="ready",
+            reason=None,
+            status_code=IchingKernel.classify_resume_audit("ready", None),
+            intent_type=intent_type,
+        )
+
+    if current_sha256 != payload_sha:
+        return None, audit_event(
+            path=relative_path,
+            status="ignored",
+            reason="sha256_mismatch",
+            status_code=IchingKernel.classify_resume_audit("ignored", "sha256_mismatch"),
+            intent_type=intent_type,
+            current_sha256=current_sha256,
+            expected_sha256=payload_sha,
+        )
+
+    ready_asset = ReadyAsset(
+        path=relative_path,
+        sha256=payload_sha,
+        source_run_id=source_run_id,
+        source_turn_index=int(checkpoint.get("turn_index", 0)),
+        intent_type=intent_type,
+    )
+    return ready_asset, audit_event(
+        path=relative_path,
+        status="ready",
+        reason=None,
+        status_code=IchingKernel.classify_resume_audit("ready", None),
+        intent_type=intent_type,
+    )
+
+
+def wal_asset_to_checkpoint(asset: dict, source_run_id: str) -> dict | None:
+    path = asset.get("p")
+    sha256 = asset.get("s")
+    intent_type = asset.get("i")
+    if not isinstance(path, str) or not isinstance(sha256, str) or intent_type not in {"write_text", "patch_text"}:
+        return None
+    payload = {
+        "path": path,
+        "sha256": sha256,
+    }
+    if intent_type == "patch_text":
+        for source_key, target_key in (
+            ("pre", "pre_sha256"),
+            ("post", "post_sha256"),
+            ("search", "search_block_sha256"),
+            ("replace", "replace_block_sha256"),
+        ):
+            value = asset.get(source_key)
+            if isinstance(value, str):
+                payload[target_key] = value
+    return {
+        "status": "completed",
+        "intent_type": intent_type,
+        "decision": "allowed",
+        "turn_index": asset.get("t", 0),
+        "payload": payload,
+        "source": "global_wal",
+        "run_id": source_run_id,
+    }
+
+
+def load_wal_resume_state(workspace_root: Path, resume_from_run_id: str) -> ResumeState:
+    ready_assets: dict[str, ReadyAsset] = {}
+    audit_events: list[dict] = []
+    for entry in read_validated_global_wal_entries(workspace_root):
+        if entry.get("rid") != resume_from_run_id or entry.get("em") != "wal":
+            continue
+        assets = entry.get("as")
+        if not isinstance(assets, list):
+            continue
+        for asset in assets:
+            if not isinstance(asset, dict):
+                continue
+            checkpoint = wal_asset_to_checkpoint(asset, resume_from_run_id)
+            if checkpoint is None:
+                continue
+            ready_asset, event = checkpoint_to_ready_asset(workspace_root, resume_from_run_id, checkpoint)
+            if event is not None:
+                audit_events.append(event)
+            if ready_asset is not None:
+                ready_assets[ready_asset.path] = ready_asset
+    return ResumeState(source_run_id=resume_from_run_id, ready_assets=ready_assets, audit_events=audit_events)
+
+
+def load_resume_state(workspace_root: Path, resume_from_run_id: str) -> ResumeState:
+    root = workspace_root.resolve()
+    manifest_path = root / ".onecode" / "runs" / resume_from_run_id / "manifest.json"
+    if not manifest_path.exists():
+        return load_wal_resume_state(root, resume_from_run_id)
+
+    manifest = load_json(manifest_path)
+    ready_assets: dict[str, ReadyAsset] = {}
+    audit_events: list[dict] = []
+    for record in manifest.get("checkpoints", []):
+        checkpoint_path_value = record.get("path") if isinstance(record, dict) else None
+        if not isinstance(checkpoint_path_value, str):
+            continue
+        checkpoint_path = Path(checkpoint_path_value)
+        if not checkpoint_path.exists():
+            continue
+        checkpoint = load_json(checkpoint_path)
+        ready_asset, event = checkpoint_to_ready_asset(root, resume_from_run_id, checkpoint)
+        if event is not None:
+            audit_events.append(event)
+        if ready_asset is not None:
+            ready_assets[ready_asset.path] = ready_asset
+
+    return ResumeState(source_run_id=resume_from_run_id, ready_assets=ready_assets, audit_events=audit_events)

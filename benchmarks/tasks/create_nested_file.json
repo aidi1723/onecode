@@ -1,0 +1,13 @@
+{
+  "id": "create-nested-file",
+  "prompt": "创建 src/generated/config.py",
+  "expected_status": "completed",
+  "mode": "rule",
+  "input": {
+    "write_path": "src/generated/config.py",
+    "write_content": "CONFIG = true\n"
+  },
+  "assertions": [
+    { "type": "file_exists", "path": "src/generated/config.py" }
+  ]
+}
