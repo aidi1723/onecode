@@ -118,6 +118,7 @@ class IchingKernel:
         "bit_derived": [
             "status_code",
             "binary",
+            "math",
             "inner_trigram",
             "outer_trigram",
             "trigram_records",
@@ -138,7 +139,7 @@ class IchingKernel:
             "element_dynamics",
             "evolved_element_modulation",
         ],
-        "onecode_runtime": ["transition", "dispatch_decision", "execution_bandwidth", "global_entropy"],
+        "onecode_runtime": ["transition", "dispatch_decision", "runtime_policy", "execution_bandwidth", "global_entropy"],
     }
 
     @classmethod
@@ -639,10 +640,10 @@ class IchingKernel:
             "math": {
                 "liangyi": list(cls.liangyi_values()),
                 "state_space_sizes": {
-                    "liangyi": len(cls.cartesian_states(1)),
-                    "sixiang": len(cls.cartesian_states(2)),
-                    "bagua": len(cls.cartesian_states(3)),
-                    "hexagram": len(cls.cartesian_states(6)),
+                    "liangyi": 1 << 1,
+                    "sixiang": 1 << 2,
+                    "bagua": 1 << 3,
+                    "hexagram": 1 << 6,
                 },
             },
             "outer_trigram": outer,

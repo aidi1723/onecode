@@ -642,6 +642,7 @@ class TestIchingKernel(unittest.TestCase):
             [
                 "status_code",
                 "binary",
+                "math",
                 "inner_trigram",
                 "outer_trigram",
                 "trigram_records",
@@ -668,7 +669,7 @@ class TestIchingKernel(unittest.TestCase):
         )
         self.assertEqual(
             profile["rule_layers"]["onecode_runtime"],
-            ["transition", "dispatch_decision", "execution_bandwidth", "global_entropy"],
+            ["transition", "dispatch_decision", "runtime_policy", "execution_bandwidth", "global_entropy"],
         )
 
     def test_rule_layers_returns_defensive_copies(self):
