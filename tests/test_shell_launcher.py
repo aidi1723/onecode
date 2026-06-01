@@ -11,6 +11,7 @@ from onecode.shell_launcher import (
     build_librechat_env,
     build_runtime_config,
     default_librechat_dir,
+    ensure_librechat_runtime_dirs,
     process_is_running,
 )
 
@@ -163,6 +164,16 @@ class ShellLauncherConfigTests(unittest.TestCase):
             self.assertIn("127.0.0.1:18080", text)
             self.assertIn("localhost:18080", text)
             self.assertIn("baseURL: '${ONECODE_API_BASE_URL}'", text)
+
+    def test_librechat_runtime_dirs_are_created_without_runtime_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            shell = Path(tmp) / "onecode-librechat"
+            shell.mkdir()
+
+            ensure_librechat_runtime_dirs(shell)
+
+            self.assertTrue((shell / "data").is_dir())
+            self.assertEqual(list((shell / "data").iterdir()), [])
 
 
 class ProcessRunningTests(unittest.TestCase):

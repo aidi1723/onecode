@@ -183,6 +183,10 @@ def require_librechat_dependencies(librechat_dir: Path) -> None:
         )
 
 
+def ensure_librechat_runtime_dirs(librechat_dir: Path) -> None:
+    (librechat_dir / "data").mkdir(parents=True, exist_ok=True)
+
+
 def start_process(name: str, command: list[str], cwd: Path, env: Mapping[str, str]) -> subprocess.Popen:
     print(f"[onecode shell] starting {name}: {' '.join(command)}", flush=True)
     return subprocess.Popen(command, cwd=str(cwd), env=dict(env))
@@ -232,6 +236,7 @@ def launch_shell(config: ShellLaunchConfig) -> int:
     require_path(config.onecode_root / "src" / "onecode", "OneCode source package")
     require_path(config.librechat_dir / "package.json", "LibreChat shell package")
     require_librechat_dependencies(config.librechat_dir)
+    ensure_librechat_runtime_dirs(config.librechat_dir)
 
     build_runtime_config(config)
     librechat_env = build_librechat_env(config)
