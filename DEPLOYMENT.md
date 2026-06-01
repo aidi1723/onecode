@@ -35,6 +35,19 @@ If you already have the repository, pull the latest `main` branch.
 
 ## 2. Install The Kernel / 安装内核
 
+Recommended local install:
+
+推荐本地安装方式：
+
+```bash
+bash scripts/install-local.sh
+```
+
+This installs the Python kernel, runs `doctor`, and installs bundled shell npm
+dependencies.
+
+该脚本会安装 Python 内核、运行 `doctor`，并安装内置壳的 npm 依赖。
+
 Editable local install:
 
 本地可编辑安装：
@@ -100,6 +113,14 @@ runtime artifacts.
 From the repository root:
 
 在仓库根目录执行：
+
+```bash
+bash scripts/start-local.sh
+```
+
+Manual equivalent:
+
+等价手动命令：
 
 ```bash
 PYTHONPATH=src python3 -m onecode shell --show-credentials

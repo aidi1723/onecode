@@ -11,13 +11,14 @@ class ReadmeTests(unittest.TestCase):
 
         for snippet in [
             "bash scripts/verify.sh",
+            "bash scripts/install-local.sh",
+            "bash scripts/start-local.sh",
             "DEPLOYMENT.md",
             "bash scripts/demo_v07.sh",
             "python3 -m onecode doctor",
             "python3 -m onecode.cli doctor",
             "python3 -m onecode run",
             "python3 -m onecode shell",
-            "cd shell/onecode-librechat",
             "npm install",
             "http://127.0.0.1:14080/c/new",
             "python3 -m onecode run-plan",

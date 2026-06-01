@@ -121,8 +121,38 @@ OneCode 本身不提供法律、审计、金融或监管认证。在受监管环
 
 ## Install / 安装
 
+Recommended local install:
+
+推荐本地安装方式：
+
+```bash
+bash scripts/install-local.sh
+```
+
+Then start the bundled kernel and shell:
+
+然后启动内置内核和壳：
+
+```bash
+bash scripts/start-local.sh
+```
+
+Manual kernel-only install:
+
+手动只安装内核：
+
 ```bash
 pip install -e .
+```
+
+Manual shell dependency install:
+
+手动安装壳依赖：
+
+```bash
+cd shell/onecode-librechat
+npm install
+cd ../..
 ```
 
 Optional conversational TUI:
@@ -191,10 +221,7 @@ Start the bundled shell and kernel:
 启动内置壳和内核：
 
 ```bash
-cd shell/onecode-librechat
-npm install
-cd ../..
-PYTHONPATH=src python3 -m onecode shell
+bash scripts/start-local.sh
 ```
 
 Open:

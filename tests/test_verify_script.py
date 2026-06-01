@@ -6,6 +6,40 @@ from pathlib import Path
 
 
 class VerifyScriptTests(unittest.TestCase):
+    def test_install_local_script_exists_and_supports_dry_run(self):
+        script = Path("scripts/install-local.sh")
+
+        self.assertTrue(script.exists())
+        self.assertTrue(script.stat().st_mode & 0o111)
+
+        completed = subprocess.run(
+            ["bash", str(script), "--dry-run"],
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+
+        self.assertIn("pip install -e .", completed.stdout)
+        self.assertIn("npm install", completed.stdout)
+        self.assertIn("shell/onecode-librechat", completed.stdout)
+
+    def test_start_local_script_exists_and_supports_dry_run(self):
+        script = Path("scripts/start-local.sh")
+
+        self.assertTrue(script.exists())
+        self.assertTrue(script.stat().st_mode & 0o111)
+
+        completed = subprocess.run(
+            ["bash", str(script), "--dry-run"],
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+
+        self.assertIn("onecode shell", completed.stdout)
+        self.assertIn("--show-credentials", completed.stdout)
+        self.assertIn("http://127.0.0.1:14080/c/new", completed.stdout)
+
     def test_demo_v07_script_exists_and_is_executable(self):
         script = Path("scripts/demo_v07.sh")
 
@@ -66,20 +100,21 @@ class VerifyScriptTests(unittest.TestCase):
         self.assertIn('elif [[ -z "$PYTHON_BIN" && -x ".venv/bin/python" ]]; then', text)
         self.assertIn('"$PYTHON_BIN" -m pip install -e .[tui]', text)
         self.assertIn('"$PYTHON_BIN" -m unittest discover -s tests -v', text)
-        self.assertNotIn("export PYTHONPATH", text)
+        self.assertIn("--skip-install", text)
 
     def test_verify_script_runs_non_recursive_smoke_check(self):
         env = os.environ.copy()
         env.pop("PYTHON", None)
         env.pop("VIRTUAL_ENV", None)
         completed = subprocess.run(
-            ["bash", "scripts/verify.sh", "--skip-tests"],
+            ["bash", "scripts/verify.sh", "--skip-install", "--skip-tests"],
             env=env,
             text=True,
             capture_output=True,
             check=True,
         )
 
+        self.assertIn("install skipped", completed.stdout)
         self.assertIn("compileall", completed.stdout)
         self.assertIn("doctor", completed.stdout)
 
@@ -88,7 +123,7 @@ class VerifyScriptTests(unittest.TestCase):
         env["PYTHON"] = sys.executable
 
         completed = subprocess.run(
-            ["bash", "scripts/verify.sh", "--skip-tests"],
+            ["bash", "scripts/verify.sh", "--skip-install", "--skip-tests"],
             env=env,
             text=True,
             capture_output=True,
