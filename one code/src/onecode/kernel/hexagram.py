@@ -117,6 +117,14 @@ class IchingKernel:
         "controlled_by": ("checkpoint", "controlled_by_relation_requires_verifier"),
         "neutral": ("discover", "neutral_relation_requires_discovery"),
     }
+    HARMONY_RELATION_SCORES = {
+        "generates": 2,
+        "same": 1,
+        "generated_by": 1,
+        "neutral": 0,
+        "controls": -1,
+        "controlled_by": -2,
+    }
     RUNTIME_CONTROL_MODULATION_POLICY = {
         "hard_control": ("halt", "sovereignty_fire_suppresses_asset"),
         "quench": ("halt", "water_quenches_fire_boundary"),
@@ -478,6 +486,22 @@ class IchingKernel:
         if cls.CONTROLS.get(target) == source:
             return "controlled_by"
         return "neutral"
+
+    @classmethod
+    def harmony_score(cls, status_code: int) -> dict[str, int | str]:
+        normalized = status_code & 0b111111
+        inner = normalized & 0b111
+        outer = (normalized >> 3) & 0b111
+        outer_element = cls.element_for_trigram(outer)
+        inner_element = cls.element_for_trigram(inner)
+        relation = cls.element_cross_relation(outer_element, inner_element)
+        return {
+            "score": cls.HARMONY_RELATION_SCORES[relation],
+            "relation": relation,
+            "outer_element": outer_element,
+            "inner_element": inner_element,
+            "method": "outer_inner_element_relation",
+        }
 
     @classmethod
     def runtime_relation_policy(cls, relation: str, modulation: str) -> tuple[str, str | None]:

@@ -558,6 +558,29 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(matrix[("earth", "earth")], "same")
         self.assertEqual(matrix[("wood", "metal")], "controlled_by")
 
+    def test_harmony_score_uses_outer_inner_element_relation(self):
+        generated = IchingKernel.harmony_score(IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN))
+        same = IchingKernel.harmony_score(IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI))
+        controls = IchingKernel.harmony_score(IchingKernel.compute_status(IchingKernel.LI, IchingKernel.QIAN))
+        controlled_by = IchingKernel.harmony_score(IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.LI))
+
+        self.assertEqual(
+            generated,
+            {
+                "score": 2,
+                "relation": "generates",
+                "outer_element": "water",
+                "inner_element": "wood",
+                "method": "outer_inner_element_relation",
+            },
+        )
+        self.assertEqual(same["score"], 1)
+        self.assertEqual(same["relation"], "same")
+        self.assertEqual(controls["score"], -1)
+        self.assertEqual(controls["relation"], "controls")
+        self.assertEqual(controlled_by["score"], -2)
+        self.assertEqual(controlled_by["relation"], "controlled_by")
+
     def test_element_dynamics_modulates_relation_with_yin_yang_pressure(self):
         hard_control = IchingKernel.element_dynamics(IchingKernel.compute_status(IchingKernel.LI, IchingKernel.QIAN))
         self.assertEqual(hard_control["outer_element"], "fire")
