@@ -6,13 +6,13 @@ Status: Approved direction, pending implementation plan
 
 ## Goal
 
-Extend OneCode's yin-yang and five-element runtime foundation with a multidimensional hexagram model that treats two lines, three lines, and six lines as one coherent algebraic state family:
+Extend OneCode's yin-yang and five-element foundation with bottom-level computational rules that treat two lines, three lines, and six lines as one coherent algebraic state family:
 
 ```text
 Y^1 -> Y^2 -> Y^3 -> Y^6
 ```
 
-The extension should improve explainability, training basis quality, and transition auditability without weakening the existing safety model. `IchingKernel` remains the single rule authority.
+The extension should improve deterministic calculation, rule auditability, and transition explainability without weakening the existing safety model. `IchingKernel` remains the single rule authority.
 
 ## Design Principle
 
@@ -33,8 +33,7 @@ The current kernel already has:
 - four-symbol projections;
 - yin-yang pressure;
 - five-element relation and modulation;
-- transition, dispatch, stability, and safety certificates;
-- YiZiJue-LM basis and logits policy consumers.
+- transition, dispatch, stability, and safety certificates.
 
 This design adds higher quality state interpretation around that surface rather than replacing it.
 
@@ -49,8 +48,7 @@ Add pure, deterministic helpers and profile fields for:
 - multi-line mutation operations;
 - changed-line comparison between two six-bit states;
 - nuclear hexagram or inner-trend projection;
-- harmony scoring derived from existing five-element relation functions;
-- model-facing basis fields that expose those facts compactly.
+- harmony scoring derived from existing five-element relation functions.
 
 ### Out of Scope
 
@@ -60,9 +58,10 @@ This design does not add:
 - time-based or random state generation;
 - guaci/yaoci text databases;
 - reward-driven autonomous line rewriting;
+- YiZiJue-LM basis, logits, training rows, or prompt changes;
 - any transition rule that can override sovereignty, path guard, verifier, or sandbox safety.
 
-These can be future extensions, but they need separate specs because they introduce traditional correspondence data or learning feedback loops.
+These can be future extensions, but they need separate specs because they introduce traditional correspondence data, learning feedback loops, or model-facing behavior.
 
 ## Mathematical Model
 
@@ -79,7 +78,7 @@ For `width = 1`, it describes liangyi. For `width = 2`, four symbols. For `width
 - `width`;
 - `state_count = 1 << width`;
 - `bit_order = "bottom_to_top"`;
-- `basis = "Y^n"`;
+- `state_space = "Y^n"`;
 - a stable label where known: `liangyi`, `four_symbols`, `bagua`, `hexagram`.
 
 This is a metadata helper. It must not change runtime behavior.
@@ -156,7 +155,7 @@ nuclear_hexagram(status_code: int) -> int
 
 It should be pure bit transformation. The profile may expose the resulting status code, inner trigram, outer trigram, element relation, and transition action for explanation.
 
-Nuclear hexagram data should initially inform diagnostics and YiZiJue-LM basis only. It should not alter `transition()` in this phase.
+Nuclear hexagram data should initially inform kernel diagnostics and profile inspection only. It should not alter `transition()` in this phase.
 
 ### Harmony Score
 
@@ -213,36 +212,6 @@ No new field in this design changes `transition()` priority. The existing priori
 
 Future runtime use of `triadic`, `nuclear`, or `harmony` must be table-driven and covered by dedicated tests.
 
-## YiZiJue-LM Integration
-
-The model basis should receive compact fields that help it explain kernel decisions:
-
-```json
-{
-  "dimension": {
-    "width": 6,
-    "state_count": 64
-  },
-  "triadic": {
-    "earth": "environment",
-    "human": "agent",
-    "heaven": "feedback"
-  },
-  "nuclear": {
-    "state": "010110",
-    "trend": "inner_process"
-  },
-  "harmony": {
-    "score": 1,
-    "relation": "generates"
-  }
-}
-```
-
-Basis fields should stay small and deterministic. They should teach the model to cite rule facts, not authorize actions independently.
-
-`token_policy_for_basis()` may prefer explanatory fragments from these fields only after filtering against forbidden action fragments. Rich basis hints must never make denied or halted actions available.
-
 ## Testing Strategy
 
 Tests should cover:
@@ -254,9 +223,7 @@ Tests should cover:
 - changed-line comparison;
 - nuclear hexagram bit mapping;
 - harmony score determinism and relation explanation;
-- cross-cutting profile field presence and rule-layer classification;
-- YiZiJue-LM basis compatibility;
-- logits policy conflict filtering with new rich hints.
+- cross-cutting profile field presence and rule-layer classification.
 
 Full-suite verification should still account for the current optional TUI dependency requirement. Rule-specific tests should be runnable without installing TUI extras.
 
@@ -265,5 +232,5 @@ Full-suite verification should still account for the current optional TUI depend
 - The multidimensional helpers are pure, deterministic, and covered by unit tests.
 - Existing transition outputs are unchanged unless a future plan explicitly changes them.
 - Cross-cutting profiles expose the new facts without duplicating rule logic outside `IchingKernel`.
-- YiZiJue-LM rows can include the richer basis while preserving existing schema compatibility.
+- No LM, basis, logits, training-data, or prompt behavior is changed by this work.
 - Safety, sovereignty, verifier, and sandbox rules continue to dominate all symbolic interpretation.
