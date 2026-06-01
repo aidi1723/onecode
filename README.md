@@ -80,6 +80,26 @@ marked as not applicable for that run.
 已验证的本地确定性基准测试数据发布在
 [`release/BENCHMARK_RESULTS.md`](release/BENCHMARK_RESULTS.md)。该轮基准测试不调用真实模型或外部 API，因此 token 指标在该轮数据中明确标记为不适用。
 
+### Verified A/B Snapshot / 已验证 A/B 快照
+
+| Metric / 指标 | Baseline agent / 基线 Agent | OneCode | Delta / 变化 |
+| --- | ---: | ---: | ---: |
+| Task count / 任务数 | 20 | 20 | - |
+| Passed tasks / 通过任务 | 9 | 20 | +11 |
+| Verified task success / 可验证任务成功率 | 45% | 100% | +55 pp |
+| Invalid-action propagation proxy / 无效动作传播代理率 | 50% | 0% | -50 pp |
+| Asset completeness / 资产完整性 | 90% | 100% | +10 pp |
+| Evidence completeness / 证据完整性 | 0% | 100% | +100 pp |
+| A/B run wall-clock / A/B 本地总耗时 | 0.066s total | 0.066s total | local combined run |
+| Average tokens per task / 单任务平均 token | N/A | N/A | no model call |
+| Total tokens per benchmark run / 单轮基准总 token | N/A | N/A | no model call |
+
+Boundary: this is a local deterministic execution-control benchmark. It
+measures invalid-action propagation as an engineering proxy, not a live model's
+raw hallucination rate.
+
+边界说明：这是一轮本地确定性执行控制基准测试。无效动作传播率是工程代理指标，不是在线模型原始幻觉率。
+
 ## Install / 安装
 
 ```bash
