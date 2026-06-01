@@ -710,6 +710,24 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(profile["transition"]["action"], "checkpoint")
         self.assertEqual(profile["dispatch_decision"], "stop")
 
+    def test_cross_cutting_profile_exposes_kernel_only_multidimensional_fields(self):
+        status = IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)
+        profile = IchingKernel.cross_cutting_profile(status)
+
+        self.assertEqual(profile["dimension"], IchingKernel.dimension_profile(6))
+        self.assertEqual(profile["triadic"], IchingKernel.triadic_profile(status))
+        self.assertIsNone(profile["mutation"])
+
+        nuclear = IchingKernel.nuclear_hexagram(status)
+        self.assertEqual(profile["nuclear"]["status_code"], nuclear)
+        self.assertEqual(profile["nuclear"]["binary"], format(nuclear, "06b"))
+        self.assertEqual(profile["nuclear"]["inner_trigram"], nuclear & 0b111)
+        self.assertEqual(profile["nuclear"]["outer_trigram"], (nuclear >> 3) & 0b111)
+        self.assertEqual(profile["nuclear"]["transition_action"], IchingKernel.transition(nuclear).action)
+
+        self.assertEqual(profile["harmony"], IchingKernel.harmony_score(status))
+        self.assertEqual(IchingKernel.transition(status).action, "checkpoint")
+
     def test_hexagram_record_contains_cross_cutting_rule_profile(self):
         status = IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)
         record = IchingKernel.hexagram_record(status)
@@ -727,6 +745,10 @@ class TestIchingKernel(unittest.TestCase):
                 "status_code",
                 "binary",
                 "math",
+                "dimension",
+                "triadic",
+                "mutation",
+                "nuclear",
                 "inner_trigram",
                 "outer_trigram",
                 "trigram_records",
@@ -749,6 +771,7 @@ class TestIchingKernel(unittest.TestCase):
                 "element_relation",
                 "element_dynamics",
                 "evolved_element_modulation",
+                "harmony",
             ],
         )
         self.assertEqual(

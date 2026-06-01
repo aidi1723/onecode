@@ -138,6 +138,10 @@ class IchingKernel:
             "status_code",
             "binary",
             "math",
+            "dimension",
+            "triadic",
+            "mutation",
+            "nuclear",
             "inner_trigram",
             "outer_trigram",
             "trigram_records",
@@ -157,6 +161,7 @@ class IchingKernel:
             "element_relation",
             "element_dynamics",
             "evolved_element_modulation",
+            "harmony",
         ],
         "onecode_runtime": ["transition", "dispatch_decision", "runtime_policy", "execution_bandwidth", "global_entropy"],
     }
@@ -713,6 +718,10 @@ class IchingKernel:
                     "hexagram": 1 << 6,
                 },
             },
+            "dimension": cls.dimension_profile(6),
+            "triadic": cls.triadic_profile(normalized),
+            "mutation": None,
+            "nuclear": cls.nuclear_profile(normalized),
             "outer_trigram": outer,
             "inner_trigram": inner,
             "lines": cls.line_records(normalized),
@@ -732,6 +741,7 @@ class IchingKernel:
             },
             "execution_bandwidth": cls.execution_bandwidth(normalized),
             "evolved_element_modulation": cls.evolved_element_modulation(normalized),
+            "harmony": cls.harmony_score(normalized),
             "yin_yang": cls.yin_yang_cross_profile(normalized),
             "four_symbols": cls.four_symbols(normalized),
             "overlapping_four_symbols": cls.overlapping_four_symbols(normalized),
@@ -796,6 +806,26 @@ class IchingKernel:
     def nuclear_hexagram(cls, status_code: int) -> int:
         bits = cls.bits_for_state(status_code & 0b111111, width=6)
         return cls.state_for_bits([bits[1], bits[2], bits[3], bits[2], bits[3], bits[4]])
+
+    @classmethod
+    def nuclear_profile(cls, status_code: int) -> dict[str, int | str]:
+        nuclear = cls.nuclear_hexagram(status_code)
+        inner = nuclear & 0b111
+        outer = (nuclear >> 3) & 0b111
+        outer_element = cls.element_for_trigram(outer)
+        inner_element = cls.element_for_trigram(inner)
+        transition = cls.transition(nuclear)
+        return {
+            "status_code": nuclear,
+            "binary": format(nuclear, "06b"),
+            "inner_trigram": inner,
+            "outer_trigram": outer,
+            "outer_element": outer_element,
+            "inner_element": inner_element,
+            "element_relation": cls.element_cross_relation(outer_element, inner_element),
+            "transition_action": transition.action,
+            "transition_reason": transition.reason,
+        }
 
     @classmethod
     def target_status_for_event(cls, event: str) -> int:
