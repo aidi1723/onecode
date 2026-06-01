@@ -615,6 +615,25 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(profile["dispatch_decision"], "continue")
         self.assertEqual(IchingKernel.hexagram_record(status), profile)
 
+    def test_cross_cutting_profile_exposes_runtime_policy_and_math_layers(self):
+        status = IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)
+        profile = IchingKernel.cross_cutting_profile(status)
+
+        self.assertEqual(profile["math"]["liangyi"], [0, 1])
+        self.assertEqual(profile["math"]["state_space_sizes"], {"liangyi": 2, "sixiang": 4, "bagua": 8, "hexagram": 64})
+        self.assertEqual(profile["element_dynamics"]["cross_relation"], "generates")
+        self.assertEqual(profile["runtime_policy"], {"action": "checkpoint", "reason": "network_water_preserves_resume_seed"})
+        self.assertEqual(profile["transition"]["action"], "checkpoint")
+        self.assertEqual(profile["dispatch_decision"], "stop")
+
+    def test_hexagram_record_contains_cross_cutting_rule_profile(self):
+        status = IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)
+        record = IchingKernel.hexagram_record(status)
+
+        self.assertEqual(record, IchingKernel.cross_cutting_profile(status))
+        self.assertEqual(record["math"]["state_space_sizes"]["hexagram"], 64)
+        self.assertEqual(record["runtime_policy"]["action"], "checkpoint")
+
     def test_cross_cutting_profile_marks_rule_source_layers(self):
         profile = IchingKernel.cross_cutting_profile(IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN))
 

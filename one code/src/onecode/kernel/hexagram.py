@@ -627,11 +627,24 @@ class IchingKernel:
         outer = (normalized >> 3) & 0b111
         outer_element = cls.element_for_trigram(outer)
         inner_element = cls.element_for_trigram(inner)
+        dynamics = cls.element_dynamics(normalized)
         transition = cls.transition(normalized)
+        runtime_action, runtime_reason = cls.runtime_relation_policy(dynamics["cross_relation"], dynamics["modulation"])
+        if dynamics["modulation"] == "recovery_seed" and transition.action == "checkpoint":
+            runtime_action, runtime_reason = transition.action, transition.reason
         dispatch_decision = cls.dispatch_decision(transition)
         return {
             "status_code": normalized,
             "binary": format(normalized, "06b"),
+            "math": {
+                "liangyi": list(cls.liangyi_values()),
+                "state_space_sizes": {
+                    "liangyi": len(cls.cartesian_states(1)),
+                    "sixiang": len(cls.cartesian_states(2)),
+                    "bagua": len(cls.cartesian_states(3)),
+                    "hexagram": len(cls.cartesian_states(6)),
+                },
+            },
             "outer_trigram": outer,
             "inner_trigram": inner,
             "lines": cls.line_records(normalized),
@@ -644,7 +657,11 @@ class IchingKernel:
             "element_records": cls.element_records(),
             "element_matrix": {f"{source}->{target}": relation for (source, target), relation in cls.element_matrix().items()},
             "element_relation": cls.element_relation(outer_element, inner_element),
-            "element_dynamics": cls.element_dynamics(normalized),
+            "element_dynamics": dynamics,
+            "runtime_policy": {
+                "action": runtime_action,
+                "reason": runtime_reason,
+            },
             "execution_bandwidth": cls.execution_bandwidth(normalized),
             "evolved_element_modulation": cls.evolved_element_modulation(normalized),
             "yin_yang": cls.yin_yang_cross_profile(normalized),
