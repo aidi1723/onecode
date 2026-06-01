@@ -58,6 +58,11 @@ Open:
 http://127.0.0.1:14080/c/new
 ```
 
+For the complete kernel and shell deployment guide, see the repository root
+`DEPLOYMENT.md`.
+
+完整的内核和壳部署说明见仓库根目录 `DEPLOYMENT.md`。
+
 If frontend changes do not appear, rebuild the production frontend and restart the shell. The LibreChat backend reads `client/dist/index.html` into memory on startup:
 
 ```bash

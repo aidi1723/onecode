@@ -140,6 +140,14 @@ Optional conversational TUI:
 pip install -e .[tui]
 ```
 
+Deployment guide:
+
+部署说明：
+
+```text
+DEPLOYMENT.md
+```
+
 ## Verify / 验证
 
 Fast core gate:
@@ -159,6 +167,11 @@ bash scripts/verify.sh
 ```
 
 ## Run / 运行
+
+For complete kernel and bundled Web shell deployment steps, see
+[`DEPLOYMENT.md`](DEPLOYMENT.md).
+
+完整的内核和内置 Web 壳部署步骤见 [`DEPLOYMENT.md`](DEPLOYMENT.md)。
 
 Doctor smoke check:
 
@@ -214,7 +227,7 @@ Start API-only mode:
 
 ```bash
 PYTHONPATH=src ONECODE_API_TOKEN=dev-local-token \
-  python3 -m onecode serve --host 127.0.0.1 --port 8080
+  python3 -m onecode serve --host 127.0.0.1 --port 19080
 ```
 
 Discover the shell projection schema:
