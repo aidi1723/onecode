@@ -126,6 +126,30 @@ baseline above; it is published as an additional measurement.
 - Summary / 摘要: [`CODEX_CLI_AB_SUMMARY.md`](CODEX_CLI_AB_SUMMARY.md)
 - Sanitized JSON report / 已脱敏 JSON 报告: [`CODEX_CLI_AB_REPORT.json`](CODEX_CLI_AB_REPORT.json)
 
+## Supplemental Codex+LM vs OneCode+LM A/B / Codex+LM 与 OneCode+LM 补充 A/B
+
+A second supplemental benchmark was run with model-backed workflows on both
+arms. Codex+LM used real Codex CLI calls. OneCode+LM used an LM to translate
+each benchmark task into a compact OneCode instruction, then used the
+deterministic OneCode kernel for execution, refusal, evidence, and scoring.
+
+第二轮补充测试让两组都接入 LM。Codex+LM 使用真实 Codex CLI 调用；OneCode+LM 使用 LM 将每个 benchmark 任务转换为紧凑 OneCode 指令，再由 OneCode 确定性内核负责执行、拒绝、留痕和评分。
+
+| Metric / 指标 | Codex+LM | OneCode+LM | Delta / 变化 |
+| --- | ---: | ---: | ---: |
+| Task count / 任务数 | 20 | 20 | - |
+| Passed tasks / 通过任务 | 19 | 20 | OneCode+LM +1 |
+| Pass@1 | 95% | 100% | OneCode+LM +5 pp |
+| Asset completeness / 资产完整性 | 100% | 100% | 0 |
+| Evidence completeness / 证据完整性 | 0% | 100% | OneCode+LM +100 pp |
+| Total elapsed / 总耗时 | 701.365s | 70.398s | OneCode+LM -630.967s |
+| Avg elapsed per task / 单任务平均耗时 | 35.068s | 3.520s | OneCode+LM lower |
+| Total model tokens / 模型 token 总量 | 1,623,063 | 9,355 | OneCode+LM -1,613,708 |
+| Avg model tokens per task / 单任务平均模型 token | 81,153.15 | 467.75 | OneCode+LM lower |
+
+- Summary / 摘要: [`CODEX_VS_ONECODE_LM_AB_SUMMARY.md`](CODEX_VS_ONECODE_LM_AB_SUMMARY.md)
+- Sanitized JSON report / 已脱敏 JSON 报告: [`CODEX_VS_ONECODE_LM_AB_REPORT.json`](CODEX_VS_ONECODE_LM_AB_REPORT.json)
+
 ## Reporting Guidance / 对外表述规范
 
 For this local deterministic benchmark, public copy may use language like:

@@ -36,4 +36,6 @@ documentation.
 - `BENCHMARK_RESULTS.md` - benchmark metric definitions and verified result slots / 基准测试指标定义和结果占位
 - `CODEX_CLI_AB_SUMMARY.md` - supplemental Codex CLI vs OneCode A/B summary / Codex CLI 与 OneCode 补充 A/B 摘要
 - `CODEX_CLI_AB_REPORT.json` - sanitized machine-readable supplemental A/B report / 已脱敏的补充 A/B 机器可读报告
+- `CODEX_VS_ONECODE_LM_AB_SUMMARY.md` - supplemental Codex+LM vs OneCode+LM A/B summary / Codex+LM 与 OneCode+LM 补充 A/B 摘要
+- `CODEX_VS_ONECODE_LM_AB_REPORT.json` - sanitized machine-readable model-backed A/B report / 已脱敏的模型版 A/B 机器可读报告
 - `OPEN_SOURCE_CHECKLIST.md` - final open-source readiness checklist / 最终开源准备检查清单
