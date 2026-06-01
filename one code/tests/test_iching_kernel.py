@@ -749,6 +749,37 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(IchingKernel.flip_line(0b000000, 5), 0b100000)
         self.assertEqual(IchingKernel.flip_line(0b111111, 3), 0b110111)
 
+    def test_mutate_lines_flips_unique_line_indexes(self):
+        self.assertEqual(IchingKernel.mutate_lines(0b000000, [0, 2, 2, 5]), 0b100101)
+        self.assertEqual(IchingKernel.mutate_lines(0b111111, [1, 3]), 0b110101)
+        self.assertEqual(IchingKernel.mutate_lines(0b101010, []), 0b101010)
+
+        with self.assertRaises(ValueError):
+            IchingKernel.mutate_lines(0b000000, [-1])
+        with self.assertRaises(ValueError):
+            IchingKernel.mutate_lines(0b000000, [6])
+
+    def test_changed_lines_and_mutation_profile_report_triadic_bands(self):
+        self.assertEqual(IchingKernel.changed_lines(0b111011, 0b110001), [1, 3])
+
+        profile = IchingKernel.mutation_profile(0b000000, 0b101100)
+        self.assertEqual(
+            profile,
+            {
+                "before": 0b000000,
+                "after": 0b101100,
+                "changed_lines": [2, 3, 5],
+                "change_count": 3,
+                "changed_bands": ["human", "heaven"],
+            },
+        )
+
+    def test_nuclear_hexagram_projects_inner_trend_bottom_to_top(self):
+        status = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI)
+
+        self.assertEqual(status, 0b111011)
+        self.assertEqual(IchingKernel.nuclear_hexagram(status), 0b110101)
+
     def test_polarity_index_and_balance_mask_apply_threshold_feedback(self):
         self.assertEqual(IchingKernel.polarity_index(0b111111), 1.0)
         self.assertEqual(IchingKernel.polarity_index(0b000000), -1.0)

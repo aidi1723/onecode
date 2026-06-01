@@ -736,6 +736,44 @@ class IchingKernel:
         return (status_code & 0b111111) ^ (1 << line_index)
 
     @classmethod
+    def mutate_lines(cls, status_code: int, line_indexes) -> int:
+        normalized = status_code & 0b111111
+        mask = 0
+        for line_index in sorted(set(line_indexes)):
+            if line_index < 0 or line_index > 5:
+                raise ValueError(f"line_index must be between 0 and 5: {line_index!r}")
+            mask |= 1 << line_index
+        return normalized ^ mask
+
+    @classmethod
+    def changed_lines(cls, before: int, after: int) -> list[int]:
+        change_mask = (before ^ after) & 0b111111
+        return [line_index for line_index in range(6) if change_mask & (1 << line_index)]
+
+    @classmethod
+    def mutation_profile(cls, before: int, after: int) -> dict[str, int | list[int] | list[str]]:
+        normalized_before = before & 0b111111
+        normalized_after = after & 0b111111
+        changed = cls.changed_lines(normalized_before, normalized_after)
+        changed_bands = [
+            name
+            for name, _role, line_indexes in cls.TRIADIC_BANDS
+            if any(line_index in line_indexes for line_index in changed)
+        ]
+        return {
+            "before": normalized_before,
+            "after": normalized_after,
+            "changed_lines": changed,
+            "change_count": len(changed),
+            "changed_bands": changed_bands,
+        }
+
+    @classmethod
+    def nuclear_hexagram(cls, status_code: int) -> int:
+        bits = cls.bits_for_state(status_code & 0b111111, width=6)
+        return cls.state_for_bits([bits[1], bits[2], bits[3], bits[2], bits[3], bits[4]])
+
+    @classmethod
     def target_status_for_event(cls, event: str) -> int:
         if event in {"completed", "write_completed", "patch_completed"}:
             return cls.compute_status(cls.QIAN, cls.QIAN)
