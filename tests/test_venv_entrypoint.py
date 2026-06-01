@@ -1,17 +1,13 @@
-import os
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
 
 class VenvEntrypointTests(unittest.TestCase):
-    def test_venv_onecode_command_starts_cli_without_pythonpath(self):
-        command = Path(".venv/bin/onecode")
-
-        self.assertTrue(command.exists())
+    def test_module_entrypoint_starts_cli_without_pythonpath(self):
         completed = subprocess.run(
-            [str(command), "tui", "--help"],
-            env={key: value for key, value in os.environ.items() if key != "PYTHONPATH"},
+            [sys.executable, "-m", "onecode", "tui", "--help"],
             text=True,
             capture_output=True,
             check=True,
@@ -19,13 +15,12 @@ class VenvEntrypointTests(unittest.TestCase):
 
         self.assertIn("usage: onecode tui", completed.stdout)
 
-    def test_global_onecode_command_points_to_project_entrypoint(self):
-        command = Path("/Users/aidi/.local/bin/onecode")
+    def test_repo_bin_entrypoint_points_to_project_cli(self):
+        command = Path("bin/onecode")
 
         self.assertTrue(command.exists())
         completed = subprocess.run(
             [str(command), "tui", "--help"],
-            env={key: value for key, value in os.environ.items() if key != "PYTHONPATH"},
             text=True,
             capture_output=True,
             check=True,

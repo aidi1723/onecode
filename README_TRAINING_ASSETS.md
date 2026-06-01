@@ -4,9 +4,9 @@ OneCode is the deterministic rule engine and execution gateway.
 
 Do not store YiZiJue-LM distillation data, cleaned training data, model checkpoints, LoRA adapters, or GGUF files in this repository.
 
-The YiZiJue-LM small-model workspace is:
+Keep small-model workspaces outside this repository, for example:
 
-`/Users/aidi/大字典/小模型`
+`../onecode-training-assets`
 
 Use that workspace for:
 
