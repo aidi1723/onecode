@@ -115,6 +115,17 @@ workspace fixtures, and scoring rules before publishing token-savings claims.
 
 由于本轮未使用外部或本地模型 API，因此不报告 token 节省。发布 token 节省结论前，必须使用相同模型、提示词、工作区 fixture 和评分规则运行模型版 A/B 测试。
 
+## Supplemental Codex CLI A/B / Codex CLI 补充 A/B
+
+A supplemental benchmark was run with real Codex CLI calls against the same
+benchmark task definitions. This does not replace the local deterministic
+baseline above; it is published as an additional measurement.
+
+我们使用真实 Codex CLI 调用，针对同一组 benchmark 任务定义运行了一轮补充测试。该测试不替换上方本地确定性 baseline，只作为额外测量结果发布。
+
+- Summary / 摘要: [`CODEX_CLI_AB_SUMMARY.md`](CODEX_CLI_AB_SUMMARY.md)
+- Sanitized JSON report / 已脱敏 JSON 报告: [`CODEX_CLI_AB_REPORT.json`](CODEX_CLI_AB_REPORT.json)
+
 ## Reporting Guidance / 对外表述规范
 
 For this local deterministic benchmark, public copy may use language like:

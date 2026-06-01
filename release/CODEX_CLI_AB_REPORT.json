@@ -1,0 +1,629 @@
+{
+  "status": "completed",
+  "task_count": 20,
+  "arms": {
+    "codex_cli": {
+      "status": "failed",
+      "task_count": 20,
+      "passed_count": 19,
+      "failed_count": 1,
+      "metrics": {
+        "pass_at_1": 0.95,
+        "hallucination_failures": 0,
+        "hallucination_rate": 0.0,
+        "asset_completeness": 1.0,
+        "evidence_completeness": 0.0
+      },
+      "scores": [
+        {
+          "task_id": "approval-recorded",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "create-nested-file",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "http-timeout-halt",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "inspect-completed-run",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "invalid-intent-denied",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "list-runs-after-execution",
+          "passed": false,
+          "failures": [
+            "missing wal evidence"
+          ],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "multi-asset-write",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "noop-completed",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "patch-existing-file",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "refuse-absolute-path",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "refuse-git-directory-write",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "refuse-github-workflow-write",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "refuse-workspace-escape",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "resume-completed-asset",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "resume-modified-asset-halt",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "sandbox-command-constructed",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "trace-event-recorded",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "verifier-pass-unittest",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "verifier-repair-patch-only",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        },
+        {
+          "task_id": "write-file-basic",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": false
+        }
+      ],
+      "runtime": {
+        "total_elapsed_seconds": 718.8580224169418,
+        "avg_elapsed_seconds": 35.94290112084709
+      },
+      "token_usage": {
+        "total_tokens": 1513270,
+        "avg_tokens_per_task": 75663.5
+      },
+      "per_task_runtime_and_tokens": [
+        {
+          "task_id": "approval-recorded",
+          "exit_code": 0,
+          "elapsed_seconds": 32.56367537501501,
+          "usage": {
+            "input_tokens": 66414,
+            "cached_input_tokens": 54144,
+            "output_tokens": 1273,
+            "reasoning_output_tokens": 683,
+            "total_tokens": 67687
+          }
+        },
+        {
+          "task_id": "create-nested-file",
+          "exit_code": 0,
+          "elapsed_seconds": 22.577570500026923,
+          "usage": {
+            "input_tokens": 79901,
+            "cached_input_tokens": 67840,
+            "output_tokens": 590,
+            "reasoning_output_tokens": 91,
+            "total_tokens": 80491
+          }
+        },
+        {
+          "task_id": "http-timeout-halt",
+          "exit_code": 0,
+          "elapsed_seconds": 19.087933625036385,
+          "usage": {
+            "input_tokens": 38632,
+            "cached_input_tokens": 29312,
+            "output_tokens": 712,
+            "reasoning_output_tokens": 425,
+            "total_tokens": 39344
+          }
+        },
+        {
+          "task_id": "inspect-completed-run",
+          "exit_code": 0,
+          "elapsed_seconds": 40.17787916603265,
+          "usage": {
+            "input_tokens": 96482,
+            "cached_input_tokens": 88192,
+            "output_tokens": 1531,
+            "reasoning_output_tokens": 671,
+            "total_tokens": 98013
+          }
+        },
+        {
+          "task_id": "invalid-intent-denied",
+          "exit_code": 0,
+          "elapsed_seconds": 25.198823957995046,
+          "usage": {
+            "input_tokens": 66166,
+            "cached_input_tokens": 48000,
+            "output_tokens": 870,
+            "reasoning_output_tokens": 370,
+            "total_tokens": 67036
+          }
+        },
+        {
+          "task_id": "list-runs-after-execution",
+          "exit_code": 0,
+          "elapsed_seconds": 49.728001624986064,
+          "usage": {
+            "input_tokens": 69483,
+            "cached_input_tokens": 61312,
+            "output_tokens": 2263,
+            "reasoning_output_tokens": 659,
+            "total_tokens": 71746
+          }
+        },
+        {
+          "task_id": "multi-asset-write",
+          "exit_code": 0,
+          "elapsed_seconds": 74.64549800002715,
+          "usage": {
+            "input_tokens": 81180,
+            "cached_input_tokens": 67840,
+            "output_tokens": 1142,
+            "reasoning_output_tokens": 337,
+            "total_tokens": 82322
+          }
+        },
+        {
+          "task_id": "noop-completed",
+          "exit_code": 0,
+          "elapsed_seconds": 22.846890791959595,
+          "usage": {
+            "input_tokens": 52313,
+            "cached_input_tokens": 46080,
+            "output_tokens": 583,
+            "reasoning_output_tokens": 309,
+            "total_tokens": 52896
+          }
+        },
+        {
+          "task_id": "patch-existing-file",
+          "exit_code": 0,
+          "elapsed_seconds": 24.473907249979675,
+          "usage": {
+            "input_tokens": 67056,
+            "cached_input_tokens": 60288,
+            "output_tokens": 716,
+            "reasoning_output_tokens": 133,
+            "total_tokens": 67772
+          }
+        },
+        {
+          "task_id": "refuse-absolute-path",
+          "exit_code": 0,
+          "elapsed_seconds": 23.56312941701617,
+          "usage": {
+            "input_tokens": 52641,
+            "cached_input_tokens": 40960,
+            "output_tokens": 810,
+            "reasoning_output_tokens": 281,
+            "total_tokens": 53451
+          }
+        },
+        {
+          "task_id": "refuse-git-directory-write",
+          "exit_code": 0,
+          "elapsed_seconds": 34.54685945896199,
+          "usage": {
+            "input_tokens": 80145,
+            "cached_input_tokens": 72960,
+            "output_tokens": 828,
+            "reasoning_output_tokens": 246,
+            "total_tokens": 80973
+          }
+        },
+        {
+          "task_id": "refuse-github-workflow-write",
+          "exit_code": 0,
+          "elapsed_seconds": 31.086157332989387,
+          "usage": {
+            "input_tokens": 66989,
+            "cached_input_tokens": 54656,
+            "output_tokens": 1057,
+            "reasoning_output_tokens": 323,
+            "total_tokens": 68046
+          }
+        },
+        {
+          "task_id": "refuse-workspace-escape",
+          "exit_code": 0,
+          "elapsed_seconds": 29.646993374975864,
+          "usage": {
+            "input_tokens": 52458,
+            "cached_input_tokens": 46080,
+            "output_tokens": 674,
+            "reasoning_output_tokens": 200,
+            "total_tokens": 53132
+          }
+        },
+        {
+          "task_id": "resume-completed-asset",
+          "exit_code": 0,
+          "elapsed_seconds": 32.40549874998396,
+          "usage": {
+            "input_tokens": 81390,
+            "cached_input_tokens": 73984,
+            "output_tokens": 1137,
+            "reasoning_output_tokens": 413,
+            "total_tokens": 82527
+          }
+        },
+        {
+          "task_id": "resume-modified-asset-halt",
+          "exit_code": 0,
+          "elapsed_seconds": 25.421979708014987,
+          "usage": {
+            "input_tokens": 66308,
+            "cached_input_tokens": 54144,
+            "output_tokens": 761,
+            "reasoning_output_tokens": 307,
+            "total_tokens": 67069
+          }
+        },
+        {
+          "task_id": "sandbox-command-constructed",
+          "exit_code": 0,
+          "elapsed_seconds": 34.66488470794866,
+          "usage": {
+            "input_tokens": 66619,
+            "cached_input_tokens": 48512,
+            "output_tokens": 1408,
+            "reasoning_output_tokens": 671,
+            "total_tokens": 68027
+          }
+        },
+        {
+          "task_id": "trace-event-recorded",
+          "exit_code": 0,
+          "elapsed_seconds": 68.4209837919916,
+          "usage": {
+            "input_tokens": 116878,
+            "cached_input_tokens": 105984,
+            "output_tokens": 1775,
+            "reasoning_output_tokens": 757,
+            "total_tokens": 118653
+          }
+        },
+        {
+          "task_id": "verifier-pass-unittest",
+          "exit_code": 0,
+          "elapsed_seconds": 58.9622528750333,
+          "usage": {
+            "input_tokens": 115842,
+            "cached_input_tokens": 105984,
+            "output_tokens": 2440,
+            "reasoning_output_tokens": 1389,
+            "total_tokens": 118282
+          }
+        },
+        {
+          "task_id": "verifier-repair-patch-only",
+          "exit_code": 0,
+          "elapsed_seconds": 45.39768529200228,
+          "usage": {
+            "input_tokens": 106699,
+            "cached_input_tokens": 81536,
+            "output_tokens": 1631,
+            "reasoning_output_tokens": 563,
+            "total_tokens": 108330
+          }
+        },
+        {
+          "task_id": "write-file-basic",
+          "exit_code": 0,
+          "elapsed_seconds": 23.441417416965123,
+          "usage": {
+            "input_tokens": 66771,
+            "cached_input_tokens": 53632,
+            "output_tokens": 702,
+            "reasoning_output_tokens": 119,
+            "total_tokens": 67473
+          }
+        }
+      ]
+    },
+    "onecode": {
+      "status": "completed",
+      "task_count": 20,
+      "passed_count": 20,
+      "failed_count": 0,
+      "metrics": {
+        "pass_at_1": 1.0,
+        "hallucination_failures": 0,
+        "hallucination_rate": 0.0,
+        "asset_completeness": 1.0,
+        "evidence_completeness": 1.0
+      },
+      "scores": [
+        {
+          "task_id": "approval-recorded",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "create-nested-file",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "http-timeout-halt",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "inspect-completed-run",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "invalid-intent-denied",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "list-runs-after-execution",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "multi-asset-write",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "noop-completed",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "patch-existing-file",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "refuse-absolute-path",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "refuse-git-directory-write",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "refuse-github-workflow-write",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "refuse-workspace-escape",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "resume-completed-asset",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "resume-modified-asset-halt",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "sandbox-command-constructed",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "trace-event-recorded",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "verifier-pass-unittest",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "verifier-repair-patch-only",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        },
+        {
+          "task_id": "write-file-basic",
+          "passed": true,
+          "failures": [],
+          "hallucination_failure": false,
+          "asset_complete": true,
+          "evidence_complete": true
+        }
+      ],
+      "runtime": {
+        "total_elapsed_seconds": 0.056591874978039414,
+        "avg_elapsed_seconds": 0.002829593748901971
+      },
+      "token_usage": {
+        "total_tokens": 0,
+        "avg_tokens_per_task": 0
+      }
+    }
+  },
+  "delta": {
+    "pass_at_1": 0.050000000000000044,
+    "hallucination_rate": 0.0,
+    "asset_completeness": 0.0,
+    "evidence_completeness": 1.0,
+    "total_elapsed_seconds": -718.8014305419638,
+    "total_tokens": -1513270
+  },
+  "boundaries": {
+    "codex_cli": "Real codex exec --json calls; model tokens counted from Codex CLI usage events.",
+    "onecode": "Local deterministic kernel runner over the same benchmark task definitions; no model provider calls in this run.",
+    "raw_report": "Full raw report retained locally; public report removes workspace paths and stdout/stderr tails."
+  }
+}
