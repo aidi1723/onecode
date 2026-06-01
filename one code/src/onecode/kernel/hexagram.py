@@ -41,6 +41,17 @@ class IchingKernel:
         "shao_yin": "write_commit",
         "tai_yang": "overload_clash",
     }
+    DIMENSION_LABELS = {
+        1: "liangyi",
+        2: "four_symbols",
+        3: "bagua",
+        6: "hexagram",
+    }
+    TRIADIC_BANDS = (
+        ("earth", "environment", (0, 1)),
+        ("human", "agent", (2, 3)),
+        ("heaven", "feedback", (4, 5)),
+    )
     # Correspondence layer: these mappings are traditional associations, not bit-derived facts.
     TRIGRAM_ELEMENTS = {
         KUN: "earth",
@@ -155,6 +166,38 @@ class IchingKernel:
         if width < 0:
             raise ValueError(f"width must be non-negative: {width!r}")
         return list(range(1 << width))
+
+    @classmethod
+    def dimension_profile(cls, width: int) -> dict[str, int | str]:
+        if width <= 0:
+            raise ValueError(f"width must be positive: {width!r}")
+        return {
+            "width": width,
+            "state_count": 1 << width,
+            "bit_order": "bottom_to_top",
+            "state_space": f"Y^{width}",
+            "label": cls.DIMENSION_LABELS.get(width, "binary_state_space"),
+        }
+
+    @classmethod
+    def triadic_profile(cls, status_code: int) -> dict[str, dict[str, int | str | list[int]]]:
+        normalized = status_code & 0b111111
+        profile: dict[str, dict[str, int | str | list[int]]] = {}
+        for name, role, line_indexes in cls.TRIADIC_BANDS:
+            start = line_indexes[0]
+            bits = (normalized >> start) & 0b11
+            yin_yang = cls.yin_yang_profile_for_bits(bits, width=2)
+            profile[name] = {
+                "name": name,
+                "role": role,
+                "line_indexes": list(line_indexes),
+                "bits": bits,
+                "symbol": cls.four_symbol_for_bits(bits),
+                "yang_count": yin_yang["yang_count"],
+                "yin_count": yin_yang["yin_count"],
+                "balance": yin_yang["balance"],
+            }
+        return profile
 
     @classmethod
     def bits_for_state(cls, value: int, width: int) -> list[int]:

@@ -154,6 +154,67 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(IchingKernel.cartesian_states(3), list(range(8)))
         self.assertEqual(IchingKernel.cartesian_states(6), list(range(64)))
 
+    def test_dimension_profile_describes_known_y_power_state_spaces(self):
+        self.assertEqual(
+            IchingKernel.dimension_profile(1),
+            {
+                "width": 1,
+                "state_count": 2,
+                "bit_order": "bottom_to_top",
+                "state_space": "Y^1",
+                "label": "liangyi",
+            },
+        )
+        self.assertEqual(IchingKernel.dimension_profile(2)["label"], "four_symbols")
+        self.assertEqual(IchingKernel.dimension_profile(3)["label"], "bagua")
+        self.assertEqual(IchingKernel.dimension_profile(6)["label"], "hexagram")
+        self.assertEqual(IchingKernel.dimension_profile(4)["label"], "binary_state_space")
+        self.assertEqual(IchingKernel.dimension_profile(4)["state_count"], 16)
+
+        with self.assertRaises(ValueError):
+            IchingKernel.dimension_profile(0)
+        with self.assertRaises(ValueError):
+            IchingKernel.dimension_profile(-1)
+
+    def test_triadic_profile_splits_hexagram_into_earth_human_heaven_bands(self):
+        profile = IchingKernel.triadic_profile(0b111011)
+
+        self.assertEqual(
+            profile,
+            {
+                "earth": {
+                    "name": "earth",
+                    "role": "environment",
+                    "line_indexes": [0, 1],
+                    "bits": 0b11,
+                    "symbol": "tai_yang",
+                    "yang_count": 2,
+                    "yin_count": 0,
+                    "balance": "pure_yang",
+                },
+                "human": {
+                    "name": "human",
+                    "role": "agent",
+                    "line_indexes": [2, 3],
+                    "bits": 0b10,
+                    "symbol": "shao_yin",
+                    "yang_count": 1,
+                    "yin_count": 1,
+                    "balance": "balanced",
+                },
+                "heaven": {
+                    "name": "heaven",
+                    "role": "feedback",
+                    "line_indexes": [4, 5],
+                    "bits": 0b11,
+                    "symbol": "tai_yang",
+                    "yang_count": 2,
+                    "yin_count": 0,
+                    "balance": "pure_yang",
+                },
+            },
+        )
+
     def test_bits_round_trip_in_bottom_to_top_order(self):
         self.assertEqual(IchingKernel.bits_for_state(0b101101, 6), [1, 0, 1, 1, 0, 1])
         self.assertEqual(IchingKernel.state_for_bits([1, 0, 1, 1, 0, 1]), 0b101101)
