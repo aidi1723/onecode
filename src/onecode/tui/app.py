@@ -1,4 +1,4 @@
-"""OneWord TUI conversational interface."""
+"""OneCode TUI conversational interface."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from onecode.kernel.shell_projection import project_run_to_shell
 
 APP_VERSION = "0.1.0-alpha"
 DEFAULT_MODEL = "gpt-5.5"
-DEFAULT_WORKSPACE = Path("<private-temp-path>")
+DEFAULT_WORKSPACE = Path.cwd() / ".onecode" / "tui-workspace"
 API_KEY_WARNING = "提示: 未检测到 OPENAI_API_KEY。AI 对话功能已禁用，但本地接入命令仍可正常执行。"
 
 TASK_MARKERS = (

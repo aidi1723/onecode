@@ -12,8 +12,8 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 
-DEFAULT_LOCAL_EMAIL = "onecode@local.test"
-DEFAULT_LOCAL_PASSWORD = "OneCode123!"
+DEFAULT_LOCAL_EMAIL = "preview@example.invalid"
+DEFAULT_LOCAL_PASSWORD = "change-me-local-preview"
 
 
 @dataclass(frozen=True)
@@ -293,7 +293,7 @@ def config_from_args(args: object) -> ShellLaunchConfig:
     librechat_dir_arg = getattr(args, "librechat_dir", None)
     librechat_dir = Path(librechat_dir_arg).resolve() if librechat_dir_arg else default_librechat_dir(onecode_root)
     workspace_arg = getattr(args, "workspace", None)
-    workspace_root = Path(workspace_arg).resolve() if workspace_arg else Path("<private-temp-path>")
+    workspace_root = Path(workspace_arg).resolve() if workspace_arg else Path.cwd() / ".onecode" / "shell-workspace"
     return ShellLaunchConfig(
         onecode_root=onecode_root,
         librechat_dir=librechat_dir,

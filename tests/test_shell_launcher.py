@@ -130,8 +130,8 @@ class ShellLauncherConfigTests(unittest.TestCase):
             self.assertEqual(build_librechat_env(config, {})["ONECODE_ALLOWED_WORKSPACE_ROOTS"], str(workspace_root))
 
     def test_default_local_credentials_are_explicit_for_preview(self):
-        self.assertEqual(DEFAULT_LOCAL_EMAIL, "onecode@local.test")
-        self.assertEqual(DEFAULT_LOCAL_PASSWORD, "OneCode123!")
+        self.assertEqual(DEFAULT_LOCAL_EMAIL, "preview@example.invalid")
+        self.assertEqual(DEFAULT_LOCAL_PASSWORD, "change-me-local-preview")
 
     def test_runtime_config_allows_selected_onecode_port(self):
         with tempfile.TemporaryDirectory() as tmp:
