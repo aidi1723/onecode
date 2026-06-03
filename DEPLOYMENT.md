@@ -5,6 +5,52 @@ bundled custom Web shell.
 
 本文说明 OneCode 内核和内置定制 Web 壳的本地部署方式。
 
+## Online Publish Source / 线上发布源
+
+The online GitHub program repository is maintained from the separated publish
+package directory:
+
+线上 GitHub 程序仓库从下面这个独立打包目录维护：
+
+```text
+<onecode-publish-worktree>
+```
+
+GitHub remote:
+
+线上 remote：
+
+```text
+https://github.com/aidi1723/onecode.git
+```
+
+Do not publish directly from the development workspace at
+`<private-development-workspace>`. That workspace may contain in-progress source,
+tests, generated files, and local notes. Before updating GitHub, copy only the
+intended release files or documentation into `<onecode-publish-worktree>`,
+review `git status` there, commit there, and push from there.
+
+不要直接从开发工作区 `<private-development-workspace>` 发布线上内容。该目录可能包含进行中的源码、测试、生成文件和本地记录。更新 GitHub 前，只把确定要上线的发布文件或文档复制到 `<onecode-publish-worktree>`，在该目录检查 `git status`，并只从该目录提交和推送。
+
+Recommended update flow:
+
+推荐更新流程：
+
+```bash
+cd <onecode-publish-worktree>
+git status --short
+git diff --stat
+git add <intended-files-only>
+git commit -m "<message>"
+git push origin main
+```
+
+This separation is intentional: `<onecode-publish-worktree>` is the online
+package boundary, while the development workspace remains private working
+state.
+
+这个隔离是刻意保留的：`<onecode-publish-worktree>` 是线上打包边界，开发工作区只作为私有工作状态。
+
 ## Requirements / 环境要求
 
 - Python 3.11 or newer.
