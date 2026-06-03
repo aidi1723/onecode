@@ -9,6 +9,34 @@ evidence.
 
 本版本将 OneCode 稳定为面向企业级本地 Agent 工作流的可信任工业级 AI 内核，组合了确定性状态机、受保护文件写入、可恢复执行和低开销追加式证据。
 
+## Documentation Update - 2026-06-03 / 文档更新
+
+This update adds the evidence-chain, Manifest-boundary, shell-control-plane,
+and final closure documentation under `docs/`. It records the architectural
+decisions for balancing verifiable outcomes with local I/O pressure, keeping
+Manifest files out of business workflow configuration, exposing summary-only
+metrics to the shell, and treating aggregate trace gaps as repair-required
+inspection signals.
+
+本次更新在 `docs/` 下新增证据链、Manifest 边界、壳系统控制面和最终收尾文档。文档记录了以下架构决策：在可验证交付与本地 I/O 压力之间做分级权衡，避免 Manifest 退化为业务流程配置，向壳系统只暴露 summary-only 指标，并把聚合 trace 时间线缺口作为需要 repair 的 inspect 信号。
+
+Added documents:
+
+新增文档：
+
+- `docs/ONECODE_EVIDENCE_CHAIN_MANIFEST_BOUNDARY_CLOSURE_REPORT.md`
+- `docs/ONECODE_SECOND_ORDER_ARCHITECTURE_GUARDS_CLOSURE_REPORT.md`
+- `docs/ONECODE_SHELL_CONTROL_PLANE_CLOSURE_REPORT.md`
+- `docs/ONECODE_EVIDENCE_MANIFEST_SHELL_FINAL_CLOSURE.md`
+- `docs/superpowers/specs/2026-06-02-onecode-evidence-chain-performance-balance-design.md`
+- `docs/superpowers/plans/2026-06-02-onecode-evidence-chain-manifest-boundaries.md`
+
+`DEPLOYMENT.md` now also records that online updates must be prepared from the
+separated publish package directory `<onecode-publish-worktree>`, not from the
+local development workspace.
+
+`DEPLOYMENT.md` 同步记录：后续线上更新必须从独立打包目录 `<onecode-publish-worktree>` 准备，不应直接从本地开发工作区发布。
+
 ## Core Ownership / 核心知识产权
 
 OneCode Core is independently designed and implemented by the OneCode
@@ -74,7 +102,7 @@ Validated release gates:
 
 ```text
 bash scripts/verify-core.sh
-185 tests OK
+193 tests OK
 doctor status: ok
 ```
 
