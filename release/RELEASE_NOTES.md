@@ -9,6 +9,13 @@ evidence.
 
 本版本将 OneCode 稳定为面向企业级本地 Agent 工作流的可信任工业级 AI 内核，组合了确定性状态机、受保护文件写入、可恢复执行和低开销追加式证据。
 
+This update also adds a rule-evidence absorption layer for project instruction
+discovery, runtime configuration inspection, and advisory recovery status. These
+inputs are exposed as bounded metadata and deterministic control summaries, not
+as independent authority over the workspace.
+
+本次更新还加入了规则证据吸收层，用于项目指令发现、运行配置检查和建议式恢复状态。这些输入以受限元数据和确定性控制摘要形式暴露，而不是成为工作区的独立执行权威。
+
 ## Documentation Update - 2026-06-03 / 文档更新
 
 This update adds the evidence-chain, Manifest-boundary, shell-control-plane,
@@ -63,6 +70,12 @@ by their own licenses.
   WAL 检查和恢复路径支持哈希链校验。
 - Shell projection schema for stable CLI/Web/UI rendering.
   提供稳定的 shell projection schema，便于 CLI、Web 和 UI 渲染。
+- Control-state projection for project context, runtime config, and recovery
+  advice.
+  为项目上下文、运行配置和恢复建议提供控制状态投影。
+- Doctor and Web project status now surface bounded rule-evidence summaries
+  without raw rule content by default.
+  Doctor 和 Web 项目状态现在默认暴露受限规则证据摘要，而不暴露原始规则内容。
 - Bundled browser shell and kernel entrypoint at `onecode shell`.
   通过 `onecode shell` 提供内置浏览器壳与内核一体化入口。
 - OpenAI-compatible local HTTP API for shell integration.
@@ -102,13 +115,13 @@ Validated release gates:
 
 ```text
 bash scripts/verify-core.sh
-193 tests OK
+196 tests OK
 doctor status: ok
 ```
 
 ```text
-PYTHONPATH=src python3 -m unittest tests.test_web_api -v
-48 tests OK
+PYTHONPATH=src python3 -m unittest tests.test_project_context tests.test_runtime_config tests.test_recovery_policy tests.test_doctor_cli tests.test_web_api tests.test_shell_projection -v
+79 tests OK
 ```
 
 ## Benchmark Summary / 基准测试摘要
@@ -161,6 +174,10 @@ interpretation and the deterministic kernel owns execution control.
 - The local API is intended for loopback or trusted bridge use unless placed
   behind production-grade gateway controls.
   本地 API 面向 loopback 或可信桥接场景；如用于生产，应放在生产级网关控制之后。
+- Rule-evidence summaries are metadata-first. Raw project instruction content
+  remains internal unless an operator explicitly routes it into a trusted model
+  prompt path.
+  规则证据摘要以元数据优先。原始项目指令内容保持在内部，除非操作者明确将其送入可信模型提示路径。
 - The bundled shell defaults to `http://127.0.0.1:14080/c/new`; API-only mode remains
   available through `onecode serve`.
   内置壳默认地址为 `http://127.0.0.1:14080/c/new`；如只需 API，仍可使用 `onecode serve`。

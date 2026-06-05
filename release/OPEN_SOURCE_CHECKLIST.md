@@ -30,6 +30,10 @@ This checklist records the current public-release readiness state.
   核心验证门禁。
 - [x] Web API focused test gate.
   Web API 聚焦测试门禁。
+- [x] Rule-evidence absorption layer documented for public release.
+  规则证据吸收层已同步到公开发布文档。
+- [x] Public surfaces avoid raw project rule content by default.
+  公开状态面默认不暴露原始项目规则内容。
 - [x] Release audit script.
   发布审计脚本。
 - [x] Local deterministic A/B benchmark result.
@@ -43,13 +47,13 @@ This checklist records the current public-release readiness state.
 
 ```text
 bash scripts/verify-core.sh
-185 tests OK
+196 tests OK
 doctor status: ok
 ```
 
 ```text
-PYTHONPATH=src python3 -m unittest tests.test_web_api -v
-48 tests OK
+PYTHONPATH=src python3 -m unittest tests.test_project_context tests.test_runtime_config tests.test_recovery_policy tests.test_doctor_cli tests.test_web_api tests.test_shell_projection -v
+79 tests OK
 ```
 
 ```text

@@ -34,6 +34,7 @@ documentation.
 - `../DEPLOYMENT.md` - kernel and bundled Web shell deployment guide / 内核和内置 Web 壳部署说明
 - `TERMINOLOGY.md` - public terminology mapping and terms to avoid in release copy / 公开术语映射和发布文案规约
 - `RELEASE_NOTES.md` - current release summary written with engineering terms / 当前发布说明
+- `UPDATE_2026_06_05.md` - GitHub release copy for the rule-evidence update / 规则证据更新的 GitHub Release 文案
 - `BENCHMARK_RESULTS.md` - benchmark metric definitions and verified result slots / 基准测试指标定义和结果占位
 - `CODEX_CLI_AB_SUMMARY.md` - supplemental Codex CLI vs OneCode A/B summary / Codex CLI 与 OneCode 补充 A/B 摘要
 - `CODEX_CLI_AB_REPORT.json` - sanitized machine-readable supplemental A/B report / 已脱敏的补充 A/B 机器可读报告
