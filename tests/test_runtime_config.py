@@ -42,6 +42,24 @@ class RuntimeConfigInspectionTests(unittest.TestCase):
             IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.KAN),
         )
 
+    def test_home_config_secrets_are_not_returned_in_diagnostics(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            workspace.mkdir()
+            home = Path(tmp) / "home"
+            home.mkdir()
+            (home / "config.json").write_text(
+                json.dumps({"api_key": "secret", "rulesImport": "none"}),
+                encoding="utf-8",
+            )
+            with patch.dict("os.environ", {"ONECODE_HOME": str(home)}, clear=False):
+                report = inspect_runtime_config(workspace)
+
+        serialized = json.dumps(report)
+        self.assertNotIn("secret", serialized)
+        self.assertNotIn("api_key", serialized)
+        self.assertEqual(report["effective"]["rulesImport"], "none")
+
     def test_parse_rules_import_accepts_string_and_list_forms(self):
         self.assertEqual(parse_rules_import({"rulesImport": "none"}).mode, "none")
         self.assertEqual(parse_rules_import({"rulesImport": ["cursor", "copilot"]}).frameworks, ("cursor", "copilot"))
