@@ -4,6 +4,7 @@ import unittest
 class ShellProjectionTests(unittest.TestCase):
     def test_shell_projection_schema_is_explicit_and_stable(self):
         from onecode.kernel.shell_projection import (
+            CONTROL_STATE_FIELDS,
             DELIVERY_STATE_FIELDS,
             EVIDENCE_REF_FIELDS,
             RESUME_STATE_FIELDS,
@@ -18,6 +19,7 @@ class ShellProjectionTests(unittest.TestCase):
         self.assertEqual(SHELL_PROJECTION_VERSION, 1)
         self.assertEqual(tuple(projection.keys()), SHELL_PROJECTION_FIELDS)
         self.assertEqual(tuple(projection["rule_state"].keys()), RULE_STATE_FIELDS)
+        self.assertEqual(tuple(projection["control_state"].keys()), CONTROL_STATE_FIELDS)
         self.assertEqual(tuple(projection["delivery_state"].keys()), DELIVERY_STATE_FIELDS)
         self.assertEqual(tuple(projection["evidence_ref"].keys()), EVIDENCE_REF_FIELDS)
         self.assertEqual(tuple(projection["resume_state"].keys()), RESUME_STATE_FIELDS)
@@ -32,8 +34,69 @@ class ShellProjectionTests(unittest.TestCase):
         self.assertEqual(schema["version"], 1)
         self.assertEqual(schema["fields"]["severity"]["values"], ["blocked", "corrupt", "missing", "ok", "warning"])
         self.assertIn("rule_state", schema["fields"])
+        self.assertIn("control_state", schema["fields"])
         self.assertIn("evidence_ref", schema["fields"])
+        self.assertEqual(
+            schema["nested_fields"]["control_state"],
+            ["project_context_status", "runtime_config_status", "recovery_action"],
+        )
         self.assertEqual(schema["nested_fields"]["resume_state"], ["resumed", "resumed_from"])
+
+    def test_completed_result_projects_control_state_without_changing_severity(self):
+        from onecode.kernel.shell_projection import project_run_to_shell
+
+        projection = project_run_to_shell(
+            {
+                "run_id": "control-run",
+                "status": "completed",
+                "project_context": {"status": "ok", "summary": {"element": "wood"}},
+                "runtime_config": {"status": "warning", "summary": {"element": "earth"}},
+                "recovery_policy": {"recommended_action": "retry_once", "element": "fire"},
+            }
+        )
+
+        self.assertEqual(projection["control_state"]["project_context_status"], "ok")
+        self.assertEqual(projection["control_state"]["runtime_config_status"], "warning")
+        self.assertEqual(projection["control_state"]["recovery_action"], "retry_once")
+        self.assertEqual(projection["severity"], "ok")
+
+    def test_control_state_falls_back_to_flat_fields(self):
+        from onecode.kernel.shell_projection import project_run_to_shell
+
+        projection = project_run_to_shell(
+            {
+                "run_id": "flat-control-run",
+                "status": "completed",
+                "project_context_status": "ok",
+                "runtime_config_status": "warning",
+                "recovery_action": "retry_once",
+            }
+        )
+
+        self.assertEqual(projection["control_state"]["project_context_status"], "ok")
+        self.assertEqual(projection["control_state"]["runtime_config_status"], "warning")
+        self.assertEqual(projection["control_state"]["recovery_action"], "retry_once")
+
+    def test_control_state_falls_through_unusable_nested_values(self):
+        from onecode.kernel.shell_projection import project_run_to_shell
+
+        projection = project_run_to_shell(
+            {
+                "run_id": "fallback-control-run",
+                "status": "completed",
+                "project_context": {"summary": {"element": "wood"}},
+                "project_context_status": "ok",
+                "runtime_config": {"status": "   ", "summary": {"element": "earth"}},
+                "runtime_config_status": "warning",
+                "recovery_policy": {"element": "fire"},
+                "recovery": {"action": "repair_once"},
+                "recovery_action": "retry_once",
+            }
+        )
+
+        self.assertEqual(projection["control_state"]["project_context_status"], "ok")
+        self.assertEqual(projection["control_state"]["runtime_config_status"], "warning")
+        self.assertEqual(projection["control_state"]["recovery_action"], "repair_once")
 
     def test_wal_completed_result_projects_rule_and_evidence_state(self):
         from onecode.kernel.shell_projection import project_run_to_shell
