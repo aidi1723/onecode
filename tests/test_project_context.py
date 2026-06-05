@@ -88,6 +88,38 @@ class ProjectContextDiscoveryTests(unittest.TestCase):
             self.assertNotIn("content", item)
             self.assertNotIn("normalized_content_sha256", item)
 
+    def test_root_rule_symlink_outside_workspace_is_invalid(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            workspace.mkdir()
+            outside = Path(tmp) / "outside.md"
+            outside.write_text("outside root rule\n", encoding="utf-8")
+            (workspace / "AGENTS.md").symlink_to(outside)
+
+            report = discover_project_context(workspace)
+
+        self.assertEqual(report["memory_files"], [])
+        self.assertEqual(len(report["invalid_files"]), 1)
+        self.assertEqual(report["invalid_files"][0]["path"], "AGENTS.md")
+        self.assertEqual(report["invalid_files"][0]["reason"], "outside_project")
+
+    def test_onecode_rule_symlink_outside_workspace_is_invalid(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            workspace.mkdir()
+            outside = Path(tmp) / "outside.md"
+            outside.write_text("outside onecode rule\n", encoding="utf-8")
+            rules = workspace / ".onecode" / "rules"
+            rules.mkdir(parents=True)
+            (rules / "outside.md").symlink_to(outside)
+
+            report = discover_project_context(workspace)
+
+        self.assertEqual(report["memory_files"], [])
+        self.assertEqual(len(report["invalid_files"]), 1)
+        self.assertEqual(report["invalid_files"][0]["path"], ".onecode/rules/outside.md")
+        self.assertEqual(report["invalid_files"][0]["reason"], "outside_project")
+
     def test_project_context_metadata_does_not_expose_raw_content(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

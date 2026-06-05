@@ -54,6 +54,7 @@ class RulesImport:
 
 def discover_project_context(workspace: Path, *, rules_import: RulesImport | None = None) -> dict:
     root = Path(workspace)
+    root_resolved = root.resolve()
     import_policy = rules_import or RulesImport.auto()
     invalid_files: list[dict[str, str]] = []
     seen_normalized_hashes: set[str] = set()
@@ -61,6 +62,15 @@ def discover_project_context(workspace: Path, *, rules_import: RulesImport | Non
     deduped_count = 0
 
     for path, source, origin in _candidate_files(root, import_policy):
+        try:
+            resolved_path = path.resolve()
+        except OSError as exc:
+            invalid_files.append(_invalid_file(root, path, "resolve_error", str(exc)))
+            continue
+        if _outside_project(root_resolved, resolved_path):
+            invalid_files.append(_invalid_file(root, path, "outside_project", resolved_path.as_posix()))
+            continue
+
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError as exc:
@@ -182,6 +192,14 @@ def _relative_path(root: Path, path: Path) -> str:
     except ValueError:
         return path.as_posix()
     return relative.as_posix()
+
+
+def _outside_project(root_resolved: Path, path_resolved: Path) -> bool:
+    try:
+        path_resolved.relative_to(root_resolved)
+    except ValueError:
+        return True
+    return False
 
 
 def _normalize_framework(name: str) -> str:
