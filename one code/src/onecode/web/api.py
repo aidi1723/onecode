@@ -22,6 +22,7 @@ from onecode.kernel.model_config import (
 )
 from onecode.kernel.gateway_engine import adjudicate_gateway_prediction, validate_assistant_content
 from onecode.kernel.model_provider import MissingModelApiKey, ModelProviderError, api_key_from_env, build_provider_config
+from onecode.kernel.project_context import discover_project_context
 from onecode.kernel.runner import run_task
 from onecode.kernel.self_audit import audit_self
 from onecode.kernel.shell_projection import (
@@ -30,6 +31,7 @@ from onecode.kernel.shell_projection import (
     project_run_to_shell,
     shell_projection_schema,
 )
+from onecode.kernel.runtime_config import inspect_runtime_config
 from onecode.kernel.verifier import (
     DEFAULT_VERIFIER_POLICY_PATH,
     load_verifier_policy,
@@ -165,6 +167,8 @@ def project_status_payload(workspace: Path) -> dict[str, Any]:
         "git": {"present": (resolved / ".git").exists()},
         "verifier_policy": {"present": policy_path.exists(), "path": str(policy_path)},
         "latest_run": latest_run,
+        "project_context": discover_project_context(resolved),
+        "runtime_config": inspect_runtime_config(resolved),
     }
 
 
