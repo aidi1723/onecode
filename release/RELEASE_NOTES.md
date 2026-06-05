@@ -115,13 +115,13 @@ Validated release gates:
 
 ```text
 bash scripts/verify-core.sh
-196 tests OK
+188 tests OK
 doctor status: ok
 ```
 
 ```text
 PYTHONPATH=src python3 -m unittest tests.test_project_context tests.test_runtime_config tests.test_recovery_policy tests.test_doctor_cli tests.test_web_api tests.test_shell_projection -v
-79 tests OK
+76 tests OK
 ```
 
 ## Benchmark Summary / 基准测试摘要
