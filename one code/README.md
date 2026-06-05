@@ -391,6 +391,14 @@ OneCode rule: external facts are evidence, not law. Filesystem presence, SHA256 
 
 Bug fixes must close inside that rule surface. If a test exposes a runtime split, the fix should refine classification, yin-yang balance, five-element relations, or transition behavior. It must not add forbidden parallel control variables such as confidence levels, model moods, manual priorities, retry scores, or external policy flags.
 
+## Absorbed Rule-Evidence Layer
+
+External AI tool rules and repositories, including ultraworkers and claw-code, are learning references and evidence sources, not authority. Project instruction discovery, runtime config diagnostics, and recovery advice are exposed as bounded metadata and folded through Iching status, transition, and dispatch fields.
+
+`project_context` records metadata-only project rules with wood element semantics. `runtime_config` reports optional, redacted, approved effective values with earth element semantics. `recovery_policy` reports advisory recovery actions only with fire element semantics.
+
+By default, doctor and Web project status do not expose raw rule content. Shell consumers should read `shell_projection.control_state`, which is derived primarily from nested kernel summaries, instead of inferring control state from raw evidence.
+
 ## Rule Discovery Protocol
 
 Bug reports are rule-gap probes. When OneCode cannot process a task, the failure is treated as missing rule coverage until proven otherwise. The fix path is to add a failing test, collapse the observed evidence into an existing or new `6-bit status_code`, refine the yin-yang or five-element transition rule, and verify the resulting manifest, ledger, and checkpoint evidence.
