@@ -14,6 +14,7 @@ SHELL_PROJECTION_FIELDS = (
     "next_action",
     "compact_message",
     "rule_state",
+    "control_state",
     "delivery_state",
     "evidence_ref",
     "resume_state",
@@ -23,6 +24,11 @@ RULE_STATE_FIELDS = (
     "transition_action",
     "transition_reason",
     "dispatch_decision",
+)
+CONTROL_STATE_FIELDS = (
+    "project_context_status",
+    "runtime_config_status",
+    "recovery_action",
 )
 DELIVERY_STATE_FIELDS = (
     "status",
@@ -64,12 +70,14 @@ def shell_projection_schema() -> dict[str, Any]:
             "next_action": {"type": "string", "description": "Recommended shell action."},
             "compact_message": {"type": "string", "description": "Single-line human-readable summary."},
             "rule_state": {"type": "object", "fields": list(RULE_STATE_FIELDS)},
+            "control_state": {"type": "object", "fields": list(CONTROL_STATE_FIELDS)},
             "delivery_state": {"type": "object", "fields": list(DELIVERY_STATE_FIELDS)},
             "evidence_ref": {"type": "object", "fields": list(EVIDENCE_REF_FIELDS)},
             "resume_state": {"type": "object", "fields": list(RESUME_STATE_FIELDS)},
         },
         "nested_fields": {
             "rule_state": list(RULE_STATE_FIELDS),
+            "control_state": list(CONTROL_STATE_FIELDS),
             "delivery_state": list(DELIVERY_STATE_FIELDS),
             "evidence_ref": list(EVIDENCE_REF_FIELDS),
             "resume_state": list(RESUME_STATE_FIELDS),
@@ -83,6 +91,7 @@ def project_run_to_shell(run: dict[str, Any]) -> dict[str, Any]:
     next_action = _next_action(run, severity)
     evidence_ref = _evidence_ref(run)
     rule_state = _rule_state(run)
+    control_state = _control_state(run)
     delivery_state = _delivery_state(run)
     resume_state = {
         "resumed": run.get("resumed") if isinstance(run.get("resumed"), bool) else None,
@@ -97,6 +106,7 @@ def project_run_to_shell(run: dict[str, Any]) -> dict[str, Any]:
         "next_action": next_action,
         "compact_message": _compact_message(run, status_label, severity, next_action, evidence_ref, rule_state),
         "rule_state": rule_state,
+        "control_state": control_state,
         "delivery_state": delivery_state,
         "evidence_ref": evidence_ref,
         "resume_state": resume_state,
@@ -121,6 +131,14 @@ def attach_shell_projection_to_runs_payload(payload: dict[str, Any]) -> dict[str
 def _string(value: Any) -> str | None:
     if isinstance(value, str) and value.strip():
         return value
+    return None
+
+
+def _first_string(*values: Any) -> str | None:
+    for value in values:
+        text = _string(value)
+        if text is not None:
+            return text
     return None
 
 
@@ -176,6 +194,31 @@ def _rule_state(run: dict[str, Any]) -> dict[str, Any]:
         ),
         "dispatch_decision": _string(
             run.get("task_dispatch_decision", run.get("dispatch_decision", run.get("decision")))
+        ),
+    }
+
+
+def _control_state(run: dict[str, Any]) -> dict[str, Any]:
+    project_context = run.get("project_context")
+    runtime_config = run.get("runtime_config")
+    recovery_policy = run.get("recovery_policy")
+    recovery = run.get("recovery")
+
+    return {
+        "project_context_status": _first_string(
+            project_context.get("status") if isinstance(project_context, dict) else None,
+            run.get("project_context_status"),
+        ),
+        "runtime_config_status": _first_string(
+            runtime_config.get("status") if isinstance(runtime_config, dict) else None,
+            run.get("runtime_config_status"),
+        ),
+        "recovery_action": _first_string(
+            recovery_policy.get("recommended_action") if isinstance(recovery_policy, dict) else None,
+            recovery_policy.get("action") if isinstance(recovery_policy, dict) else None,
+            recovery.get("recommended_action") if isinstance(recovery, dict) else None,
+            recovery.get("action") if isinstance(recovery, dict) else None,
+            run.get("recovery_action"),
         ),
     }
 
