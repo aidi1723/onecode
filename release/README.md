@@ -28,6 +28,21 @@ documentation.
 
 不要把本目录当作运行行为的事实来源。实现事实仍以 `src/`、`tests/` 和常规项目文档为准。
 
+## Workspace Boundary / 工作区边界
+
+The local development workspace and the open-source synchronization workspace
+are separate systems. Local development may happen in a dirty worktree with
+experiments, generated assets, and private research files. GitHub publication
+must be prepared from a clean worktree based on `origin/main`, such as
+`<onecode-open-source-sync-worktree>`.
+
+本机开发工作区和开源同步工作区是两套系统。本机开发可以发生在包含实验改动、生成资产和私有研究文件的脏工作区中；GitHub 发布必须从基于 `origin/main` 的干净 worktree 准备，例如 `<onecode-open-source-sync-worktree>`。
+
+Before publishing, run `git status --short --branch` and the release audit in
+the open-source synchronization worktree, not in the local development tree.
+
+发布前应在开源同步 worktree 中运行 `git status --short --branch` 和 release audit，而不是在本机开发树中直接发布。
+
 ## Files / 文件
 
 - `PUBLIC_README.md` - concise public project overview / 简明公开项目介绍
