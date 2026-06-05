@@ -9,6 +9,9 @@ from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.project_context import RulesImport
 
 
+_APPROVED_KEY_PATHS = {"rulesImport"}
+
+
 class _ParsedRulesImport(RulesImport):
     def __init__(self, mode: str, frameworks: tuple[str, ...] = ()) -> None:
         object.__setattr__(self, "_mode", mode)
@@ -51,9 +54,8 @@ def inspect_runtime_config(workspace: Path) -> dict:
         "dispatch_decision": IchingKernel.dispatch_decision(transition),
     }
 
-    effective = dict(merged)
-    rules_import = parse_rules_import(effective)
-    effective["rulesImport"] = _rules_import_effective_value(rules_import)
+    rules_import = parse_rules_import(merged)
+    effective = {"rulesImport": _rules_import_effective_value(rules_import)}
 
     return {
         "status": status,
@@ -136,20 +138,13 @@ def _inspect_config_file(source: str, path: Path, precedence_rank: int) -> dict[
         "loaded": True,
         "reason": "loaded",
         "detail": None,
-        "key_paths": _key_paths(payload),
+        "key_paths": _approved_key_paths(payload),
         "_payload": payload,
     }
 
 
-def _key_paths(value: Any, prefix: str = "") -> list[str]:
-    if not isinstance(value, dict):
-        return []
-    paths: list[str] = []
-    for key in sorted(value):
-        key_path = f"{prefix}.{key}" if prefix else str(key)
-        paths.append(key_path)
-        paths.extend(_key_paths(value[key], key_path))
-    return paths
+def _approved_key_paths(value: dict[str, Any]) -> list[str]:
+    return sorted(key for key in value if key in _APPROVED_KEY_PATHS)
 
 
 def _normalize_framework(value: str) -> str:
