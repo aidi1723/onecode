@@ -31,10 +31,10 @@ class ProjectContextDiscoveryTests(unittest.TestCase):
             report["iching_status_code"],
             IchingKernel.compute_status(IchingKernel.XUN, IchingKernel.ZHEN),
         )
-        self.assertEqual(report["memory_files"][0]["scope_path"], "AGENTS.md")
-        self.assertFalse(report["memory_files"][0]["outside_project"])
         self.assertEqual(len(report["memory_files"][0]["content_sha256"]), 64)
         for item in report["memory_files"]:
+            self.assertEqual(item["scope_path"], workspace.resolve().as_posix())
+            self.assertFalse(item["outside_project"])
             self.assertNotIn("normalized_content_sha256", item)
 
     def test_local_rules_are_reported_as_local_origin(self):
@@ -47,8 +47,9 @@ class ProjectContextDiscoveryTests(unittest.TestCase):
             report = discover_project_context(workspace)
 
         self.assertEqual(report["memory_files"][0]["origin"], "local")
+        self.assertEqual(report["memory_files"][0]["path"], ".onecode/rules.local/personal.md")
         self.assertEqual(report["memory_files"][0]["source"], "onecode_rules_local")
-        self.assertEqual(report["memory_files"][0]["scope_path"], ".onecode/rules.local/personal.md")
+        self.assertEqual(report["memory_files"][0]["scope_path"], workspace.resolve().as_posix())
         self.assertFalse(report["memory_files"][0]["outside_project"])
         self.assertTrue(report["memory_files"][0]["contributes"])
 
@@ -74,9 +75,10 @@ class ProjectContextDiscoveryTests(unittest.TestCase):
             report = discover_project_context(workspace)
 
         item = report["memory_files"][0]
+        self.assertEqual(item["path"], "AGENTS.md")
         self.assertNotIn("content", item)
         self.assertNotIn("normalized_content_sha256", item)
-        self.assertEqual(item["scope_path"], "AGENTS.md")
+        self.assertEqual(item["scope_path"], workspace.resolve().as_posix())
         self.assertFalse(item["outside_project"])
         self.assertEqual(item["chars"], len("secret-ish instruction\n"))
         self.assertEqual(item["content_sha256"], hashlib.sha256(b"secret-ish instruction\n").hexdigest())
