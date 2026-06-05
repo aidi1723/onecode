@@ -34,6 +34,9 @@ OneCode 使用 Apache License 2.0 开源协议。
   对完成、跳过、中止和篡改场景提供状态化恢复逻辑。
 - Shell projection contract for CLI, Web API, and UI adapters.
   为 CLI、Web API 和 UI 适配器提供稳定的壳层投影契约。
+- Rule-evidence absorption layer for project instructions, runtime config, and
+  recovery advice.
+  面向项目指令、运行配置和恢复建议的规则证据吸收层。
 - Local doctor and release verification scripts.
   提供本地 doctor 与发布验证脚本。
 - Benchmark harness for rule, safety, sandbox, approval, and trace coverage.
@@ -124,7 +127,7 @@ Start the local API:
 
 ```bash
 PYTHONPATH=src ONECODE_API_TOKEN=dev-local-token \
-  python3 -m onecode serve --host 127.0.0.1 --port 8080
+  python3 -m onecode serve --host 127.0.0.1 --port 19080
 ```
 
 Discover the shell projection schema:
@@ -148,6 +151,13 @@ Denied or halted paths retain stronger forensic evidence.
 
 正常完成路径可以使用 WAL-only relaxed 低磁盘压力证据模式；拒绝或中止路径保留更强的取证证据。
 
+External tool rules, project instruction files, optional runtime configuration,
+and recovery hints are also treated as evidence, not authority. Public status
+surfaces expose bounded metadata, status summaries, and shell projections by
+default; they do not expose raw project rule content.
+
+外部工具规则、项目指令文件、可选运行配置和恢复提示同样被视为证据，而不是执行权威。公开状态面默认只暴露受限元数据、状态摘要和壳层投影，不暴露原始项目规则内容。
+
 ## Status / 状态
 
 This release is suitable as a local development baseline, integration prototype,
@@ -157,4 +167,3 @@ TLS, request-size limits, rate limiting, and environment-specific secret
 management.
 
 当前版本适合作为本地开发基线、集成原型和企业级可信工业 AI 工作流评估基线。生产部署仍需要由使用方掌控的网关、鉴权、TLS、请求大小限制、限流和环境级密钥管理。
-

@@ -33,5 +33,6 @@ documentation.
 - `PUBLIC_README.md` - concise public project overview / 简明公开项目介绍
 - `TERMINOLOGY.md` - public terminology mapping and terms to avoid in release copy / 公开术语映射和发布文案规约
 - `RELEASE_NOTES.md` - current release summary written with engineering terms / 当前发布说明
+- `UPDATE_2026_06_05.md` - GitHub release copy for the rule-evidence update / 规则证据更新的 GitHub Release 文案
 - `BENCHMARK_RESULTS.md` - benchmark metric definitions and verified result slots / 基准测试指标定义和结果占位
 - `OPEN_SOURCE_CHECKLIST.md` - final open-source readiness checklist / 最终开源准备检查清单
