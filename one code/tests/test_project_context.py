@@ -31,7 +31,11 @@ class ProjectContextDiscoveryTests(unittest.TestCase):
             report["iching_status_code"],
             IchingKernel.compute_status(IchingKernel.XUN, IchingKernel.ZHEN),
         )
+        self.assertEqual(report["memory_files"][0]["scope_path"], "AGENTS.md")
+        self.assertFalse(report["memory_files"][0]["outside_project"])
         self.assertEqual(len(report["memory_files"][0]["content_sha256"]), 64)
+        for item in report["memory_files"]:
+            self.assertNotIn("normalized_content_sha256", item)
 
     def test_local_rules_are_reported_as_local_origin(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -44,6 +48,8 @@ class ProjectContextDiscoveryTests(unittest.TestCase):
 
         self.assertEqual(report["memory_files"][0]["origin"], "local")
         self.assertEqual(report["memory_files"][0]["source"], "onecode_rules_local")
+        self.assertEqual(report["memory_files"][0]["scope_path"], ".onecode/rules.local/personal.md")
+        self.assertFalse(report["memory_files"][0]["outside_project"])
         self.assertTrue(report["memory_files"][0]["contributes"])
 
     def test_imported_framework_rules_can_be_disabled(self):
@@ -69,6 +75,9 @@ class ProjectContextDiscoveryTests(unittest.TestCase):
 
         item = report["memory_files"][0]
         self.assertNotIn("content", item)
+        self.assertNotIn("normalized_content_sha256", item)
+        self.assertEqual(item["scope_path"], "AGENTS.md")
+        self.assertFalse(item["outside_project"])
         self.assertEqual(item["chars"], len("secret-ish instruction\n"))
         self.assertEqual(item["content_sha256"], hashlib.sha256(b"secret-ish instruction\n").hexdigest())
 
