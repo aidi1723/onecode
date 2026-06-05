@@ -76,14 +76,16 @@ def discover_project_context(workspace: Path, *, rules_import: RulesImport | Non
             continue
         seen_normalized_hashes.add(normalized_hash)
 
+        scope_path, outside_project = _scope_path(root, path)
         memory_files.append(
             {
-                "path": _relative_path(root, path),
+                "path": scope_path,
+                "scope_path": scope_path,
+                "outside_project": outside_project,
                 "source": source,
                 "origin": origin,
                 "chars": len(text),
                 "content_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
-                "normalized_content_sha256": normalized_hash,
                 "contributes": True,
             }
         )
@@ -174,6 +176,14 @@ def _relative_path(root: Path, path: Path) -> str:
     except ValueError:
         return path.as_posix()
     return relative.as_posix()
+
+
+def _scope_path(root: Path, path: Path) -> tuple[str, bool]:
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        return path.as_posix(), True
+    return relative.as_posix(), False
 
 
 def _normalize_framework(name: str) -> str:
