@@ -347,6 +347,25 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertTrue(payload["git"]["present"])
         self.assertTrue(payload["verifier_policy"]["present"])
 
+    def test_project_status_includes_context_and_config_summaries_without_raw_rule_content(self):
+        from onecode.web.api import project_status_payload
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            (workspace / "AGENTS.md").write_text("private instruction body\n", encoding="utf-8")
+            payload = project_status_payload(workspace)
+
+        self.assertIn("project_context", payload)
+        self.assertIn("runtime_config", payload)
+        self.assertEqual(payload["project_context"]["summary"]["element"], "wood")
+        self.assertEqual(payload["runtime_config"]["summary"]["element"], "earth")
+        self.assertNotIn("private instruction body", json.dumps(payload["project_context"]))
+        self.assertIn("content_sha256", payload["project_context"]["memory_files"][0])
+
     def test_project_status_projects_latest_run_for_shell_consumers(self):
         from onecode.kernel.runner import run_task
         from onecode.web.api import handle_onecode_project_status
