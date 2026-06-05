@@ -75,13 +75,28 @@ class DoctorCliTests(unittest.TestCase):
         self.assertEqual(result["status"], "ok")
         self.assertEqual(
             [check["name"] for check in result["checks"]],
-            ["write_text", "resume_skip", "sovereignty_breach", "http_timeout"],
+            [
+                "write_text",
+                "resume_skip",
+                "sovereignty_breach",
+                "http_timeout",
+                "project_context",
+                "runtime_config",
+                "recovery_policy",
+            ],
         )
         self.assertTrue(all(check["passed"] for check in result["checks"]))
         self.assertEqual(result["checks"][0]["detail"]["run_id"], "doctor-write")
         self.assertEqual(result["checks"][1]["detail"]["run_id"], "doctor-resume")
         self.assertEqual(result["checks"][2]["detail"]["run_id"], "doctor-breach")
         self.assertEqual(result["checks"][3]["detail"]["run_id"], "doctor-timeout")
+        self.assertEqual(result["checks"][4]["detail"]["summary"]["element"], "wood")
+        self.assertEqual(result["checks"][5]["detail"]["summary"]["element"], "earth")
+        self.assertEqual(result["checks"][6]["detail"]["element"], "fire")
+        for check in result["checks"][4:]:
+            self.assertIn("iching_status_code", check["detail"])
+            self.assertIn("iching_transition_action", check["detail"])
+            self.assertIn("dispatch_decision", check["detail"])
 
         expected = {
             "write_text": (IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.QIAN), "cooldown", "continue"),
@@ -89,7 +104,7 @@ class DoctorCliTests(unittest.TestCase):
             "sovereignty_breach": (IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN), "halt", "stop"),
             "http_timeout": (IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN), "checkpoint", "stop"),
         }
-        for check in result["checks"]:
+        for check in result["checks"][:4]:
             expected_status_code, expected_transition_action, expected_dispatch_decision = expected[check["name"]]
             detail = check["detail"]
             self.assertEqual(detail["iching_status_code"], expected_status_code)
