@@ -67,6 +67,27 @@ class ProjectContextDiscoveryTests(unittest.TestCase):
         self.assertEqual(disabled["memory_files"], [])
         self.assertEqual([item["source"] for item in selected["memory_files"]], ["copilot_instructions"])
 
+    def test_cursor_rule_directory_imports_all_file_types_sorted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            cursor_rules = workspace / ".cursor" / "rules"
+            cursor_rules.mkdir(parents=True)
+            (cursor_rules / "rule.json").write_text('{"rule": "json"}\n', encoding="utf-8")
+            (cursor_rules / "plain").write_text("plain cursor rule\n", encoding="utf-8")
+
+            report = discover_project_context(workspace, rules_import=RulesImport.list(["cursor"]))
+
+        self.assertEqual(
+            [item["path"] for item in report["memory_files"]],
+            [".cursor/rules/plain", ".cursor/rules/rule.json"],
+        )
+        self.assertEqual([item["source"] for item in report["memory_files"]], ["cursor_rules", "cursor_rules"])
+        for item in report["memory_files"]:
+            self.assertEqual(item["scope_path"], workspace.resolve().as_posix())
+            self.assertFalse(item["outside_project"])
+            self.assertNotIn("content", item)
+            self.assertNotIn("normalized_content_sha256", item)
+
     def test_project_context_metadata_does_not_expose_raw_content(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

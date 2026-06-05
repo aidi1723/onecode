@@ -131,7 +131,7 @@ def _candidate_files(root: Path, rules_import: RulesImport) -> list[tuple[Path, 
             if path.is_file():
                 candidates.append((path, source, framework))
         for relative, source in _FRAMEWORK_RULE_DIRS.get(framework, ()):
-            candidates.extend((path, source, framework) for path in _sorted_rule_files(root / relative))
+            candidates.extend((path, source, framework) for path in _sorted_files(root / relative))
 
     return candidates
 
@@ -143,6 +143,12 @@ def _sorted_rule_files(directory: Path) -> list[Path]:
         (path for path in directory.iterdir() if path.is_file() and path.suffix.lower() in _RULE_SUFFIXES),
         key=lambda path: path.name,
     )
+
+
+def _sorted_files(directory: Path) -> list[Path]:
+    if not directory.is_dir():
+        return []
+    return sorted((path for path in directory.iterdir() if path.is_file()), key=lambda path: path.name)
 
 
 def _normalize_content(text: str) -> str:
