@@ -32,6 +32,9 @@ from onecode.kernel.model_loop import (
 )
 from onecode.kernel.model_config import discover_models, read_model_config, write_model_config
 from onecode.kernel.model_provider import api_key_from_env, build_provider_config
+from onecode.kernel.project_context import discover_project_context
+from onecode.kernel.runtime_config import inspect_runtime_config
+from onecode.kernel.recovery_policy import recovery_status
 from onecode.kernel.sandbox import SandboxConfig, run_sandbox_smoke
 from onecode.kernel.self_audit import audit_self
 from onecode.kernel.shell_projection import (
@@ -528,6 +531,33 @@ def run_doctor() -> dict:
                 and timeout_result["reason"] == "http_timeout"
                 and doctor_rule_passed(timeout_result),
                 doctor_result_detail(timeout_result),
+            )
+        )
+
+        project_context = discover_project_context(workspace)
+        checks.append(
+            doctor_check(
+                "project_context",
+                project_context["status"] in {"ok", "warning"},
+                project_context,
+            )
+        )
+
+        runtime_config = inspect_runtime_config(workspace)
+        checks.append(
+            doctor_check(
+                "runtime_config",
+                runtime_config["status"] in {"ok", "warning"},
+                runtime_config,
+            )
+        )
+
+        recovery = recovery_status("provider_failure")
+        checks.append(
+            doctor_check(
+                "recovery_policy",
+                recovery["recommended_action"] == "retry_once",
+                recovery,
             )
         )
 
