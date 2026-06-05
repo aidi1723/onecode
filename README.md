@@ -520,6 +520,13 @@ Denied or halted paths retain stronger forensic evidence.
 
 正常完成路径可以使用 WAL-only relaxed 低磁盘压力证据模式；拒绝或中止路径保留更强的取证证据。
 
+External tool rules, project instruction files, optional runtime configuration,
+and recovery hints are also treated as evidence, not authority. Public status
+surfaces expose bounded metadata, status summaries, and shell projections by
+default; they do not expose raw project rule content.
+
+外部工具规则、项目指令文件、可选运行配置和恢复提示同样被视为证据，而不是执行权威。公开状态面默认只暴露受限元数据、状态摘要和壳层投影，不暴露原始项目规则内容。
+
 ## Public Release Documents / 公开发布文档
 
 - [`release/PUBLIC_README.md`](release/PUBLIC_README.md) - public project overview / 公开项目介绍
