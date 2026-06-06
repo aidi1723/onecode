@@ -38,11 +38,10 @@ Added documents:
 - `docs/superpowers/specs/2026-06-02-onecode-evidence-chain-performance-balance-design.md`
 - `docs/superpowers/plans/2026-06-02-onecode-evidence-chain-manifest-boundaries.md`
 
-`DEPLOYMENT.md` now also records that online updates must be prepared from the
-separated publish package directory `<onecode-publish-worktree>`, not from the
-local development workspace.
+`DEPLOYMENT.md` now also records that online updates must be prepared from a
+separated clean publish worktree, not from the local development workspace.
 
-`DEPLOYMENT.md` 同步记录：后续线上更新必须从独立打包目录 `<onecode-publish-worktree>` 准备，不应直接从本地开发工作区发布。
+`DEPLOYMENT.md` 同步记录：后续线上更新必须从独立干净发布 worktree 准备，不应直接从本地开发工作区发布。
 
 ## Core Ownership / 核心知识产权
 
