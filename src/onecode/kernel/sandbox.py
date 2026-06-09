@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -12,6 +13,7 @@ from typing import Sequence
 class SandboxConfig:
     workspace: Path
     image: str = "python:3.12-slim"
+    user: str | None = None
     network: str = "none"
     memory: str = "512m"
     cpus: str = "1"
@@ -25,10 +27,20 @@ class SandboxConfig:
         if not resolved.exists() or not resolved.is_dir():
             raise ValueError(f"sandbox workspace does not exist: {resolved}")
         object.__setattr__(self, "workspace", resolved)
+        if self.user is None:
+            object.__setattr__(self, "user", default_container_user())
+        elif not self.user.strip():
+            raise ValueError("sandbox user must not be empty")
         if self.timeout_seconds <= 0:
             raise ValueError("sandbox timeout_seconds must be positive")
         if self.pids_limit <= 0:
             raise ValueError("sandbox pids_limit must be positive")
+
+
+def default_container_user() -> str | None:
+    if hasattr(os, "getuid") and hasattr(os, "getgid"):
+        return f"{os.getuid()}:{os.getgid()}"
+    return None
 
 
 def build_docker_command(config: SandboxConfig, command: Sequence[str]) -> list[str]:
@@ -51,6 +63,8 @@ def build_docker_command(config: SandboxConfig, command: Sequence[str]) -> list[
         "--tmpfs",
         config.tmpfs,
     ]
+    if config.user:
+        docker_command.extend(["--user", config.user])
     if config.read_only:
         docker_command.append("--read-only")
     return [

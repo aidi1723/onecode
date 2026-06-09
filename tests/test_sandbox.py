@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -48,6 +49,20 @@ class SandboxTests(unittest.TestCase):
         self.assertIn("--read-only", command)
         self.assertIn("--tmpfs", command)
         self.assertIn("/tmp:rw,noexec,nosuid,size=64m", command)
+
+    @unittest.skipUnless(hasattr(os, "getuid"), "requires Unix user ids")
+    def test_build_docker_command_runs_as_host_user_for_bind_mount_writes(self):
+        from onecode.kernel.sandbox import SandboxConfig, build_docker_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            command = build_docker_command(
+                SandboxConfig(workspace=Path(tmp), image="python:3.12-slim"),
+                ["python", "-V"],
+            )
+
+        self.assertIn("--user", command)
+        user_index = command.index("--user")
+        self.assertEqual(command[user_index + 1], f"{os.getuid()}:{os.getgid()}")
 
     def test_sandbox_rejects_missing_workspace(self):
         from onecode.kernel.sandbox import SandboxConfig
