@@ -28,6 +28,10 @@ This checklist records the current public-release readiness state.
   应用场景和受监管环境边界已记录。
 - [x] Core verification gate.
   核心验证门禁。
+- [x] Ubuntu core and Docker sandbox smoke verification.
+  Ubuntu 核心门禁和 Docker 沙箱 smoke 验证。
+- [x] Public privacy scan gate.
+  公开隐私扫描门禁。
 - [x] Web API focused test gate.
   Web API 聚焦测试门禁。
 - [x] Rule-evidence absorption layer documented for public release.
@@ -49,6 +53,22 @@ This checklist records the current public-release readiness state.
 bash scripts/verify-core.sh
 188 tests OK
 doctor status: ok
+```
+
+```text
+PYTHONPATH=src python3 -m unittest tests.test_sandbox tests.test_source_hygiene -v
+11 tests OK
+```
+
+```text
+PYTHONPATH=src python3 -m onecode sandbox-smoke
+sandbox status: completed
+exit_code: 0
+```
+
+```text
+bash scripts/privacy-scan.sh
+no findings
 ```
 
 ```text

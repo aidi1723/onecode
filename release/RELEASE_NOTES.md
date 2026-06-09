@@ -16,6 +16,27 @@ as independent authority over the workspace.
 
 本次更新还加入了规则证据吸收层，用于项目指令发现、运行配置检查和建议式恢复状态。这些输入以受限元数据和确定性控制摘要形式暴露，而不是成为工作区的独立执行权威。
 
+## Ubuntu And Docker Verification - 2026-06-09 / Ubuntu 与 Docker 验证
+
+This update validates the OneCode core path on Ubuntu 24.04 LTS with Python
+3.12 and Docker available. The verified gates include `verify-core`, `doctor`,
+Docker sandbox smoke, the sandbox/privacy focused tests, and the public privacy
+scan.
+
+本次更新在 Ubuntu 24.04 LTS、Python 3.12 和 Docker 可用环境下验证了 OneCode 核心路径。已验证门禁包括 `verify-core`、`doctor`、Docker sandbox smoke、沙箱/隐私聚焦测试和公开隐私扫描。
+
+The Docker sandbox now runs containers as the host UID/GID by default on
+Unix-like systems. This fixes Linux bind-mount write failures without relaxing
+network, filesystem, capability, resource, evidence, or transition controls.
+
+Docker 沙箱现在在类 Unix 系统上默认使用宿主 UID/GID 运行容器。该修复解决 Linux bind mount 写入失败问题，同时不放宽网络、文件系统、capability、资源、证据或状态转移控制。
+
+The privacy scan also ignores Git worktree pointer metadata while continuing to
+scan public source and release files for local path and private-environment
+markers.
+
+隐私扫描现在会忽略 Git worktree 指针元数据，同时继续扫描公开源码和发布文件中的本地路径及私有环境标记。
+
 ## Documentation Update - 2026-06-03 / 文档更新
 
 This update adds the evidence-chain, Manifest-boundary, shell-control-plane,
@@ -116,6 +137,22 @@ Validated release gates:
 bash scripts/verify-core.sh
 188 tests OK
 doctor status: ok
+```
+
+```text
+PYTHONPATH=src python3 -m unittest tests.test_sandbox tests.test_source_hygiene -v
+11 tests OK
+```
+
+```text
+PYTHONPATH=src python3 -m onecode sandbox-smoke
+sandbox status: completed
+exit_code: 0
+```
+
+```text
+bash scripts/privacy-scan.sh
+no findings
 ```
 
 ```text

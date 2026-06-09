@@ -59,6 +59,9 @@ state.
   Node.js 20 或更新版本，以及 npm。
 - macOS or Linux for the local preview path.
   本地预览路径建议使用 macOS 或 Linux。
+- Ubuntu 24.04 LTS has been validated for the core kernel and Docker sandbox
+  smoke path.
+  Ubuntu 24.04 LTS 已通过核心内核和 Docker 沙箱 smoke 路径验证。
 - Network access is needed only for `npm install` and optional Python package
   installation.
   只有执行 `npm install` 和可选 Python 包安装时需要联网。
@@ -177,7 +180,7 @@ Expected result:
 预期结果：
 
 ```text
-185 tests OK
+188 tests OK
 doctor status: ok
 ```
 
