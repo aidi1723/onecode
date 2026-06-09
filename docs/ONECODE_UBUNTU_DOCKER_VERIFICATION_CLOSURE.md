@@ -76,15 +76,15 @@ The test fixture for this behavior uses generic placeholder path components.
 It does not contain a real local path, private hostname, temporary validation
 directory, or private file name.
 
-## Rule Alignment
+## Discrete-State Alignment
 
 The change remains inside OneCode's existing rule model:
 
-- Yin-yang boundary: execution authority is not expanded; the sandbox only
+- Boundary preservation: execution authority is not expanded; the sandbox only
   receives the minimum host identity needed to write its own mounted workspace.
-- Five-element balance: Docker remains a containment layer, not a new authority
+- Layer separation: Docker remains a containment layer, not a new authority
   source. Evidence and transition logic stay in the kernel.
-- Bagua/state discipline: the change preserves deterministic command
+- Discrete-state discipline: the change preserves deterministic command
   construction and converts the observed Linux failure into a reproducible
   regression test.
 
