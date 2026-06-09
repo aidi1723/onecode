@@ -13,7 +13,7 @@ patterns=(
 )
 
 for pattern in "${patterns[@]}"; do
-  if rg -n --hidden -g '!**/.git/**' -g '!**/node_modules/**' -g '!**/dist/**' -g '!**/build/**' -g '!**/*.lock' "$pattern" .; then
+  if rg -n --hidden -g '!**/.git' -g '!**/.git/**' -g '!**/node_modules/**' -g '!**/dist/**' -g '!**/build/**' -g '!**/*.lock' "$pattern" .; then
     exit 1
   fi
 done
