@@ -37,6 +37,7 @@ from onecode.kernel.runtime_config import inspect_runtime_config
 from onecode.kernel.recovery_policy import recovery_status
 from onecode.kernel.sandbox import SandboxConfig, run_sandbox_smoke
 from onecode.kernel.self_audit import audit_self
+from onecode.kernel.builtin_skills import build_skill_task_pack, get_builtin_skill, list_builtin_skills
 from onecode.kernel.shell_projection import (
     attach_shell_projection,
     attach_shell_projection_to_runs_payload,
@@ -251,6 +252,14 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("audit-self")
     subparsers.add_parser("math-audit")
     subparsers.add_parser("shell-schema")
+
+    skills_parser = subparsers.add_parser("skills")
+    skills_subparsers = skills_parser.add_subparsers(dest="skills_action", required=True)
+    skills_subparsers.add_parser("list")
+    skills_show_parser = skills_subparsers.add_parser("show")
+    skills_show_parser.add_argument("name")
+    skills_route_parser = skills_subparsers.add_parser("route")
+    skills_route_parser.add_argument("task")
 
     config_parser = subparsers.add_parser("config")
     config_subparsers = config_parser.add_subparsers(dest="config_action", required=True)
@@ -1409,6 +1418,25 @@ def main(argv: list[str] | None = None) -> int:
     if args.subcommand == "shell-schema":
         print(json.dumps(shell_projection_schema(), ensure_ascii=False, sort_keys=True))
         return 0
+
+    if args.subcommand == "skills":
+        if args.skills_action == "list":
+            print(json.dumps({"skills": list_builtin_skills()}, ensure_ascii=False, sort_keys=True))
+            return 0
+        if args.skills_action == "show":
+            try:
+                skill = get_builtin_skill(args.name)
+            except KeyError as exc:
+                parser.error(str(exc))
+            print(json.dumps(skill, ensure_ascii=False, sort_keys=True))
+            return 0
+        if args.skills_action == "route":
+            try:
+                pack = build_skill_task_pack(args.task)
+            except ValueError as exc:
+                parser.error(str(exc))
+            print(json.dumps(pack, ensure_ascii=False, sort_keys=True))
+            return 0
 
     if args.subcommand == "config":
         if args.config_action == "set-model":

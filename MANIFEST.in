@@ -1,0 +1,2 @@
+recursive-include integrations/skills *.md
+recursive-include src/onecode/integrations/skills *.md

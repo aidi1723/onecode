@@ -32,6 +32,8 @@ This checklist records the current public-release readiness state.
   Ubuntu 核心门禁和 Docker 沙箱 smoke 验证。
 - [x] Public privacy scan gate.
   公开隐私扫描门禁。
+- [x] Built-in safe-agent-router skill packaged and exposed through CLI.
+  内置 safe-agent-router skill 已打包并通过 CLI 暴露。
 - [x] Web API focused test gate.
   Web API 聚焦测试门禁。
 - [x] Rule-evidence absorption layer documented for public release.
@@ -51,7 +53,7 @@ This checklist records the current public-release readiness state.
 
 ```text
 bash scripts/verify-core.sh
-188 tests OK
+196 tests OK
 doctor status: ok
 ```
 
@@ -69,6 +71,11 @@ exit_code: 0
 ```text
 bash scripts/privacy-scan.sh
 no findings
+```
+
+```text
+PYTHONPATH=src python3 -m unittest tests.test_builtin_skills tests.test_packaging -v
+8 tests OK
 ```
 
 ```text

@@ -180,7 +180,7 @@ Expected result:
 预期结果：
 
 ```text
-188 tests OK
+196 tests OK
 doctor status: ok
 ```
 

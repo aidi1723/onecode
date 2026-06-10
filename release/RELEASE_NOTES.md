@@ -37,6 +37,21 @@ markers.
 
 隐私扫描现在会忽略 Git worktree 指针元数据，同时继续扫描公开源码和发布文件中的本地路径及私有环境标记。
 
+## Built-In Safe Agent Router / 内置 Safe Agent Router
+
+OneCode now bundles `integrations/skills/safe-agent-router/` as a default
+advisory skill router. The router can list built-in skills and produce a task
+pack with selected skills, capability coverage, execution order, verifier
+expectations, and fixed safety boundaries.
+
+OneCode 现在内置 `integrations/skills/safe-agent-router/` 作为默认建议式 skill 路由器。该路由器可以列出内置 skills，并生成包含选定技能、能力覆盖、执行顺序、验证预期和固定安全边界的任务包。
+
+The router does not grant execution authority. It does not bypass host runtime
+policy, OneCode path guards, evidence checks, verifier gates, approvals, or
+higher-priority instructions.
+
+该路由器不授予执行权威，不绕过宿主运行策略、OneCode 路径护栏、证据检查、验证门禁、审批或更高优先级指令。
+
 ## Documentation Update - 2026-06-03 / 文档更新
 
 This update adds the evidence-chain, Manifest-boundary, shell-control-plane,
@@ -135,7 +150,7 @@ Validated release gates:
 
 ```text
 bash scripts/verify-core.sh
-188 tests OK
+196 tests OK
 doctor status: ok
 ```
 

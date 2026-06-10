@@ -67,6 +67,9 @@ dependencies remain governed by their own licenses.
   提供模型无关的控制层，可接入 OpenAI-compatible、本地或第三方候选生成器。
 - Low-disk-pressure evidence mode for normal completed runs.
   为正常完成路径提供低磁盘压力证据模式。
+- Built-in `safe-agent-router` skill for advisory skill selection, capability
+  coverage, execution order, and verifier expectations.
+  内置 `safe-agent-router` skill，用于建议式技能选择、能力覆盖、执行顺序和验证预期。
 
 ## Why It Matters / 为什么重要
 
@@ -263,6 +266,28 @@ Deployment guide:
 ```text
 DEPLOYMENT.md
 ```
+
+## Built-In Skills / 内置 Skills
+
+OneCode includes a built-in `safe-agent-router` skill under
+`integrations/skills/safe-agent-router/`. It routes non-trivial tasks to an
+advisory task pack with selected skills, capability coverage, execution order,
+verifier expectations, and safety boundaries.
+
+OneCode 内置 `safe-agent-router` skill，位于
+`integrations/skills/safe-agent-router/`。它会把非平凡任务路由为建议式任务包，包含选定技能、能力覆盖、执行顺序、验证预期和安全边界。
+
+```bash
+onecode skills list
+onecode skills route "update docs and run tests"
+```
+
+The router is advisory only. It does not grant filesystem, shell, network,
+browser, connector, account, credential, deployment, or production permissions.
+Host runtime policy, OneCode path guards, evidence checks, and verifier results
+remain authoritative.
+
+该路由器只提供建议，不授予文件系统、shell、网络、浏览器、连接器、账号、凭据、部署或生产权限。宿主运行策略、OneCode 路径护栏、证据检查和验证结果仍是执行权威。
 
 ## Verify / 验证
 

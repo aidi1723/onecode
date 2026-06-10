@@ -12,6 +12,19 @@ class PackagingTests(unittest.TestCase):
         self.assertEqual(data["project"]["requires-python"], ">=3.11")
         self.assertEqual(data["project"]["scripts"]["onecode"], "onecode.cli:main")
 
+    def test_pyproject_includes_builtin_integrations_in_source_distribution(self):
+        data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+
+        self.assertEqual(data["tool"]["setuptools"]["include-package-data"], True)
+        self.assertEqual(
+            data["tool"]["setuptools"]["package-data"]["onecode"],
+            ["integrations/skills/*/*.md"],
+        )
+
+        manifest = Path("MANIFEST.in").read_text(encoding="utf-8")
+        self.assertIn("recursive-include integrations/skills *.md", manifest)
+        self.assertIn("recursive-include src/onecode/integrations/skills *.md", manifest)
+
     def test_tui_dependency_is_optional_and_version_aligned(self):
         data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
         requirements = Path("requirements-tui.txt").read_text(encoding="utf-8")

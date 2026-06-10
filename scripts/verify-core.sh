@@ -13,6 +13,8 @@ PYTHONPATH=src "$PYTHON_BIN" -m compileall src tests
 echo "unittest-core"
 PYTHONPATH=src "$PYTHON_BIN" -m unittest \
   tests.test_runner_cli \
+  tests.test_builtin_skills \
+  tests.test_packaging \
   tests.test_inspect_cli \
   tests.test_list_runs_cli \
   tests.test_execution_engine \
