@@ -65,6 +65,9 @@ dependencies remain governed by their own licenses.
 - Built-in `safe-agent-router` skill for advisory skill selection, capability
   coverage, execution order, and verifier expectations.
   内置 `safe-agent-router` skill，用于建议式技能选择、能力覆盖、执行顺序和验证预期。
+- Automatic routing over trusted skill guidance to help new users follow a more
+  professional task workflow.
+  基于可信 skill 指引进行自动路由，帮助新手按更专业的任务工作流完成交付。
 
 ## Why It Matters / 为什么重要
 

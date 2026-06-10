@@ -70,6 +70,9 @@ dependencies remain governed by their own licenses.
 - Built-in `safe-agent-router` skill for advisory skill selection, capability
   coverage, execution order, and verifier expectations.
   内置 `safe-agent-router` skill，用于建议式技能选择、能力覆盖、执行顺序和验证预期。
+- Automatic routing over trusted skill guidance to help new users follow a more
+  professional task workflow.
+  基于可信 skill 指引进行自动路由，帮助新手按更专业的任务工作流完成交付。
 
 ## Why It Matters / 为什么重要
 
@@ -276,6 +279,14 @@ verifier expectations, and safety boundaries.
 
 OneCode 内置 `safe-agent-router` skill，位于
 `integrations/skills/safe-agent-router/`。它会把非平凡任务路由为建议式任务包，包含选定技能、能力覆盖、执行顺序、验证预期和安全边界。
+
+The router lets OneCode absorb strong community skill workflows into a
+controlled local kernel and automatically select relevant guidance for the
+current task. Beginners can describe a task in plain language while OneCode
+supplies a more professional workflow shape: planning, execution order, safety
+boundary, and verification.
+
+该路由器让 OneCode 可以把优秀的社群 skill 工作流吸收到受控本地内核中，并根据当前任务自动选择相关指引。新手可以直接用自然语言描述任务，OneCode 会补上更专业的工作流结构：规划、执行顺序、安全边界和验证。
 
 ```bash
 onecode skills list

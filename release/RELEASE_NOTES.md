@@ -46,6 +46,14 @@ expectations, and fixed safety boundaries.
 
 OneCode 现在内置 `integrations/skills/safe-agent-router/` 作为默认建议式 skill 路由器。该路由器可以列出内置 skills，并生成包含选定技能、能力覆盖、执行顺序、验证预期和固定安全边界的任务包。
 
+The router lets OneCode absorb strong community skill workflows into a
+controlled local kernel and automatically select relevant guidance for the
+current task. This gives beginners a more professional workflow shape for
+planning, execution order, safety boundaries, and verification while keeping
+execution control inside OneCode.
+
+该路由器让 OneCode 可以把优秀的社群 skill 工作流吸收到受控本地内核中，并根据当前任务自动选择相关指引。新手可以直接描述任务，OneCode 会补上更专业的规划、执行顺序、安全边界和验证结构，同时继续由 OneCode 掌控执行控制。
+
 The router does not grant execution authority. It does not bypass host runtime
 policy, OneCode path guards, evidence checks, verifier gates, approvals, or
 higher-priority instructions.
