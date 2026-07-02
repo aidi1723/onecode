@@ -32,6 +32,7 @@ from onecode.kernel.shell_projection import (
     shell_projection_schema,
 )
 from onecode.kernel.runtime_config import inspect_runtime_config
+from onecode.kernel.wal import global_wal_metrics_summary
 from onecode.kernel.verifier import (
     DEFAULT_VERIFIER_POLICY_PATH,
     load_verifier_policy,
@@ -204,6 +205,14 @@ def parse_limit(value: Any, default: int = 20, maximum: int = 100) -> int:
     return max(1, min(parsed, maximum))
 
 
+def parse_window_seconds(value: Any, default: int = 60, maximum: int = 86_400) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(1, min(parsed, maximum))
+
+
 def handle_onecode_runs_list(params: dict[str, Any]) -> tuple[dict[str, Any], int]:
     try:
         workspace = workspace_from_value(params.get("workspace") if isinstance(params.get("workspace"), str) else None)
@@ -212,6 +221,27 @@ def handle_onecode_runs_list(params: dict[str, Any]) -> tuple[dict[str, Any], in
     payload = list_runs(workspace)
     payload["runs"] = payload["runs"][-parse_limit(params.get("limit")) :]
     return attach_shell_projection_to_runs_payload(payload), 200
+
+
+def handle_onecode_metrics(params: dict[str, Any]) -> tuple[dict[str, Any], int]:
+    try:
+        workspace = workspace_from_value(params.get("workspace") if isinstance(params.get("workspace"), str) else None)
+    except ValueError as exc:
+        return error_payload("invalid_workspace", str(exc)), 400
+    window_seconds = parse_window_seconds(params.get("window_seconds"))
+    try:
+        wal_summary = global_wal_metrics_summary(workspace, window_seconds=window_seconds)
+    except ValueError as exc:
+        return error_payload("invalid_metrics_request", str(exc)), 400
+    return {
+        "workspace": str(workspace),
+        "control_plane": {
+            "scope": "summary",
+            "raw_entries_included": False,
+            "source": "global_wal",
+        },
+        "global_wal_summary": wal_summary,
+    }, 200
 
 
 def handle_onecode_run_inspect(run_id: str, params: dict[str, Any]) -> tuple[dict[str, Any], int]:
@@ -892,6 +922,20 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
             )
             self._send_json(payload, status_code=status_code)
             return
+        if path == "/v1/onecode/metrics":
+            if not self._authorized():
+                self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
+                return
+            parsed = urlparse(self.path)
+            query = parse_qs(parsed.query)
+            payload, status_code = handle_onecode_metrics(
+                {
+                    "workspace": query.get("workspace", [None])[0],
+                    "window_seconds": query.get("window_seconds", [None])[0],
+                }
+            )
+            self._send_json(payload, status_code=status_code)
+            return
         if path == "/v1/onecode/verifier/presets":
             if not self._authorized():
                 self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
@@ -1153,7 +1197,7 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
         self.wfile.flush()
 
 
-def run_server(host: str = "127.0.0.1", port: int = 8080) -> None:
+def run_server(host: str = "127.0.0.1", port: int = 19080) -> None:
     server = ThreadingHTTPServer((host, port), OneCodeRequestHandler)
     try:
         server.serve_forever()

@@ -55,6 +55,73 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(events[-1]["event_type"], "run_completed")
             self.assertTrue(all(event["run_id"] == "trace-runner-test" for event in events))
 
+    def test_run_task_aggregates_progress_tick_trace_events(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_task(
+                "trace progress demo",
+                workspace=Path(tmp),
+                run_id="trace-progress-run",
+                write_texts=["src/a.py=a = 1\n", "src/b.py=b = 2\n"],
+                completed_evidence_mode="full",
+            )
+
+            events = [
+                json.loads(line)
+                for line in Path(result["trace_path"]).read_text(encoding="utf-8").splitlines()
+                if line
+            ]
+            progress_events = [event for event in events if event["event_type"] == "progress_tick_aggregate"]
+
+            self.assertEqual(len(progress_events), 1)
+            self.assertEqual(progress_events[0]["capture_mode"], "aggregate")
+            self.assertEqual(progress_events[0]["payload"]["count"], 2)
+            self.assertEqual(events[-1]["event_type"], "run_completed")
+
+    def test_run_task_records_evidence_metrics_in_result_and_ledger(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_task(
+                "trace metrics demo",
+                workspace=Path(tmp),
+                run_id="trace-metrics-run",
+                write_texts=["src/a.py=a = 1\n", "src/b.py=b = 2\n"],
+                completed_evidence_mode="full",
+            )
+
+            ledger = json.loads(Path(result["ledger_path"]).read_text(encoding="utf-8"))
+
+            self.assertEqual(result["evidence_metrics"]["trace"]["aggregate_event_count"], 1)
+            self.assertGreater(result["evidence_metrics"]["trace"]["total_bytes"], 0)
+            self.assertEqual(
+                ledger["evidence_metrics"]["trace"]["events_by_capture_mode"]["aggregate"],
+                1,
+            )
+
+    def test_run_task_halts_when_final_critical_trace_write_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            from onecode.kernel import trace as trace_module
+
+            original_write_trace_event = trace_module.write_trace_event
+
+            def fail_run_completed(path, event):
+                if event.event_type == "run_completed":
+                    raise OSError("trace disk full")
+                return original_write_trace_event(path, event)
+
+            with patch("onecode.kernel.trace.write_trace_event", side_effect=fail_run_completed):
+                with patch("onecode.kernel.runner.write_trace_event", side_effect=fail_run_completed):
+                    result = run_task(
+                        "trace final write failure",
+                        workspace=Path(tmp),
+                        run_id="trace-final-write-failure",
+                        write_path="src/generated.py",
+                        write_content="value = 1\n",
+                    )
+
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "run_exception")
+            self.assertEqual(result["payload"]["error_type"], "OSError")
+            self.assertIn("trace disk full", result["payload"]["error_message_tail"])
+
     def test_run_task_can_force_timeout_for_verification(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = run_task(
@@ -287,6 +354,8 @@ class CliTests(unittest.TestCase):
             self.assertIsNone(result["trace_path"])
             self.assertEqual(result["wal_path"], str((Path(tmp) / ".onecode" / "global-ledger.jsonl").resolve()))
             self.assertTrue(Path(result["wal_path"]).exists())
+            self.assertEqual(result["evidence_metrics"]["global_wal"]["entry_count"], 1)
+            self.assertEqual(result["evidence_metrics"]["global_wal"]["entries_by_capture_mode"]["full"], 1)
             self.assertEqual(result["shell_projection"]["run_id"], "cli-test")
             self.assertEqual(result["shell_projection"]["severity"], "ok")
             self.assertEqual(result["shell_projection"]["evidence_ref"]["mode"], "wal")

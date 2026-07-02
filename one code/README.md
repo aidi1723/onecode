@@ -184,13 +184,13 @@ Use `/export` or `/export-last` in the TUI to print those paths when terminal bo
 Start OneCode's OpenAI-compatible HTTP API for a LibreChat custom endpoint:
 
 ```bash
-PYTHONPATH=src ONECODE_API_TOKEN=dev-local-token python3 -m onecode serve --host 127.0.0.1 --port 8080
+PYTHONPATH=src ONECODE_API_TOKEN=dev-local-token python3 -m onecode serve --host 127.0.0.1 --port 19080
 ```
 
 LibreChat should point its custom endpoint at:
 
 ```text
-ONECODE_API_BASE_URL=http://localhost:8080/v1
+ONECODE_API_BASE_URL=http://localhost:19080/v1
 ONECODE_API_TOKEN=dev-local-token
 ```
 
@@ -214,7 +214,15 @@ PYTHONPATH=src python3 -m onecode shell
 This launches a temporary local MongoDB, the OneCode API, and the LibreChat Web shell. Open:
 
 ```text
-http://127.0.0.1:3080
+http://127.0.0.1:14080/c/new
+```
+
+The launcher is a foreground process. Keep that terminal open while using the
+shell. If the browser reports `ERR_CONNECTION_REFUSED`, check the local service
+state with:
+
+```bash
+PYTHONPATH=src python3 -m onecode shell-status
 ```
 
 Local preview login:

@@ -11,7 +11,8 @@ from onecode.kernel.path_guard import PathGuard
 from onecode.kernel.patching import PatchIntent, commit_patch
 from onecode.kernel.permission_matrix import Decision
 from onecode.kernel.resumption import ReadyAsset
-from onecode.kernel.trace import TraceEvent, write_trace_event
+from onecode.kernel.trace import TraceAggregator, TraceEvent, trace_evidence_metrics, write_trace_event
+from onecode.kernel.wal import global_wal_evidence_metrics
 
 
 RULE_DRIVEN_RESULT_FIELDS = {
@@ -575,6 +576,7 @@ def _run_task_with_context(
     run_started_at = time.monotonic()
     trace_id = context.run_id
     trace_path = context.evidence_root / "trace.jsonl"
+    trace_aggregator = TraceAggregator(trace_path)
     defer_completed_evidence = completed_evidence_mode == "wal" and write_texts is None and plan_actions is None
     pending_trace_events: list[TraceEvent] = []
     pending_checkpoints: list[dict[str, Any]] = []
@@ -600,12 +602,13 @@ def _run_task_with_context(
         if defer_completed_evidence:
             pending_trace_events.append(event)
         else:
-            write_trace_event(trace_path, event)
+            trace_aggregator.record(event)
 
     def flush_deferred_trace_events() -> None:
         for event in pending_trace_events:
-            write_trace_event(trace_path, event)
+            trace_aggregator.record(event)
         pending_trace_events.clear()
+        trace_aggregator.flush()
 
     def record_checkpoint(
         *,
@@ -810,6 +813,19 @@ def _run_task_with_context(
                 parent_span_id=tool_span_id,
                 duration_ms=duration_ms,
             )
+            record_trace(
+                f"progress-{index}",
+                "progress_tick",
+                "observed",
+                {
+                    "index": index,
+                    "requested_count": len(intents),
+                    "completed_count": sum(asset["status"] == "completed" for asset in assets) + (1 if gate_result["status"] == "completed" else 0),
+                    "skipped_count": sum(asset["status"] == "skipped" for asset in assets) + (1 if gate_result["status"] == "skipped" else 0),
+                    "failed_count": sum(asset["status"] in {"denied", "halted"} for asset in assets) + (1 if gate_result["status"] in {"denied", "halted"} else 0),
+                },
+                parent_span_id="run",
+            )
             assets.append(
                 asset_entry(
                     index,
@@ -885,6 +901,7 @@ def _run_task_with_context(
         and result["reason"] is None
         and failed_count == 0
     )
+    trace_aggregator.flush()
     record_trace(
         "run",
         "run_completed",
@@ -900,6 +917,7 @@ def _run_task_with_context(
     if wal_only_completed:
         result["evidence_mode"] = "wal"
         wal_path = write_global_wal(context, result, fsync=evidence_durability == "strict")
+        result["evidence_metrics"] = {"global_wal": global_wal_evidence_metrics(context.workspace_root)}
         result["wal_path"] = str(wal_path)
         result["manifest_path"] = None
         result["ledger_path"] = None
@@ -909,5 +927,6 @@ def _run_task_with_context(
         result["evidence_mode"] = "full"
         flush_deferred_trace_events()
         flush_deferred_checkpoints()
+        result["evidence_metrics"] = {"trace": trace_evidence_metrics(trace_path)}
         write_ledger(context, result)
     return result

@@ -18,3 +18,7 @@ Use that workspace for:
 - GGUF or other deployment artifacts
 
 OneCode may expose rule-engine APIs used by the small-model pipeline, but generated training assets must remain outside the OneCode project tree.
+
+The OneCode-side probability, controlled-decoding, and hard-gate rule model is documented in:
+
+`docs/YIZIJUE_CONTROLLED_DECODING_PROBABILITY_RULES.md`

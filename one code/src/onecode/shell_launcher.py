@@ -8,12 +8,19 @@ import webbrowser
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
 DEFAULT_LOCAL_EMAIL = "onecode@local.test"
 DEFAULT_LOCAL_PASSWORD = "OneCode123!"
+DEFAULT_ONECODE_PORT = 19080
+DEFAULT_LIBRECHAT_PORT = 14080
+DEFAULT_MONGO_PORT = 39017
+DEFAULT_JWT_SECRET = "16f8c0ef4a5d391b26034086c628469d3f9f497f08163ab9b40137092f2909ef"
+DEFAULT_JWT_REFRESH_SECRET = "eaa5191f2914e30b9387fd84e254e4ba6fc51b4654968a9b0803b456a54b8418"
+DEFAULT_CREDS_KEY = "f34be427ebb29de8d88c107a71546019685ed8b241d8f2ed00c3df97ad2566f0"
+DEFAULT_CREDS_IV = "e2341419ec3dd3d19b13a1a87fafcbfb"
 
 
 @dataclass(frozen=True)
@@ -60,6 +67,11 @@ def build_librechat_env(config: ShellLaunchConfig, base_env: Mapping[str, str] |
             "ALLOW_UNVERIFIED_EMAIL_LOGIN": "true",
             "LOGIN_WINDOW": "1",
             "LOGIN_MAX": "100",
+            "JWT_SECRET": DEFAULT_JWT_SECRET,
+            "JWT_REFRESH_SECRET": DEFAULT_JWT_REFRESH_SECRET,
+            "CREDS_KEY": DEFAULT_CREDS_KEY,
+            "CREDS_IV": DEFAULT_CREDS_IV,
+            "MEILI_NO_SYNC": "true",
             "CONFIG_PATH": str(runtime_config_path(config)),
         }
     )
@@ -153,6 +165,49 @@ def wait_for_url(url: str, timeout_seconds: float = 30) -> bool:
         except (OSError, URLError):
             time.sleep(0.5)
     return False
+
+
+def check_url(url: str, *, timeout_seconds: float = 2) -> dict[str, object]:
+    try:
+        with urlopen(Request(url, headers={"accept": "application/json"}), timeout=timeout_seconds) as response:
+            return {"url": url, "ok": True, "status": response.status}
+    except HTTPError as exc:
+        return {"url": url, "ok": False, "status": exc.code, "error": str(exc)}
+    except (OSError, URLError) as exc:
+        return {"url": url, "ok": False, "status": None, "error": str(exc)}
+
+
+def check_tcp(host: str, port: int, *, timeout_seconds: float = 2) -> dict[str, object]:
+    import socket
+
+    try:
+        with socket.create_connection((host, port), timeout=timeout_seconds):
+            return {"host": host, "port": port, "ok": True}
+    except OSError as exc:
+        return {"host": host, "port": port, "ok": False, "error": str(exc)}
+
+
+def shell_status(config: ShellLaunchConfig) -> dict[str, object]:
+    onecode_url = f"http://{config.onecode_host}:{config.onecode_port}/health"
+    shell_url = f"http://{config.librechat_host}:{config.librechat_port}/c/new"
+    api_check = check_url(onecode_url)
+    shell_check = check_url(shell_url)
+    mongo_check = check_tcp("127.0.0.1", config.mongo_port)
+    checks = {
+        "onecode_api": api_check,
+        "librechat_shell": shell_check,
+        "mongo": mongo_check,
+    }
+    ok = all(bool(check.get("ok")) for check in checks.values())
+    return {
+        "status": "ok" if ok else "down",
+        "shell_url": shell_url,
+        "login": {"email": config.email, "password": config.password},
+        "checks": checks,
+        "hint": None
+        if ok
+        else "Run `PYTHONPATH=src python3 -m onecode shell --show-credentials` and keep that terminal open.",
+    }
 
 
 def require_path(path: Path, description: str) -> None:
@@ -298,10 +353,10 @@ def config_from_args(args: object) -> ShellLaunchConfig:
         onecode_root=onecode_root,
         librechat_dir=librechat_dir,
         onecode_host=getattr(args, "onecode_host", "127.0.0.1"),
-        onecode_port=getattr(args, "onecode_port", 8080),
+        onecode_port=getattr(args, "onecode_port", DEFAULT_ONECODE_PORT),
         librechat_host=getattr(args, "librechat_host", "127.0.0.1"),
-        librechat_port=getattr(args, "librechat_port", 3080),
-        mongo_port=getattr(args, "mongo_port", 27017),
+        librechat_port=getattr(args, "librechat_port", DEFAULT_LIBRECHAT_PORT),
+        mongo_port=getattr(args, "mongo_port", DEFAULT_MONGO_PORT),
         api_token=getattr(args, "api_token", "dev-local-token"),
         workspace_root=workspace_root,
         email=getattr(args, "email", DEFAULT_LOCAL_EMAIL),

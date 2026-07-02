@@ -81,12 +81,13 @@ from onecode.kernel.training_data import (
     write_training_configs,
     training_samples_from_rows,
 )
+from onecode.kernel.trace import trace_evidence_metrics
 from onecode.kernel.yizijue_transformers import (
     generate_with_yizijue_logits,
     load_transformers_causal_lm,
     run_state_corpus_predictions_with_yizijue_logits,
 )
-from onecode.kernel.wal import global_wal_paths
+from onecode.kernel.wal import global_wal_evidence_metrics, global_wal_paths
 from onecode.benchmark import compare_benchmark_tasks, load_benchmark_tasks, run_benchmark_tasks
 
 
@@ -379,7 +380,7 @@ def build_parser() -> argparse.ArgumentParser:
     serve_parser = subparsers.add_parser("serve")
     serve_parser.description = "Serve OneCode as an OpenAI-compatible endpoint for LibreChat."
     serve_parser.add_argument("--host", default="127.0.0.1")
-    serve_parser.add_argument("--port", type=int, default=8080)
+    serve_parser.add_argument("--port", type=int, default=19080)
     serve_parser.add_argument("--allow-unauthenticated-local", action="store_true")
 
     shell_parser = subparsers.add_parser("shell")
@@ -388,16 +389,31 @@ def build_parser() -> argparse.ArgumentParser:
     shell_parser.add_argument("--librechat-dir", default=None)
     shell_parser.add_argument("--workspace", default=None)
     shell_parser.add_argument("--onecode-host", default="127.0.0.1")
-    shell_parser.add_argument("--onecode-port", type=int, default=8080)
+    shell_parser.add_argument("--onecode-port", type=int, default=19080)
     shell_parser.add_argument("--librechat-host", default="127.0.0.1")
-    shell_parser.add_argument("--librechat-port", type=int, default=3080)
-    shell_parser.add_argument("--mongo-port", type=int, default=27017)
+    shell_parser.add_argument("--librechat-port", type=int, default=14080)
+    shell_parser.add_argument("--mongo-port", type=int, default=39017)
     shell_parser.add_argument("--api-token", default="dev-local-token")
     shell_parser.add_argument("--email", default="onecode@local.test")
     shell_parser.add_argument("--password", default="OneCode123!")
     shell_parser.add_argument("--show-credentials", action="store_true")
     shell_parser.add_argument("--no-browser", dest="open_browser", action="store_false")
     shell_parser.set_defaults(open_browser=True)
+
+    shell_status_parser = subparsers.add_parser("shell-status")
+    shell_status_parser.description = "Check whether the local OneCode Agent shell services are reachable."
+    shell_status_parser.add_argument("--onecode-root", default=str(Path.cwd()))
+    shell_status_parser.add_argument("--librechat-dir", default=None)
+    shell_status_parser.add_argument("--workspace", default=None)
+    shell_status_parser.add_argument("--onecode-host", default="127.0.0.1")
+    shell_status_parser.add_argument("--onecode-port", type=int, default=19080)
+    shell_status_parser.add_argument("--librechat-host", default="127.0.0.1")
+    shell_status_parser.add_argument("--librechat-port", type=int, default=14080)
+    shell_status_parser.add_argument("--mongo-port", type=int, default=39017)
+    shell_status_parser.add_argument("--api-token", default="dev-local-token")
+    shell_status_parser.add_argument("--email", default="onecode@local.test")
+    shell_status_parser.add_argument("--password", default="OneCode123!")
+    shell_status_parser.set_defaults(open_browser=False, show_credentials=True)
 
     tui_parser = subparsers.add_parser("tui")
     tui_parser.add_argument("--workspace", default=None)
@@ -942,6 +958,20 @@ def optional_task_inspect_fields(ledger: dict) -> dict:
     return {field: ledger[field] for field in TASK_INSPECT_FIELDS if field in ledger}
 
 
+def trace_repair_decision(evidence_metrics: dict[str, Any]) -> dict[str, Any]:
+    trace_metrics = evidence_metrics.get("trace") if isinstance(evidence_metrics, dict) else None
+    if not isinstance(trace_metrics, dict):
+        return {}
+    if int(trace_metrics.get("aggregate_gap_count") or 0) <= 0:
+        return {}
+    return {
+        "delivery_status": "blocked",
+        "next_action": "repair",
+        "repair_required": True,
+        "repair_reason": "trace_aggregate_gap",
+    }
+
+
 def read_global_wal_segment(path: Path) -> tuple[list[dict] | None, str | None]:
     if not path.exists():
         return [], None
@@ -1032,6 +1062,7 @@ def inspect_global_wal_run(workspace: Path, run_id: str) -> tuple[int, dict] | N
         "manifest_path": entry.get("mp"),
         "ledger_path": entry.get("lp"),
         "wal_path": entry_wal_path,
+        "evidence_metrics": {"global_wal": global_wal_evidence_metrics(workspace)},
     } | delivery_summary(ledger)
 
 
@@ -1168,8 +1199,12 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
                 "ledger_path": str(ledger_path),
             }
     trace_value = ledger.get("trace_path")
+    evidence_metrics = ledger.get("evidence_metrics", {})
+    if not isinstance(evidence_metrics, dict):
+        evidence_metrics = {}
     if isinstance(trace_value, str):
-        corrupt_path, corrupt_reason = validate_trace_completion(ledger, Path(trace_value))
+        trace_path = Path(trace_value)
+        corrupt_path, corrupt_reason = validate_trace_completion(ledger, trace_path)
         if corrupt_path is not None:
             return 1, {
                 "run_id": run_id,
@@ -1179,6 +1214,7 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
                 "manifest_path": str(manifest_path),
                 "ledger_path": str(ledger_path),
             }
+        evidence_metrics = {**evidence_metrics, "trace": trace_evidence_metrics(trace_path)}
     corrupt_path, corrupt_reason = validate_evidence_chain(evidence_root / "evidence-chain.jsonl")
     if corrupt_path is not None:
         return 1, {
@@ -1194,7 +1230,7 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
         if isinstance(manifest.get("workspace_root"), str)
         else workspace.resolve()
     )
-    return 0, {
+    base_summary = {
         "run_id": run_id,
         "status": ledger.get("status", manifest.get("status")),
         "partial": ledger.get("partial", manifest.get("partial")),
@@ -1218,7 +1254,9 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
         "assets": checkpoint_assets(checkpoints, workspace_root),
         "manifest_path": str(manifest_path),
         "ledger_path": str(ledger_path),
+        "evidence_metrics": evidence_metrics,
     } | delivery_summary(ledger) | optional_task_inspect_fields(ledger)
+    return 0, base_summary | trace_repair_decision(evidence_metrics)
 
 
 def list_runs(workspace: Path) -> dict:
@@ -1305,6 +1343,13 @@ def main(argv: list[str] | None = None) -> int:
             return launch_shell(config_from_args(args))
         except (FileNotFoundError, RuntimeError) as exc:
             parser.error(str(exc))
+
+    if args.subcommand == "shell-status":
+        from onecode.shell_launcher import config_from_args, shell_status
+
+        result = shell_status(config_from_args(args))
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return 0 if result["status"] == "ok" else 1
 
     if args.subcommand == "doctor":
         result = run_doctor()

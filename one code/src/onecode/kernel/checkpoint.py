@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import fcntl
+import re
 import threading
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -11,6 +12,7 @@ from collections.abc import Iterator
 from typing import Any
 
 from onecode.kernel.context import OneCodeContext
+from onecode.kernel.evidence_policy import classify_event
 from onecode.kernel.hexagram import HexagramStatusCode
 from onecode.kernel.wal import wal_entry_hash
 
@@ -307,10 +309,15 @@ def global_wal_entry(context: OneCodeContext, result: dict[str, Any]) -> dict[st
     profile_hash = compact_profile.get("profile_sha256")
     profile_ref = compact_profile.get("profile_registry_ref")
     evidence_mode = result.get("evidence_mode", "full")
+    event_family = str(result.get("event_type") or result.get("intent_type") or "task_finalization")
+    classification = classify_event(event_family)
     entry = {
         "v": 1,
         "ts": utc_now_iso(),
         "em": evidence_mode,
+        "rt": str(classification.risk_tier),
+        "cm": str(classification.capture_mode),
+        "cr": classification.reason,
         "rid": result.get("run_id"),
         "st": result.get("status"),
         "pc": bool(result.get("partial")),
@@ -464,6 +471,126 @@ def resume_audit_events_summary(context: OneCodeContext) -> list[dict[str, Any]]
     return list(context.resume_state.audit_events)
 
 
+DOMAIN_PROJECTION_REQUIRED_KEYS = {
+    "schema_id",
+    "entity_id_hash",
+    "from_state",
+    "to_state",
+    "decision_id",
+    "decision_hash",
+    "evidence_refs",
+}
+
+DOMAIN_PROJECTION_FORBIDDEN_KEYS = {
+    "branches",
+    "business_rules",
+    "compensation_rules",
+    "graph",
+    "rules",
+    "state_machine",
+    "states",
+    "transition_matrix",
+    "transitions",
+    "workflow",
+}
+
+DOMAIN_PROJECTION_MAX_TOTAL_BYTES = 2048
+DOMAIN_PROJECTION_MAX_STRING_BYTES = 192
+DOMAIN_PROJECTION_MAX_EVIDENCE_REFS = 16
+DOMAIN_PROJECTION_MAX_EVIDENCE_REF_BYTES = 160
+DOMAIN_PROJECTION_ALLOWED_REF_PREFIXES = ("trace:", "wal:", "ledger:", "checkpoint:", "artifact:")
+DOMAIN_PROJECTION_SAFE_TEXT = re.compile(r"^[A-Za-z0-9._:/=-]+$")
+MANIFEST_MAX_TOTAL_BYTES = 250_000
+MANIFEST_MAX_SECTION_BYTES = 200_000
+
+
+def validate_domain_projection(domain_projection: dict[str, Any] | None) -> dict[str, Any] | None:
+    if domain_projection is None:
+        return None
+    if not isinstance(domain_projection, dict):
+        raise ValueError("domain_projection_must_be_object")
+    forbidden = sorted(set(domain_projection) & DOMAIN_PROJECTION_FORBIDDEN_KEYS)
+    if forbidden:
+        raise ValueError(f"domain_projection_forbidden_field:{forbidden[0]}")
+    unknown = sorted(set(domain_projection) - DOMAIN_PROJECTION_REQUIRED_KEYS)
+    if unknown:
+        raise ValueError(f"domain_projection_unknown_field:{unknown[0]}")
+    missing = sorted(DOMAIN_PROJECTION_REQUIRED_KEYS - set(domain_projection))
+    if missing:
+        raise ValueError(f"domain_projection_missing_field:{missing[0]}")
+    if json_size_bytes(domain_projection) > DOMAIN_PROJECTION_MAX_TOTAL_BYTES:
+        raise ValueError("domain_projection_too_large")
+    for key in (
+        "schema_id",
+        "entity_id_hash",
+        "from_state",
+        "to_state",
+        "decision_id",
+        "decision_hash",
+    ):
+        if not isinstance(domain_projection.get(key), str) or not domain_projection[key].strip():
+            raise ValueError(f"domain_projection_invalid_field:{key}")
+        if len(domain_projection[key].encode("utf-8")) > DOMAIN_PROJECTION_MAX_STRING_BYTES:
+            raise ValueError(f"domain_projection_field_too_large:{key}")
+        if not DOMAIN_PROJECTION_SAFE_TEXT.fullmatch(domain_projection[key]):
+            raise ValueError(f"domain_projection_invalid_charset:{key}")
+    evidence_refs = domain_projection.get("evidence_refs")
+    if not isinstance(evidence_refs, list) or not all(isinstance(ref, str) and ref.strip() for ref in evidence_refs):
+        raise ValueError("domain_projection_invalid_field:evidence_refs")
+    if len(evidence_refs) > DOMAIN_PROJECTION_MAX_EVIDENCE_REFS:
+        raise ValueError("domain_projection_too_many_evidence_refs")
+    for ref in evidence_refs:
+        if len(ref.encode("utf-8")) > DOMAIN_PROJECTION_MAX_EVIDENCE_REF_BYTES:
+            raise ValueError("domain_projection_evidence_ref_too_large")
+        if not ref.startswith(DOMAIN_PROJECTION_ALLOWED_REF_PREFIXES):
+            raise ValueError("domain_projection_invalid_evidence_ref")
+    return dict(domain_projection)
+
+
+def json_size_bytes(value: Any) -> int:
+    return len(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+
+
+def manifest_size_metrics(manifest: dict[str, Any]) -> dict[str, Any]:
+    manifest_without_metrics = {key: value for key, value in manifest.items() if key != "manifest_metrics"}
+    section_sizes = {key: json_size_bytes(value) for key, value in sorted(manifest_without_metrics.items())}
+    largest_field_bytes = max(section_sizes.values(), default=0)
+    referenced_bytes = 0
+    for checkpoint in manifest_without_metrics.get("checkpoints", []):
+        if isinstance(checkpoint, dict):
+            for key in ("path", "sha256"):
+                value = checkpoint.get(key)
+                if isinstance(value, str):
+                    referenced_bytes += len(value.encode("utf-8"))
+    domain_projection = manifest_without_metrics.get("domain_projection")
+    if isinstance(domain_projection, dict):
+        for ref in domain_projection.get("evidence_refs", []):
+            if isinstance(ref, str):
+                referenced_bytes += len(ref.encode("utf-8"))
+    embedded_bytes = json_size_bytes(manifest_without_metrics)
+    ratio = embedded_bytes / referenced_bytes if referenced_bytes else None
+    return {
+        "total_bytes": embedded_bytes,
+        "section_sizes": section_sizes,
+        "largest_field_bytes": largest_field_bytes,
+        "domain_projection_count": 1 if isinstance(domain_projection, dict) else 0,
+        "referenced_artifact_bytes": referenced_bytes,
+        "embedded_payload_bytes": embedded_bytes,
+        "embedded_to_referenced_bytes_ratio": ratio,
+    }
+
+
+def validate_manifest_metrics(metrics: dict[str, Any]) -> None:
+    total_bytes = metrics.get("total_bytes")
+    if isinstance(total_bytes, int) and total_bytes > MANIFEST_MAX_TOTAL_BYTES:
+        raise ValueError("manifest_metrics_total_bytes_exceeded")
+    section_sizes = metrics.get("section_sizes")
+    if isinstance(section_sizes, dict):
+        for key, value in section_sizes.items():
+            if isinstance(value, int) and value > MANIFEST_MAX_SECTION_BYTES:
+                raise ValueError(f"manifest_metrics_section_bytes_exceeded:{key}")
+
+
 def write_checkpoint(
     context: OneCodeContext,
     payload: dict[str, Any],
@@ -479,12 +606,18 @@ def write_checkpoint(
     iching_profile: dict[str, Any] | None = None,
     duration_ms: int = 0,
     run_control: dict[str, Any] | None = None,
+    domain_projection: dict[str, Any] | None = None,
 ) -> Path:
     with run_evidence_write_lock(context.evidence_root):
         existing_manifest = read_manifest(context.manifest_path)
         existing_checkpoints = []
         if existing_manifest is not None:
             existing_checkpoints = list(existing_manifest.get("checkpoints", []))
+        evidence_domain_projection = validate_domain_projection(
+            domain_projection
+            if domain_projection is not None
+            else existing_manifest.get("domain_projection") if existing_manifest else None
+        )
 
         turn_number = len(existing_checkpoints) + 1
         checkpoint_path = context.evidence_root / "checkpoints" / f"{turn_number:04d}.json"
@@ -554,6 +687,7 @@ def write_checkpoint(
             if patch_evidence:
                 checkpoint_record["patch_evidence"] = patch_evidence
         manifest = {
+            "manifest_schema_version": 1,
             "run_id": context.run_id,
             "created_at": existing_manifest.get("created_at") if existing_manifest else utc_now_iso(),
             "updated_at": utc_now_iso(),
@@ -572,6 +706,11 @@ def write_checkpoint(
             "resume_audit_events": resume_audit_events,
             "checkpoints": existing_checkpoints + [checkpoint_record],
         }
+        if evidence_domain_projection is not None:
+            manifest["domain_projection"] = evidence_domain_projection
+        manifest_metrics = manifest_size_metrics(manifest)
+        validate_manifest_metrics(manifest_metrics)
+        manifest["manifest_metrics"] = manifest_metrics
         atomic_write_json(context.manifest_path, manifest)
         return checkpoint_path
 

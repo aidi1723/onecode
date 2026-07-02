@@ -445,6 +445,45 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(payload["shell_projection"]["delivery_state"]["status"], "deliverable")
         self.assertEqual(payload["shell_projection"]["rule_state"]["status_code"], payload["iching_status_code"])
 
+    def test_onecode_inspect_endpoint_projects_trace_gap_repair_gate_for_shell(self):
+        from onecode.kernel.runner import run_task
+        from onecode.web.api import handle_onecode_run_inspect
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            run_task("gap api", workspace=workspace, run_id="inspect-gap-api", write_path="gap.txt", write_content="ok\n")
+            trace_path = workspace / ".onecode" / "runs" / "inspect-gap-api" / "trace.jsonl"
+            events = [json.loads(line) for line in trace_path.read_text(encoding="utf-8").splitlines()]
+            aggregate = next(event for event in events if event.get("capture_mode") == "aggregate")
+            later = dict(aggregate)
+            aggregate["payload"] = {
+                **aggregate["payload"],
+                "first_timestamp": "2026-06-03T00:00:00+00:00",
+                "last_timestamp": "2026-06-03T00:00:01+00:00",
+            }
+            later["span_id"] = "progress_tick-aggregate-api-2"
+            later["payload"] = {
+                **later["payload"],
+                "first_timestamp": "2026-06-03T00:15:00+00:00",
+                "last_timestamp": "2026-06-03T00:15:01+00:00",
+            }
+            events.insert(events.index(aggregate) + 1, later)
+            trace_path.write_text(
+                "\n".join(json.dumps(event, ensure_ascii=False, sort_keys=True) for event in events) + "\n",
+                encoding="utf-8",
+            )
+            payload, status = handle_onecode_run_inspect("inspect-gap-api", {"workspace": tmp})
+
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["repair_required"])
+        self.assertEqual(payload["next_action"], "repair")
+        self.assertEqual(payload["shell_projection"]["next_action"], "repair")
+        self.assertEqual(payload["shell_projection"]["delivery_state"]["status"], "blocked")
+
     def test_onecode_resume_endpoint_runs_model_with_resume_from_run_id(self):
         from onecode.web.api import handle_onecode_run_resume
 
@@ -718,6 +757,67 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["summary"]["run_id"], "evidence-wal-old-api")
         self.assertEqual(payload["wal_path"], str(archive_path.resolve()))
+
+    def test_onecode_metrics_endpoint_returns_control_plane_wal_summary_without_raw_entries(self):
+        from onecode.kernel.runner import run_task
+        from onecode.web.api import handle_onecode_metrics
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            run_task(
+                "wal metrics",
+                workspace=Path(tmp),
+                run_id="metrics-wal-api",
+                completed_evidence_mode="wal",
+                evidence_durability="relaxed",
+            )
+            payload, status = handle_onecode_metrics({"workspace": tmp, "window_seconds": "30"})
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["workspace"], str(Path(tmp).resolve()))
+        self.assertEqual(payload["control_plane"]["scope"], "summary")
+        self.assertFalse(payload["control_plane"]["raw_entries_included"])
+        self.assertEqual(payload["global_wal_summary"]["window_seconds"], 30)
+        self.assertGreaterEqual(payload["global_wal_summary"]["entry_count"], 1)
+        self.assertGreaterEqual(len(payload["global_wal_summary"]["windows"]), 1)
+        self.assertNotIn("entries", payload["global_wal_summary"])
+        self.assertNotIn("raw_entries", payload["global_wal_summary"])
+
+    def test_http_server_serves_onecode_metrics_endpoint(self):
+        from onecode.kernel.runner import run_task
+        from onecode.web.api import OneCodeRequestHandler
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_API_TOKEN": "test-token",
+            },
+            clear=True,
+        ):
+            run_task(
+                "wal metrics route",
+                workspace=Path(tmp),
+                run_id="metrics-route-api",
+                completed_evidence_mode="wal",
+                evidence_durability="relaxed",
+            )
+            with local_test_server(OneCodeRequestHandler) as (_server, base_url):
+                request = Request(
+                    f"{base_url}/v1/onecode/metrics?workspace={tmp}&window_seconds=45",
+                    headers={"Authorization": "Bearer test-token"},
+                )
+                with urlopen(request, timeout=5) as response:
+                    status = response.status
+                    payload = json.loads(response.read().decode("utf-8"))
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["global_wal_summary"]["window_seconds"], 45)
+        self.assertFalse(payload["control_plane"]["raw_entries_included"])
 
     def test_chat_completion_payload_is_json_serializable(self):
         from onecode.web.api import chat_completion_payload

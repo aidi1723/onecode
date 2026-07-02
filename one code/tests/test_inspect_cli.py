@@ -268,10 +268,53 @@ class InspectCliTests(unittest.TestCase):
             self.assertEqual(summary["checkpoint_count"], 2)
             self.assertTrue(Path(summary["manifest_path"]).exists())
             self.assertTrue(Path(summary["ledger_path"]).exists())
+            self.assertIn("trace", summary["evidence_metrics"])
+            self.assertGreater(summary["evidence_metrics"]["trace"]["total_bytes"], 0)
             self.assertIn("iching_status_code", summary)
             self.assertEqual(summary["shell_projection"]["run_id"], "inspect-run")
             self.assertEqual(summary["shell_projection"]["severity"], "ok")
             self.assertEqual(summary["shell_projection"]["evidence_ref"]["mode"], "full")
+
+    def test_cli_inspect_blocks_delivery_when_trace_aggregate_gap_requires_repair(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            run_task(
+                "inspect gap",
+                workspace=workspace,
+                run_id="inspect-gap",
+                write_path="src/gap.py",
+                write_content="GAP = True\n",
+            )
+            trace_path = workspace / ".onecode" / "runs" / "inspect-gap" / "trace.jsonl"
+            events = [json.loads(line) for line in trace_path.read_text(encoding="utf-8").splitlines()]
+            aggregate = next(event for event in events if event.get("capture_mode") == "aggregate")
+            second_aggregate = dict(aggregate)
+            second_aggregate["span_id"] = "progress_tick-aggregate-2"
+            second_aggregate["payload"] = {
+                **aggregate["payload"],
+                "first_timestamp": "2026-06-03T00:20:00+00:00",
+                "last_timestamp": "2026-06-03T00:20:01+00:00",
+            }
+            aggregate["payload"] = {
+                **aggregate["payload"],
+                "first_timestamp": "2026-06-03T00:00:00+00:00",
+                "last_timestamp": "2026-06-03T00:00:01+00:00",
+            }
+            events.insert(events.index(aggregate) + 1, second_aggregate)
+            trace_path.write_text(
+                "\n".join(json.dumps(event, ensure_ascii=False, sort_keys=True) for event in events) + "\n",
+                encoding="utf-8",
+            )
+
+            exit_code, summary = inspect_run(workspace, "inspect-gap")
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(summary["status"], "completed")
+            self.assertEqual(summary["delivery_status"], "blocked")
+            self.assertEqual(summary["next_action"], "repair")
+            self.assertTrue(summary["repair_required"])
+            self.assertEqual(summary["repair_reason"], "trace_aggregate_gap")
+            self.assertEqual(summary["evidence_metrics"]["trace"]["aggregate_gap_count"], 1)
 
     def test_cli_inspect_prints_wal_only_run_summary(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -327,6 +370,8 @@ class InspectCliTests(unittest.TestCase):
             self.assertIsNone(summary["manifest_path"])
             self.assertIsNone(summary["ledger_path"])
             self.assertTrue(Path(summary["wal_path"]).exists())
+            self.assertEqual(summary["evidence_metrics"]["global_wal"]["entry_count"], 1)
+            self.assertEqual(summary["evidence_metrics"]["global_wal"]["entries_by_capture_mode"]["full"], 1)
             self.assertIn("profile_sha256", summary)
             self.assertEqual(summary["shell_projection"]["run_id"], "inspect-wal")
             self.assertEqual(summary["shell_projection"]["severity"], "ok")
