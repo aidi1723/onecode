@@ -933,9 +933,8 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
                 return
-            body = self._read_json()
+            body = self._read_json_or_send_error()
             if body is None:
-                self._send_json(error_payload("invalid_json", "request body must be valid JSON"), status_code=400)
                 return
             payload, status_code = handle_onecode_project_init(body)
             self._send_json(payload, status_code=status_code)
@@ -944,9 +943,8 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
                 return
-            body = self._read_json()
+            body = self._read_json_or_send_error()
             if body is None:
-                self._send_json(error_payload("invalid_json", "request body must be valid JSON"), status_code=400)
                 return
             run_id = path.removeprefix("/v1/onecode/runs/").removesuffix("/resume").strip("/")
             payload, status_code = handle_onecode_run_resume(run_id, body)
@@ -956,9 +954,8 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
                 return
-            body = self._read_json()
+            body = self._read_json_or_send_error()
             if body is None:
-                self._send_json(error_payload("invalid_json", "request body must be valid JSON"), status_code=400)
                 return
             payload, status_code = handle_onecode_verifier_policy_write(body)
             self._send_json(payload, status_code=status_code)
@@ -967,9 +964,8 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
                 return
-            body = self._read_json()
+            body = self._read_json_or_send_error()
             if body is None:
-                self._send_json(error_payload("invalid_json", "request body must be valid JSON"), status_code=400)
                 return
             payload, status_code = handle_onecode_model_config_write(body)
             self._send_json(payload, status_code=status_code)
@@ -978,9 +974,8 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
                 return
-            body = self._read_json()
+            body = self._read_json_or_send_error()
             if body is None:
-                self._send_json(error_payload("invalid_json", "request body must be valid JSON"), status_code=400)
                 return
             payload, status_code = handle_onecode_models_discover(body)
             self._send_json(payload, status_code=status_code)
@@ -989,9 +984,8 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
                 return
-            body = self._read_json()
+            body = self._read_json_or_send_error()
             if body is None:
-                self._send_json(error_payload("invalid_json", "request body must be valid JSON"), status_code=400)
                 return
             payload, status_code = handle_onecode_gateway_adjudicate(body)
             self._send_json(payload, status_code=status_code)
@@ -1016,9 +1010,8 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
         if not self._authorized():
             self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
             return
-        body = self._read_json()
+        body = self._read_json_or_send_error()
         if body is None:
-            self._send_json(error_payload("invalid_json", "request body must be valid JSON"), status_code=400)
             return
         payload, status_code = handle_chat_completion(body)
         if status_code == 200 and body.get("stream") is True:
@@ -1041,13 +1034,17 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
         )
 
     def _read_json(self) -> dict[str, Any] | None:
-        length = int(self.headers.get("content-length", "0") or "0")
-        raw = self.rfile.read(length)
-        try:
-            value = json.loads(raw.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            return None
-        return value if isinstance(value, dict) else None
+        return read_json_request_body(self.headers, self.rfile).payload
+
+    def _read_json_or_send_error(self) -> dict[str, Any] | None:
+        result = read_json_request_body(self.headers, self.rfile)
+        if result.payload is not None:
+            return result.payload
+        self._send_json(
+            error_payload(result.error_type or "invalid_json", result.error_message or "request body must be valid JSON"),
+            status_code=result.status_code,
+        )
+        return None
 
     def _send_json(self, payload: dict[str, Any], status_code: int = 200) -> None:
         encoded = encode_json_payload(payload)
