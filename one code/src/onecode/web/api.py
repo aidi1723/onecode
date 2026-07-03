@@ -42,6 +42,7 @@ from onecode.kernel.verifier import (
     write_verifier_policy,
 )
 from onecode.web.request_body import JsonRequestBody, max_request_bytes, read_json_request_body
+from onecode.web.responses import encode_json_payload, error_payload
 
 
 DEFAULT_MODEL_ID = "onecode-agent"
@@ -526,10 +527,6 @@ def message_content_to_text(content: Any) -> str:
                     parts.append(text)
         return "\n".join(parts)
     return ""
-
-
-def error_payload(error_type: str, message: str) -> dict[str, Any]:
-    return {"error": {"type": error_type, "message": message}}
 
 
 def should_run_onecode_task(user_message: str) -> bool:
@@ -1164,7 +1161,7 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
         return None
 
     def _send_json(self, payload: dict[str, Any], status_code: int = 200) -> None:
-        encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        encoded = encode_json_payload(payload)
         self.send_response(status_code)
         self.send_header("content-type", "application/json; charset=utf-8")
         self.send_header("content-length", str(len(encoded)))

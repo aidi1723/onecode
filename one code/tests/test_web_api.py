@@ -200,6 +200,15 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(payload["error"]["type"], "invalid_request")
         self.assertEqual(payload["error"]["message"], "bad request")
 
+    def test_responses_module_encodes_json_payload(self):
+        from onecode.web.responses import encode_json_payload, error_payload
+
+        payload = error_payload("invalid_request", "bad request")
+        encoded = encode_json_payload(payload)
+
+        self.assertEqual(payload, {"error": {"type": "invalid_request", "message": "bad request"}})
+        self.assertEqual(encoded, b'{"error": {"type": "invalid_request", "message": "bad request"}}')
+
     def test_chat_completion_rejects_missing_user_message(self):
         from onecode.web.api import handle_chat_completion
 
