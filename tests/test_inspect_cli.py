@@ -16,6 +16,14 @@ from tests.test_run_plan_cli import FakeRepairProvider
 
 
 class InspectCliTests(unittest.TestCase):
+    def test_cli_inspect_module_exports_inspect_helpers(self):
+        from onecode.cli_inspect import delivery_summary, inspect_run, list_runs, read_global_wal_segment
+
+        self.assertTrue(callable(delivery_summary))
+        self.assertTrue(callable(inspect_run))
+        self.assertTrue(callable(list_runs))
+        self.assertTrue(callable(read_global_wal_segment))
+
     def test_cli_inspect_reports_verifier_task_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
