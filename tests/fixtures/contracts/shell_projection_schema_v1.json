@@ -1,0 +1,118 @@
+{
+  "fields": {
+    "compact_message": {
+      "description": "Single-line human-readable summary.",
+      "type": "string"
+    },
+    "control_state": {
+      "fields": [
+        "project_context_status",
+        "runtime_config_status",
+        "recovery_action"
+      ],
+      "type": "object"
+    },
+    "delivery_state": {
+      "fields": [
+        "status",
+        "next_action",
+        "requested_count",
+        "completed_count",
+        "skipped_count",
+        "failed_count"
+      ],
+      "type": "object"
+    },
+    "evidence_ref": {
+      "fields": [
+        "mode",
+        "ledger_path",
+        "manifest_path",
+        "trace_path",
+        "wal_path",
+        "corrupt_path",
+        "profile_sha256"
+      ],
+      "type": "object"
+    },
+    "next_action": {
+      "description": "Recommended shell action.",
+      "type": "string"
+    },
+    "resume_state": {
+      "fields": [
+        "resumed",
+        "resumed_from"
+      ],
+      "type": "object"
+    },
+    "rule_state": {
+      "fields": [
+        "status_code",
+        "transition_action",
+        "transition_reason",
+        "dispatch_decision"
+      ],
+      "type": "object"
+    },
+    "run_id": {
+      "description": "OneCode run identifier.",
+      "type": "string|null"
+    },
+    "severity": {
+      "description": "Shell-facing status severity.",
+      "type": "string",
+      "values": [
+        "blocked",
+        "corrupt",
+        "missing",
+        "ok",
+        "warning"
+      ]
+    },
+    "status_label": {
+      "description": "Raw run status normalized for shell display.",
+      "type": "string"
+    },
+    "version": {
+      "description": "Shell projection schema version.",
+      "type": "integer"
+    }
+  },
+  "name": "onecode.shell_projection",
+  "nested_fields": {
+    "control_state": [
+      "project_context_status",
+      "runtime_config_status",
+      "recovery_action"
+    ],
+    "delivery_state": [
+      "status",
+      "next_action",
+      "requested_count",
+      "completed_count",
+      "skipped_count",
+      "failed_count"
+    ],
+    "evidence_ref": [
+      "mode",
+      "ledger_path",
+      "manifest_path",
+      "trace_path",
+      "wal_path",
+      "corrupt_path",
+      "profile_sha256"
+    ],
+    "resume_state": [
+      "resumed",
+      "resumed_from"
+    ],
+    "rule_state": [
+      "status_code",
+      "transition_action",
+      "transition_reason",
+      "dispatch_decision"
+    ]
+  },
+  "version": 1
+}

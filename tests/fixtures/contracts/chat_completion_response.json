@@ -1,0 +1,73 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "done",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1234567890,
+  "id": "onecode-fixture-run",
+  "model": "onecode-agent",
+  "object": "chat.completion",
+  "onecode": {
+    "mode": "model",
+    "result": {
+      "completed_count": 1,
+      "failed_count": 0,
+      "ledger_path": "/tmp/onecode/ledger.json",
+      "requested_count": 1,
+      "run_id": "fixture-run",
+      "skipped_count": 0,
+      "status": "completed"
+    },
+    "summary": {
+      "compact_message": "OneCode run fixture-run: completed; severity=ok; next=idle; evidence=full",
+      "control_state": {
+        "project_context_status": null,
+        "recovery_action": null,
+        "runtime_config_status": null
+      },
+      "delivery_state": {
+        "completed_count": 1,
+        "failed_count": 0,
+        "next_action": null,
+        "requested_count": 1,
+        "skipped_count": 0,
+        "status": null
+      },
+      "evidence_ref": {
+        "corrupt_path": null,
+        "ledger_path": "/tmp/onecode/ledger.json",
+        "manifest_path": null,
+        "mode": "full",
+        "profile_sha256": null,
+        "trace_path": null,
+        "wal_path": null
+      },
+      "next_action": "idle",
+      "resume_state": {
+        "resumed": null,
+        "resumed_from": null
+      },
+      "rule_state": {
+        "dispatch_decision": null,
+        "status_code": null,
+        "transition_action": null,
+        "transition_reason": null
+      },
+      "run_id": "fixture-run",
+      "severity": "ok",
+      "status_label": "completed",
+      "version": 1
+    }
+  },
+  "usage": {
+    "completion_tokens": 0,
+    "prompt_tokens": 0,
+    "total_tokens": 0
+  }
+}
