@@ -3,9 +3,6 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import urllib.error
-import urllib.request
-import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -20,14 +17,12 @@ from onecode.kernel.model_config import (
     write_model_config,
 )
 from onecode.kernel.gateway_engine import adjudicate_gateway_prediction, validate_assistant_content
-from onecode.kernel.model_provider import MissingModelApiKey, ModelProviderError, api_key_from_env, build_provider_config
+from onecode.kernel.model_provider import MissingModelApiKey, ModelProviderError
 from onecode.kernel.project_context import discover_project_context
-from onecode.kernel.runner import run_task
 from onecode.kernel.self_audit import audit_self
 from onecode.kernel.shell_projection import (
     attach_shell_projection,
     attach_shell_projection_to_runs_payload,
-    project_run_to_shell,
     shell_projection_schema,
 )
 from onecode.kernel.runtime_config import inspect_runtime_config
@@ -38,6 +33,18 @@ from onecode.kernel.verifier import (
     write_verifier_policy,
 )
 from onecode.web.auth import LOOPBACK_HOSTS, request_authorized
+from onecode.web.chat import (
+    DEFAULT_MODEL_ID,
+    chat_completion_payload,
+    direct_chat_completion,
+    format_run_result,
+    handle_chat_completion,
+    latest_user_message,
+    message_content_to_text,
+    run_light_task,
+    should_run_onecode_task,
+)
+from onecode.web.gateway_console import gateway_console_html
 from onecode.web.request_body import JsonRequestBody, max_request_bytes, read_json_request_body
 from onecode.web.responses import encode_json_payload, error_payload
 from onecode.web.workspace import (
@@ -48,36 +55,6 @@ from onecode.web.workspace import (
     workspace_from_request,
     workspace_from_value,
 )
-
-
-DEFAULT_MODEL_ID = "onecode-agent"
-DIRECT_CHAT_SYSTEM_PROMPT = (
-    "你是 OneCode agent 的对话脑。直接回答用户的问题。"
-    "当用户要求改文件、写代码到项目、执行命令、检查仓库或生成落盘产物时，说明需要 OneCode 执行任务。"
-    "其它数学、理论、解释、设计和普通问答都用自然语言回答。"
-)
-TASK_PREFIXES = (
-    "查：",
-    "造：",
-    "改：",
-    "写：",
-    "跑：",
-    "执行：",
-    "修：",
-    "测试：",
-)
-TASK_MARKERS = (
-    "修改",
-    "创建",
-    "生成文件",
-    "写入",
-    "检查项目",
-    "检查仓库",
-    "修复",
-    "patch",
-    "commit",
-)
-PATH_MARKERS = ("src/", "tests/", ".py", ".js", ".ts", ".tsx", ".md", ".json", ".yaml", ".yml")
 
 
 def build_models_payload() -> dict[str, Any]:
@@ -417,384 +394,6 @@ def handle_onecode_run_evidence(run_id: str, params: dict[str, Any]) -> tuple[di
         "manifest_error": manifest_error,
         "checkpoints": checkpoints,
     }, 200
-
-
-def message_content_to_text(content: Any) -> str:
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts = []
-        for item in content:
-            if isinstance(item, dict) and item.get("type") == "text":
-                text = item.get("text")
-                if isinstance(text, str):
-                    parts.append(text)
-        return "\n".join(parts)
-    return ""
-
-
-def should_run_onecode_task(user_message: str) -> bool:
-    stripped = user_message.strip()
-    lowered = stripped.lower()
-    if any(marker in stripped for marker in ("吗", "？", "?")) and not any(marker in lowered for marker in PATH_MARKERS):
-        return False
-    if stripped.startswith(TASK_PREFIXES):
-        return True
-    if any(marker in lowered for marker in PATH_MARKERS):
-        return True
-    return any(marker in stripped for marker in TASK_MARKERS)
-
-
-def direct_chat_completion(
-    messages: list[dict[str, Any]],
-    *,
-    model: str,
-    provider_kind: str,
-    endpoint: str | None,
-    api_key: str | None = None,
-    timeout_seconds: float = 60,
-) -> str:
-    config = build_provider_config(provider_kind, endpoint=endpoint, model=model)
-    resolved_api_key = api_key if api_key is not None else api_key_from_env(provider_kind=provider_kind)
-    if resolved_api_key is None:
-        raise MissingModelApiKey(f"{config.env_key} is required for direct chat")
-    chat_messages = [{"role": "system", "content": DIRECT_CHAT_SYSTEM_PROMPT}]
-    for message in messages:
-        if not isinstance(message, dict) or message.get("role") not in {"user", "assistant", "system"}:
-            continue
-        content = message_content_to_text(message.get("content"))
-        if content.strip():
-            chat_messages.append({"role": message["role"], "content": content})
-    body = json.dumps({"model": config.model, "messages": chat_messages}).encode("utf-8")
-    request = urllib.request.Request(
-        config.endpoint,
-        data=body,
-        headers={"Authorization": f"Bearer {resolved_api_key}", "Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except TimeoutError as exc:
-        raise TimeoutError("direct chat request timed out") from exc
-    except urllib.error.URLError as exc:
-        raise ModelProviderError(f"direct chat request failed: {exc.reason}") from exc
-    except json.JSONDecodeError as exc:
-        raise ModelProviderError("direct chat response was not valid JSON") from exc
-    if not isinstance(payload, dict):
-        raise ModelProviderError("direct chat response must be an object")
-    choices = payload.get("choices")
-    if not isinstance(choices, list) or not choices:
-        raise ModelProviderError("direct chat response missing choices")
-    message = choices[0].get("message") if isinstance(choices[0], dict) else None
-    content = message.get("content") if isinstance(message, dict) else None
-    if not isinstance(content, str) or content.strip() == "":
-        raise ModelProviderError("direct chat response missing message content")
-    return content
-
-
-def chat_completion_payload(
-    content: str,
-    model: str,
-    run_result: dict[str, Any],
-    mode: str,
-) -> dict[str, Any]:
-    created = int(time.time())
-    summary = project_run_to_shell(run_result)
-    return {
-        "id": f"onecode-{run_result.get('run_id') or created}",
-        "object": "chat.completion",
-        "created": created,
-        "model": model or DEFAULT_MODEL_ID,
-        "choices": [
-            {
-                "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": content,
-                },
-                "finish_reason": "stop",
-            }
-        ],
-        "usage": {
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0,
-        },
-        "onecode": {
-            "mode": mode,
-            "summary": summary,
-            "result": run_result,
-        },
-    }
-
-
-def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
-    user_message = latest_user_message(body.get("messages"))
-    if user_message.strip() == "":
-        return error_payload("invalid_request", "messages must include a user message"), 400
-
-    try:
-        workspace = workspace_from_request(body)
-    except ValueError as exc:
-        return error_payload("invalid_workspace", str(exc)), 400
-    model = str(body.get("model") or DEFAULT_MODEL_ID)
-    execution_model = model
-    stored_config = read_model_config(include_secret=True)
-    if execution_model == DEFAULT_MODEL_ID:
-        execution_model = os.getenv("ONECODE_MODEL") or os.getenv("OPENAI_MODEL") or stored_config.get("model") or None
-    provider_kind = os.getenv("ONECODE_MODEL_PROVIDER") or stored_config.get("provider") or "responses"
-    endpoint = os.getenv("ONECODE_MODEL_ENDPOINT") or stored_config.get("endpoint") or None
-    stored_api_key = stored_config.get("api_key") if isinstance(stored_config.get("api_key"), str) else None
-    run_id = body.get("metadata", {}).get("run_id") if isinstance(body.get("metadata"), dict) else None
-    if not should_run_onecode_task(user_message):
-        try:
-            content = direct_chat_completion(
-                body.get("messages") if isinstance(body.get("messages"), list) else [],
-                model=execution_model,
-                provider_kind=provider_kind,
-                endpoint=endpoint,
-                api_key=stored_api_key,
-            )
-        except MissingModelApiKey:
-            result = run_light_task(
-                user_message,
-                workspace=workspace,
-                run_id=str(run_id) if run_id else None,
-            )
-            return chat_completion_payload(format_run_result(result, "chat_fallback"), model, result, "chat_fallback"), 200
-        except ModelProviderError as exc:
-            result = run_light_task(
-                user_message,
-                workspace=workspace,
-                run_id=str(run_id) if run_id else None,
-            )
-            return chat_completion_payload(
-                f"{format_run_result(result, 'chat_fallback')}\n\n模型直连失败：{exc}",
-                model,
-                result,
-                "chat_fallback",
-            ), 200
-        return chat_completion_payload(content, model, {"status": "completed", "run_id": run_id}, "chat"), 200
-
-    try:
-        result = run_model_task(
-            user_message,
-            workspace=workspace,
-            run_id=str(run_id) if run_id else None,
-            model=execution_model,
-            api_key=stored_api_key,
-            provider_kind=provider_kind,
-            endpoint=endpoint,
-        )
-        mode = "model"
-    except MissingModelApiKey:
-        result = run_light_task(
-            user_message,
-            workspace=workspace,
-            run_id=str(run_id) if run_id else None,
-        )
-        mode = "rule_fallback"
-    except ValueError as exc:
-        if "plan must include at least one asset" not in str(exc):
-            return error_payload("invalid_model_plan", str(exc)), 502
-        result = run_light_task(
-            user_message,
-            workspace=workspace,
-            run_id=str(run_id) if run_id else None,
-        )
-        mode = "chat_fallback"
-    except ModelProviderError as exc:
-        return error_payload("model_provider_error", str(exc)), 502
-
-    content = format_run_result(result, mode)
-    return chat_completion_payload(content, model, result, mode), 200
-
-
-def format_run_result(result: dict[str, Any], mode: str) -> str:
-    if mode == "chat_fallback":
-        return (
-            "我收到了这条消息，但模型没有生成文件变更或执行计划。"
-            "这次已记录为普通 OneCode 对话运行；如果你要我改代码或写文件，请明确说明目标文件和期望内容。"
-        )
-    projection = project_run_to_shell(result)
-    evidence_ref = projection["evidence_ref"]
-    lines = [
-        f"{projection['compact_message']} ({mode} mode).",
-    ]
-    ledger_path = evidence_ref.get("ledger_path")
-    wal_path = evidence_ref.get("wal_path")
-    if ledger_path is not None:
-        lines.append(f"Evidence ledger: `{ledger_path}`.")
-    elif wal_path is not None:
-        lines.append(f"Evidence WAL: `{wal_path}`.")
-    return "\n".join(lines)
-
-
-def gateway_console_html() -> str:
-    return """<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>OneCode Shell</title>
-  <style>
-    :root {
-      color-scheme: dark;
-      --bg: #101010;
-      --panel: #171717;
-      --panel-2: #202020;
-      --text: #f2f0ec;
-      --muted: #a8a29a;
-      --accent: #f59e0b;
-      --accent-2: #38bdf8;
-      --danger: #fb7185;
-      --border: #3f3a33;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
-      font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    }
-    main {
-      width: min(980px, calc(100vw - 32px));
-      margin: 0 auto;
-      padding: 32px 0;
-    }
-    .shell {
-      border: 1px solid var(--accent);
-      background: var(--panel);
-      padding: 20px;
-    }
-    header {
-      display: flex;
-      justify-content: space-between;
-      gap: 16px;
-      align-items: flex-start;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 16px;
-      margin-bottom: 18px;
-    }
-    h1 {
-      margin: 0 0 6px;
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: 0;
-    }
-    .muted { color: var(--muted); }
-    .badge {
-      border: 1px solid var(--border);
-      background: var(--panel-2);
-      color: var(--accent);
-      padding: 4px 8px;
-      white-space: nowrap;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-    }
-    label {
-      display: block;
-      color: var(--muted);
-      margin-bottom: 6px;
-    }
-    textarea, pre {
-      width: 100%;
-      min-height: 170px;
-      margin: 0;
-      border: 1px solid var(--border);
-      background: #0b0b0b;
-      color: var(--text);
-      padding: 12px;
-      font: inherit;
-      overflow: auto;
-    }
-    textarea { resize: vertical; }
-    .actions {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin: 14px 0;
-    }
-    button, a.button {
-      border: 1px solid var(--accent);
-      background: var(--accent);
-      color: #1c1203;
-      padding: 9px 12px;
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
-      text-decoration: none;
-    }
-    button.secondary, a.button.secondary {
-      background: transparent;
-      color: var(--accent);
-    }
-    .status {
-      min-height: 24px;
-      color: var(--accent-2);
-    }
-    .danger { color: var(--danger); }
-    @media (max-width: 760px) {
-      header { display: block; }
-      .badge { display: inline-block; margin-top: 10px; }
-      .grid { grid-template-columns: 1fr; }
-    }
-  </style>
-</head>
-<body>
-  <main>
-    <section class="shell">
-      <header>
-        <div>
-          <h1>OneCode Shell</h1>
-          <div class="muted">Bundled browser shell for the deterministic OneCode execution kernel.</div>
-        </div>
-        <div class="badge">service: ok</div>
-      </header>
-      <div class="grid">
-        <div>
-          <label for="input">Candidate input</label>
-          <textarea id="input">User: handle this project safely
-Model candidate: ALLOW_PATCH_WITH_SHA</textarea>
-        </div>
-        <div>
-          <label for="result">Kernel result</label>
-          <pre id="result">Click "Run demo adjudication" to inspect a deterministic kernel decision.</pre>
-        </div>
-      </div>
-      <div class="actions">
-        <button id="demo" type="button">Run demo adjudication</button>
-        <a class="button secondary" href="/v1/onecode/gateway/adjudicate?demo=1">Open JSON demo</a>
-        <a class="button secondary" href="/health">Health check</a>
-      </div>
-      <div id="status" class="status">POST /v1/onecode/gateway/adjudicate</div>
-    </section>
-  </main>
-  <script>
-    const result = document.getElementById('result');
-    const status = document.getElementById('status');
-    document.getElementById('demo').addEventListener('click', async () => {
-      status.textContent = 'running...';
-      try {
-        const response = await fetch('/v1/onecode/gateway/adjudicate?demo=1');
-        const payload = await response.json();
-        result.textContent = JSON.stringify(payload, null, 2);
-        status.textContent = payload.changed ? 'changed: true' : 'changed: false';
-      } catch (error) {
-        status.textContent = 'request failed';
-        status.className = 'status danger';
-        result.textContent = String(error);
-      }
-    });
-  </script>
-</body>
-</html>
-"""
 
 
 class OneCodeRequestHandler(BaseHTTPRequestHandler):

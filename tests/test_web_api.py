@@ -41,6 +41,20 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(payload["object"], "list")
         self.assertEqual(payload["data"][0]["id"], "onecode-agent")
 
+    def test_chat_module_classifies_task_messages(self):
+        from onecode.web.chat import should_run_onecode_task
+
+        self.assertTrue(should_run_onecode_task("修改 src/onecode/web/api.py"))
+        self.assertFalse(should_run_onecode_task("你会解释数学问题吗？"))
+
+    def test_gateway_console_module_returns_html(self):
+        from onecode.web.gateway_console import gateway_console_html
+
+        html = gateway_console_html()
+
+        self.assertIn("<!doctype html>", html.lower())
+        self.assertIn("/v1/onecode/gateway/adjudicate", html)
+
     def test_onecode_shell_schema_endpoint_returns_projection_contract(self):
         from onecode.web.api import handle_onecode_shell_schema
 
@@ -221,7 +235,7 @@ class OneCodeWebApiTests(unittest.TestCase):
         from onecode.kernel.model_provider import ModelProviderError
         from onecode.web.api import handle_chat_completion
 
-        with patch("onecode.web.api.run_model_task", side_effect=ModelProviderError("model request failed: Unauthorized")):
+        with patch("onecode.web.chat.run_model_task", side_effect=ModelProviderError("model request failed: Unauthorized")):
             payload, status_code = handle_chat_completion(
                 {
                     "model": "onecode-agent",
@@ -245,7 +259,7 @@ class OneCodeWebApiTests(unittest.TestCase):
                 "OPENAI_API_KEY": "test-key",
             },
             clear=True,
-        ), patch("onecode.web.api.run_model_task", side_effect=ValueError("plan must include at least one asset")):
+        ), patch("onecode.web.chat.run_model_task", side_effect=ValueError("plan must include at least one asset")):
             payload, status_code = handle_chat_completion(
                 {
                     "model": "onecode-agent",
@@ -269,8 +283,8 @@ class OneCodeWebApiTests(unittest.TestCase):
                 "OPENAI_API_KEY": "test-key",
             },
             clear=True,
-        ), patch("onecode.web.api.run_model_task") as run_model, patch(
-            "onecode.web.api.direct_chat_completion",
+        ), patch("onecode.web.chat.run_model_task") as run_model, patch(
+            "onecode.web.chat.direct_chat_completion",
             return_value="可以。八卦可用三位二进制向量表示，例如乾=(1,1,1)，坤=(0,0,0)。",
         ) as direct_chat:
             run_model.return_value = {
@@ -303,7 +317,7 @@ class OneCodeWebApiTests(unittest.TestCase):
                 "OPENAI_API_KEY": "test-key",
             },
             clear=True,
-        ), patch("onecode.web.api.run_model_task") as run_model:
+        ), patch("onecode.web.chat.run_model_task") as run_model:
             run_model.return_value = {
                 "run_id": "model-run",
                 "status": "completed",
@@ -332,7 +346,7 @@ class OneCodeWebApiTests(unittest.TestCase):
                 "OPENAI_API_KEY": "test-key",
             },
             clear=True,
-        ), patch("onecode.web.api.run_model_task") as run_model:
+        ), patch("onecode.web.chat.run_model_task") as run_model:
             run_model.return_value = {
                 "run_id": "selected-workspace-run",
                 "status": "completed",
