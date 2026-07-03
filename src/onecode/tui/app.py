@@ -97,6 +97,16 @@ def shell_projection_for(result: dict) -> dict:
     return project_run_to_shell(result)
 
 
+def repair_summary_line(result: dict) -> str | None:
+    if not result.get("repaired"):
+        return None
+    return (
+        "  repair: "
+        f"attempts={result.get('repair_attempt_count', 0)} "
+        f"initial={result.get('initial_status')} | {result.get('initial_reason')}"
+    )
+
+
 def format_execution_trace(trace: dict) -> str:
     success = bool(trace.get("success"))
     status = "[green]completed[/green]" if success else "[red]failed[/red]"
@@ -515,7 +525,11 @@ class OneCodeApp(App):
             return
         projection = shell_projection_for(result)
         if projection.get("compact_message"):
-            self._assistant(str(projection["compact_message"]))
+            lines = [str(projection["compact_message"])]
+            repair_line = repair_summary_line(result)
+            if repair_line:
+                lines.append(repair_line)
+            self._assistant("\n".join(lines))
             return
         st = result.get("status", "?")
         rid = result.get("run_id", "?")
@@ -530,12 +544,9 @@ class OneCodeApp(App):
             lines.append(f"  action: {action} | reason: {reason}")
         if c + s + f > 0:
             lines.append(f"  completed:{c} skipped:{s} failed:{f}")
-        if result.get("repaired"):
-            lines.append(
-                "  repair: "
-                f"attempts={result.get('repair_attempt_count', 0)} "
-                f"initial={result.get('initial_status')} | {result.get('initial_reason')}"
-            )
+        repair_line = repair_summary_line(result)
+        if repair_line:
+            lines.append(repair_line)
         self._assistant("\n".join(lines))
 
     def _handle_execution_trace(self, result: dict) -> None:
