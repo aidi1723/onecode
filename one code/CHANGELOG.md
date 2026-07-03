@@ -1,5 +1,60 @@
 # Changelog
 
+## 2026-07-03 - vNext Maintenance Governance
+
+This update starts the next maintenance milestone after the project-wide
+closure pass. It focuses on making the GitHub release path reviewable and
+beginning conservative Web API decomposition without changing public behavior.
+
+### Updated and Optimized
+
+- Added a release-line audit for `feature/gateway-iching-rule-sync`, including
+  local and remote merge-base evidence, current branch tracking state, and the
+  non-destructive GitHub review path.
+- Documented that the GitHub PR limitation is caused by remote release-line
+  divergence between `origin/main` and the milestone branch, not by a code or
+  verification failure.
+- Extracted Web API request-body parsing into `onecode.web.request_body`.
+- Extracted Web API JSON response helpers into `onecode.web.responses`.
+- Extracted loopback and token authorization checks into `onecode.web.auth`.
+- Extracted workspace-root parsing and path validation into
+  `onecode.web.workspace`.
+- Preserved compatibility imports from `onecode.web.api` so existing callers
+  can continue importing the helper names from the original module.
+- Added focused regression coverage for the extracted helper modules while
+  keeping `src/onecode/web/api.py` as the route coordinator.
+
+### Documentation Added
+
+- `docs/ONECODE_VNEXT_RELEASE_LINE_AUDIT_2026-07-03.md`
+- `docs/superpowers/specs/2026-07-03-onecode-vnext-maintenance-governance-design.md`
+- `docs/superpowers/plans/2026-07-03-onecode-vnext-maintenance-governance.md`
+
+### Verification
+
+Final local verification for this update:
+
+```text
+git diff --check -- src tests docs README.md scripts CHANGELOG.md
+Result: passed
+
+PYTHONPATH=src python3 -m unittest tests.test_web_api -v
+Result: OK, 62 tests passed
+
+PYTHONPATH=src bash scripts/verify.sh
+Result: OK, 733 tests passed, 1 skipped, doctor status ok
+```
+
+### Remaining Follow-Up
+
+- Create a non-destructive sync branch from `origin/main` if GitHub still
+  rejects a PR directly from `feature/gateway-iching-rule-sync`.
+- Continue decomposing `src/onecode/web/api.py` only at stable helper or route
+  boundaries with focused regression coverage.
+- Decompose `src/onecode/cli.py` by command family in a separate milestone.
+- Keep skill integration read-only until executable skill adapters have an
+  explicit permission model, provenance contract, and approval boundary.
+
 ## 2026-07-03 - Evidence Boundary Hardening and Closure
 
 This update closes the current OneCode project-wide review and optimization
