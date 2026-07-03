@@ -55,6 +55,16 @@ class SandboxTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             SandboxConfig(workspace=Path("/definitely/missing/onecode/workspace"))
 
+    def test_sandbox_rejects_boolean_numeric_limits(self):
+        from onecode.kernel.sandbox import SandboxConfig
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "sandbox timeout_seconds must be positive"):
+                SandboxConfig(workspace=Path(tmp), timeout_seconds=True)
+
+            with self.assertRaisesRegex(ValueError, "sandbox pids_limit must be positive"):
+                SandboxConfig(workspace=Path(tmp), pids_limit=True)
+
     def test_sandbox_smoke_returns_blocked_when_docker_missing(self):
         from onecode.kernel.sandbox import SandboxConfig, run_sandbox_smoke
 

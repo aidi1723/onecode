@@ -27,6 +27,21 @@ class ContextTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 create_context(workspace_root=Path(tmp), http_timeout_seconds=0, run_id="bad")
 
+    def test_rejects_boolean_timeout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "http_timeout_seconds must be greater than zero"):
+                create_context(workspace_root=Path(tmp), http_timeout_seconds=True, run_id="bad")
+
+    def test_rejects_run_id_that_escapes_evidence_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "invalid run_id"):
+                create_context(workspace_root=Path(tmp), run_id="../../../outside/run")
+
+    def test_rejects_resume_run_id_that_escapes_evidence_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "invalid resume_from_run_id"):
+                create_context(workspace_root=Path(tmp), resume_from_run_id="../source")
+
 
 if __name__ == "__main__":
     unittest.main()

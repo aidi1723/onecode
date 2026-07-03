@@ -9,6 +9,16 @@ from onecode.kernel.verifier import VerifierSpec
 
 
 class TaskResumeClassificationTests(unittest.TestCase):
+    def test_invalid_source_run_id_is_rejected_before_path_lookup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "invalid source_run_id"):
+                classify_task_resume(
+                    workspace=Path(tmp),
+                    source_run_id="../source",
+                    planned_assets=[PlannedAsset(path="src/a.py", content="A = 1\n")],
+                    verifier_specs=[],
+                )
+
     def test_missing_source_manifest_classifies_assets_as_apply(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
@@ -218,6 +228,53 @@ class TaskResumeClassificationTests(unittest.TestCase):
             decisions = {(decision.target_type, decision.target_id): decision for decision in summary.decisions}
             self.assertEqual(decisions[("asset", "src/a.py")].kind, "ready")
             self.assertEqual(decisions[("verifier", "python-unittest")].kind, "ready")
+
+    def test_boolean_verifier_timeout_evidence_is_unmapped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_task(
+                "source",
+                workspace=workspace,
+                run_id="source-run",
+                write_path="src/a.py",
+                write_content="A = 1\n",
+            )
+            spec = VerifierSpec(
+                id="python-unittest",
+                command=["python3", "-m", "unittest"],
+                cwd=".",
+                timeout_ms=1,
+            )
+            ledger_path = Path(result["ledger_path"])
+            ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+            ledger["verifier_results"] = [
+                {
+                    "id": "python-unittest",
+                    "status": "passed",
+                    "reason": None,
+                    "exit_code": 0,
+                    "duration_ms": 1,
+                    "stdout_tail": "",
+                    "stderr_tail": "",
+                    "stdout_sha256": "0" * 64,
+                    "stderr_sha256": "0" * 64,
+                    "cwd": ".",
+                    "command": ["python3", "-m", "unittest"],
+                    "timeout_ms": True,
+                }
+            ]
+            ledger_path.write_text(json.dumps(ledger), encoding="utf-8")
+
+            summary = classify_task_resume(
+                workspace=workspace,
+                source_run_id="source-run",
+                planned_assets=[PlannedAsset(path="src/a.py", content="A = 2\n")],
+                verifier_specs=[spec],
+            )
+
+            decisions = {(decision.target_type, decision.target_id): decision for decision in summary.decisions}
+            self.assertEqual(decisions[("verifier", "python-unittest")].kind, "discover")
+            self.assertEqual(decisions[("verifier", "python-unittest")].reason, "verifier_evidence_unmapped")
 
     def test_changed_verifier_policy_classifies_as_halt(self):
         with tempfile.TemporaryDirectory() as tmp:

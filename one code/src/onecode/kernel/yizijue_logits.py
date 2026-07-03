@@ -14,6 +14,10 @@ HALT_TEXT = ["SOVEREIGNTY_HALT", "dangerous_host_command", "hard_halt"]
 VERIFIER_TEXT = ["RUN_VERIFIER_IN_SANDBOX", "sandbox_required", "verifier_requires_sandbox"]
 
 
+def is_strict_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
 class TokenizerProtocol(Protocol):
     def encode(self, text: str, add_special_tokens: bool = False) -> list[int]:
         ...
@@ -56,7 +60,7 @@ def validate_state_token_id_policy(policy: dict[str, Any]) -> dict[str, Any]:
         raise ValueError(f"unknown state: {state}")
     for field in ("preferred_token_ids", "forbidden_token_ids"):
         values = policy[field]
-        if not isinstance(values, list) or not all(isinstance(value, int) for value in values):
+        if not isinstance(values, list) or not all(is_strict_int(value) for value in values):
             raise ValueError(f"{field} must be an integer list")
     return {
         "state": state,
@@ -89,7 +93,7 @@ def encode_fragments(tokenizer: TokenizerProtocol, fragments: list[str]) -> list
     token_ids: list[int] = []
     for fragment in fragments:
         encoded = tokenizer.encode(fragment, add_special_tokens=False)
-        if not isinstance(encoded, list) or not all(isinstance(token_id, int) for token_id in encoded):
+        if not isinstance(encoded, list) or not all(is_strict_int(token_id) for token_id in encoded):
             raise ValueError("tokenizer.encode must return a list of integers")
         token_ids.extend(encoded)
     return dedupe_ints(token_ids)

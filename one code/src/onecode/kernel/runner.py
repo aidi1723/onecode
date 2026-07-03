@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from onecode.kernel.action_intent import ActionIntent, ActionType
-from onecode.kernel.checkpoint import write_checkpoint, write_global_wal, write_ledger
+from onecode.kernel.checkpoint import validate_skill_selection, write_checkpoint, write_global_wal, write_ledger
 from onecode.kernel.context import create_context
 from onecode.kernel.hexagram import COMPLETE, IchingKernel, IchingTransition
 from onecode.kernel.logos_gate import LogosGate
@@ -11,6 +11,7 @@ from onecode.kernel.path_guard import PathGuard
 from onecode.kernel.patching import PatchIntent, commit_patch
 from onecode.kernel.permission_matrix import Decision
 from onecode.kernel.resumption import ReadyAsset
+from onecode.kernel.skill_context import select_skill_evidence
 from onecode.kernel.trace import TraceAggregator, TraceEvent, trace_evidence_metrics, write_trace_event
 from onecode.kernel.wal import global_wal_evidence_metrics
 
@@ -41,6 +42,7 @@ RULE_DRIVEN_RESULT_FIELDS = {
     "resumed_from",
     "run_id",
     "sha256",
+    "skill_selection",
     "skipped_count",
     "state",
     "status",
@@ -70,6 +72,13 @@ def error_payload(exc: Exception) -> dict[str, str]:
     }
 
 
+def select_validated_skill_evidence(workspace: Path, task: str) -> dict[str, Any] | None:
+    try:
+        return validate_skill_selection(select_skill_evidence(workspace, task))
+    except ValueError as exc:
+        raise RuntimeError(f"invalid_skill_selection_evidence:{exc}") from exc
+
+
 def halted_result(
     context: Any,
     *,
@@ -78,6 +87,7 @@ def halted_result(
     trace_id: str | None = None,
     checkpoint_intent_type: str | None = None,
     write_checkpoint_evidence: bool = False,
+    skill_selection: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     ledger_path = context.evidence_root / "ledger.json"
     resolved_trace_id = trace_id or context.run_id
@@ -100,6 +110,7 @@ def halted_result(
                 iching_transition_action=transition.action,
                 iching_transition_reason=transition.reason,
                 iching_profile=profile,
+                skill_selection=skill_selection,
             )
         except Exception as checkpoint_exc:
             payload = {
@@ -137,6 +148,8 @@ def halted_result(
         "iching_transition_reason": transition.reason,
         "iching_profile": profile,
     }
+    if skill_selection is not None:
+        result["skill_selection"] = skill_selection
     try:
         write_trace_event(
             trace_path,
@@ -174,13 +187,13 @@ def validate_resource_budget(
     max_actions: int,
     max_trace_bytes: int = DEFAULT_MAX_TRACE_BYTES,
 ) -> dict[str, Any] | None:
-    if max_task_chars <= 0:
+    if isinstance(max_task_chars, bool) or not isinstance(max_task_chars, int) or max_task_chars <= 0:
         raise ValueError("max_task_chars must be positive")
-    if max_write_bytes <= 0:
+    if isinstance(max_write_bytes, bool) or not isinstance(max_write_bytes, int) or max_write_bytes <= 0:
         raise ValueError("max_write_bytes must be positive")
-    if max_actions <= 0:
+    if isinstance(max_actions, bool) or not isinstance(max_actions, int) or max_actions <= 0:
         raise ValueError("max_actions must be positive")
-    if max_trace_bytes <= 0:
+    if isinstance(max_trace_bytes, bool) or not isinstance(max_trace_bytes, int) or max_trace_bytes <= 0:
         raise ValueError("max_trace_bytes must be positive")
     if len(task) > max_task_chars:
         return {
@@ -210,7 +223,7 @@ def validate_resource_budget(
 
 
 def trace_budget_breach(trace_path: Path, max_trace_bytes: int) -> dict[str, Any] | None:
-    if max_trace_bytes <= 0:
+    if isinstance(max_trace_bytes, bool) or not isinstance(max_trace_bytes, int) or max_trace_bytes <= 0:
         raise ValueError("max_trace_bytes must be positive")
     if not trace_path.exists():
         return None
@@ -225,7 +238,7 @@ def trace_budget_breach(trace_path: Path, max_trace_bytes: int) -> dict[str, Any
 
 
 def run_deadline_breach(started_at: float, max_run_seconds: float) -> dict[str, Any] | None:
-    if max_run_seconds <= 0:
+    if isinstance(max_run_seconds, bool) or not isinstance(max_run_seconds, (int, float)) or max_run_seconds <= 0:
         raise ValueError("max_run_seconds must be positive")
     elapsed = time.monotonic() - started_at
     if elapsed <= max_run_seconds:
@@ -580,6 +593,7 @@ def _run_task_with_context(
     defer_completed_evidence = completed_evidence_mode == "wal" and write_texts is None and plan_actions is None
     pending_trace_events: list[TraceEvent] = []
     pending_checkpoints: list[dict[str, Any]] = []
+    skill_selection = select_validated_skill_evidence(context.workspace_root, task)
 
     def record_trace(
         span_id: str,
@@ -653,6 +667,7 @@ def _run_task_with_context(
             iching_profile=iching_profile,
             duration_ms=duration_ms,
             run_control=run_control,
+            skill_selection=skill_selection,
         )
 
     def flush_deferred_checkpoints() -> None:
@@ -673,6 +688,7 @@ def _run_task_with_context(
                 iching_profile=checkpoint["iching_profile"],
                 duration_ms=checkpoint["duration_ms"],
                 run_control=checkpoint["run_control"],
+                skill_selection=skill_selection,
             )
         pending_checkpoints.clear()
 
@@ -680,7 +696,7 @@ def _run_task_with_context(
         "run",
         "run_started",
         "started",
-        {"task": task, "resume_from_run_id": context.resume_from_run_id},
+        {"task": task, "resume_from_run_id": context.resume_from_run_id, "skill_selection": skill_selection},
     )
     with LogosGate(http_timeout_seconds=http_timeout_seconds) as gate:
         intents = build_intents(
@@ -712,6 +728,7 @@ def _run_task_with_context(
                 trace_id=trace_id,
                 checkpoint_intent_type="resource_budget",
                 write_checkpoint_evidence=True,
+                skill_selection=skill_selection,
             )
         assets = []
         observed_status_codes: list[int] = []
@@ -754,6 +771,7 @@ def _run_task_with_context(
                     trace_id=trace_id,
                     checkpoint_intent_type="resource_budget",
                     write_checkpoint_evidence=True,
+                    skill_selection=skill_selection,
                 )
             raw_status_code = IchingKernel.classify_outcome(gate_result["status"], gate_result["reason"])
             iching_transition = iching_transition_for_result(gate_result)
@@ -889,6 +907,7 @@ def _run_task_with_context(
         "iching_transition_action": last_asset["iching_transition_action"],
         "iching_transition_reason": last_asset["iching_transition_reason"],
         "iching_profile": last_asset["iching_profile"],
+        "skill_selection": skill_selection,
     }
     if "sha256" in last_asset:
         result["sha256"] = last_asset["sha256"]

@@ -81,6 +81,28 @@ class ShellLauncherConfigTests(unittest.TestCase):
         self.assertRegex(env["CREDS_IV"], r"^[0-9a-f]{32}$")
         self.assertEqual(env["MEILI_NO_SYNC"], "true")
 
+    def test_build_librechat_env_generates_fresh_auth_secrets_for_preview(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = ShellLaunchConfig(
+                onecode_root=Path(tmp) / "one code",
+                librechat_dir=Path(tmp) / "onecode-librechat",
+                onecode_host="127.0.0.1",
+                onecode_port=18080,
+                librechat_host="127.0.0.1",
+                librechat_port=13080,
+                mongo_port=37017,
+                api_token="test-token",
+                workspace_root=Path(tmp) / "workspace",
+            )
+
+            first = build_librechat_env(config, {})
+            second = build_librechat_env(config, {})
+
+        self.assertNotEqual(first["JWT_SECRET"], second["JWT_SECRET"])
+        self.assertNotEqual(first["JWT_REFRESH_SECRET"], second["JWT_REFRESH_SECRET"])
+        self.assertNotEqual(first["CREDS_KEY"], second["CREDS_KEY"])
+        self.assertNotEqual(first["CREDS_IV"], second["CREDS_IV"])
+
     def test_build_librechat_env_does_not_inherit_openai_credentials(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = ShellLaunchConfig(

@@ -20,6 +20,16 @@ from onecode.kernel.hexagram import IchingKernel
 
 
 class ExecutionEngineTests(unittest.TestCase):
+    def test_guardrail_config_rejects_boolean_numeric_limits(self):
+        with self.assertRaisesRegex(ValueError, "max_steps must be positive"):
+            GuardrailConfig(max_steps=True)
+        with self.assertRaisesRegex(ValueError, "max_tool_calls_per_step must be positive"):
+            GuardrailConfig(max_tool_calls_per_step=True)
+        with self.assertRaisesRegex(ValueError, "max_duration_ms must be positive"):
+            GuardrailConfig(max_duration_ms=True)
+        with self.assertRaisesRegex(ValueError, "max_consecutive_failures must be positive"):
+            GuardrailConfig(max_consecutive_failures=True)
+
     def test_validate_plan_rejects_excessive_steps_and_forbidden_tools(self):
         too_many_steps = ExecutionPlan(
             task="too large",

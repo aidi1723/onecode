@@ -35,7 +35,7 @@ def validate_status_document(data: dict, path: Path) -> tuple[str | None, str | 
 
 def validate_ledger_counts(ledger: dict, path: Path) -> tuple[str | None, str | None]:
     for field in LEDGER_COUNT_FIELDS:
-        if field in ledger and (not isinstance(ledger[field], int) or ledger[field] < 0):
+        if field in ledger and (isinstance(ledger[field], bool) or not isinstance(ledger[field], int) or ledger[field] < 0):
             return str(path), "invalid_count"
     if all(field in ledger for field in LEDGER_COUNT_FIELDS):
         resolved_count = ledger["completed_count"] + ledger["skipped_count"] + ledger["failed_count"]

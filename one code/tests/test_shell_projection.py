@@ -16,7 +16,7 @@ class ShellProjectionTests(unittest.TestCase):
 
         projection = project_run_to_shell({"run_id": "schema-run", "status": "completed"})
 
-        self.assertEqual(SHELL_PROJECTION_VERSION, 1)
+        self.assertEqual(SHELL_PROJECTION_VERSION, 2)
         self.assertEqual(tuple(projection.keys()), SHELL_PROJECTION_FIELDS)
         self.assertEqual(tuple(projection["rule_state"].keys()), RULE_STATE_FIELDS)
         self.assertEqual(tuple(projection["control_state"].keys()), CONTROL_STATE_FIELDS)
@@ -31,14 +31,22 @@ class ShellProjectionTests(unittest.TestCase):
         schema = shell_projection_schema()
 
         self.assertEqual(schema["name"], "onecode.shell_projection")
-        self.assertEqual(schema["version"], 1)
+        self.assertEqual(schema["version"], 2)
         self.assertEqual(schema["fields"]["severity"]["values"], ["blocked", "corrupt", "missing", "ok", "warning"])
         self.assertIn("rule_state", schema["fields"])
         self.assertIn("control_state", schema["fields"])
         self.assertIn("evidence_ref", schema["fields"])
         self.assertEqual(
             schema["nested_fields"]["control_state"],
-            ["project_context_status", "runtime_config_status", "recovery_action"],
+            [
+                "project_context_status",
+                "runtime_config_status",
+                "skill_context_status",
+                "skill_selection_reason",
+                "selected_skill_count",
+                "skill_selection_sha256",
+                "recovery_action",
+            ],
         )
         self.assertEqual(schema["nested_fields"]["resume_state"], ["resumed", "resumed_from"])
 
@@ -59,6 +67,41 @@ class ShellProjectionTests(unittest.TestCase):
         self.assertEqual(projection["control_state"]["runtime_config_status"], "warning")
         self.assertEqual(projection["control_state"]["recovery_action"], "retry_once")
         self.assertEqual(projection["severity"], "ok")
+
+    def test_completed_result_projects_compact_skill_state_without_raw_skill_details(self):
+        from onecode.kernel.shell_projection import project_run_to_shell
+
+        projection = project_run_to_shell(
+            {
+                "run_id": "skill-shell-run",
+                "status": "completed",
+                "skill_context": {"status": "ok", "skills": [{"name": "raw-context-skill"}]},
+                "skill_selection": {
+                    "status": "ok",
+                    "selection_reason": "capability_match",
+                    "selected_count": 1,
+                    "selection_sha256": "a" * 64,
+                    "selected_skills": [
+                        {
+                            "name": "private-skill",
+                            "mode": "method_only",
+                            "risk": "low",
+                            "matched_capabilities": ["test"],
+                            "content_sha256": "b" * 64,
+                        }
+                    ],
+                },
+            }
+        )
+
+        self.assertEqual(projection["control_state"]["skill_context_status"], "ok")
+        self.assertEqual(projection["control_state"]["skill_selection_reason"], "capability_match")
+        self.assertEqual(projection["control_state"]["selected_skill_count"], 1)
+        self.assertEqual(projection["control_state"]["skill_selection_sha256"], "a" * 64)
+        projection_text = repr(projection)
+        self.assertNotIn("selected_skills", projection_text)
+        self.assertNotIn("private-skill", projection_text)
+        self.assertNotIn("raw-context-skill", projection_text)
 
     def test_control_state_falls_back_to_flat_fields(self):
         from onecode.kernel.shell_projection import project_run_to_shell
@@ -123,7 +166,7 @@ class ShellProjectionTests(unittest.TestCase):
             }
         )
 
-        self.assertEqual(projection["version"], 1)
+        self.assertEqual(projection["version"], 2)
         self.assertEqual(projection["run_id"], "wal-run")
         self.assertEqual(projection["status_label"], "completed")
         self.assertEqual(projection["severity"], "ok")
@@ -138,6 +181,24 @@ class ShellProjectionTests(unittest.TestCase):
         self.assertEqual(projection["evidence_ref"]["profile_sha256"], "abc123")
         self.assertIn("wal-run", projection["compact_message"])
         self.assertIn("completed", projection["compact_message"])
+
+    def test_wal_compact_skill_aliases_project_to_control_state(self):
+        from onecode.kernel.shell_projection import project_run_to_shell
+
+        projection = project_run_to_shell(
+            {
+                "run_id": "wal-skill-run",
+                "status": "completed",
+                "evidence_mode": "wal",
+                "ssr": "capability_match",
+                "ssc": 2,
+                "ssh": "c" * 64,
+            }
+        )
+
+        self.assertEqual(projection["control_state"]["skill_selection_reason"], "capability_match")
+        self.assertEqual(projection["control_state"]["selected_skill_count"], 2)
+        self.assertEqual(projection["control_state"]["skill_selection_sha256"], "c" * 64)
 
     def test_full_completed_result_projects_full_evidence_paths(self):
         from onecode.kernel.shell_projection import project_run_to_shell

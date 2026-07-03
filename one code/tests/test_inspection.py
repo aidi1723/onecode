@@ -24,6 +24,7 @@ class InspectionKernelTests(unittest.TestCase):
         path = Path("ledger.json")
 
         self.assertEqual(validate_ledger_counts({"requested_count": -1}, path), (str(path), "invalid_count"))
+        self.assertEqual(validate_ledger_counts({"requested_count": True}, path), (str(path), "invalid_count"))
         self.assertEqual(
             validate_ledger_counts(
                 {

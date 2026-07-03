@@ -71,7 +71,7 @@ class VerifierSpec:
             raise ValueError("verifier command must be a non-empty string list")
         if not isinstance(self.cwd, str) or self.cwd == "":
             raise ValueError("verifier cwd must be a non-empty string")
-        if not isinstance(self.timeout_ms, int) or self.timeout_ms <= 0:
+        if isinstance(self.timeout_ms, bool) or not isinstance(self.timeout_ms, int) or self.timeout_ms <= 0:
             raise ValueError("verifier timeout_ms must be positive")
 
 
@@ -322,7 +322,9 @@ def task_status_from_results(asset_result: dict[str, Any], verifier_results: lis
     status_codes = [
         asset.get("raw_status_code")
         for asset in asset_result.get("assets", [])
-        if isinstance(asset, dict) and isinstance(asset.get("raw_status_code"), int)
+        if isinstance(asset, dict)
+        and isinstance(asset.get("raw_status_code"), int)
+        and not isinstance(asset.get("raw_status_code"), bool)
     ]
     for result in verifier_results:
         status_codes.append(

@@ -515,7 +515,14 @@ class OneCodeApp(App):
             return
         projection = shell_projection_for(result)
         if projection.get("compact_message"):
-            self._assistant(str(projection["compact_message"]))
+            lines = [str(projection["compact_message"])]
+            if result.get("repaired"):
+                lines.append(
+                    "repair: "
+                    f"attempts={result.get('repair_attempt_count', 0)} "
+                    f"initial={result.get('initial_status')} | {result.get('initial_reason')}"
+                )
+            self._assistant("\n".join(lines))
             return
         st = result.get("status", "?")
         rid = result.get("run_id", "?")

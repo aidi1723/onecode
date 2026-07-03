@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from onecode.kernel.checkpoint import global_wal_entry
+from onecode.kernel.checkpoint import global_wal_entry, skill_selection_sha256
 from onecode.kernel.context import create_context
 from onecode.kernel.wal import (
     global_wal_evidence_metrics,
@@ -33,6 +33,16 @@ class GlobalWalTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "global_wal_chain_hash_mismatch"):
                 read_validated_global_wal_entries(workspace)
 
+    def test_read_validated_global_wal_entries_rejects_invalid_json_with_stable_reason(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            wal_path = workspace / ".onecode" / "global-ledger.jsonl"
+            wal_path.parent.mkdir(parents=True)
+            wal_path.write_text("{not json\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "invalid_global_wal_json"):
+                read_validated_global_wal_entries(workspace)
+
     def test_read_validated_global_wal_entries_preserves_segment_path(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
@@ -46,6 +56,26 @@ class GlobalWalTests(unittest.TestCase):
 
             self.assertEqual(entries[0]["rid"], "run-1")
             self.assertEqual(entries[0]["_wal_path"], str(wal_path.resolve()))
+
+    def test_global_wal_paths_ignore_non_numeric_archive_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            onecode_root = workspace / ".onecode"
+            onecode_root.mkdir()
+            archive_path = onecode_root / "global-ledger.1.jsonl"
+            active_path = onecode_root / "global-ledger.jsonl"
+            backup_path = onecode_root / "global-ledger.backup.jsonl"
+            archive_entry = {"v": 1, "rid": "old-run", "st": "completed", "prev": None}
+            archive_entry["hash"] = wal_entry_hash(archive_entry)
+            active_entry = {"v": 1, "rid": "new-run", "st": "completed", "prev": None}
+            active_entry["hash"] = wal_entry_hash(active_entry)
+            archive_path.write_text(json.dumps(archive_entry, sort_keys=True) + "\n", encoding="utf-8")
+            active_path.write_text(json.dumps(active_entry, sort_keys=True) + "\n", encoding="utf-8")
+            backup_path.write_text("{not part of rotation\n", encoding="utf-8")
+
+            entries = read_validated_global_wal_entries(workspace)
+
+            self.assertEqual([entry["rid"] for entry in entries], ["old-run", "new-run"])
 
     def test_global_wal_entry_records_risk_tier_and_capture_mode(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -67,6 +97,76 @@ class GlobalWalTests(unittest.TestCase):
             self.assertEqual(entry["rt"], "critical")
             self.assertEqual(entry["cm"], "full")
             self.assertEqual(entry["cr"], "critical_trust_event")
+
+    def test_global_wal_entry_records_compact_skill_selection_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="wal-skill-selection")
+            skill_selection = {
+                "status": "ok",
+                "selection_reason": "capability_match",
+                "selected_count": 1,
+                "selected_skills": [
+                    {
+                        "name": "private-skill",
+                        "mode": "method_only",
+                        "risk": "low",
+                        "matched_capabilities": ["test"],
+                        "content_sha256": "b" * 64,
+                    }
+                ],
+            }
+            skill_selection["selection_sha256"] = skill_selection_sha256(skill_selection)
+
+            entry = global_wal_entry(
+                context,
+                {
+                    "run_id": "wal-skill-selection",
+                    "status": "completed",
+                    "partial": False,
+                    "reason": None,
+                    "intent_type": "write_text",
+                    "evidence_mode": "wal",
+                    "skill_selection": skill_selection,
+                },
+            )
+
+            self.assertEqual(entry["ssh"], skill_selection["selection_sha256"])
+            self.assertEqual(entry["ssr"], "capability_match")
+            self.assertEqual(entry["ssc"], 1)
+            self.assertNotIn("selected_skills", entry)
+            self.assertNotIn("private-skill", json.dumps(entry))
+
+    def test_global_wal_entry_rejects_invalid_skill_selection_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="wal-invalid-skill-selection")
+
+            with self.assertRaisesRegex(ValueError, "skill_selection_invalid_field:selection_sha256"):
+                global_wal_entry(
+                    context,
+                    {
+                        "run_id": "wal-invalid-skill-selection",
+                        "status": "completed",
+                        "partial": False,
+                        "reason": None,
+                        "intent_type": "write_text",
+                        "evidence_mode": "wal",
+                        "skill_selection": {
+                            "status": "ok",
+                            "selection_sha256": "not-a-hash",
+                            "selection_reason": "capability_match",
+                            "selected_count": 1,
+                            "selected_skills": [
+                                {
+                                    "name": "private-skill",
+                                    "mode": "method_only",
+                                    "risk": "low",
+                                    "matched_capabilities": ["test"],
+                                    "content_sha256": "b" * 64,
+                                }
+                            ],
+                        },
+                    },
+                )
 
     def test_global_wal_entry_unknown_family_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:

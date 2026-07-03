@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from onecode.cli import main
 from onecode.kernel.hexagram import IchingKernel
-from onecode.kernel.runner import run_task
+from onecode.kernel.runner import run_deadline_breach, run_task, trace_budget_breach, validate_resource_budget
 
 
 class RunnerTests(unittest.TestCase):
@@ -230,6 +230,48 @@ class RunnerTests(unittest.TestCase):
                     max_actions=0,
                 )
 
+    def test_resource_budget_helpers_reject_boolean_numeric_limits(self):
+        with self.assertRaisesRegex(ValueError, "max_task_chars must be positive"):
+            validate_resource_budget(
+                "abc",
+                [],
+                max_task_chars=True,
+                max_write_bytes=1024,
+                max_actions=1,
+            )
+        with self.assertRaisesRegex(ValueError, "max_write_bytes must be positive"):
+            validate_resource_budget(
+                "abc",
+                [],
+                max_task_chars=1024,
+                max_write_bytes=True,
+                max_actions=1,
+            )
+        with self.assertRaisesRegex(ValueError, "max_actions must be positive"):
+            validate_resource_budget(
+                "abc",
+                [],
+                max_task_chars=1024,
+                max_write_bytes=1024,
+                max_actions=True,
+            )
+        with self.assertRaisesRegex(ValueError, "max_trace_bytes must be positive"):
+            validate_resource_budget(
+                "abc",
+                [],
+                max_task_chars=1024,
+                max_write_bytes=1024,
+                max_actions=1,
+                max_trace_bytes=True,
+            )
+        with tempfile.TemporaryDirectory() as tmp:
+            trace_path = Path(tmp) / "trace.jsonl"
+            trace_path.write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "max_trace_bytes must be positive"):
+                trace_budget_breach(trace_path, True)
+        with self.assertRaisesRegex(ValueError, "max_run_seconds must be positive"):
+            run_deadline_breach(0.0, True)
+
     def test_run_task_halts_when_trace_budget_is_exceeded(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = run_task(
@@ -290,6 +332,7 @@ class RunnerTests(unittest.TestCase):
                     "status": "halted",
                     "reason": "external_override",
                     "iching_status_code": 0,
+                    "skill_selection": {"selection_reason": "external_override"},
                     "plan_sha256": "abc123",
                 },
             )
@@ -299,10 +342,55 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(result["status"], "completed")
             self.assertIsNone(result["reason"])
             self.assertNotEqual(result["iching_status_code"], 0)
+            self.assertNotEqual(result["skill_selection"]["selection_reason"], "external_override")
             self.assertEqual(result["plan_sha256"], "abc123")
             self.assertEqual(ledger["status"], "completed")
             self.assertIsNone(ledger["reason"])
             self.assertNotEqual(ledger["iching_status_code"], 0)
+            self.assertNotEqual(ledger["skill_selection"]["selection_reason"], "external_override")
+
+    def test_run_task_rejects_invalid_skill_selection_before_persistence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            invalid_selection = {
+                "status": "ok",
+                "selected_count": 1,
+                "selected_skills": [
+                    {
+                        "name": "unsafe-skill",
+                        "mode": "method_only",
+                        "risk": "low",
+                        "matched_capabilities": ["test"],
+                        "content_sha256": "a" * 64,
+                        "allowed_tools": ["shell"],
+                    }
+                ],
+                "selection_reason": "capability_match",
+                "selection_sha256": "b" * 64,
+            }
+
+            with patch("onecode.kernel.runner.select_skill_evidence", return_value=invalid_selection):
+                result = run_task(
+                    "invalid skill selection",
+                    workspace=Path(tmp),
+                    run_id="invalid-skill-selection",
+                    completed_evidence_mode="full",
+                )
+
+            ledger_text = Path(result["ledger_path"]).read_text(encoding="utf-8")
+            trace_text = Path(result["trace_path"]).read_text(encoding="utf-8")
+            result_text = json.dumps(result, sort_keys=True)
+
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "run_exception")
+            self.assertEqual(result["payload"]["error_type"], "RuntimeError")
+            self.assertIn("invalid_skill_selection_evidence", result["payload"]["error_message_tail"])
+            self.assertNotIn("skill_selection", result)
+            self.assertNotIn("shell", result_text)
+            self.assertNotIn("shell", ledger_text)
+            self.assertNotIn("shell", trace_text)
+            self.assertNotIn("unsafe-skill", result_text)
+            self.assertNotIn("unsafe-skill", ledger_text)
+            self.assertNotIn("unsafe-skill", trace_text)
 
 
 class CliTests(unittest.TestCase):
@@ -318,7 +406,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr)
         payload = json.loads(completed.stdout)
         self.assertEqual(payload["name"], "onecode.shell_projection")
-        self.assertEqual(payload["version"], 1)
+        self.assertEqual(payload["version"], 2)
         self.assertIn("rule_state", payload["fields"])
         self.assertEqual(payload["nested_fields"]["rule_state"][0], "status_code")
 
@@ -363,6 +451,58 @@ class CliTests(unittest.TestCase):
                 result["shell_projection"]["rule_state"]["status_code"],
                 result["iching_status_code"],
             )
+
+    def test_cli_run_projects_compact_skill_selection_for_shell(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            skill_dir = workspace / ".onecode" / "skills"
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "method.json").write_text(
+                json.dumps(
+                    {
+                        "name": "private-method-skill",
+                        "version": "1",
+                        "mode": "method_only",
+                        "risk": "low",
+                        "capabilities": ["test", "verification"],
+                        "description": "private skill body",
+                        "allowed_tools": ["pytest"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "run",
+                    "please run test verification",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "cli-skill-projection",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            result = json.loads(completed.stdout)
+            control_state = result["shell_projection"]["control_state"]
+            projection_text = json.dumps(result["shell_projection"], sort_keys=True)
+
+            self.assertEqual(control_state["skill_context_status"], "ok")
+            self.assertEqual(control_state["skill_selection_reason"], "capability_match")
+            self.assertEqual(control_state["selected_skill_count"], 1)
+            self.assertRegex(control_state["skill_selection_sha256"], r"^[0-9a-f]{64}$")
+            self.assertNotIn("selected_skills", projection_text)
+            self.assertNotIn("private-method-skill", projection_text)
+            self.assertNotIn("private skill body", projection_text)
+            self.assertNotIn("allowed_tools", projection_text)
 
     def test_cli_run_can_force_full_strict_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:

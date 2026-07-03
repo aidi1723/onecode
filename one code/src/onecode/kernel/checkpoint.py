@@ -334,6 +334,17 @@ def global_wal_entry(context: OneCodeContext, result: dict[str, Any]) -> dict[st
         "lp": None if evidence_mode == "wal" else workspace_relative_path(context.workspace_root, context.evidence_root / "ledger.json"),
         "mp": None if evidence_mode == "wal" else workspace_relative_path(context.workspace_root, context.manifest_path),
     }
+    skill_selection = validate_skill_selection(result.get("skill_selection"))
+    if isinstance(skill_selection, dict):
+        selection_hash = skill_selection.get("selection_sha256")
+        selection_reason = skill_selection.get("selection_reason")
+        selected_count = skill_selection.get("selected_count")
+        if isinstance(selected_count, int) and selected_count > 0 and isinstance(selection_hash, str):
+            entry["ssh"] = selection_hash
+        if isinstance(selected_count, int) and selected_count > 0 and isinstance(selection_reason, str):
+            entry["ssr"] = selection_reason
+        if isinstance(selected_count, int) and selected_count > 0:
+            entry["ssc"] = selected_count
     if evidence_mode == "wal":
         wal_assets = global_wal_asset_entries(result)
         if wal_assets:
@@ -500,6 +511,42 @@ DOMAIN_PROJECTION_MAX_EVIDENCE_REFS = 16
 DOMAIN_PROJECTION_MAX_EVIDENCE_REF_BYTES = 160
 DOMAIN_PROJECTION_ALLOWED_REF_PREFIXES = ("trace:", "wal:", "ledger:", "checkpoint:", "artifact:")
 DOMAIN_PROJECTION_SAFE_TEXT = re.compile(r"^[A-Za-z0-9._:/=-]+$")
+SKILL_SELECTION_ALLOWED_KEYS = {
+    "status",
+    "selection_reason",
+    "selected_skills",
+    "selected_count",
+    "skill_context_summary",
+    "iching_status_code",
+    "iching_transition_action",
+    "iching_transition_reason",
+    "dispatch_decision",
+    "selection_sha256",
+}
+SKILL_SELECTION_SKILL_ALLOWED_KEYS = {
+    "name",
+    "mode",
+    "risk",
+    "matched_capabilities",
+    "content_sha256",
+}
+SKILL_SELECTION_SUMMARY_ALLOWED_KEYS = {
+    "skill_count",
+    "invalid_count",
+    "method_only_count",
+    "reference_only_count",
+    "element",
+    "yin_yang_pressure",
+}
+SKILL_SELECTION_ALLOWED_STATUSES = {"ok", "warning", "missing", "blocked"}
+SKILL_SELECTION_ALLOWED_REASONS = {"capability_match", "no_matching_capability", "skill_context_unavailable"}
+SKILL_SELECTION_ALLOWED_MODES = {"method_only", "reference_only"}
+SKILL_SELECTION_ALLOWED_RISKS = {"low", "medium", "high"}
+SKILL_SELECTION_MAX_TOTAL_BYTES = 4096
+SKILL_SELECTION_MAX_SELECTED_SKILLS = 8
+SKILL_SELECTION_MAX_MATCHED_CAPABILITIES = 32
+SKILL_SELECTION_SAFE_TEXT = re.compile(r"^[A-Za-z0-9._:-]+$")
+SKILL_SELECTION_HEX = re.compile(r"^[a-f0-9]{64}$")
 MANIFEST_MAX_TOTAL_BYTES = 250_000
 MANIFEST_MAX_SECTION_BYTES = 200_000
 
@@ -545,6 +592,99 @@ def validate_domain_projection(domain_projection: dict[str, Any] | None) -> dict
         if not ref.startswith(DOMAIN_PROJECTION_ALLOWED_REF_PREFIXES):
             raise ValueError("domain_projection_invalid_evidence_ref")
     return dict(domain_projection)
+
+
+def skill_selection_sha256(skill_selection: dict[str, Any]) -> str:
+    payload = {key: value for key, value in skill_selection.items() if key != "selection_sha256"}
+    return sha256_text(canonical_json_line(payload))
+
+
+def validate_skill_selection(skill_selection: dict[str, Any] | None) -> dict[str, Any] | None:
+    if skill_selection is None:
+        return None
+    if not isinstance(skill_selection, dict):
+        raise ValueError("skill_selection_must_be_object")
+    forbidden = sorted(set(skill_selection) - SKILL_SELECTION_ALLOWED_KEYS)
+    if forbidden:
+        raise ValueError(f"skill_selection_forbidden_field:{forbidden[0]}")
+    if json_size_bytes(skill_selection) > SKILL_SELECTION_MAX_TOTAL_BYTES:
+        raise ValueError("skill_selection_too_large")
+
+    selected_skills = skill_selection.get("selected_skills")
+    if not isinstance(selected_skills, list):
+        raise ValueError("skill_selection_invalid_field:selected_skills")
+    if len(selected_skills) > SKILL_SELECTION_MAX_SELECTED_SKILLS:
+        raise ValueError("skill_selection_too_many_selected_skills")
+    selected_count = skill_selection.get("selected_count")
+    if isinstance(selected_count, bool) or not isinstance(selected_count, int) or selected_count != len(selected_skills):
+        raise ValueError("skill_selection_count_mismatch")
+
+    for field in ("status", "selection_reason", "selection_sha256"):
+        value = skill_selection.get(field)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"skill_selection_invalid_field:{field}")
+    if skill_selection["status"] not in SKILL_SELECTION_ALLOWED_STATUSES:
+        raise ValueError("skill_selection_invalid_field:status")
+    if skill_selection["selection_reason"] not in SKILL_SELECTION_ALLOWED_REASONS:
+        raise ValueError("skill_selection_invalid_field:selection_reason")
+    if SKILL_SELECTION_HEX.fullmatch(skill_selection["selection_sha256"]) is None:
+        raise ValueError("skill_selection_invalid_field:selection_sha256")
+    status_code = skill_selection.get("iching_status_code")
+    if status_code is not None and (isinstance(status_code, bool) or not isinstance(status_code, int) or not 0 <= status_code <= 63):
+        raise ValueError("skill_selection_invalid_field:iching_status_code")
+    for field in ("iching_transition_action", "iching_transition_reason", "dispatch_decision"):
+        value = skill_selection.get(field)
+        if value is not None and (not isinstance(value, str) or not value.strip() or SKILL_SELECTION_SAFE_TEXT.fullmatch(value) is None):
+            raise ValueError(f"skill_selection_invalid_field:{field}")
+    summary = skill_selection.get("skill_context_summary")
+    if summary is not None:
+        if not isinstance(summary, dict):
+            raise ValueError("skill_selection_invalid_field:skill_context_summary")
+        forbidden_summary_fields = sorted(set(summary) - SKILL_SELECTION_SUMMARY_ALLOWED_KEYS)
+        if forbidden_summary_fields:
+            raise ValueError(f"skill_selection_summary_forbidden_field:{forbidden_summary_fields[0]}")
+        for field in ("skill_count", "invalid_count", "method_only_count", "reference_only_count"):
+            value = summary.get(field)
+            if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 0):
+                raise ValueError(f"skill_selection_invalid_summary_field:{field}")
+        for field in ("element", "yin_yang_pressure"):
+            value = summary.get(field)
+            if value is not None and (not isinstance(value, str) or SKILL_SELECTION_SAFE_TEXT.fullmatch(value) is None):
+                raise ValueError(f"skill_selection_invalid_summary_field:{field}")
+
+    validated_skills = []
+    for item in selected_skills:
+        if not isinstance(item, dict):
+            raise ValueError("skill_selection_invalid_selected_skill")
+        forbidden_skill_fields = sorted(set(item) - SKILL_SELECTION_SKILL_ALLOWED_KEYS)
+        if forbidden_skill_fields:
+            raise ValueError(f"skill_selection_forbidden_field:{forbidden_skill_fields[0]}")
+        for field in ("name", "mode", "risk", "content_sha256"):
+            value = item.get(field)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"skill_selection_invalid_selected_field:{field}")
+        if item["mode"] not in SKILL_SELECTION_ALLOWED_MODES:
+            raise ValueError("skill_selection_invalid_selected_field:mode")
+        if item["risk"] not in SKILL_SELECTION_ALLOWED_RISKS:
+            raise ValueError("skill_selection_invalid_selected_field:risk")
+        if SKILL_SELECTION_SAFE_TEXT.fullmatch(item["name"]) is None:
+            raise ValueError("skill_selection_invalid_selected_field:name")
+        if SKILL_SELECTION_HEX.fullmatch(item["content_sha256"]) is None:
+            raise ValueError("skill_selection_invalid_selected_field:content_sha256")
+        matched_capabilities = item.get("matched_capabilities")
+        if not isinstance(matched_capabilities, list):
+            raise ValueError("skill_selection_invalid_selected_field:matched_capabilities")
+        if len(matched_capabilities) > SKILL_SELECTION_MAX_MATCHED_CAPABILITIES:
+            raise ValueError("skill_selection_too_many_matched_capabilities")
+        if not all(isinstance(capability, str) and SKILL_SELECTION_SAFE_TEXT.fullmatch(capability) for capability in matched_capabilities):
+            raise ValueError("skill_selection_invalid_selected_field:matched_capabilities")
+        validated_skills.append(dict(item))
+
+    validated = dict(skill_selection)
+    validated["selected_skills"] = validated_skills
+    if skill_selection_sha256(validated) != validated["selection_sha256"]:
+        raise ValueError("skill_selection_hash_mismatch")
+    return validated
 
 
 def json_size_bytes(value: Any) -> int:
@@ -607,6 +747,7 @@ def write_checkpoint(
     duration_ms: int = 0,
     run_control: dict[str, Any] | None = None,
     domain_projection: dict[str, Any] | None = None,
+    skill_selection: dict[str, Any] | None = None,
 ) -> Path:
     with run_evidence_write_lock(context.evidence_root):
         existing_manifest = read_manifest(context.manifest_path)
@@ -618,6 +759,7 @@ def write_checkpoint(
             if domain_projection is not None
             else existing_manifest.get("domain_projection") if existing_manifest else None
         )
+        evidence_skill_selection = validate_skill_selection(skill_selection)
 
         turn_number = len(existing_checkpoints) + 1
         checkpoint_path = context.evidence_root / "checkpoints" / f"{turn_number:04d}.json"
@@ -650,6 +792,8 @@ def write_checkpoint(
             "created_at": utc_now_iso(),
             "payload": payload,
         }
+        if evidence_skill_selection is not None:
+            checkpoint["skill_selection"] = evidence_skill_selection
         atomic_write_json(checkpoint_path, checkpoint)
 
         checkpoint_hash = sha256_file(checkpoint_path)
@@ -672,6 +816,8 @@ def write_checkpoint(
             "ready_assets": ready_assets,
             "resume_audit_events": resume_audit_events,
         }
+        if evidence_skill_selection is not None:
+            checkpoint_record["skill_selection"] = evidence_skill_selection
         if intent_type == "patch_text":
             patch_evidence_keys = [
                 "pre_sha256",
@@ -706,6 +852,8 @@ def write_checkpoint(
             "resume_audit_events": resume_audit_events,
             "checkpoints": existing_checkpoints + [checkpoint_record],
         }
+        if evidence_skill_selection is not None:
+            manifest["skill_selection"] = evidence_skill_selection
         if evidence_domain_projection is not None:
             manifest["domain_projection"] = evidence_domain_projection
         manifest_metrics = manifest_size_metrics(manifest)
@@ -718,11 +866,17 @@ def write_checkpoint(
 def write_ledger(context: OneCodeContext, result: dict[str, Any]) -> Path:
     ledger_path = context.evidence_root / "ledger.json"
     ledger_history_path = context.evidence_root / "ledger.jsonl"
+    evidence_result = dict(result)
+    evidence_skill_selection = validate_skill_selection(result.get("skill_selection"))
+    if evidence_skill_selection is not None:
+        evidence_result["skill_selection"] = evidence_skill_selection
+    elif "skill_selection" in evidence_result:
+        del evidence_result["skill_selection"]
     registry_ref = None
-    if result.get("status") == "completed" and result.get("partial") is not True and result.get("reason") is None:
-        profile = result.get("iching_profile")
+    if evidence_result.get("status") == "completed" and evidence_result.get("partial") is not True and evidence_result.get("reason") is None:
+        profile = evidence_result.get("iching_profile")
         registry_ref = ensure_profile_registry_entry(context.workspace_root, profile if isinstance(profile, dict) else None)
-    evidence_result = compact_completed_ledger_result(result, registry_ref=registry_ref)
+    evidence_result = compact_completed_ledger_result(evidence_result, registry_ref=registry_ref)
     with run_evidence_write_lock(context.evidence_root):
         atomic_write_json(ledger_path, evidence_result)
         ledger_line = append_json_line(ledger_history_path, evidence_result)

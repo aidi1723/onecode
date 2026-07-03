@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from onecode.kernel.hexagram import BUILD_ENTRY, HexagramStatusCode
 from onecode.kernel.resumption import ResumeState, load_resume_state
+from onecode.kernel.run_id import validate_optional_run_id
 
 
 @dataclass(frozen=True)
@@ -26,17 +27,21 @@ def create_context(
     resume_from_run_id: str | None = None,
     create_evidence_dirs: bool = True,
 ) -> OneCodeContext:
-    if http_timeout_seconds <= 0:
+    if isinstance(http_timeout_seconds, bool) or not isinstance(http_timeout_seconds, (int, float)) or http_timeout_seconds <= 0:
         raise ValueError("http_timeout_seconds must be greater than zero")
 
     resolved_workspace = workspace_root.resolve()
     resolved_workspace.mkdir(parents=True, exist_ok=True)
-    selected_run_id = run_id or uuid4().hex
+    selected_run_id = validate_optional_run_id(run_id, field_name="run_id") or uuid4().hex
+    selected_resume_from_run_id = validate_optional_run_id(
+        resume_from_run_id,
+        field_name="resume_from_run_id",
+    )
     evidence_root = resolved_workspace / ".onecode" / "runs" / selected_run_id
     checkpoints_root = evidence_root / "checkpoints"
     if create_evidence_dirs:
         checkpoints_root.mkdir(parents=True, exist_ok=True)
-    resume_state = load_resume_state(resolved_workspace, resume_from_run_id) if resume_from_run_id else None
+    resume_state = load_resume_state(resolved_workspace, selected_resume_from_run_id) if selected_resume_from_run_id else None
 
     return OneCodeContext(
         run_id=selected_run_id,
@@ -46,6 +51,6 @@ def create_context(
         turn_index=0,
         manifest_path=evidence_root / "manifest.json",
         http_timeout_seconds=http_timeout_seconds,
-        resume_from_run_id=resume_from_run_id,
+        resume_from_run_id=selected_resume_from_run_id,
         resume_state=resume_state,
     )

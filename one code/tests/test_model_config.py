@@ -25,6 +25,22 @@ class ModelConfigTests(unittest.TestCase):
         self.assertNotIn("api_key", read_back)
         self.assertEqual(raw["api_key"], "sk-test-secret")
 
+    def test_write_user_model_config_uses_private_file_permissions(self):
+        from onecode.kernel.model_config import write_model_config
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"ONECODE_HOME": tmp}, clear=True):
+            config_path = Path(tmp) / "config.json"
+            config_path.write_text("{}", encoding="utf-8")
+            config_path.chmod(0o644)
+            write_model_config(
+                endpoint="http://localhost:8080/v1",
+                api_key="sk-test-secret",
+                model="test-model",
+            )
+            mode = config_path.stat().st_mode & 0o777
+
+        self.assertEqual(mode, 0o600)
+
     def test_write_model_config_adds_http_scheme_for_host_port_endpoint(self):
         from onecode.kernel.model_config import read_model_config, write_model_config
 

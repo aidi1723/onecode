@@ -20,7 +20,10 @@ class VenvEntrypointTests(unittest.TestCase):
         self.assertIn("usage: onecode tui", completed.stdout)
 
     def test_global_onecode_command_points_to_project_entrypoint(self):
-        command = Path("/Users/aidi/.local/bin/onecode")
+        command_path = os.environ.get("ONECODE_GLOBAL_COMMAND")
+        if not command_path:
+            self.skipTest("ONECODE_GLOBAL_COMMAND is not configured")
+        command = Path(command_path)
 
         self.assertTrue(command.exists())
         completed = subprocess.run(

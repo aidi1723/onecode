@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 import subprocess
 import sys
 import time
@@ -17,10 +18,6 @@ DEFAULT_LOCAL_PASSWORD = "OneCode123!"
 DEFAULT_ONECODE_PORT = 19080
 DEFAULT_LIBRECHAT_PORT = 14080
 DEFAULT_MONGO_PORT = 39017
-DEFAULT_JWT_SECRET = "16f8c0ef4a5d391b26034086c628469d3f9f497f08163ab9b40137092f2909ef"
-DEFAULT_JWT_REFRESH_SECRET = "eaa5191f2914e30b9387fd84e254e4ba6fc51b4654968a9b0803b456a54b8418"
-DEFAULT_CREDS_KEY = "f34be427ebb29de8d88c107a71546019685ed8b241d8f2ed00c3df97ad2566f0"
-DEFAULT_CREDS_IV = "e2341419ec3dd3d19b13a1a87fafcbfb"
 
 
 @dataclass(frozen=True)
@@ -67,10 +64,10 @@ def build_librechat_env(config: ShellLaunchConfig, base_env: Mapping[str, str] |
             "ALLOW_UNVERIFIED_EMAIL_LOGIN": "true",
             "LOGIN_WINDOW": "1",
             "LOGIN_MAX": "100",
-            "JWT_SECRET": DEFAULT_JWT_SECRET,
-            "JWT_REFRESH_SECRET": DEFAULT_JWT_REFRESH_SECRET,
-            "CREDS_KEY": DEFAULT_CREDS_KEY,
-            "CREDS_IV": DEFAULT_CREDS_IV,
+            "JWT_SECRET": env.get("JWT_SECRET") or secrets.token_hex(32),
+            "JWT_REFRESH_SECRET": env.get("JWT_REFRESH_SECRET") or secrets.token_hex(32),
+            "CREDS_KEY": env.get("CREDS_KEY") or secrets.token_hex(32),
+            "CREDS_IV": env.get("CREDS_IV") or secrets.token_hex(16),
             "MEILI_NO_SYNC": "true",
             "CONFIG_PATH": str(runtime_config_path(config)),
         }

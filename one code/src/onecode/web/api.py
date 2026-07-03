@@ -7,9 +7,10 @@ import subprocess
 import urllib.error
 import urllib.request
 import time
+from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO, Mapping
 from urllib.parse import parse_qs, urlparse
 
 from onecode.cli import inspect_run, list_runs, run_doctor
@@ -25,6 +26,7 @@ from onecode.kernel.model_provider import MissingModelApiKey, ModelProviderError
 from onecode.kernel.project_context import discover_project_context
 from onecode.kernel.runner import run_task
 from onecode.kernel.self_audit import audit_self
+from onecode.kernel.skill_context import discover_skill_context, public_skill_context
 from onecode.kernel.shell_projection import (
     attach_shell_projection,
     attach_shell_projection_to_runs_payload,
@@ -32,6 +34,7 @@ from onecode.kernel.shell_projection import (
     shell_projection_schema,
 )
 from onecode.kernel.runtime_config import inspect_runtime_config
+from onecode.kernel.run_id import validate_optional_run_id, validate_run_id
 from onecode.kernel.wal import global_wal_metrics_summary
 from onecode.kernel.verifier import (
     DEFAULT_VERIFIER_POLICY_PATH,
@@ -70,6 +73,15 @@ TASK_MARKERS = (
 )
 PATH_MARKERS = ("src/", "tests/", ".py", ".js", ".ts", ".tsx", ".md", ".json", ".yaml", ".yml")
 LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
+DEFAULT_MAX_REQUEST_BYTES = 1_000_000
+
+
+@dataclass(frozen=True)
+class JsonRequestBody:
+    payload: dict[str, Any] | None
+    status_code: int = 200
+    error_type: str | None = None
+    error_message: str | None = None
 
 
 def build_models_payload() -> dict[str, Any]:
@@ -97,6 +109,60 @@ def request_authorized(
         return allow_unauthenticated and host in LOOPBACK_HOSTS
     authorization = headers.get("authorization") or headers.get("Authorization") or ""
     return secrets.compare_digest(authorization, f"Bearer {token}")
+
+
+def max_request_bytes() -> int:
+    try:
+        value = int(os.getenv("ONECODE_MAX_REQUEST_BYTES", str(DEFAULT_MAX_REQUEST_BYTES)))
+    except ValueError:
+        return DEFAULT_MAX_REQUEST_BYTES
+    return value if value > 0 else DEFAULT_MAX_REQUEST_BYTES
+
+
+def read_json_request_body(headers: Mapping[str, str], rfile: BinaryIO) -> JsonRequestBody:
+    raw_length = headers.get("content-length") or headers.get("Content-Length") or "0"
+    try:
+        length = int(raw_length or "0")
+    except ValueError:
+        return JsonRequestBody(
+            payload=None,
+            status_code=400,
+            error_type="invalid_request_body",
+            error_message="content-length must be an integer",
+        )
+    if length < 0:
+        return JsonRequestBody(
+            payload=None,
+            status_code=400,
+            error_type="invalid_request_body",
+            error_message="content-length must not be negative",
+        )
+    limit = max_request_bytes()
+    if length > limit:
+        return JsonRequestBody(
+            payload=None,
+            status_code=413,
+            error_type="request_too_large",
+            error_message=f"request body exceeds maximum size of {limit} bytes",
+        )
+    raw = rfile.read(length)
+    try:
+        value = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return JsonRequestBody(
+            payload=None,
+            status_code=400,
+            error_type="invalid_json",
+            error_message="request body must be valid JSON",
+        )
+    if not isinstance(value, dict):
+        return JsonRequestBody(
+            payload=None,
+            status_code=400,
+            error_type="invalid_json",
+            error_message="request body must be a JSON object",
+        )
+    return JsonRequestBody(payload=value)
 
 
 def latest_user_message(messages: Any) -> str:
@@ -170,6 +236,7 @@ def project_status_payload(workspace: Path) -> dict[str, Any]:
         "latest_run": latest_run,
         "project_context": discover_project_context(resolved),
         "runtime_config": inspect_runtime_config(resolved),
+        "skill_context": public_skill_context(discover_skill_context(resolved)),
     }
 
 
@@ -198,6 +265,8 @@ def handle_onecode_project_init(body: dict[str, Any]) -> tuple[dict[str, Any], i
 
 
 def parse_limit(value: Any, default: int = 20, maximum: int = 100) -> int:
+    if isinstance(value, bool):
+        return default
     try:
         parsed = int(value)
     except (TypeError, ValueError):
@@ -206,6 +275,8 @@ def parse_limit(value: Any, default: int = 20, maximum: int = 100) -> int:
 
 
 def parse_window_seconds(value: Any, default: int = 60, maximum: int = 86_400) -> int:
+    if isinstance(value, bool):
+        return default
     try:
         parsed = int(value)
     except (TypeError, ValueError):
@@ -246,6 +317,10 @@ def handle_onecode_metrics(params: dict[str, Any]) -> tuple[dict[str, Any], int]
 
 def handle_onecode_run_inspect(run_id: str, params: dict[str, Any]) -> tuple[dict[str, Any], int]:
     try:
+        run_id = validate_run_id(run_id)
+    except ValueError as exc:
+        return error_payload("invalid_run_id", str(exc)), 400
+    try:
         workspace = workspace_from_value(params.get("workspace") if isinstance(params.get("workspace"), str) else None)
     except ValueError as exc:
         return error_payload("invalid_workspace", str(exc)), 400
@@ -255,6 +330,10 @@ def handle_onecode_run_inspect(run_id: str, params: dict[str, Any]) -> tuple[dic
 
 
 def handle_onecode_run_resume(run_id: str, body: dict[str, Any]) -> tuple[dict[str, Any], int]:
+    try:
+        run_id = validate_run_id(run_id)
+    except ValueError as exc:
+        return error_payload("invalid_run_id", str(exc)), 400
     try:
         workspace = workspace_from_value(body.get("workspace") if isinstance(body.get("workspace"), str) else None)
     except ValueError as exc:
@@ -446,6 +525,10 @@ def handle_onecode_audit_self() -> tuple[dict[str, Any], int]:
 
 def handle_onecode_run_evidence(run_id: str, params: dict[str, Any]) -> tuple[dict[str, Any], int]:
     try:
+        run_id = validate_run_id(run_id)
+    except ValueError as exc:
+        return error_payload("invalid_run_id", str(exc)), 400
+    try:
         workspace = workspace_from_value(params.get("workspace") if isinstance(params.get("workspace"), str) else None)
     except ValueError as exc:
         return error_payload("invalid_workspace", str(exc)), 400
@@ -626,6 +709,10 @@ def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
     endpoint = os.getenv("ONECODE_MODEL_ENDPOINT") or stored_config.get("endpoint") or None
     stored_api_key = stored_config.get("api_key") if isinstance(stored_config.get("api_key"), str) else None
     run_id = body.get("metadata", {}).get("run_id") if isinstance(body.get("metadata"), dict) else None
+    try:
+        run_id = validate_optional_run_id(str(run_id) if run_id else None)
+    except ValueError as exc:
+        return error_payload("invalid_run_id", str(exc)), 400
     if not should_run_onecode_task(user_message):
         try:
             content = direct_chat_completion(
@@ -1026,9 +1113,8 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
                 return
-            body = self._read_json()
+            body = self._read_json_or_send_error()
             if body is None:
-                self._send_json(error_payload("invalid_json", "request body must be valid JSON"), status_code=400)
                 return
             payload, status_code = handle_onecode_project_init(body)
             self._send_json(payload, status_code=status_code)
@@ -1037,9 +1123,8 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
                 return
-            body = self._read_json()
+            body = self._read_json_or_send_error()
             if body is None:
-                self._send_json(error_payload("invalid_json", "request body must be valid JSON"), status_code=400)
                 return
             run_id = path.removeprefix("/v1/onecode/runs/").removesuffix("/resume").strip("/")
             payload, status_code = handle_onecode_run_resume(run_id, body)
@@ -1049,9 +1134,8 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
                 return
-            body = self._read_json()
+            body = self._read_json_or_send_error()
             if body is None:
-                self._send_json(error_payload("invalid_json", "request body must be valid JSON"), status_code=400)
                 return
             payload, status_code = handle_onecode_verifier_policy_write(body)
             self._send_json(payload, status_code=status_code)
@@ -1060,9 +1144,8 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
                 return
-            body = self._read_json()
+            body = self._read_json_or_send_error()
             if body is None:
-                self._send_json(error_payload("invalid_json", "request body must be valid JSON"), status_code=400)
                 return
             payload, status_code = handle_onecode_model_config_write(body)
             self._send_json(payload, status_code=status_code)
@@ -1071,9 +1154,8 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
                 return
-            body = self._read_json()
+            body = self._read_json_or_send_error()
             if body is None:
-                self._send_json(error_payload("invalid_json", "request body must be valid JSON"), status_code=400)
                 return
             payload, status_code = handle_onecode_models_discover(body)
             self._send_json(payload, status_code=status_code)
@@ -1082,9 +1164,8 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
                 return
-            body = self._read_json()
+            body = self._read_json_or_send_error()
             if body is None:
-                self._send_json(error_payload("invalid_json", "request body must be valid JSON"), status_code=400)
                 return
             payload, status_code = handle_onecode_gateway_adjudicate(body)
             self._send_json(payload, status_code=status_code)
@@ -1109,9 +1190,8 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
         if not self._authorized():
             self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
             return
-        body = self._read_json()
+        body = self._read_json_or_send_error()
         if body is None:
-            self._send_json(error_payload("invalid_json", "request body must be valid JSON"), status_code=400)
             return
         payload, status_code = handle_chat_completion(body)
         if status_code == 200 and body.get("stream") is True:
@@ -1134,13 +1214,17 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
         )
 
     def _read_json(self) -> dict[str, Any] | None:
-        length = int(self.headers.get("content-length", "0") or "0")
-        raw = self.rfile.read(length)
-        try:
-            value = json.loads(raw.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            return None
-        return value if isinstance(value, dict) else None
+        return read_json_request_body(self.headers, self.rfile).payload
+
+    def _read_json_or_send_error(self) -> dict[str, Any] | None:
+        result = read_json_request_body(self.headers, self.rfile)
+        if result.payload is not None:
+            return result.payload
+        self._send_json(
+            error_payload(result.error_type or "invalid_json", result.error_message or "request body must be valid JSON"),
+            status_code=result.status_code,
+        )
+        return None
 
     def _send_json(self, payload: dict[str, Any], status_code: int = 200) -> None:
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")

@@ -61,6 +61,13 @@ class LogosGateTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             LogosGate(http_timeout_seconds=0)
 
+    def test_rejects_boolean_numeric_limits(self):
+        with self.assertRaisesRegex(ValueError, "http_timeout_seconds must be greater than zero"):
+            LogosGate(http_timeout_seconds=True)
+
+        with self.assertRaisesRegex(ValueError, "executor_pool_size must be greater than zero"):
+            LogosGate(http_timeout_seconds=1, executor_pool_size=True)
+
     def test_run_bounded_action_reuses_executor_until_closed(self):
         created = []
         real_executor = __import__("concurrent.futures").futures.ThreadPoolExecutor

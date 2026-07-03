@@ -14,9 +14,9 @@ class LogosGate:
         permission_matrix: PermissionMatrix | None = None,
         executor_pool_size: int = 1,
     ) -> None:
-        if http_timeout_seconds <= 0:
+        if isinstance(http_timeout_seconds, bool) or not isinstance(http_timeout_seconds, (int, float)) or http_timeout_seconds <= 0:
             raise ValueError("http_timeout_seconds must be greater than zero")
-        if executor_pool_size <= 0:
+        if isinstance(executor_pool_size, bool) or not isinstance(executor_pool_size, int) or executor_pool_size <= 0:
             raise ValueError("executor_pool_size must be greater than zero")
         self.http_timeout_seconds = http_timeout_seconds
         self.permission_matrix = permission_matrix or PermissionMatrix()

@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from onecode.kernel.training_data import validate_yizijue_lm_state_sample
-from onecode.kernel.yizijue_logits import YiZiJueLogitsProcessor, token_id_policy_for_basis
+from onecode.kernel.yizijue_logits import YiZiJueLogitsProcessor, is_strict_int, token_id_policy_for_basis
 
 
 def build_yizijue_generation_prompt(input_text: str, *, basis: dict[str, Any]) -> str:
@@ -33,7 +33,7 @@ def generate_with_yizijue_logits(
     preferred_bias: float = 2.0,
     do_sample: bool = False,
 ) -> dict[str, Any]:
-    if not isinstance(max_new_tokens, int) or max_new_tokens <= 0:
+    if not is_strict_int(max_new_tokens) or max_new_tokens <= 0:
         raise ValueError("max_new_tokens must be a positive integer")
     prompt = build_yizijue_generation_prompt(input_text, basis=basis)
     policy = token_id_policy_for_basis(basis, tokenizer)

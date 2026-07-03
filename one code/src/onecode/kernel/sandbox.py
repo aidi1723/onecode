@@ -25,9 +25,9 @@ class SandboxConfig:
         if not resolved.exists() or not resolved.is_dir():
             raise ValueError(f"sandbox workspace does not exist: {resolved}")
         object.__setattr__(self, "workspace", resolved)
-        if self.timeout_seconds <= 0:
+        if isinstance(self.timeout_seconds, bool) or not isinstance(self.timeout_seconds, int) or self.timeout_seconds <= 0:
             raise ValueError("sandbox timeout_seconds must be positive")
-        if self.pids_limit <= 0:
+        if isinstance(self.pids_limit, bool) or not isinstance(self.pids_limit, int) or self.pids_limit <= 0:
             raise ValueError("sandbox pids_limit must be positive")
 
 

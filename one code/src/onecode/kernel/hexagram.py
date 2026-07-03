@@ -1274,6 +1274,16 @@ class IchingKernel:
         return cls.compute_status(cls.KUN, cls.KUN)
 
     @classmethod
+    def classify_skill_context(cls, status: str, reason: str | None) -> int:
+        if status == "blocked" or reason in {"unsafe_executable_skill", "outside_project"}:
+            return cls.compute_status(cls.LI, cls.KUN)
+        if status == "warning" or reason in {"invalid_manifest", "duplicate_name"}:
+            return cls.compute_status(cls.KAN, cls.GEN)
+        if status == "ok":
+            return cls.compute_status(cls.KAN, cls.ZHEN)
+        return cls.compute_status(cls.KUN, cls.KUN)
+
+    @classmethod
     def transition(cls, status_code: int) -> IchingTransition:
         normalized = status_code & 0b111111
         inner = normalized & 0b111
@@ -1349,7 +1359,7 @@ class IchingKernel:
         skipped_count: int | None,
         failed_count: int | None,
     ) -> dict[str, int | str]:
-        if all(isinstance(value, int) for value in (requested_count, completed_count, skipped_count, failed_count)):
+        if all(isinstance(value, int) and not isinstance(value, bool) for value in (requested_count, completed_count, skipped_count, failed_count)):
             resolved = completed_count + skipped_count + failed_count
             counts = {
                 "resolved_count": resolved,

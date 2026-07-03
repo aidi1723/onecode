@@ -10,7 +10,11 @@ fi
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 echo "install"
-"$PYTHON_BIN" -m pip install -e .[tui]
+if "$PYTHON_BIN" -c "import onecode, textual" >/dev/null 2>&1; then
+  echo "install skipped: onecode and textual already available"
+else
+  "$PYTHON_BIN" -m pip install -e .[tui]
+fi
 
 echo "compileall"
 "$PYTHON_BIN" -m compileall src tests

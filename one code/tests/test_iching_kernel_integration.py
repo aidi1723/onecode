@@ -167,6 +167,51 @@ class IchingKernelIntegrationTests(unittest.TestCase):
             self.assertEqual(ledger["iching_profile"]["status_code"], result["iching_profile"]["status_code"])
             self.assertEqual(manifest["iching_profile"]["status_code"], result["iching_profile"]["status_code"])
 
+    def test_run_task_persists_read_only_skill_selection_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            skill_dir = workspace / ".onecode" / "skills"
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "code-test-regression.json").write_text(
+                json.dumps(
+                    {
+                        "name": "code-test-regression",
+                        "version": "1",
+                        "description": "private skill body",
+                        "capabilities": ["test", "verification"],
+                        "risk": "low",
+                        "mode": "method_only",
+                        "allowed_tools": ["pytest"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = run_task(
+                "test verification flow",
+                workspace=workspace,
+                run_id="skill-selection-run",
+                write_path="src/a.py",
+                write_content="a = 1\n",
+            )
+
+            ledger = json.loads(Path(result["ledger_path"]).read_text(encoding="utf-8"))
+            manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
+            checkpoint = manifest["checkpoints"][-1]
+
+        self.assertEqual(result["skill_selection"]["selection_reason"], "capability_match")
+        self.assertEqual(result["skill_selection"]["selected_skills"][0]["name"], "code-test-regression")
+        self.assertEqual(ledger["skill_selection"]["selection_sha256"], result["skill_selection"]["selection_sha256"])
+        self.assertEqual(manifest["skill_selection"]["selection_sha256"], result["skill_selection"]["selection_sha256"])
+        self.assertEqual(checkpoint["skill_selection"]["selection_sha256"], result["skill_selection"]["selection_sha256"])
+        serialized = json.dumps({"result": result, "ledger": ledger, "manifest": manifest})
+        self.assertNotIn("private skill body", serialized)
+        self.assertNotIn("allowed_tools", serialized)
+        self.assertNotIn("pytest", serialized)
+        self.assertNotIn("skill_score", serialized)
+        self.assertNotIn("skill_priority", serialized)
+        self.assertNotIn("skill_confidence", serialized)
+
     def test_completed_runs_register_full_profile_once_for_hash_lookup(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

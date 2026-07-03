@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.resumption import sha256_file
+from onecode.kernel.run_id import validate_run_id
 from onecode.kernel.verifier import VerifierSpec
 from onecode.kernel.wal import read_validated_global_wal_entries
 
@@ -189,7 +190,7 @@ def verifier_matches_spec(result: dict[str, Any], spec: VerifierSpec) -> bool | 
         return None
     if not isinstance(cwd, str):
         return None
-    if timeout_ms is not None and not isinstance(timeout_ms, int):
+    if timeout_ms is not None and (isinstance(timeout_ms, bool) or not isinstance(timeout_ms, int)):
         return None
     return command == spec.command and cwd == spec.cwd and (timeout_ms is None or timeout_ms == spec.timeout_ms)
 
@@ -233,6 +234,7 @@ def classify_task_resume(
     planned_assets: list[PlannedAsset],
     verifier_specs: list[VerifierSpec],
 ) -> TaskResumeSummary:
+    source_run_id = validate_run_id(source_run_id, field_name="source_run_id")
     source_root = workspace.resolve() / ".onecode" / "runs" / source_run_id
     manifest_path = source_root / "manifest.json"
     ledger_path = source_root / "ledger.json"

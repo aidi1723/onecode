@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from onecode.kernel.hexagram import IchingKernel
+from onecode.kernel.run_id import validate_run_id
 from onecode.kernel.wal import read_validated_global_wal_entries
 
 
@@ -239,6 +240,7 @@ def wal_asset_to_checkpoint(asset: dict, source_run_id: str) -> dict | None:
 
 
 def load_wal_resume_state(workspace_root: Path, resume_from_run_id: str) -> ResumeState:
+    resume_from_run_id = validate_run_id(resume_from_run_id, field_name="resume_from_run_id")
     ready_assets: dict[str, ReadyAsset] = {}
     audit_events: list[dict] = []
     for entry in read_validated_global_wal_entries(workspace_root):
@@ -262,6 +264,7 @@ def load_wal_resume_state(workspace_root: Path, resume_from_run_id: str) -> Resu
 
 
 def load_resume_state(workspace_root: Path, resume_from_run_id: str) -> ResumeState:
+    resume_from_run_id = validate_run_id(resume_from_run_id, field_name="resume_from_run_id")
     root = workspace_root.resolve()
     manifest_path = root / ".onecode" / "runs" / resume_from_run_id / "manifest.json"
     if not manifest_path.exists():

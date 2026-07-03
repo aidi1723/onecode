@@ -8,11 +8,14 @@ from typing import Any
 def global_wal_paths(workspace_root: Path) -> list[Path]:
     onecode_root = workspace_root.resolve() / ".onecode"
     active_path = onecode_root / "global-ledger.jsonl"
-    rotated_paths = sorted(
-        onecode_root.glob("global-ledger.*.jsonl"),
-        key=lambda path: int(path.name.removeprefix("global-ledger.").removesuffix(".jsonl"))
+    rotated_paths = [
+        path
+        for path in onecode_root.glob("global-ledger.*.jsonl")
         if path.name.removeprefix("global-ledger.").removesuffix(".jsonl").isdigit()
-        else -1,
+    ]
+    rotated_paths = sorted(
+        rotated_paths,
+        key=lambda path: int(path.name.removeprefix("global-ledger.").removesuffix(".jsonl")),
     )
     return [path for path in rotated_paths if path.name != active_path.name] + [active_path]
 
@@ -64,7 +67,10 @@ def read_validated_global_wal_segment(path: Path) -> list[dict[str, Any]]:
     for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
-        value = json.loads(line)
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise ValueError("invalid_global_wal_json") from exc
         if not isinstance(value, dict):
             raise ValueError("invalid_global_wal_entry")
         if "hash" in value or "prev" in value:

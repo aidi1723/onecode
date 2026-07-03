@@ -228,6 +228,38 @@ class ModelLoopTests(unittest.TestCase):
 
             self.assertFalse((workspace / ".onecode").exists())
 
+    def test_run_model_task_rejects_boolean_numeric_limits_before_provider_call(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            provider = FakeModelProvider(
+                ModelPlan(
+                    task="build generated project",
+                    assets=[ModelPlanAsset(path="src/generated.py", content="VALUE = 1\n")],
+                )
+            )
+
+            with self.assertRaisesRegex(ValueError, "http_timeout_seconds must be greater than zero"):
+                run_model_task(
+                    "build project",
+                    workspace=workspace,
+                    run_id="model-bool-timeout",
+                    api_key="test-key",
+                    provider=provider,
+                    http_timeout_seconds=True,
+                )
+            with self.assertRaisesRegex(ValueError, "max_repair_attempts must be a non-negative integer"):
+                run_model_task(
+                    "build project",
+                    workspace=workspace,
+                    run_id="model-bool-repair",
+                    api_key="test-key",
+                    provider=provider,
+                    max_repair_attempts=True,
+                )
+
+            self.assertEqual(provider.calls, [])
+            self.assertFalse((workspace / ".onecode").exists())
+
     def test_run_model_task_executes_mock_plan_through_runner(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

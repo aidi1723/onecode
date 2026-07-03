@@ -20,7 +20,7 @@ from onecode.kernel.inspection import (
 )
 from onecode.kernel.execution_engine import execute_plan
 from onecode.kernel.execution_plan_loader import execution_trace_to_dict, load_execution_plan
-from onecode.kernel.checkpoint import wal_entry_hash, write_ledger
+from onecode.kernel.checkpoint import validate_skill_selection, wal_entry_hash, write_ledger
 from onecode.kernel.runner import run_task
 from onecode.kernel.task_plan import load_task_plan
 from onecode.kernel.task_resume import PlannedAsset, classify_task_resume
@@ -35,8 +35,10 @@ from onecode.kernel.model_provider import api_key_from_env, build_provider_confi
 from onecode.kernel.project_context import discover_project_context
 from onecode.kernel.runtime_config import inspect_runtime_config
 from onecode.kernel.recovery_policy import recovery_status
+from onecode.kernel.run_id import validate_run_id
 from onecode.kernel.sandbox import SandboxConfig, run_sandbox_smoke
 from onecode.kernel.self_audit import audit_self
+from onecode.kernel.skill_context import discover_skill_context, public_skill_context
 from onecode.kernel.shell_projection import (
     attach_shell_projection,
     attach_shell_projection_to_runs_payload,
@@ -568,6 +570,15 @@ def run_doctor() -> dict:
             )
         )
 
+        skill_context = discover_skill_context(workspace)
+        checks.append(
+            doctor_check(
+                "skill_context",
+                skill_context["status"] in {"ok", "warning", "missing"},
+                public_skill_context(skill_context),
+            )
+        )
+
         recovery = recovery_status("provider_failure")
         checks.append(
             doctor_check(
@@ -653,7 +664,9 @@ def task_status_from_verifier_dicts(result: dict, verifier_dicts: list[dict]) ->
     status_codes = [
         asset.get("raw_status_code")
         for asset in result.get("assets", [])
-        if isinstance(asset, dict) and isinstance(asset.get("raw_status_code"), int)
+        if isinstance(asset, dict)
+        and isinstance(asset.get("raw_status_code"), int)
+        and not isinstance(asset.get("raw_status_code"), bool)
     ]
     for verifier in verifier_dicts:
         status_codes.append(
@@ -958,6 +971,34 @@ def optional_task_inspect_fields(ledger: dict) -> dict:
     return {field: ledger[field] for field in TASK_INSPECT_FIELDS if field in ledger}
 
 
+def compact_skill_selection_inspect_fields(
+    ledger: dict,
+    manifest: dict,
+) -> tuple[dict[str, Any], str | None]:
+    ledger_selection = ledger.get("skill_selection")
+    manifest_selection = manifest.get("skill_selection")
+    validated_ledger = None
+    validated_manifest = None
+    try:
+        validated_ledger = validate_skill_selection(ledger_selection)
+        validated_manifest = validate_skill_selection(manifest_selection)
+    except ValueError:
+        return {}, "invalid_skill_selection_evidence"
+
+    if validated_ledger is not None and validated_manifest is not None:
+        if validated_ledger.get("selection_sha256") != validated_manifest.get("selection_sha256"):
+            return {}, "skill_selection_mismatch"
+    selection = validated_ledger or validated_manifest
+    if selection is None:
+        return {}, None
+    return {
+        "skill_context_status": selection.get("status"),
+        "ssr": selection.get("selection_reason"),
+        "ssc": selection.get("selected_count"),
+        "ssh": selection.get("selection_sha256"),
+    }, None
+
+
 def trace_repair_decision(evidence_metrics: dict[str, Any]) -> dict[str, Any]:
     trace_metrics = evidence_metrics.get("trace") if isinstance(evidence_metrics, dict) else None
     if not isinstance(trace_metrics, dict):
@@ -1059,6 +1100,9 @@ def inspect_global_wal_run(workspace: Path, run_id: str) -> tuple[int, dict] | N
         "iching_transition_action": entry.get("ita"),
         "profile_sha256": entry.get("ph"),
         "profile_registry_ref": entry.get("pr"),
+        "ssh": entry.get("ssh"),
+        "ssr": entry.get("ssr"),
+        "ssc": entry.get("ssc"),
         "manifest_path": entry.get("mp"),
         "ledger_path": entry.get("lp"),
         "wal_path": entry_wal_path,
@@ -1092,6 +1136,14 @@ def global_wal_run_summaries(workspace: Path) -> tuple[list[dict] | None, dict |
 
 
 def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
+    try:
+        run_id = validate_run_id(run_id)
+    except ValueError:
+        return 1, {
+            "run_id": run_id,
+            "status": "invalid",
+            "reason": "invalid_run_id",
+        }
     evidence_root = workspace.resolve() / ".onecode" / "runs" / run_id
     manifest_path = evidence_root / "manifest.json"
     ledger_path = evidence_root / "ledger.json"
@@ -1198,6 +1250,16 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
                 "manifest_path": str(manifest_path),
                 "ledger_path": str(ledger_path),
             }
+    skill_selection_fields, skill_selection_error = compact_skill_selection_inspect_fields(ledger, manifest)
+    if skill_selection_error is not None:
+        return 1, {
+            "run_id": run_id,
+            "status": "corrupt",
+            "corrupt_path": str(ledger_path),
+            "corrupt_reason": skill_selection_error,
+            "manifest_path": str(manifest_path),
+            "ledger_path": str(ledger_path),
+        }
     trace_value = ledger.get("trace_path")
     evidence_metrics = ledger.get("evidence_metrics", {})
     if not isinstance(evidence_metrics, dict):
@@ -1255,7 +1317,7 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
         "manifest_path": str(manifest_path),
         "ledger_path": str(ledger_path),
         "evidence_metrics": evidence_metrics,
-    } | delivery_summary(ledger) | optional_task_inspect_fields(ledger)
+    } | skill_selection_fields | delivery_summary(ledger) | optional_task_inspect_fields(ledger)
     return 0, base_summary | trace_repair_decision(evidence_metrics)
 
 

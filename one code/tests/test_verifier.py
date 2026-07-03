@@ -4,7 +4,13 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from onecode.kernel.verifier import VERIFIER_POLICY_PRESETS, VerifierSpec, load_verifier_policy, run_verifier
+from onecode.kernel.verifier import (
+    VERIFIER_POLICY_PRESETS,
+    VerifierSpec,
+    load_verifier_policy,
+    run_verifier,
+    task_status_from_results,
+)
 
 
 class VerifierPolicyTests(unittest.TestCase):
@@ -75,6 +81,28 @@ class VerifierPolicyTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "duplicate verifier id"):
                 load_verifier_policy(path)
 
+    def test_load_verifier_policy_rejects_boolean_timeout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "verifiers.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "verifiers": [
+                            {
+                                "id": "python-unittest",
+                                "command": VERIFIER_POLICY_PRESETS["python-unittest"]["command"],
+                                "cwd": ".",
+                                "timeout_ms": True,
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "verifier timeout_ms must be positive"):
+                load_verifier_policy(path)
+
     def test_policy_require_rejects_unknown_id(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "verifiers.json"
@@ -96,6 +124,13 @@ class VerifierPolicyTests(unittest.TestCase):
 
 
 class VerifierExecutionTests(unittest.TestCase):
+    def test_task_status_ignores_boolean_asset_status_codes(self):
+        without_status = task_status_from_results({"assets": []}, [])
+        with_boolean_status = task_status_from_results({"assets": [{"raw_status_code": True}]}, [])
+
+        self.assertEqual(with_boolean_status["task_status_code"], without_status["task_status_code"])
+        self.assertEqual(with_boolean_status["task_transition_action"], without_status["task_transition_action"])
+
     def test_run_verifier_records_success_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

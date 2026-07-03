@@ -54,6 +54,26 @@ class TestIchingKernel(unittest.TestCase):
             IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN),
         )
 
+    def test_classify_skill_context_maps_valid_and_missing_skill_evidence(self):
+        self.assertEqual(
+            IchingKernel.classify_skill_context("ok", None),
+            IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN),
+        )
+        self.assertEqual(
+            IchingKernel.classify_skill_context("missing", "no_skills"),
+            IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN),
+        )
+
+    def test_classify_skill_context_maps_invalid_and_blocked_skill_evidence(self):
+        self.assertEqual(
+            IchingKernel.classify_skill_context("warning", "invalid_manifest"),
+            IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.GEN),
+        )
+        self.assertEqual(
+            IchingKernel.classify_skill_context("blocked", "unsafe_executable_skill"),
+            IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
+        )
+
     def test_transition_applies_cross_cutting_dynamic_laws(self):
         fire_over_ready_asset = IchingKernel.compute_status(IchingKernel.LI, IchingKernel.DUI)
         fire_transition = IchingKernel.transition(fire_over_ready_asset)
@@ -331,6 +351,16 @@ class TestIchingKernel(unittest.TestCase):
                 completed_count=None,
                 skipped_count=None,
                 failed_count=None,
+            ),
+            {"delivery_status": "deliverable", "next_action": "idle"},
+        )
+        self.assertEqual(
+            IchingKernel.delivery_decision(
+                status="completed",
+                requested_count=True,
+                completed_count=True,
+                skipped_count=False,
+                failed_count=False,
             ),
             {"delivery_status": "deliverable", "next_action": "idle"},
         )

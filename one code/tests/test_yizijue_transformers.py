@@ -73,6 +73,24 @@ class YiZiJueTransformersTests(unittest.TestCase):
         self.assertIn("verification_request", tokenizer.prompts[0])
         self.assertIn("运行 pytest 验证一下", tokenizer.prompts[0])
 
+    def test_generate_with_yizijue_logits_rejects_boolean_max_new_tokens(self):
+        from onecode.kernel.yizijue_transformers import generate_with_yizijue_logits
+
+        with self.assertRaisesRegex(ValueError, "max_new_tokens must be a positive integer"):
+            generate_with_yizijue_logits(
+                "运行 pytest 验证一下",
+                basis={
+                    "projection": "verification_request",
+                    "state": "010010",
+                    "state_label": "kan_sandbox_verifier",
+                    "transition": "sandbox_required",
+                    "rule": "verification commands must run in a sandbox",
+                },
+                tokenizer=FakeTokenizer(),
+                model=FakeModel(),
+                max_new_tokens=True,
+            )
+
     def test_build_yizijue_generation_prompt_embeds_input_and_basis(self):
         from onecode.kernel.yizijue_transformers import build_yizijue_generation_prompt
 

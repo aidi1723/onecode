@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from onecode.kernel.checkpoint import file_lock, sha256_file, write_checkpoint, write_ledger
+from onecode.kernel.checkpoint import file_lock, sha256_file, skill_selection_sha256, write_checkpoint, write_ledger
 from onecode.kernel.context import create_context
 from onecode.kernel.hexagram import COMPLETE
 
@@ -101,6 +101,37 @@ class CheckpointTests(unittest.TestCase):
             self.assertRegex(records[0]["artifact_sha256"], r"^[0-9a-f]{64}$")
             self.assertRegex(records[0]["chain_hash"], r"^[0-9a-f]{64}$")
 
+    def test_write_ledger_rejects_invalid_skill_selection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="ledger-skill-selection-invalid")
+
+            with self.assertRaisesRegex(ValueError, "skill_selection_forbidden_field:allowed_tools"):
+                write_ledger(
+                    context,
+                    {
+                        "run_id": "ledger-skill-selection-invalid",
+                        "status": "completed",
+                        "partial": False,
+                        "reason": None,
+                        "skill_selection": {
+                            "status": "ok",
+                            "selection_reason": "capability_match",
+                            "selected_count": 1,
+                            "selected_skills": [
+                                {
+                                    "name": "code-test-regression",
+                                    "mode": "method_only",
+                                    "risk": "low",
+                                    "matched_capabilities": ["test"],
+                                    "content_sha256": "a" * 64,
+                                    "allowed_tools": ["pytest"],
+                                }
+                            ],
+                            "selection_sha256": "b" * 64,
+                        },
+                    },
+                )
+
 
 class AppendOnlyManifestTests(unittest.TestCase):
     def test_write_checkpoint_preserves_prior_checkpoint_records(self):
@@ -170,6 +201,332 @@ class AppendOnlyManifestTests(unittest.TestCase):
 
 
 class ManifestBoundaryTests(unittest.TestCase):
+    def test_write_checkpoint_persists_bounded_skill_selection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="skill-selection-valid")
+            skill_selection = {
+                "status": "ok",
+                "selection_reason": "capability_match",
+                "selected_skills": [
+                    {
+                        "name": "code-test-regression",
+                        "mode": "method_only",
+                        "risk": "low",
+                        "matched_capabilities": ["test", "verification"],
+                        "content_sha256": "a" * 64,
+                    }
+                ],
+                "selected_count": 1,
+                "skill_context_summary": {"skill_count": 1, "invalid_count": 0, "element": "water"},
+                "iching_status_code": 17,
+                "iching_transition_action": "checkpoint",
+                "iching_transition_reason": "network_water_preserves_resume_seed",
+                "dispatch_decision": "stop",
+                "selection_sha256": "b" * 64,
+            }
+            skill_selection["selection_sha256"] = skill_selection_sha256(skill_selection)
+
+            checkpoint_path = write_checkpoint(
+                context=context,
+                payload={"task": "skill evidence"},
+                next_state=COMPLETE,
+                status="completed",
+                partial=False,
+                reason=None,
+                skill_selection=skill_selection,
+            )
+
+            checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+            manifest = json.loads(context.manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(checkpoint["skill_selection"], skill_selection)
+            self.assertEqual(manifest["skill_selection"], skill_selection)
+            self.assertEqual(manifest["checkpoints"][0]["skill_selection"], skill_selection)
+
+    def test_write_checkpoint_rejects_skill_selection_hash_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="skill-selection-hash-mismatch")
+            skill_selection = {
+                "status": "ok",
+                "selection_reason": "capability_match",
+                "selected_skills": [
+                    {
+                        "name": "code-test-regression",
+                        "mode": "method_only",
+                        "risk": "low",
+                        "matched_capabilities": ["test"],
+                        "content_sha256": "a" * 64,
+                    }
+                ],
+                "selected_count": 1,
+                "selection_sha256": "b" * 64,
+            }
+
+            with self.assertRaisesRegex(ValueError, "skill_selection_hash_mismatch"):
+                write_checkpoint(
+                    context=context,
+                    payload={"task": "skill evidence"},
+                    next_state=COMPLETE,
+                    status="completed",
+                    partial=False,
+                    reason=None,
+                    skill_selection=skill_selection,
+                )
+
+    def test_write_checkpoint_rejects_invalid_skill_selection_rule_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="skill-selection-rule-metadata")
+            skill_selection = {
+                "status": "ok",
+                "selection_reason": "capability_match",
+                "selected_skills": [],
+                "selected_count": 0,
+                "iching_status_code": "17",
+            }
+            skill_selection["selection_sha256"] = skill_selection_sha256(skill_selection)
+
+            with self.assertRaisesRegex(ValueError, "skill_selection_invalid_field:iching_status_code"):
+                write_checkpoint(
+                    context=context,
+                    payload={"task": "skill evidence"},
+                    next_state=COMPLETE,
+                    status="completed",
+                    partial=False,
+                    reason=None,
+                    skill_selection=skill_selection,
+                )
+
+            skill_selection = {
+                "status": "ok",
+                "selection_reason": "capability_match",
+                "selected_skills": [],
+                "selected_count": 0,
+                "iching_transition_action": "raw body text",
+            }
+            skill_selection["selection_sha256"] = skill_selection_sha256(skill_selection)
+
+            with self.assertRaisesRegex(ValueError, "skill_selection_invalid_field:iching_transition_action"):
+                write_checkpoint(
+                    context=context,
+                    payload={"task": "skill evidence"},
+                    next_state=COMPLETE,
+                    status="completed",
+                    partial=False,
+                    reason=None,
+                    skill_selection=skill_selection,
+                )
+
+    def test_write_checkpoint_rejects_skill_selection_forbidden_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="skill-selection-forbidden")
+            skill_selection = {
+                "status": "ok",
+                "selection_reason": "capability_match",
+                "selected_skills": [
+                    {
+                        "name": "code-test-regression",
+                        "mode": "method_only",
+                        "risk": "low",
+                        "matched_capabilities": ["test"],
+                        "content_sha256": "a" * 64,
+                        "allowed_tools": ["pytest"],
+                    }
+                ],
+                "selected_count": 1,
+                "selection_sha256": "b" * 64,
+            }
+
+            with self.assertRaisesRegex(ValueError, "skill_selection_forbidden_field:allowed_tools"):
+                write_checkpoint(
+                    context=context,
+                    payload={"task": "skill evidence"},
+                    next_state=COMPLETE,
+                    status="completed",
+                    partial=False,
+                    reason=None,
+                    skill_selection=skill_selection,
+                )
+
+    def test_write_checkpoint_rejects_raw_fields_inside_skill_context_summary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="skill-selection-summary-forbidden")
+            skill_selection = {
+                "status": "ok",
+                "selection_reason": "capability_match",
+                "selected_skills": [],
+                "selected_count": 0,
+                "skill_context_summary": {
+                    "skill_count": 1,
+                    "invalid_count": 0,
+                    "element": "water",
+                    "allowed_tools": ["pytest"],
+                },
+                "selection_sha256": "b" * 64,
+            }
+
+            with self.assertRaisesRegex(ValueError, "skill_selection_summary_forbidden_field:allowed_tools"):
+                write_checkpoint(
+                    context=context,
+                    payload={"task": "skill evidence"},
+                    next_state=COMPLETE,
+                    status="completed",
+                    partial=False,
+                    reason=None,
+                    skill_selection=skill_selection,
+                )
+
+    def test_write_checkpoint_rejects_invalid_skill_selection_status_and_reason(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="skill-selection-status-reason")
+            skill_selection = {
+                "status": "ok",
+                "selection_reason": "private body text",
+                "selected_skills": [],
+                "selected_count": 0,
+                "selection_sha256": "b" * 64,
+            }
+
+            with self.assertRaisesRegex(ValueError, "skill_selection_invalid_field:selection_reason"):
+                write_checkpoint(
+                    context=context,
+                    payload={"task": "skill evidence"},
+                    next_state=COMPLETE,
+                    status="completed",
+                    partial=False,
+                    reason=None,
+                    skill_selection=skill_selection,
+                )
+
+            skill_selection["selection_reason"] = "capability_match"
+            skill_selection["status"] = "trusted"
+            with self.assertRaisesRegex(ValueError, "skill_selection_invalid_field:status"):
+                write_checkpoint(
+                    context=context,
+                    payload={"task": "skill evidence"},
+                    next_state=COMPLETE,
+                    status="completed",
+                    partial=False,
+                    reason=None,
+                    skill_selection=skill_selection,
+                )
+
+    def test_write_checkpoint_rejects_invalid_selected_skill_mode_and_risk(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="skill-selection-mode-risk")
+            skill_selection = {
+                "status": "ok",
+                "selection_reason": "capability_match",
+                "selected_skills": [
+                    {
+                        "name": "code-test-regression",
+                        "mode": "execute",
+                        "risk": "low",
+                        "matched_capabilities": ["test"],
+                        "content_sha256": "a" * 64,
+                    }
+                ],
+                "selected_count": 1,
+                "selection_sha256": "b" * 64,
+            }
+
+            with self.assertRaisesRegex(ValueError, "skill_selection_invalid_selected_field:mode"):
+                write_checkpoint(
+                    context=context,
+                    payload={"task": "skill evidence"},
+                    next_state=COMPLETE,
+                    status="completed",
+                    partial=False,
+                    reason=None,
+                    skill_selection=skill_selection,
+                )
+
+            skill_selection["selected_skills"][0]["mode"] = "method_only"
+            skill_selection["selected_skills"][0]["risk"] = "critical"
+            with self.assertRaisesRegex(ValueError, "skill_selection_invalid_selected_field:risk"):
+                write_checkpoint(
+                    context=context,
+                    payload={"task": "skill evidence"},
+                    next_state=COMPLETE,
+                    status="completed",
+                    partial=False,
+                    reason=None,
+                    skill_selection=skill_selection,
+                )
+
+    def test_write_checkpoint_rejects_skill_selection_count_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="skill-selection-count")
+            skill_selection = {
+                "status": "ok",
+                "selection_reason": "capability_match",
+                "selected_skills": [],
+                "selected_count": 1,
+                "selection_sha256": "b" * 64,
+            }
+
+            with self.assertRaisesRegex(ValueError, "skill_selection_count_mismatch"):
+                write_checkpoint(
+                    context=context,
+                    payload={"task": "skill evidence"},
+                    next_state=COMPLETE,
+                    status="completed",
+                    partial=False,
+                    reason=None,
+                    skill_selection=skill_selection,
+                )
+
+    def test_write_checkpoint_rejects_boolean_skill_selection_count(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="skill-selection-bool-count")
+            skill_selection = {
+                "status": "ok",
+                "selection_reason": "capability_match",
+                "selected_skills": [
+                    {
+                        "name": "code-test-regression",
+                        "mode": "method_only",
+                        "risk": "low",
+                        "matched_capabilities": ["test"],
+                        "content_sha256": "a" * 64,
+                    }
+                ],
+                "selected_count": True,
+            }
+            skill_selection["selection_sha256"] = skill_selection_sha256(skill_selection)
+
+            with self.assertRaisesRegex(ValueError, "skill_selection_count_mismatch"):
+                write_checkpoint(
+                    context=context,
+                    payload={"task": "skill evidence"},
+                    next_state=COMPLETE,
+                    status="completed",
+                    partial=False,
+                    reason=None,
+                    skill_selection=skill_selection,
+                )
+
+    def test_write_checkpoint_rejects_oversized_skill_selection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="skill-selection-oversized")
+            skill_selection = {
+                "status": "ok",
+                "selection_reason": "capability_match",
+                "selected_skills": [],
+                "selected_count": 0,
+                "selection_sha256": "b" * 64,
+                "skill_context_summary": {"padding": "x" * 8000},
+            }
+
+            with self.assertRaisesRegex(ValueError, "skill_selection_too_large"):
+                write_checkpoint(
+                    context=context,
+                    payload={"task": "skill evidence"},
+                    next_state=COMPLETE,
+                    status="completed",
+                    partial=False,
+                    reason=None,
+                    skill_selection=skill_selection,
+                )
+
     def test_write_checkpoint_persists_bounded_domain_projection(self):
         with tempfile.TemporaryDirectory() as tmp:
             context = create_context(Path(tmp), run_id="domain-projection")

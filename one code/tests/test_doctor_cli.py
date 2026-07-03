@@ -82,6 +82,7 @@ class DoctorCliTests(unittest.TestCase):
                 "http_timeout",
                 "project_context",
                 "runtime_config",
+                "skill_context",
                 "recovery_policy",
             ],
         )
@@ -92,7 +93,8 @@ class DoctorCliTests(unittest.TestCase):
         self.assertEqual(result["checks"][3]["detail"]["run_id"], "doctor-timeout")
         self.assertEqual(result["checks"][4]["detail"]["summary"]["element"], "wood")
         self.assertEqual(result["checks"][5]["detail"]["summary"]["element"], "earth")
-        self.assertEqual(result["checks"][6]["detail"]["element"], "fire")
+        self.assertEqual(result["checks"][6]["detail"]["summary"]["element"], "water")
+        self.assertEqual(result["checks"][7]["detail"]["element"], "fire")
         for check in result["checks"][4:]:
             self.assertIn("iching_status_code", check["detail"])
             self.assertIn("iching_transition_action", check["detail"])

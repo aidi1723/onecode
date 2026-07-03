@@ -51,6 +51,11 @@ class FakeScores:
                 row[token_id] = value
 
 
+class BoolTokenizer:
+    def encode(self, text: str, add_special_tokens: bool = False) -> list[int]:
+        return [True]
+
+
 class YiZiJueLogitsPolicyTests(unittest.TestCase):
     def test_danger_state_blocks_allow_tokens_and_prefers_halt(self):
         policy = state_token_policy("100001")
@@ -167,6 +172,17 @@ class YiZiJueLogitsPolicyTests(unittest.TestCase):
         self.assertTrue(policy["forbidden_token_ids"])
         self.assertEqual({call["add_special_tokens"] for call in tokenizer.calls}, {False})
 
+    def test_text_policy_to_token_id_policy_rejects_boolean_tokenizer_ids(self):
+        with self.assertRaisesRegex(ValueError, "tokenizer.encode must return a list of integers"):
+            text_policy_to_token_id_policy(
+                {
+                    "state": "100001",
+                    "preferred_text": ["SOVEREIGNTY_HALT"],
+                    "forbidden_text": ["ALLOW_ATOMIC_WRITE"],
+                },
+                BoolTokenizer(),
+            )
+
     def test_state_token_id_policy_uses_state_policy(self):
         tokenizer = FakeTokenizer()
 
@@ -200,6 +216,25 @@ class YiZiJueLogitsPolicyTests(unittest.TestCase):
                     "state": "000000",
                     "preferred_token_ids": ["bad"],
                     "forbidden_token_ids": [1],
+                }
+            )
+
+    def test_validate_state_token_id_policy_rejects_boolean_ids(self):
+        with self.assertRaisesRegex(ValueError, "preferred_token_ids must be an integer list"):
+            validate_state_token_id_policy(
+                {
+                    "state": "000000",
+                    "preferred_token_ids": [True],
+                    "forbidden_token_ids": [1],
+                }
+            )
+
+        with self.assertRaisesRegex(ValueError, "forbidden_token_ids must be an integer list"):
+            validate_state_token_id_policy(
+                {
+                    "state": "000000",
+                    "preferred_token_ids": [1],
+                    "forbidden_token_ids": [False],
                 }
             )
 

@@ -9,13 +9,20 @@ import hashlib
 from pathlib import Path
 from unittest.mock import patch
 
-from onecode.cli import delivery_summary, inspect_run, main
+from onecode.cli import delivery_summary, inspect_run, main, task_status_from_verifier_dicts
 from onecode.kernel.model_provider import ModelPlan, ModelPlanPatch
 from onecode.kernel.runner import run_task
 from tests.test_run_plan_cli import FakeRepairProvider
 
 
 class InspectCliTests(unittest.TestCase):
+    def test_task_status_from_verifier_dicts_ignores_boolean_asset_status_codes(self):
+        without_status = task_status_from_verifier_dicts({"assets": []}, [])
+        with_boolean_status = task_status_from_verifier_dicts({"assets": [{"raw_status_code": True}]}, [])
+
+        self.assertEqual(with_boolean_status["task_status_code"], without_status["task_status_code"])
+        self.assertEqual(with_boolean_status["task_transition_action"], without_status["task_transition_action"])
+
     def test_cli_inspect_reports_verifier_task_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
@@ -320,6 +327,23 @@ class InspectCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             env = os.environ.copy()
             env["PYTHONPATH"] = "src"
+            workspace = Path(tmp)
+            skill_dir = workspace / ".onecode" / "skills"
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "method.json").write_text(
+                json.dumps(
+                    {
+                        "name": "private-inspect-skill",
+                        "version": "1",
+                        "mode": "method_only",
+                        "risk": "low",
+                        "capabilities": ["inspect", "wal"],
+                        "description": "private skill body",
+                        "allowed_tools": ["pytest"],
+                    }
+                ),
+                encoding="utf-8",
+            )
             subprocess.run(
                 [
                     sys.executable,
@@ -376,6 +400,128 @@ class InspectCliTests(unittest.TestCase):
             self.assertEqual(summary["shell_projection"]["run_id"], "inspect-wal")
             self.assertEqual(summary["shell_projection"]["severity"], "ok")
             self.assertEqual(summary["shell_projection"]["evidence_ref"]["mode"], "wal")
+            control_state = summary["shell_projection"]["control_state"]
+            projection_text = json.dumps(summary["shell_projection"], sort_keys=True)
+            self.assertEqual(control_state["skill_selection_reason"], "capability_match")
+            self.assertEqual(control_state["selected_skill_count"], 1)
+            self.assertRegex(control_state["skill_selection_sha256"], r"^[0-9a-f]{64}$")
+            self.assertNotIn("private-inspect-skill", projection_text)
+            self.assertNotIn("private skill body", projection_text)
+            self.assertNotIn("allowed_tools", projection_text)
+
+    def test_cli_inspect_full_run_projects_compact_skill_selection_for_shell(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            skill_dir = workspace / ".onecode" / "skills"
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "method.json").write_text(
+                json.dumps(
+                    {
+                        "name": "private-full-inspect-skill",
+                        "version": "1",
+                        "mode": "method_only",
+                        "risk": "low",
+                        "capabilities": ["inspect", "full"],
+                        "description": "private full skill body",
+                        "allowed_tools": ["pytest"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            run_task(
+                "inspect full",
+                workspace=workspace,
+                run_id="inspect-full-skill",
+                completed_evidence_mode="full",
+                evidence_durability="strict",
+            )
+            exit_code, summary = inspect_run(workspace, "inspect-full-skill")
+
+            self.assertEqual(exit_code, 0)
+            from onecode.kernel.shell_projection import project_run_to_shell
+
+            projection = project_run_to_shell(summary)
+            control_state = projection["control_state"]
+            projection_text = json.dumps(projection, sort_keys=True)
+            self.assertEqual(control_state["skill_selection_reason"], "capability_match")
+            self.assertEqual(control_state["selected_skill_count"], 1)
+            self.assertRegex(control_state["skill_selection_sha256"], r"^[0-9a-f]{64}$")
+            self.assertNotIn("private-full-inspect-skill", projection_text)
+            self.assertNotIn("private full skill body", projection_text)
+            self.assertNotIn("allowed_tools", projection_text)
+
+    def test_cli_inspect_rejects_invalid_full_skill_selection_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            skill_dir = workspace / ".onecode" / "skills"
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "method.json").write_text(
+                json.dumps(
+                    {
+                        "name": "inspect-tamper-skill",
+                        "version": "1",
+                        "mode": "method_only",
+                        "risk": "low",
+                        "capabilities": ["inspect"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            run_task(
+                "inspect tamper",
+                workspace=workspace,
+                run_id="inspect-full-tamper",
+                completed_evidence_mode="full",
+                evidence_durability="strict",
+            )
+            ledger_path = workspace / ".onecode" / "runs" / "inspect-full-tamper" / "ledger.json"
+            ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+            ledger["skill_selection"]["selection_reason"] = "private body text"
+            ledger_path.write_text(json.dumps(ledger, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+
+            exit_code, summary = inspect_run(workspace, "inspect-full-tamper")
+
+            self.assertEqual(exit_code, 1)
+            self.assertEqual(summary["status"], "corrupt")
+            self.assertEqual(summary["corrupt_reason"], "invalid_skill_selection_evidence")
+            self.assertEqual(summary["corrupt_path"], str(ledger_path.resolve()))
+
+    def test_cli_inspect_rejects_full_skill_selection_hash_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            skill_dir = workspace / ".onecode" / "skills"
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "method.json").write_text(
+                json.dumps(
+                    {
+                        "name": "inspect-hash-skill",
+                        "version": "1",
+                        "mode": "method_only",
+                        "risk": "low",
+                        "capabilities": ["inspect"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            run_task(
+                "inspect hash",
+                workspace=workspace,
+                run_id="inspect-full-hash",
+                completed_evidence_mode="full",
+                evidence_durability="strict",
+            )
+            ledger_path = workspace / ".onecode" / "runs" / "inspect-full-hash" / "ledger.json"
+            ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+            ledger["skill_selection"]["status"] = "warning"
+            ledger_path.write_text(json.dumps(ledger, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+
+            exit_code, summary = inspect_run(workspace, "inspect-full-hash")
+
+            self.assertEqual(exit_code, 1)
+            self.assertEqual(summary["status"], "corrupt")
+            self.assertEqual(summary["corrupt_reason"], "invalid_skill_selection_evidence")
+            self.assertEqual(summary["corrupt_path"], str(ledger_path.resolve()))
 
     def test_cli_list_runs_includes_wal_only_runs(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -901,6 +1047,31 @@ class InspectCliTests(unittest.TestCase):
             error = json.loads(completed.stdout)
             self.assertEqual(error["status"], "missing")
             self.assertEqual(error["run_id"], "missing-run")
+
+    def test_cli_inspect_rejects_run_id_path_traversal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "src"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "onecode.cli",
+                    "inspect",
+                    "--workspace",
+                    tmp,
+                    "--run-id",
+                    "../../../outside/run",
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            error = json.loads(completed.stdout)
+            self.assertEqual(error["status"], "invalid")
+            self.assertEqual(error["reason"], "invalid_run_id")
 
     def test_cli_inspect_corrupt_run_returns_nonzero_json_without_traceback(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -35,6 +35,10 @@ class DeepSeekChatClient:
     ) -> None:
         if not api_key:
             raise ValueError("api_key must be non-empty")
+        if isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, (int, float)) or timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be positive")
+        if isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or max_tokens <= 0:
+            raise ValueError("max_tokens must be positive")
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -123,7 +127,7 @@ def generate_raw_distillation_samples(
     continue_on_error: bool = False,
     error_path: Path | None = None,
 ) -> dict[str, Any]:
-    if count <= 0:
+    if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
         raise ValueError("count must be positive")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     written = 0

@@ -47,11 +47,27 @@ Run the complete local check, including optional TUI installation and all tests:
 bash scripts/verify.sh
 ```
 
+If `onecode` and `textual` are already importable for the selected Python
+interpreter, the script skips the editable install step and runs the remaining
+checks directly. This keeps the full verification usable in prepared virtual
+environments and offline local runs.
+
 This runs:
 
 - `python3 -m compileall src tests`
 - `python3 -m unittest discover -s tests -v`
 - `python3 -m onecode doctor`
+
+## Current Closure Records
+
+The July 3, 2026 hardening pass is documented in:
+
+- `docs/ONECODE_PROJECT_OPTIMIZATION_REPORT_2026-07-03.md`
+- `docs/ONECODE_PROJECT_CLOSURE_HANDOFF_2026-07-03.md`
+- `docs/ONECODE_MAINTENANCE_LOG_2026-07-03.md`
+
+These records capture the verification gate, residual risks, skill-boundary
+decision, and recommended follow-up maintenance queue.
 
 ## v0.2 Hardening Foundations
 
@@ -86,12 +102,14 @@ not yet force all kernel execution paths through Docker.
 
 Shell-facing adapters should consume `shell_projection` instead of inferring
 status from raw kernel evidence. The current projection schema is versioned as
-`version: 1` and exposes:
+`version: 2` and exposes:
 
 - `status_label`, `severity`, `next_action`, and `compact_message` for concise
   UI/CLI rendering
 - `rule_state` for Iching-derived status code, transition action/reason, and
   dispatch decision
+- `control_state` for bounded project/runtime/skill/recovery evidence summaries,
+  including compact skill-selection hash/reason/count when present
 - `delivery_state` for requested/completed/skipped/failed counts
 - `evidence_ref` for WAL/full evidence references and profile hash lookup
 - `resume_state` for resumed run relationships
@@ -403,9 +421,23 @@ Bug fixes must close inside that rule surface. If a test exposes a runtime split
 
 External AI tool rules and repositories, including ultraworkers and claw-code, are learning references and evidence sources, not authority. Project instruction discovery, runtime config diagnostics, and recovery advice are exposed as bounded metadata and folded through Iching status, transition, and dispatch fields.
 
-`project_context` records metadata-only project rules with wood element semantics. `runtime_config` reports optional, redacted, approved effective values with earth element semantics. `recovery_policy` reports advisory recovery actions only with fire element semantics.
+`project_context` records metadata-only project rules with wood element semantics. `runtime_config` reports optional, redacted, approved effective values with earth element semantics. `skill_context` records read-only skill manifests and selected skill guidance with water element semantics. `recovery_policy` reports advisory recovery actions only with fire element semantics.
 
 By default, doctor and Web project status do not expose raw rule content. Shell consumers should read `shell_projection.control_state`, which is derived primarily from nested kernel summaries, instead of inferring control state from raw evidence.
+
+## Skill Context
+
+OneCode treats skills as bounded rule evidence. Project-local skill manifests may be declared under `.onecode/skills/*.json`; the first implementation reads only manifest metadata such as name, capabilities, risk, mode, and content hash. Registry paths are kept inside the workspace, manifest files are size-bounded, and capability lists are count- and length-bounded. Raw skill bodies are not exposed by default, and skills do not gain execution authority from discovery.
+
+Run execution records deterministic `skill_selection` evidence by matching task tokens against declared capabilities. Token routing handles conservative plural/verb variants, punctuation-separated task text, and phrase capabilities such as `code_review` when all component tokens are present. The selection record is written to result, ledger, manifest, and checkpoint evidence; global WAL entries only keep compact selection hash/reason/count when a skill is actually selected. Selection evidence must not include priority, confidence, score, raw skill text, allowed tools, or verifier expectations.
+
+Run execution validates `skill_selection` immediately after deterministic selection, before trace, result, ledger, manifest, checkpoint, or WAL persistence. Direct checkpoint, ledger, global WAL writers, and full-evidence inspect reads also validate the same compact schema. Unknown fields, selected-count mismatches, boolean or non-integer counts, oversized evidence, invalid hashes, hash/content mismatches, invalid rule metadata, raw body fields, tool lists, verifier expectation text, and authority-like fields are rejected before evidence files are written or trusted by inspect summaries.
+
+Numeric evidence and runtime-budget fields use strict numeric contracts. Boolean values are not accepted as counts, verifier timeouts, sandbox limits, runner budgets, model repair limits, execution guardrail limits, Web query limits, distillation limits, token limits, token ids, or 6-bit status evidence, even though Python normally treats `bool` as a subclass of `int`.
+
+Global WAL readers only treat numeric `global-ledger.<n>.jsonl` archives and the active `global-ledger.jsonl` file as WAL segments. Non-numeric backup or scratch files are ignored, and invalid WAL JSON is reported through the stable `invalid_global_wal_json` reason.
+
+Skill evidence is folded through `IchingKernel.classify_skill_context()` and then through the normal transition and dispatch projections. Execution-capable skill adapters require a separate approved design and must use the existing sandbox, verifier, approval, and path guard boundaries.
 
 ## Rule Discovery Protocol
 

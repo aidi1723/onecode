@@ -124,6 +124,30 @@ class DeepSeekDistillationTests(unittest.TestCase):
 
         self.assertEqual(result["sample_count"], 2)
 
+    def test_generate_raw_distillation_samples_rejects_boolean_count(self):
+        from onecode.kernel.deepseek_distillation import generate_raw_distillation_samples
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "count must be positive"):
+                generate_raw_distillation_samples(
+                    Path(tmp) / "raw.jsonl",
+                    client=FakeDeepSeekClient(
+                        [
+                            '{"user":"运行 pytest","prediction":{"facts":{"intent_type":"execute_pytest","path_scope":"no_path","sandbox_state":"required","evidence_state":"required"},"yizijue_state":"010010","action":"RUN_VERIFIER_IN_SANDBOX","reason":"verifier_requires_sandbox"}}'
+                        ]
+                    ),
+                    count=True,
+                )
+
+    def test_deepseek_chat_client_rejects_boolean_numeric_limits(self):
+        from onecode.kernel.deepseek_distillation import DeepSeekChatClient
+
+        with self.assertRaisesRegex(ValueError, "timeout_seconds must be positive"):
+            DeepSeekChatClient(api_key="test-key", timeout_seconds=True)
+
+        with self.assertRaisesRegex(ValueError, "max_tokens must be positive"):
+            DeepSeekChatClient(api_key="test-key", max_tokens=True)
+
     def test_deepseek_chat_client_sends_max_tokens_limit(self):
         from onecode.kernel.deepseek_distillation import DeepSeekChatClient
 

@@ -265,6 +265,10 @@ def run_model_task(
     plan_approval: Callable[[ModelPlan], bool] | None = None,
     max_repair_attempts: int = 0,
 ) -> dict[str, Any]:
+    if isinstance(http_timeout_seconds, bool) or not isinstance(http_timeout_seconds, (int, float)) or http_timeout_seconds <= 0:
+        raise ValueError("http_timeout_seconds must be greater than zero")
+    if isinstance(max_repair_attempts, bool) or not isinstance(max_repair_attempts, int) or max_repair_attempts < 0:
+        raise ValueError("max_repair_attempts must be a non-negative integer")
     provider_config = build_provider_config(provider_kind, endpoint=endpoint, model=model)
     resolved_model = provider_config.model
     resolved_api_key = api_key if api_key is not None else api_key_from_env(provider_kind=provider_kind)

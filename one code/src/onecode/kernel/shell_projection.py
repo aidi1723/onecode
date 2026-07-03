@@ -5,7 +5,7 @@ from typing import Any
 
 BLOCKED_STATUSES = {"denied", "halted", "blocked", "rejected"}
 WARNING_STATUSES = {"partial", "skipped"}
-SHELL_PROJECTION_VERSION = 1
+SHELL_PROJECTION_VERSION = 2
 SHELL_PROJECTION_FIELDS = (
     "version",
     "run_id",
@@ -28,6 +28,10 @@ RULE_STATE_FIELDS = (
 CONTROL_STATE_FIELDS = (
     "project_context_status",
     "runtime_config_status",
+    "skill_context_status",
+    "skill_selection_reason",
+    "selected_skill_count",
+    "skill_selection_sha256",
     "recovery_action",
 )
 DELIVERY_STATE_FIELDS = (
@@ -201,6 +205,8 @@ def _rule_state(run: dict[str, Any]) -> dict[str, Any]:
 def _control_state(run: dict[str, Any]) -> dict[str, Any]:
     project_context = run.get("project_context")
     runtime_config = run.get("runtime_config")
+    skill_context = run.get("skill_context")
+    skill_selection = run.get("skill_selection")
     recovery_policy = run.get("recovery_policy")
     recovery = run.get("recovery")
 
@@ -212,6 +218,26 @@ def _control_state(run: dict[str, Any]) -> dict[str, Any]:
         "runtime_config_status": _first_string(
             runtime_config.get("status") if isinstance(runtime_config, dict) else None,
             run.get("runtime_config_status"),
+        ),
+        "skill_context_status": _first_string(
+            skill_context.get("status") if isinstance(skill_context, dict) else None,
+            skill_selection.get("status") if isinstance(skill_selection, dict) else None,
+            run.get("skill_context_status"),
+        ),
+        "skill_selection_reason": _first_string(
+            skill_selection.get("selection_reason") if isinstance(skill_selection, dict) else None,
+            run.get("skill_selection_reason"),
+            run.get("ssr"),
+        ),
+        "selected_skill_count": _integer(
+            skill_selection.get("selected_count")
+            if isinstance(skill_selection, dict)
+            else run.get("selected_skill_count", run.get("ssc"))
+        ),
+        "skill_selection_sha256": _first_string(
+            skill_selection.get("selection_sha256") if isinstance(skill_selection, dict) else None,
+            run.get("skill_selection_sha256"),
+            run.get("ssh"),
         ),
         "recovery_action": _first_string(
             recovery_policy.get("recommended_action") if isinstance(recovery_policy, dict) else None,

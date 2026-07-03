@@ -62,6 +62,12 @@ class GuardrailConfig:
     require_approval_for: list[str] = field(default_factory=lambda: ["write_text", "patch_text"])
     max_consecutive_failures: int = 3
 
+    def __post_init__(self) -> None:
+        for field_name in ("max_steps", "max_tool_calls_per_step", "max_duration_ms", "max_consecutive_failures"):
+            value = getattr(self, field_name)
+            if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+                raise ValueError(f"{field_name} must be positive")
+
 
 @dataclass(frozen=True)
 class GuardrailValidation:

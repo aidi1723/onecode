@@ -48,7 +48,7 @@ class OneCodeWebApiTests(unittest.TestCase):
 
         self.assertEqual(status, 200)
         self.assertEqual(payload["name"], "onecode.shell_projection")
-        self.assertEqual(payload["version"], 1)
+        self.assertEqual(payload["version"], 2)
         self.assertIn("compact_message", payload["fields"])
         self.assertEqual(payload["nested_fields"]["evidence_ref"][0], "mode")
 
@@ -86,6 +86,41 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertTrue(authorized)
         compare_digest.assert_called_once_with("Bearer secret-token", "Bearer secret-token")
 
+    def test_read_json_rejects_oversized_request_body(self):
+        from io import BytesIO
+        from onecode.web.api import OneCodeRequestHandler
+
+        class FakeRequest(OneCodeRequestHandler):
+            def __init__(self):
+                self.headers = {"content-length": "2"}
+                self.rfile = BytesIO(b"{}")
+
+        with patch.dict("os.environ", {"ONECODE_MAX_REQUEST_BYTES": "1"}, clear=True):
+            self.assertIsNone(FakeRequest()._read_json())
+
+    def test_read_json_result_reports_oversized_request_body(self):
+        from io import BytesIO
+        from onecode.web.api import read_json_request_body
+
+        with patch.dict("os.environ", {"ONECODE_MAX_REQUEST_BYTES": "1"}, clear=True):
+            result = read_json_request_body({"content-length": "2"}, BytesIO(b"{}"))
+
+        self.assertIsNone(result.payload)
+        self.assertEqual(result.status_code, 413)
+        self.assertEqual(result.error_type, "request_too_large")
+        self.assertIn("exceeds", result.error_message)
+
+    def test_read_json_result_reports_invalid_content_length(self):
+        from io import BytesIO
+        from onecode.web.api import read_json_request_body
+
+        result = read_json_request_body({"content-length": "not-a-number"}, BytesIO(b"{}"))
+
+        self.assertIsNone(result.payload)
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.error_type, "invalid_request_body")
+        self.assertIn("content-length", result.error_message)
+
     def test_latest_user_message_extracts_last_user_content(self):
         from onecode.web.api import latest_user_message
 
@@ -104,6 +139,12 @@ class OneCodeWebApiTests(unittest.TestCase):
         from onecode.web.api import should_run_onecode_task
 
         self.assertFalse(should_run_onecode_task("你会执行数学任务吗？能够用数学公式把八卦的规则写出来吗"))
+
+    def test_query_numeric_parsers_reject_boolean_values(self):
+        from onecode.web.api import parse_limit, parse_window_seconds
+
+        self.assertEqual(parse_limit(True), 20)
+        self.assertEqual(parse_window_seconds(True), 60)
 
     def test_chat_completion_falls_back_to_rule_run_without_model_key(self):
         from onecode.web.api import handle_chat_completion
@@ -155,6 +196,29 @@ class OneCodeWebApiTests(unittest.TestCase):
 
         self.assertEqual(status_code, 400)
         self.assertEqual(payload["error"]["type"], "invalid_request")
+
+    def test_chat_completion_rejects_invalid_metadata_run_id(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+            },
+            clear=True,
+        ):
+            payload, status_code = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "查：看看项目"}],
+                    "metadata": {"run_id": "../outside"},
+                }
+            )
+
+        self.assertEqual(status_code, 400)
+        self.assertEqual(payload["error"]["type"], "invalid_run_id")
 
     def test_chat_completion_returns_json_error_when_model_provider_fails(self):
         from onecode.kernel.model_provider import ModelProviderError
@@ -357,13 +421,37 @@ class OneCodeWebApiTests(unittest.TestCase):
         ):
             workspace = Path(tmp)
             (workspace / "AGENTS.md").write_text("private instruction body\n", encoding="utf-8")
+            skill_dir = workspace / ".onecode" / "skills"
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "code-test-regression.json").write_text(
+                json.dumps(
+                    {
+                        "name": "code-test-regression",
+                        "version": "1",
+                        "description": "private skill body",
+                        "capabilities": ["test", "verification"],
+                        "risk": "low",
+                        "mode": "method_only",
+                        "allowed_tools": ["pytest"],
+                    }
+                ),
+                encoding="utf-8",
+            )
             payload = project_status_payload(workspace)
 
         self.assertIn("project_context", payload)
         self.assertIn("runtime_config", payload)
+        self.assertIn("skill_context", payload)
         self.assertEqual(payload["project_context"]["summary"]["element"], "wood")
         self.assertEqual(payload["runtime_config"]["summary"]["element"], "earth")
+        self.assertEqual(payload["skill_context"]["summary"]["element"], "water")
+        self.assertEqual(payload["skill_context"]["summary"]["skill_count"], 1)
         self.assertNotIn("private instruction body", json.dumps(payload["project_context"]))
+        self.assertNotIn("private skill body", json.dumps(payload["skill_context"]))
+        self.assertNotIn("allowed_tools", json.dumps(payload["skill_context"]))
+        self.assertNotIn("pytest", json.dumps(payload["skill_context"]))
+        self.assertNotIn("skills", payload["skill_context"])
+        self.assertNotIn("invalid_skills", payload["skill_context"])
         self.assertIn("content_sha256", payload["project_context"]["memory_files"][0])
 
     def test_project_status_projects_latest_run_for_shell_consumers(self):
@@ -502,6 +590,22 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(payload["run_id"], "resumed-api")
         self.assertEqual(run_model.call_args.kwargs["resume_from_run_id"], "source-api")
         self.assertEqual(run_model.call_args.kwargs["workspace"], Path(tmp).resolve())
+
+    def test_onecode_resume_endpoint_rejects_run_id_path_traversal(self):
+        from onecode.web.api import handle_onecode_run_resume
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            payload, status = handle_onecode_run_resume(
+                "../../../outside/source",
+                {"workspace": tmp, "message": "继续完成"},
+            )
+
+        self.assertEqual(status, 400)
+        self.assertEqual(payload["error"]["type"], "invalid_run_id")
 
     def test_onecode_resume_endpoint_projects_result_for_shell_consumers(self):
         from onecode.web.api import handle_onecode_run_resume
@@ -928,7 +1032,7 @@ class OneCodeWebApiTests(unittest.TestCase):
                     payload = json.loads(response.read().decode("utf-8"))
 
         self.assertEqual(payload["name"], "onecode.shell_projection")
-        self.assertEqual(payload["version"], 1)
+        self.assertEqual(payload["version"], 2)
         self.assertIn("compact_message", payload["fields"])
 
     def test_http_server_serves_browser_gateway_console(self):

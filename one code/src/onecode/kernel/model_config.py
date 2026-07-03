@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 import urllib.error
 import urllib.request
 from urllib.parse import urlparse
@@ -62,6 +63,27 @@ def normalize_endpoint_url(endpoint: str) -> str:
     return f"{scheme}://{value}"
 
 
+def write_private_text(path: Path, content: str) -> None:
+    fd, tmp_name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", text=True)
+    tmp_path = Path(tmp_name)
+    try:
+        os.chmod(tmp_path, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+        os.replace(tmp_path, path)
+        path.chmod(0o600)
+    except Exception:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        try:
+            tmp_path.unlink()
+        except FileNotFoundError:
+            pass
+        raise
+
+
 def write_model_config(
     *,
     endpoint: str,
@@ -94,7 +116,7 @@ def write_model_config(
     }
     if models is not None:
         payload["models"] = sorted(dict.fromkeys(item for item in models if isinstance(item, str) and item.strip()))
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_private_text(path, json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
     return read_model_config()
 
 
