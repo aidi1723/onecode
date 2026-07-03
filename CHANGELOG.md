@@ -1,5 +1,66 @@
 # Changelog
 
+## 2026-07-04 - Release Sync Decomposition Stage
+
+This update moves the vNext maintenance work onto a branch based on
+`origin/main` and continues the conservative decomposition plan.
+
+### Updated and Optimized
+
+- Created a non-destructive sync branch from `origin/main` for GitHub review.
+- Replayed the vNext maintenance governance commits onto the sync branch with
+  the current root-directory repository layout.
+- Preserved structured Web request-body errors after sync conflict resolution.
+- Extracted Web chat helpers into `onecode.web.chat`.
+- Extracted the browser gateway console into `onecode.web.gateway_console`.
+- Extracted CLI inspect/list-runs/global-WAL helpers into `onecode.cli_inspect`.
+- Preserved compatibility imports from `onecode.web.api` and `onecode.cli`.
+- Added public contract fixtures for shell projection schema and chat
+  completion response envelopes.
+- Documented the executable skill adapter permission model while keeping skills
+  read-only at runtime.
+- Preserved TUI repair evidence when shell projection compact summaries are
+  used.
+
+### Documentation Added
+
+- `docs/ONECODE_EXECUTABLE_SKILL_ADAPTER_PERMISSION_MODEL_2026-07-04.md`
+- `docs/superpowers/specs/2026-07-04-onecode-release-sync-and-decomposition-design.md`
+- `docs/superpowers/plans/2026-07-04-onecode-release-sync-and-decomposition.md`
+
+### Verification
+
+Final local verification for this update:
+
+```text
+git diff --check -- src tests docs README.md scripts CHANGELOG.md
+Result: passed
+
+PYTHON=/Users/aidi/大字典/one\ code/.venv/bin/python PYTHONPATH=src python -m unittest tests.test_tui_model_closure -v
+Result: OK, 7 tests passed
+
+PYTHON=/Users/aidi/大字典/one\ code/.venv/bin/python PYTHONPATH=src python -m unittest tests.test_web_api tests.test_inspect_cli tests.test_list_runs_cli tests.test_contract_fixtures -v
+Result: OK, 99 tests passed
+
+PYTHON=/Users/aidi/大字典/one\ code/.venv/bin/python PYTHONPATH=src bash scripts/verify.sh --skip-install
+Result: OK, 658 tests passed, doctor status ok
+```
+
+The first full verification attempt without the project virtual environment was
+blocked by the host Python environment: install mode hit Homebrew PEP 668, and
+`--skip-install` with system Python lacked `textual`. The final gate above uses
+the existing project virtual environment and imports this checked-out source
+tree through `PYTHONPATH=src`.
+
+### Remaining Follow-Up
+
+- Continue route-level Web API decomposition for model-config, run evidence,
+  and project status route families.
+- Continue CLI decomposition for run-plan repair, training-data commands, and
+  model configuration commands.
+- Implement executable skill adapters only after the documented permission model
+  is converted into tests and runtime gates.
+
 ## 2026-07-03 - vNext Maintenance Governance
 
 This update starts the next maintenance milestone after the project-wide

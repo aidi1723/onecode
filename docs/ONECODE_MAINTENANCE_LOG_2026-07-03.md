@@ -185,3 +185,134 @@ stale editable install in that shared environment.
 - Web API remains intentionally scoped to local/trusted-loopback usage.
 - Additional decomposition should remain test-first because `web/api.py` still
   coordinates routes, projections, and local process behavior.
+
+---
+
+## Release Sync Decomposition Update
+
+Date: 2026-07-04
+Maintainer: Codex session
+Branch: `feature/vnext-release-sync-2026-07-04`
+Base: `origin/main`
+
+### Session Goal
+
+Complete the next stage by moving vNext maintenance work onto a GitHub-friendly
+sync branch, continuing conservative decomposition, adding public contract
+fixtures, and documenting the executable skill-adapter permission boundary.
+
+### Change Record
+
+#### Release-Line Sync
+
+- Created `feature/vnext-release-sync-2026-07-04` from `origin/main`.
+- Replayed the prior vNext maintenance governance commits onto the sync branch.
+- Resolved the root-layout difference by applying path-stripped patch commits.
+- Preserved Web request-body error behavior after sync conflict resolution.
+
+#### Web API Decomposition
+
+- Added `src/onecode/web/chat.py`.
+- Added `src/onecode/web/gateway_console.py`.
+- Kept `src/onecode/web/api.py` as the HTTP route coordinator.
+- Preserved compatibility imports for chat helpers from `onecode.web.api`.
+
+#### CLI Decomposition
+
+- Added `src/onecode/cli_inspect.py`.
+- Moved inspect/list-runs/global-WAL projection helpers out of `src/onecode/cli.py`.
+- Preserved compatibility imports for `inspect_run`, `list_runs`, and
+  `delivery_summary` from `onecode.cli`.
+
+#### Public Contract Fixtures
+
+- Added `tests/fixtures/contracts/shell_projection_schema_v1.json`.
+- Added `tests/fixtures/contracts/chat_completion_response.json`.
+- Added `tests/test_contract_fixtures.py` to compare runtime payloads against
+  the public fixtures.
+
+#### Skill Adapter Boundary
+
+- Added `docs/ONECODE_EXECUTABLE_SKILL_ADAPTER_PERMISSION_MODEL_2026-07-04.md`.
+- Recorded adapter identity, approval gates, path scope, network scope,
+  provenance, denial behavior, and rollback requirements.
+- Reconfirmed that skills remain read-only evidence until a future
+  implementation adds tested runtime gates.
+
+#### TUI Repair Evidence Preservation
+
+- Restored repaired-run details in TUI task output when shell projection compact
+  messages are preferred.
+- Kept shell projection as the primary one-line summary while appending the
+  existing `repair: attempts=... initial=...` evidence line.
+- Avoided changing the public shell projection schema or fixtures for a
+  presentation-layer regression.
+
+### Verification Log
+
+Focused verification performed during the stage:
+
+```text
+PYTHONPATH=src python3 -m unittest tests.test_web_api -v
+Result: OK, 58 tests passed
+
+PYTHONPATH=src python3 -m unittest tests.test_inspect_cli tests.test_list_runs_cli -v
+Result: OK, 39 tests passed
+
+PYTHONPATH=src python3 -m unittest tests.test_contract_fixtures -v
+Result: OK, 2 tests passed
+```
+
+During final full verification, the first install-enabled gate was blocked by
+the host Python environment:
+
+```text
+PYTHONPATH=src bash scripts/verify.sh
+Result: blocked by Homebrew PEP 668 externally managed environment
+
+PYTHONPATH=src bash scripts/verify.sh --skip-install
+Result: blocked because system Python lacked textual
+```
+
+Final verification used the existing project virtual environment while keeping
+imports pointed at the sync worktree:
+
+```text
+git diff --check -- src tests docs README.md scripts CHANGELOG.md
+Result: passed
+
+PYTHON=/Users/aidi/大字典/one\ code/.venv/bin/python PYTHONPATH=src python -m unittest tests.test_tui_model_closure -v
+Result: OK, 7 tests passed
+
+PYTHON=/Users/aidi/大字典/one\ code/.venv/bin/python PYTHONPATH=src python -m unittest tests.test_web_api tests.test_inspect_cli tests.test_list_runs_cli tests.test_contract_fixtures -v
+Result: OK, 99 tests passed
+
+PYTHON=/Users/aidi/大字典/one\ code/.venv/bin/python PYTHONPATH=src bash scripts/verify.sh --skip-install
+Result: OK, 658 tests passed, doctor status ok
+```
+
+### Publish Checklist
+
+- [x] sync branch based on `origin/main`
+- [x] prior vNext maintenance work replayed without force-push
+- [x] Web API decomposition continued at helper boundaries
+- [x] CLI inspect/list-runs decomposition completed for this stage
+- [x] public contract fixtures added and verified
+- [x] executable skill adapter permission model documented
+- [x] TUI repair evidence regression fixed
+- [x] focused and full verification gates passed
+- [x] GitHub update notes recorded in `CHANGELOG.md`
+
+### Follow-Up Queue
+
+1. Continue Web route-family extraction after this sync branch is reviewed.
+2. Continue CLI command-family extraction for run-plan repair and training-data
+   commands.
+3. Convert the executable skill adapter permission model into tests before
+   adding runtime execution.
+
+### Open Risks
+
+- The sync branch is intentionally review-focused and should be merged through
+  GitHub review rather than force-pushed into an existing milestone branch.
+- Executable skill adapters are still design-only.
