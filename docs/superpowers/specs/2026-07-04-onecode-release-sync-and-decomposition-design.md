@@ -64,6 +64,15 @@ Required verification for this stage:
 - `git diff --check`
 - full `scripts/verify.sh`
 
+Final stage verification used the existing project virtual environment because
+the host Python environment blocked install mode with Homebrew PEP 668 and
+system Python lacked `textual` in skip-install mode. The final accepted gate was:
+
+```text
+PYTHON=/Users/aidi/大字典/one\ code/.venv/bin/python PYTHONPATH=src bash scripts/verify.sh --skip-install
+Result: OK, 658 tests passed, doctor status ok
+```
+
 ## Risks
 
 - The sync branch starts from a newer `origin/main`; conflicts must be resolved
@@ -72,3 +81,10 @@ Required verification for this stage:
   UX changes are out of scope.
 - Executable skill adapters remain documentation-only until a future stage adds
   implementation and approval-backed tests.
+
+## Closure
+
+This stage is closed on `feature/vnext-release-sync-2026-07-04`. The sync
+branch has been pushed to GitHub, release notes are recorded in `CHANGELOG.md`,
+and maintenance evidence is recorded in
+`docs/ONECODE_MAINTENANCE_LOG_2026-07-03.md`.

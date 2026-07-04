@@ -316,3 +316,10 @@ Result: OK, 658 tests passed, doctor status ok
 - The sync branch is intentionally review-focused and should be merged through
   GitHub review rather than force-pushed into an existing milestone branch.
 - Executable skill adapters are still design-only.
+
+### Closure Decision
+
+This 2026-07-04 release-sync decomposition stage is closed. All planned
+project-root changes for this stage are committed, verification evidence is
+recorded, the GitHub branch is pushed, and remaining work is explicitly tracked
+as next-stage follow-up rather than a blocker for this closure.
