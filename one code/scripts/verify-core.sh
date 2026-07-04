@@ -10,6 +10,9 @@ PYTHON_BIN="${PYTHON_BIN:-python3}"
 echo "compileall"
 PYTHONPATH=src "$PYTHON_BIN" -m compileall src tests
 
+echo "source-quality"
+"$PYTHON_BIN" scripts/check_source_quality.py src
+
 echo "unittest-core"
 PYTHONPATH=src "$PYTHON_BIN" -m unittest \
   tests.test_runner_cli \

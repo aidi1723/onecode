@@ -1,12 +1,12 @@
-# OneWord TUI Design
+# OneWord Interface Design
 
 Date: 2026-05-28
-Scope: `src/onecode/tui`
+Scope: `src/onecode/tui`, `src/onecode/web`
 Status: Approved visual direction
 
 ## Source
 
-The TUI is inspired by the provided terminal welcome-screen references, but all product content must read as 一字诀 OneWord. Do not show Claude Code, Opus, CLAUDE.md, or `/buddy` copy in the OneWord interface.
+The TUI is inspired by the provided terminal welcome-screen references, but all product content must read as 一字诀 OneWord. The Web Gateway must use the same product language and shared dark terminal palette. Do not show Claude Code, Opus, CLAUDE.md, or `/buddy` copy in the OneWord interface.
 
 ## Visual Language
 
@@ -43,3 +43,13 @@ The TUI must remain readable in narrow terminal widths. The welcome content can 
 ## Implementation Base
 
 Use the existing Python Textual application. Restyle and extend the current widgets instead of replacing the TUI framework or changing kernel logic.
+
+## Web Gateway
+
+The local Web Gateway is a compact operator console, not a marketing page. It should use the shared dark terminal palette, warm orange primary accent, muted secondary text, rectangular surfaces, and monospace typography from the TUI.
+
+- Keep the first viewport focused on the adjudication tool: input, result, actions, and service status.
+- Use restrained borders and flat surfaces instead of card stacks, glow effects, or decorative gradients.
+- Keep labels concise and operational. Copy should explain state and action, not advertise features.
+- Preserve the current API behavior, route shape, authentication boundary, and local preview semantics.
+- If HTML remains inline HTML inside `src/onecode/web/api.py`, keep the markup small and covered by tests. If it grows beyond a compact console, move the page to a dedicated template/static asset layer before adding more UI states.

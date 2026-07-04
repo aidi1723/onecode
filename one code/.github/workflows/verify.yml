@@ -9,10 +9,21 @@ on:
 jobs:
   onecode:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+          - "3.13"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
       - name: Verify OneCode
         run: bash scripts/verify.sh
+      - name: Build wheel and verify packaged TUI assets
+        run: |
+          python -m pip wheel . -w /tmp/onecode-wheelhouse --no-deps
+          python scripts/check_wheel_assets.py /tmp/onecode-wheelhouse

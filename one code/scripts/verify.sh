@@ -19,6 +19,9 @@ fi
 echo "compileall"
 "$PYTHON_BIN" -m compileall src tests
 
+echo "source-quality"
+"$PYTHON_BIN" scripts/check_source_quality.py src
+
 if [[ "${1:-}" != "--skip-tests" ]]; then
   echo "unittest"
   "$PYTHON_BIN" -m unittest discover -s tests -v
