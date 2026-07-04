@@ -41,3 +41,19 @@ Not applicable for this pass:
 
 - Browser smoke was not required because no browser UI behavior changed.
 - Production frontend rebuild was not required because no shell UI bundle changed.
+
+## 2026-07-05 Run Inspection Hotspot Pass
+
+- [x] `CHANGELOG.md` records the run-inspection hotspot split.
+- [x] `docs/ONECODE_MAINTENANCE_LOG_2026-07-05.md` records the maintenance log.
+- [x] `docs/ONECODE_RUN_INSPECTION_HOTSPOT_CLOSURE_2026-07-05.md` records closure and handoff.
+- [x] `scripts/check_source_quality.py` no longer allowlists `src/onecode/kernel/run_inspection.py:inspect_run`.
+- [x] `tests/test_source_quality.py` prevents `inspect_run` from being re-added to the hotspot allowlist.
+- [x] Focused local verification recorded: source quality and inspect/list-runs/Web regression tests passed.
+- [x] Full local verification recorded: `bash scripts/verify.sh` passed with 743 tests, 1 skipped, doctor status ok.
+- [x] Online update prepared for `origin/feature/gateway-iching-rule-sync`.
+
+Not applicable for this pass:
+
+- Browser smoke was not required because no browser UI behavior changed.
+- Production frontend rebuild was not required because no shell UI bundle changed.

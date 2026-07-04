@@ -44,6 +44,11 @@ class SourceQualityTests(unittest.TestCase):
         self.assertIs(cli.inspect_run, inspect_run)
         self.assertIs(cli.list_runs, list_runs)
 
+    def test_run_inspection_inspect_run_is_not_allowlisted_as_hotspot(self):
+        text = Path("scripts/check_source_quality.py").read_text(encoding="utf-8")
+
+        self.assertNotIn("src/onecode/kernel/run_inspection.py:inspect_run", text)
+
 
 if __name__ == "__main__":
     unittest.main()

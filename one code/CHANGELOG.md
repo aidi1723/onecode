@@ -1,5 +1,64 @@
 # Changelog
 
+## 2026-07-05 - Run Inspection Hotspot Split
+
+This update completes the focused follow-up from the CLI service decoupling
+phase. It keeps the public run-inspection behavior stable while removing
+`src/onecode/kernel/run_inspection.py:inspect_run` from the source-quality
+hotspot allowlist.
+
+### Updated and Optimized
+
+- Split `inspect_run` into smaller kernel-owned helpers for corrupt payloads,
+  run document validation, trace metrics, workspace-root resolution, and final
+  inspection summary projection.
+- Removed `src/onecode/kernel/run_inspection.py:inspect_run` from
+  `scripts/check_source_quality.py`'s explicit long-function allowlist.
+- Kept CLI/Web/list-runs behavior unchanged through the existing
+  `onecode.kernel.run_inspection` public service surface.
+
+### Regression Coverage
+
+- Added a source-quality regression test that prevents
+  `src/onecode/kernel/run_inspection.py:inspect_run` from being re-added to the
+  hotspot allowlist.
+- Re-ran focused source-quality, inspect CLI, list-runs CLI, and Web API
+  regression coverage for the shared inspection surface.
+
+### Documentation Added
+
+- `docs/ONECODE_MAINTENANCE_LOG_2026-07-05.md`
+- `docs/ONECODE_RUN_INSPECTION_HOTSPOT_CLOSURE_2026-07-05.md`
+
+### Verification
+
+Latest local verification for this update:
+
+```text
+.venv/bin/python -m unittest tests.test_source_quality.SourceQualityTests.test_run_inspection_inspect_run_is_not_allowlisted_as_hotspot -v
+Result: OK, 1 test passed
+
+.venv/bin/python scripts/check_source_quality.py src
+Result: source quality ok
+
+.venv/bin/python -m unittest tests.test_source_quality tests.test_inspect_cli tests.test_list_runs_cli tests.test_web_api -v
+Result: OK, 99 tests passed, 9 skipped
+
+git diff --check -- .
+Result: passed
+
+bash scripts/verify.sh
+Result: OK, 743 tests passed, 1 skipped, doctor status ok
+```
+
+### Remaining Follow-Up
+
+- Split `src/onecode/cli.py` parser construction and command handlers by
+  command family.
+- Split `src/onecode/web/api.py` request parsing, auth, workspace, route
+  handlers, and HTML console responsibilities.
+- Add stable public shell projection fixtures for downstream adapters.
+
 ## 2026-07-04 - CLI Service Decoupling Phase
 
 This update starts the next maintenance phase after release-readiness closure.
@@ -29,6 +88,8 @@ and TUI behavior.
 - Added design and implementation planning records for this phase:
   `docs/superpowers/specs/2026-07-04-onecode-cli-service-decoupling-design.md`
   and `docs/superpowers/plans/2026-07-04-onecode-cli-service-decoupling.md`.
+- Follow-up completed on 2026-07-05: `inspect_run` is now split below the
+  source-quality threshold and is no longer allowlisted as a hotspot.
 
 ### Verification
 
@@ -51,8 +112,6 @@ Result: OK, 742 tests passed, 1 skipped, doctor status ok
   command family.
 - Split `src/onecode/web/api.py` request parsing, auth, workspace, route
   handlers, and HTML console responsibilities.
-- Reduce `src/onecode/kernel/run_inspection.py:inspect_run` below the source
-  quality threshold in a focused behavior-preserving refactor.
 
 ## 2026-07-04 - Release Readiness and Source Quality Gates
 

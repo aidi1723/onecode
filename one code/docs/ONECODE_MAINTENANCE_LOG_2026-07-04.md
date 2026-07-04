@@ -76,6 +76,8 @@ source quality gate without introducing runtime third-party dependencies.
 - Added import-boundary and compatibility-export tests.
 - Moved the `inspect_run` source-quality allowlist entry from CLI to the new
   run-inspection module.
+- Follow-up completed on 2026-07-05: split `inspect_run` into smaller
+  run-inspection helpers and removed it from the source-quality allowlist.
 
 ## Verification Log
 
@@ -110,6 +112,21 @@ Result: OK, 143 tests passed, 9 skipped
 
 bash scripts/verify.sh
 Result: OK, 742 tests passed, 1 skipped, doctor status ok
+
+.venv/bin/python -m unittest tests.test_source_quality.SourceQualityTests.test_run_inspection_inspect_run_is_not_allowlisted_as_hotspot -v
+Result: OK, 1 test passed
+
+.venv/bin/python scripts/check_source_quality.py src
+Result: source quality ok
+
+.venv/bin/python -m unittest tests.test_source_quality tests.test_inspect_cli tests.test_list_runs_cli tests.test_web_api -v
+Result: OK, 99 tests passed, 9 skipped
+
+git diff --check -- .
+Result: passed
+
+bash scripts/verify.sh
+Result: OK, 743 tests passed, 1 skipped, doctor status ok
 ```
 
 ## Publish Checklist
@@ -125,23 +142,21 @@ Result: OK, 742 tests passed, 1 skipped, doctor status ok
 - [x] release checklist aligned
 - [x] CLI shared doctor/inspection services extracted to kernel modules
 - [x] Web API and TUI no longer import shared runtime services from `onecode.cli`
+- [x] `inspect_run` split below the source-quality threshold and removed from
+      hotspot allowlist
 
 ## Follow-Up Queue
 
 1. Split `src/onecode/cli.py` by command family.
 2. Split `src/onecode/web/api.py` into request parsing, auth, route dispatch,
    and response/projection modules.
-3. Split `src/onecode/kernel/run_inspection.py:inspect_run` below the source
-   quality threshold.
-4. Add stable public shell projection fixtures for downstream adapters.
-5. Decide whether retained local wheel artifacts need a dedicated release
+3. Add stable public shell projection fixtures for downstream adapters.
+4. Decide whether retained local wheel artifacts need a dedicated release
    output directory separate from temporary audit builds.
 
 ## Open Risks
 
 - Large module decomposition remains future work and is intentionally tracked
   by allowlisted quality-gate hotspots.
-- `src/onecode/kernel/run_inspection.py:inspect_run` remains allowlisted until
-  the next focused extraction.
 - CI matrix behavior must still be confirmed by GitHub Actions after push.
 - The Web API remains scoped to local/trusted-loopback use.

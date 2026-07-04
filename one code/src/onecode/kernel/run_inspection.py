@@ -427,163 +427,137 @@ def global_wal_run_summaries(workspace: Path) -> tuple[list[dict] | None, dict |
     return summaries, None
 
 
-def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
-    try:
-        run_id = validate_run_id(run_id)
-    except ValueError:
-        return 1, {
-            "run_id": run_id,
-            "status": "invalid",
-            "reason": "invalid_run_id",
-        }
-    evidence_root = workspace.resolve() / ".onecode" / "runs" / run_id
-    manifest_path = evidence_root / "manifest.json"
-    ledger_path = evidence_root / "ledger.json"
-    manifest, corrupt_manifest_path, corrupt_manifest_reason = read_json(manifest_path)
-    ledger, corrupt_ledger_path, corrupt_ledger_reason = read_json(ledger_path)
-    corrupt_path = corrupt_manifest_path or corrupt_ledger_path
-    corrupt_reason = corrupt_manifest_reason or corrupt_ledger_reason
-    if corrupt_path is not None:
-        return 1, {
-            "run_id": run_id,
-            "status": "corrupt",
-            "corrupt_path": corrupt_path,
-            "corrupt_reason": corrupt_reason,
-            "manifest_path": str(manifest_path),
-            "ledger_path": str(ledger_path),
-        }
-    if manifest is None or ledger is None:
-        wal_result = inspect_global_wal_run(workspace, run_id)
-        if wal_result is not None:
-            return wal_result
-        return 1, {
-            "run_id": run_id,
-            "status": "missing",
-            "manifest_path": str(manifest_path),
-            "ledger_path": str(ledger_path),
-        }
+def corrupt_inspection_payload(
+    run_id: str,
+    corrupt_path: str | None,
+    corrupt_reason: str | None,
+    manifest_path: Path,
+    ledger_path: Path,
+) -> dict:
+    return {
+        "run_id": run_id,
+        "status": "corrupt",
+        "corrupt_path": corrupt_path,
+        "corrupt_reason": corrupt_reason,
+        "manifest_path": str(manifest_path),
+        "ledger_path": str(ledger_path),
+    }
+
+
+def validate_run_documents(
+    run_id: str,
+    manifest: dict,
+    ledger: dict,
+    manifest_path: Path,
+    ledger_path: Path,
+) -> tuple[list[dict] | None, dict[str, Any], dict | None]:
     corrupt_path, corrupt_reason = validate_status_document(manifest, manifest_path)
     if corrupt_path is None:
         corrupt_path, corrupt_reason = validate_status_document(ledger, ledger_path)
     if corrupt_path is not None:
-        return 1, {
-            "run_id": run_id,
-            "status": "corrupt",
-            "corrupt_path": corrupt_path,
-            "corrupt_reason": corrupt_reason,
-            "manifest_path": str(manifest_path),
-            "ledger_path": str(ledger_path),
-        }
+        return None, {}, corrupt_inspection_payload(run_id, corrupt_path, corrupt_reason, manifest_path, ledger_path)
     if manifest["status"] != ledger["status"]:
-        return 1, {
-            "run_id": run_id,
-            "status": "corrupt",
-            "corrupt_path": str(ledger_path),
-            "corrupt_reason": "status_mismatch",
-            "manifest_path": str(manifest_path),
-            "ledger_path": str(ledger_path),
-        }
+        return None, {}, corrupt_inspection_payload(
+            run_id,
+            str(ledger_path),
+            "status_mismatch",
+            manifest_path,
+            ledger_path,
+        )
     corrupt_path, corrupt_reason = validate_ledger_counts(ledger, ledger_path)
     if corrupt_path is not None:
-        return 1, {
-            "run_id": run_id,
-            "status": "corrupt",
-            "corrupt_path": corrupt_path,
-            "corrupt_reason": corrupt_reason,
-            "manifest_path": str(manifest_path),
-            "ledger_path": str(ledger_path),
-        }
+        return None, {}, corrupt_inspection_payload(run_id, corrupt_path, corrupt_reason, manifest_path, ledger_path)
     if "checkpoints" not in manifest:
-        return 1, {
-            "run_id": run_id,
-            "status": "corrupt",
-            "corrupt_path": str(manifest_path),
-            "corrupt_reason": "missing_checkpoints",
-            "manifest_path": str(manifest_path),
-            "ledger_path": str(ledger_path),
-        }
+        return None, {}, corrupt_inspection_payload(
+            run_id,
+            str(manifest_path),
+            "missing_checkpoints",
+            manifest_path,
+            ledger_path,
+        )
     checkpoints = manifest["checkpoints"]
     if not isinstance(checkpoints, list):
-        return 1, {
-            "run_id": run_id,
-            "status": "corrupt",
-            "corrupt_path": str(manifest_path),
-            "corrupt_reason": "invalid_checkpoints",
-            "manifest_path": str(manifest_path),
-            "ledger_path": str(ledger_path),
-        }
+        return None, {}, corrupt_inspection_payload(
+            run_id,
+            str(manifest_path),
+            "invalid_checkpoints",
+            manifest_path,
+            ledger_path,
+        )
     if not all(isinstance(checkpoint, dict) for checkpoint in checkpoints):
-        return 1, {
-            "run_id": run_id,
-            "status": "corrupt",
-            "corrupt_path": str(manifest_path),
-            "corrupt_reason": "invalid_checkpoint_entry",
-            "manifest_path": str(manifest_path),
-            "ledger_path": str(ledger_path),
-        }
+        return None, {}, corrupt_inspection_payload(
+            run_id,
+            str(manifest_path),
+            "invalid_checkpoint_entry",
+            manifest_path,
+            ledger_path,
+        )
     corrupt_path, corrupt_reason = validate_checkpoint_evidence(checkpoints, manifest_path)
     if corrupt_path is not None:
-        return 1, {
-            "run_id": run_id,
-            "status": "corrupt",
-            "corrupt_path": corrupt_path,
-            "corrupt_reason": corrupt_reason,
-            "manifest_path": str(manifest_path),
-            "ledger_path": str(ledger_path),
-        }
+        return None, {}, corrupt_inspection_payload(run_id, corrupt_path, corrupt_reason, manifest_path, ledger_path)
     if all(field in ledger for field in LEDGER_COUNT_FIELDS):
         resolved_count = ledger["completed_count"] + ledger["skipped_count"] + ledger["failed_count"]
         if resolved_count != len(checkpoints):
-            return 1, {
-                "run_id": run_id,
-                "status": "corrupt",
-                "corrupt_path": str(manifest_path),
-                "corrupt_reason": "checkpoint_count_mismatch",
-                "manifest_path": str(manifest_path),
-                "ledger_path": str(ledger_path),
-            }
+            return None, {}, corrupt_inspection_payload(
+                run_id,
+                str(manifest_path),
+                "checkpoint_count_mismatch",
+                manifest_path,
+                ledger_path,
+            )
     skill_selection_fields, skill_selection_error = compact_skill_selection_inspect_fields(ledger, manifest)
     if skill_selection_error is not None:
-        return 1, {
-            "run_id": run_id,
-            "status": "corrupt",
-            "corrupt_path": str(ledger_path),
-            "corrupt_reason": skill_selection_error,
-            "manifest_path": str(manifest_path),
-            "ledger_path": str(ledger_path),
-        }
+        return None, {}, corrupt_inspection_payload(
+            run_id,
+            str(ledger_path),
+            skill_selection_error,
+            manifest_path,
+            ledger_path,
+        )
+    return checkpoints, skill_selection_fields, None
+
+
+def trace_metrics_for_ledger(
+    run_id: str,
+    ledger: dict,
+    evidence_metrics: dict[str, Any],
+    manifest_path: Path,
+    ledger_path: Path,
+) -> tuple[dict[str, Any], dict | None]:
     trace_value = ledger.get("trace_path")
-    evidence_metrics = ledger.get("evidence_metrics", {})
-    if not isinstance(evidence_metrics, dict):
-        evidence_metrics = {}
-    if isinstance(trace_value, str):
-        trace_path = Path(trace_value)
-        corrupt_path, corrupt_reason = validate_trace_completion(ledger, trace_path)
-        if corrupt_path is not None:
-            return 1, {
-                "run_id": run_id,
-                "status": "corrupt",
-                "corrupt_path": corrupt_path,
-                "corrupt_reason": corrupt_reason,
-                "manifest_path": str(manifest_path),
-                "ledger_path": str(ledger_path),
-            }
-        evidence_metrics = {**evidence_metrics, "trace": trace_evidence_metrics(trace_path)}
-    corrupt_path, corrupt_reason = validate_evidence_chain(evidence_root / "evidence-chain.jsonl")
+    if not isinstance(trace_value, str):
+        return evidence_metrics, None
+    trace_path = Path(trace_value)
+    corrupt_path, corrupt_reason = validate_trace_completion(ledger, trace_path)
     if corrupt_path is not None:
-        return 1, {
-            "run_id": run_id,
-            "status": "corrupt",
-            "corrupt_path": corrupt_path,
-            "corrupt_reason": corrupt_reason,
-            "manifest_path": str(manifest_path),
-            "ledger_path": str(ledger_path),
-        }
-    workspace_root = (
-        Path(manifest["workspace_root"]).resolve()
-        if isinstance(manifest.get("workspace_root"), str)
-        else workspace.resolve()
-    )
+        return evidence_metrics, corrupt_inspection_payload(
+            run_id,
+            corrupt_path,
+            corrupt_reason,
+            manifest_path,
+            ledger_path,
+        )
+    return {**evidence_metrics, "trace": trace_evidence_metrics(trace_path)}, None
+
+
+def workspace_root_from_manifest(manifest: dict, workspace: Path) -> Path:
+    if isinstance(manifest.get("workspace_root"), str):
+        return Path(manifest["workspace_root"]).resolve()
+    return workspace.resolve()
+
+
+def run_inspection_summary(
+    run_id: str,
+    workspace: Path,
+    manifest: dict,
+    ledger: dict,
+    checkpoints: list[dict],
+    skill_selection_fields: dict[str, Any],
+    manifest_path: Path,
+    ledger_path: Path,
+    evidence_metrics: dict[str, Any],
+) -> dict:
+    workspace_root = workspace_root_from_manifest(manifest, workspace)
     base_summary = {
         "run_id": run_id,
         "status": ledger.get("status", manifest.get("status")),
@@ -610,7 +584,78 @@ def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
         "ledger_path": str(ledger_path),
         "evidence_metrics": evidence_metrics,
     } | skill_selection_fields | delivery_summary(ledger) | optional_task_inspect_fields(ledger)
-    return 0, base_summary | trace_repair_decision(evidence_metrics)
+    return base_summary | trace_repair_decision(evidence_metrics)
+
+
+def inspect_run(workspace: Path, run_id: str) -> tuple[int, dict]:
+    try:
+        run_id = validate_run_id(run_id)
+    except ValueError:
+        return 1, {
+            "run_id": run_id,
+            "status": "invalid",
+            "reason": "invalid_run_id",
+        }
+    evidence_root = workspace.resolve() / ".onecode" / "runs" / run_id
+    manifest_path = evidence_root / "manifest.json"
+    ledger_path = evidence_root / "ledger.json"
+    manifest, corrupt_manifest_path, corrupt_manifest_reason = read_json(manifest_path)
+    ledger, corrupt_ledger_path, corrupt_ledger_reason = read_json(ledger_path)
+    corrupt_path = corrupt_manifest_path or corrupt_ledger_path
+    corrupt_reason = corrupt_manifest_reason or corrupt_ledger_reason
+    if corrupt_path is not None:
+        return 1, corrupt_inspection_payload(run_id, corrupt_path, corrupt_reason, manifest_path, ledger_path)
+    if manifest is None or ledger is None:
+        wal_result = inspect_global_wal_run(workspace, run_id)
+        if wal_result is not None:
+            return wal_result
+        return 1, {
+            "run_id": run_id,
+            "status": "missing",
+            "manifest_path": str(manifest_path),
+            "ledger_path": str(ledger_path),
+        }
+    checkpoints, skill_selection_fields, corrupt_payload = validate_run_documents(
+        run_id,
+        manifest,
+        ledger,
+        manifest_path,
+        ledger_path,
+    )
+    if corrupt_payload is not None or checkpoints is None:
+        return 1, corrupt_payload or corrupt_inspection_payload(
+            run_id,
+            str(manifest_path),
+            "invalid_run_documents",
+            manifest_path,
+            ledger_path,
+        )
+    evidence_metrics = ledger.get("evidence_metrics", {})
+    if not isinstance(evidence_metrics, dict):
+        evidence_metrics = {}
+    evidence_metrics, corrupt_payload = trace_metrics_for_ledger(
+        run_id,
+        ledger,
+        evidence_metrics,
+        manifest_path,
+        ledger_path,
+    )
+    if corrupt_payload is not None:
+        return 1, corrupt_payload
+    corrupt_path, corrupt_reason = validate_evidence_chain(evidence_root / "evidence-chain.jsonl")
+    if corrupt_path is not None:
+        return 1, corrupt_inspection_payload(run_id, corrupt_path, corrupt_reason, manifest_path, ledger_path)
+    return 0, run_inspection_summary(
+        run_id,
+        workspace,
+        manifest,
+        ledger,
+        checkpoints,
+        skill_selection_fields,
+        manifest_path,
+        ledger_path,
+        evidence_metrics,
+    )
 
 
 def list_runs(workspace: Path) -> dict:
@@ -634,4 +679,3 @@ def list_runs(workspace: Path) -> dict:
                 runs.append(summary)
     runs.sort(key=lambda run: str(run.get("run_id") or ""))
     return {"workspace": str(workspace), "runs": runs}
-
