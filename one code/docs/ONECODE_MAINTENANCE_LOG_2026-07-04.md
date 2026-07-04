@@ -59,6 +59,24 @@ source quality gate without introducing runtime third-party dependencies.
   pass status and non-applicable UI rebuild/browser-smoke notes.
 - Prepared the branch for commit and push to `origin`.
 
+### CLI Service Decoupling Phase
+
+- Added `docs/superpowers/specs/2026-07-04-onecode-cli-service-decoupling-design.md`
+  to define the next maintenance phase boundary.
+- Added `docs/superpowers/plans/2026-07-04-onecode-cli-service-decoupling.md`
+  with the TDD extraction plan.
+- Added `src/onecode/kernel/diagnostics.py` for shared doctor checks.
+- Added `src/onecode/kernel/run_inspection.py` for shared run inspection,
+  list-runs, delivery summary, verifier evidence, task-resume evidence, and
+  WAL-backed inspection helpers.
+- Kept compatibility exports in `onecode.cli` for existing CLI/tests/downstream
+  imports.
+- Updated Web API and TUI workers to import shared services from kernel modules
+  instead of `onecode.cli`.
+- Added import-boundary and compatibility-export tests.
+- Moved the `inspect_run` source-quality allowlist entry from CLI to the new
+  run-inspection module.
+
 ## Verification Log
 
 ```text
@@ -83,6 +101,15 @@ Result: OK, 740 tests passed, 1 skipped, doctor status ok
 
 bash scripts/release-audit.sh
 Result: passed; whitespace, source quality, and wheel assets checked; publish action not performed
+
+.venv/bin/python scripts/check_source_quality.py src
+Result: source quality ok
+
+.venv/bin/python -m unittest tests.test_source_quality tests.test_doctor_cli tests.test_inspect_cli tests.test_list_runs_cli tests.test_run_plan_cli tests.test_web_api tests.test_tui_model_closure -v
+Result: OK, 143 tests passed, 9 skipped
+
+bash scripts/verify.sh
+Result: OK, 742 tests passed, 1 skipped, doctor status ok
 ```
 
 ## Publish Checklist
@@ -96,19 +123,25 @@ Result: passed; whitespace, source quality, and wheel assets checked; publish ac
 - [x] release audit readiness script passed
 - [x] closure report added
 - [x] release checklist aligned
+- [x] CLI shared doctor/inspection services extracted to kernel modules
+- [x] Web API and TUI no longer import shared runtime services from `onecode.cli`
 
 ## Follow-Up Queue
 
 1. Split `src/onecode/cli.py` by command family.
 2. Split `src/onecode/web/api.py` into request parsing, auth, route dispatch,
    and response/projection modules.
-3. Add stable public shell projection fixtures for downstream adapters.
-4. Decide whether retained local wheel artifacts need a dedicated release
+3. Split `src/onecode/kernel/run_inspection.py:inspect_run` below the source
+   quality threshold.
+4. Add stable public shell projection fixtures for downstream adapters.
+5. Decide whether retained local wheel artifacts need a dedicated release
    output directory separate from temporary audit builds.
 
 ## Open Risks
 
 - Large module decomposition remains future work and is intentionally tracked
   by allowlisted quality-gate hotspots.
+- `src/onecode/kernel/run_inspection.py:inspect_run` remains allowlisted until
+  the next focused extraction.
 - CI matrix behavior must still be confirmed by GitHub Actions after push.
 - The Web API remains scoped to local/trusted-loopback use.

@@ -1,5 +1,59 @@
 # Changelog
 
+## 2026-07-04 - CLI Service Decoupling Phase
+
+This update starts the next maintenance phase after release-readiness closure.
+It reduces `onecode.cli` coupling by moving shared doctor and run-inspection
+behavior into kernel-owned service modules while preserving existing CLI, Web,
+and TUI behavior.
+
+### Updated and Optimized
+
+- Added `onecode.kernel.diagnostics` for shared `run_doctor` behavior.
+- Added `onecode.kernel.run_inspection` for shared `inspect_run`,
+  `list_runs`, delivery summary, verifier evidence, task-resume evidence, and
+  WAL-backed run inspection helpers.
+- Kept compatibility exports in `onecode.cli` so existing callers can continue
+  importing `run_doctor`, `inspect_run`, `list_runs`, and `delivery_summary`.
+- Updated Web API and TUI worker imports so non-CLI surfaces no longer depend
+  on `onecode.cli` for shared runtime services.
+- Migrated the source-quality allowlist entry for `inspect_run` from
+  `src/onecode/cli.py` to `src/onecode/kernel/run_inspection.py`.
+
+### Regression Coverage
+
+- Added an import-boundary test that blocks `src/onecode/web/api.py` and
+  `src/onecode/tui/app.py` from importing shared services from `onecode.cli`.
+- Added a compatibility-export test that verifies CLI-level names still point
+  to the new kernel service implementations.
+- Added design and implementation planning records for this phase:
+  `docs/superpowers/specs/2026-07-04-onecode-cli-service-decoupling-design.md`
+  and `docs/superpowers/plans/2026-07-04-onecode-cli-service-decoupling.md`.
+
+### Verification
+
+Latest local verification for this phase:
+
+```text
+.venv/bin/python scripts/check_source_quality.py src
+Result: source quality ok
+
+.venv/bin/python -m unittest tests.test_source_quality tests.test_doctor_cli tests.test_inspect_cli tests.test_list_runs_cli tests.test_run_plan_cli tests.test_web_api tests.test_tui_model_closure -v
+Result: OK, 143 tests passed, 9 skipped
+
+bash scripts/verify.sh
+Result: OK, 742 tests passed, 1 skipped, doctor status ok
+```
+
+### Remaining Follow-Up
+
+- Split `src/onecode/cli.py` parser construction and command handlers by
+  command family.
+- Split `src/onecode/web/api.py` request parsing, auth, workspace, route
+  handlers, and HTML console responsibilities.
+- Reduce `src/onecode/kernel/run_inspection.py:inspect_run` below the source
+  quality threshold in a focused behavior-preserving refactor.
+
 ## 2026-07-04 - Release Readiness and Source Quality Gates
 
 This update continues the project optimization pass with release packaging,

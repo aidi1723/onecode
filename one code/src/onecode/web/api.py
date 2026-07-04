@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import Any, BinaryIO, Mapping
 from urllib.parse import parse_qs, urlparse
 
-from onecode.cli import inspect_run, list_runs, run_doctor
+from onecode.kernel.diagnostics import run_doctor
+from onecode.kernel.run_inspection import inspect_run, list_runs
 from onecode.kernel.model_loop import run_model_task
 from onecode.kernel.model_config import (
     DEFAULT_ONECODE_MODEL,

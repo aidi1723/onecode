@@ -454,14 +454,14 @@ class OneCodeApp(App):
         self.run_worker(self._doctor_worker, name="doctor", thread=True)
 
     def _doctor_worker(self) -> dict:
-        from onecode.cli import run_doctor
+        from onecode.kernel.diagnostics import run_doctor
         return run_doctor()
 
     def _run_inspect(self, run_id: str) -> None:
         self.run_worker(lambda: self._inspect_worker(run_id.strip()), name="inspect", thread=True)
 
     def _inspect_worker(self, run_id: str) -> dict:
-        from onecode.cli import inspect_run
+        from onecode.kernel.run_inspection import inspect_run
         _, result = inspect_run(self.workspace, run_id)
         return result
 
@@ -469,7 +469,7 @@ class OneCodeApp(App):
         self.run_worker(self._list_runs_worker, name="list-runs", thread=True)
 
     def _list_runs_worker(self) -> dict:
-        from onecode.cli import list_runs
+        from onecode.kernel.run_inspection import list_runs
         return list_runs(self.workspace)
 
     # --- Result handlers ---

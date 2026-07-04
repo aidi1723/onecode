@@ -28,6 +28,22 @@ class SourceQualityTests(unittest.TestCase):
             text = Path(script_path).read_text(encoding="utf-8")
             self.assertIn("check_source_quality.py", text)
 
+    def test_web_and_tui_do_not_depend_on_cli_services(self):
+        forbidden = "from onecode.cli import"
+        for path in ["src/onecode/web/api.py", "src/onecode/tui/app.py"]:
+            text = Path(path).read_text(encoding="utf-8")
+            self.assertNotIn(forbidden, text)
+
+    def test_cli_keeps_compatibility_exports_for_shared_services(self):
+        from onecode import cli
+        from onecode.kernel.diagnostics import run_doctor
+        from onecode.kernel.run_inspection import delivery_summary, inspect_run, list_runs
+
+        self.assertIs(cli.run_doctor, run_doctor)
+        self.assertIs(cli.delivery_summary, delivery_summary)
+        self.assertIs(cli.inspect_run, inspect_run)
+        self.assertIs(cli.list_runs, list_runs)
+
 
 if __name__ == "__main__":
     unittest.main()
