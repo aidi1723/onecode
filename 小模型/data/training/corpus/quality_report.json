@@ -1,0 +1,26 @@
+{
+  "action_counts": {
+    "ALLOW_ATOMIC_WRITE": 65,
+    "ALLOW_PATCH_WITH_SHA": 67,
+    "DENY_AND_LEDGER": 84,
+    "RUN_VERIFIER_IN_SANDBOX": 63,
+    "SOVEREIGNTY_HALT": 156
+  },
+  "duplicate_id_count": 0,
+  "eval_count": 43,
+  "eval_path": "data/training/corpus/eval.jsonl",
+  "failures": [],
+  "halt_or_deny_ratio": 0.5517241379310345,
+  "invalid_sample_count": 0,
+  "sample_count": 435,
+  "state_counts": {
+    "000000": 77,
+    "010010": 63,
+    "100001": 163,
+    "111111": 132
+  },
+  "status": "ok",
+  "train_count": 392,
+  "train_path": "data/training/corpus/train.jsonl",
+  "valid_sample_count": 435
+}

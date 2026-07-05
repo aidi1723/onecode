@@ -1,0 +1,16 @@
+{
+  "assertions": [
+    {
+      "path": "tests/test_generated.py",
+      "type": "file_exists"
+    }
+  ],
+  "expected_status": "completed",
+  "id": "training-write-tests-test-generated-py-3",
+  "input": {
+    "write_content": "{}\n",
+    "write_path": "tests/test_generated.py"
+  },
+  "mode": "rule",
+  "prompt": "写入 tests/test_generated.py"
+}

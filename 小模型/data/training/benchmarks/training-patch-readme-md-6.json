@@ -1,0 +1,23 @@
+{
+  "assertions": [
+    {
+      "path": "README.md",
+      "type": "file_exists"
+    }
+  ],
+  "expected_status": "completed",
+  "id": "training-patch-readme-md-6",
+  "input": {
+    "files": [
+      {
+        "content": "old title\n",
+        "path": "README.md"
+      }
+    ],
+    "patch_path": "README.md",
+    "replace_block": "new title",
+    "search_block": "old title"
+  },
+  "mode": "rule",
+  "prompt": "把 README.md 中的 old title 改成 new title"
+}

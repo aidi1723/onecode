@@ -1,0 +1,11 @@
+{
+  "assertions": [],
+  "expected_status": "halted",
+  "id": "training-timeout-11",
+  "input": {
+    "http_timeout_seconds": 0.001,
+    "simulated_action_seconds": 0.02
+  },
+  "mode": "rule",
+  "prompt": "模拟超过 http timeout 的动作并正确中止"
+}

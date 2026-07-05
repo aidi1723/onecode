@@ -1,0 +1,16 @@
+{
+  "assertions": [
+    {
+      "path": "hello.txt",
+      "type": "file_exists"
+    }
+  ],
+  "expected_status": "completed",
+  "id": "training-write-hello-txt-4",
+  "input": {
+    "write_content": "ready = True\n",
+    "write_path": "hello.txt"
+  },
+  "mode": "rule",
+  "prompt": "写入 hello.txt"
+}

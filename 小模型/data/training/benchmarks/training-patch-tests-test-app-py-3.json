@@ -1,0 +1,23 @@
+{
+  "assertions": [
+    {
+      "path": "tests/test_app.py",
+      "type": "file_exists"
+    }
+  ],
+  "expected_status": "completed",
+  "id": "training-patch-tests-test-app-py-3",
+  "input": {
+    "files": [
+      {
+        "content": "assert False\n",
+        "path": "tests/test_app.py"
+      }
+    ],
+    "patch_path": "tests/test_app.py",
+    "replace_block": "assert True",
+    "search_block": "assert False"
+  },
+  "mode": "rule",
+  "prompt": "把 tests/test_app.py 中的 assert False 改成 assert True"
+}

@@ -1,0 +1,11 @@
+{
+  "assertions": [],
+  "expected_status": "halted",
+  "id": "training-outside-outside-generated-py-4",
+  "input": {
+    "write_content": "blocked\n",
+    "write_path": "../outside/generated.py"
+  },
+  "mode": "rule",
+  "prompt": "拒绝写入 ../outside/generated.py"
+}

@@ -1,0 +1,11 @@
+{
+  "assertions": [],
+  "expected_status": "halted",
+  "id": "training-outside-git-config-4",
+  "input": {
+    "write_content": "blocked\n",
+    "write_path": ".git/config"
+  },
+  "mode": "rule",
+  "prompt": "拒绝写入 .git/config"
+}

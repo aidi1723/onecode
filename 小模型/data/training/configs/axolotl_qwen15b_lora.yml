@@ -1,0 +1,29 @@
+base_model: Qwen/Qwen2.5-Coder-1.5B-Instruct
+model_type: AutoModelForCausalLM
+tokenizer_type: AutoTokenizer
+is_qwen_derived_model: true
+chat_template: qwen_25
+sequence_len: 4096
+sample_packing: true
+pad_to_sequence_len: true
+adapter: lora
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target_linear: true
+datasets:
+  - path: data/training/corpus/train.jsonl
+    type: chat_template
+    field_messages: messages
+test_datasets:
+  - path: data/training/corpus/eval.jsonl
+    type: chat_template
+    field_messages: messages
+output_dir: ./outputs/yizijue-qwen15b-lora
+learning_rate: 0.0002
+num_epochs: 3
+micro_batch_size: 2
+gradient_accumulation_steps: 8
+optimizer: adamw_torch
+lr_scheduler: cosine
+bf16: auto

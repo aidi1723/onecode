@@ -1,0 +1,12 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.venv-mlx/
+hf-home/
+models/
+data/
+*.safetensors
+*.tar.gz
+*.zip

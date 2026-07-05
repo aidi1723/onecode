@@ -1,0 +1,16 @@
+{
+  "assertions": [
+    {
+      "path": "configs/app.json",
+      "type": "file_exists"
+    }
+  ],
+  "expected_status": "completed",
+  "id": "training-write-configs-app-json-3",
+  "input": {
+    "write_content": "{}\n",
+    "write_path": "configs/app.json"
+  },
+  "mode": "rule",
+  "prompt": "写入 configs/app.json"
+}

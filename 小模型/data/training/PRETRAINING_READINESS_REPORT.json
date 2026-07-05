@@ -1,0 +1,134 @@
+{
+  "config_status": {
+    "axolotl_config_path": "data/training/configs/axolotl_qwen15b_lora.yml",
+    "llamafactory_config_path": "data/training/configs/llamafactory_qwen15b_lora.yaml",
+    "status": "ok"
+  },
+  "configs_dir": "data/training/configs",
+  "corpus_dir": "data/training/corpus",
+  "decision": "allowed_to_start_cleaning",
+  "eval_coverage": {
+    "dimensions": {
+      "action": {
+        "ALLOW_ATOMIC_WRITE": 1,
+        "ALLOW_PATCH_WITH_SHA": 1,
+        "DENY_AND_LEDGER": 4,
+        "RUN_VERIFIER_IN_SANDBOX": 8,
+        "SOVEREIGNTY_HALT": 29
+      },
+      "evidence_state": {
+        "failed": 1,
+        "required": 42
+      },
+      "intent_type": {
+        "bash_execution": 29,
+        "execute_pytest": 8,
+        "invalid_intent": 3,
+        "patch_text": 1,
+        "write_text": 2
+      },
+      "path_scope": {
+        "no_path": 12,
+        "outside_workspace": 28,
+        "workspace_relative": 3
+      },
+      "sandbox_state": {
+        "missing": 29,
+        "not_required": 6,
+        "required": 8
+      },
+      "yizijue_state": {
+        "000000": 3,
+        "010010": 8,
+        "100001": 30,
+        "111111": 2
+      }
+    },
+    "invalid_sample_count": 0,
+    "missing_required_dimensions": {},
+    "sample_count": 43,
+    "status": "ok"
+  },
+  "model": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+  "prediction_gate": {
+    "action_match_count": 43,
+    "action_match_rate": 1.0,
+    "exact_match_count": 43,
+    "exact_match_rate": 1.0,
+    "failures": [],
+    "invalid_prediction_count": 0,
+    "missing_prediction_count": 0,
+    "sample_count": 43,
+    "status": "ok",
+    "unsafe_allow_count": 0
+  },
+  "quality": {
+    "action_counts": {
+      "ALLOW_ATOMIC_WRITE": 65,
+      "ALLOW_PATCH_WITH_SHA": 67,
+      "DENY_AND_LEDGER": 84,
+      "RUN_VERIFIER_IN_SANDBOX": 63,
+      "SOVEREIGNTY_HALT": 156
+    },
+    "duplicate_id_count": 0,
+    "failures": [],
+    "halt_or_deny_ratio": 0.5517241379310345,
+    "invalid_sample_count": 0,
+    "sample_count": 435,
+    "state_counts": {
+      "000000": 77,
+      "010010": 63,
+      "100001": 163,
+      "111111": 132
+    },
+    "status": "ok",
+    "valid_sample_count": 435
+  },
+  "quality_artifact": {
+    "path": "data/training/corpus/quality_report.json",
+    "status": "ok"
+  },
+  "status": "ready",
+  "train_coverage": {
+    "dimensions": {
+      "action": {
+        "ALLOW_ATOMIC_WRITE": 64,
+        "ALLOW_PATCH_WITH_SHA": 66,
+        "DENY_AND_LEDGER": 80,
+        "RUN_VERIFIER_IN_SANDBOX": 55,
+        "SOVEREIGNTY_HALT": 127
+      },
+      "evidence_state": {
+        "failed": 18,
+        "required": 374
+      },
+      "intent_type": {
+        "bash_execution": 85,
+        "execute_pytest": 55,
+        "invalid_intent": 50,
+        "patch_text": 66,
+        "write_text": 136
+      },
+      "path_scope": {
+        "no_path": 147,
+        "outside_workspace": 90,
+        "workspace_relative": 155
+      },
+      "sandbox_state": {
+        "missing": 91,
+        "not_required": 246,
+        "required": 55
+      },
+      "yizijue_state": {
+        "000000": 74,
+        "010010": 55,
+        "100001": 133,
+        "111111": 130
+      }
+    },
+    "invalid_sample_count": 0,
+    "missing_required_dimensions": {},
+    "sample_count": 392,
+    "status": "ok"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "assertions": [
+    {
+      "path": "src/generated.py",
+      "type": "file_exists"
+    }
+  ],
+  "expected_status": "completed",
+  "id": "training-write-src-generated-py-2",
+  "input": {
+    "write_content": "VALUE = 1\n",
+    "write_path": "src/generated.py"
+  },
+  "mode": "rule",
+  "prompt": "写入 src/generated.py"
+}

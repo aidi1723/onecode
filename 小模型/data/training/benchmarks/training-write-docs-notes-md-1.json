@@ -1,0 +1,16 @@
+{
+  "assertions": [
+    {
+      "path": "docs/notes.md",
+      "type": "file_exists"
+    }
+  ],
+  "expected_status": "completed",
+  "id": "training-write-docs-notes-md-1",
+  "input": {
+    "write_content": "hello\n",
+    "write_path": "docs/notes.md"
+  },
+  "mode": "rule",
+  "prompt": "写入 docs/notes.md"
+}

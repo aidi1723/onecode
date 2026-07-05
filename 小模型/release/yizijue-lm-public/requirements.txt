@@ -1,0 +1,3 @@
+# Core local serving and MLX generation dependency.
+# Unit tests in this release package use only the Python standard library.
+mlx-lm

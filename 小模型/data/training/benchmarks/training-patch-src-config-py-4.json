@@ -1,0 +1,23 @@
+{
+  "assertions": [
+    {
+      "path": "src/config.py",
+      "type": "file_exists"
+    }
+  ],
+  "expected_status": "completed",
+  "id": "training-patch-src-config-py-4",
+  "input": {
+    "files": [
+      {
+        "content": "enabled = False\n",
+        "path": "src/config.py"
+      }
+    ],
+    "patch_path": "src/config.py",
+    "replace_block": "enabled = True",
+    "search_block": "enabled = False"
+  },
+  "mode": "rule",
+  "prompt": "把 src/config.py 中的 enabled = False 改成 enabled = True"
+}

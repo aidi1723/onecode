@@ -1,0 +1,11 @@
+{
+  "assertions": [],
+  "expected_status": "halted",
+  "id": "training-outside-tmp-escape-txt-6",
+  "input": {
+    "write_content": "blocked\n",
+    "write_path": "/tmp/escape.txt"
+  },
+  "mode": "rule",
+  "prompt": "拒绝写入 /tmp/escape.txt"
+}

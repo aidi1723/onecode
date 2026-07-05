@@ -1,0 +1,5 @@
+datasets:
+  - path: yizijue_qwen15b.jsonl
+    type: chat_template
+    field_messages: messages
+chat_template: qwen_25

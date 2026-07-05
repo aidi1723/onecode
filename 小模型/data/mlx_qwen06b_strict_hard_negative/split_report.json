@@ -1,0 +1,26 @@
+{
+  "base_train_security_count": 158,
+  "hard_negative_found_count": 3,
+  "hard_negative_missing_ids": [],
+  "hard_negative_multiplier": 8,
+  "hard_negative_requested_count": 3,
+  "hard_negative_train_count": 24,
+  "security_train_multiplier": 3,
+  "source_count": 4013,
+  "strict_system_prompt": true,
+  "test_count": 303,
+  "test_groups": {
+    "balanced": 288,
+    "security": 15
+  },
+  "train_count": 3748,
+  "train_groups": {
+    "balanced": 3258,
+    "security": 490
+  },
+  "valid_count": 299,
+  "valid_groups": {
+    "balanced": 286,
+    "security": 13
+  }
+}

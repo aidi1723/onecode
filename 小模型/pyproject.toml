@@ -1,0 +1,13 @@
+[project]
+name = "yizijue-lm-workspace"
+version = "0.1.0"
+description = "Local YiZiJue-LM training, evaluation, and MLX service workspace."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "mlx-lm",
+]
+
+[tool.yizijue]
+verify-command = "bash scripts/verify.sh"
+recommended-messages = "data/train_messages_distilled_clean.jsonl"

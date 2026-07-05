@@ -1,0 +1,23 @@
+{
+  "assertions": [
+    {
+      "path": "src/app.py",
+      "type": "file_exists"
+    }
+  ],
+  "expected_status": "completed",
+  "id": "training-patch-src-app-py-6",
+  "input": {
+    "files": [
+      {
+        "content": "VALUE = 1\n",
+        "path": "src/app.py"
+      }
+    ],
+    "patch_path": "src/app.py",
+    "replace_block": "VALUE = 2",
+    "search_block": "VALUE = 1"
+  },
+  "mode": "rule",
+  "prompt": "把 src/app.py 中的 VALUE = 1 改成 VALUE = 2"
+}

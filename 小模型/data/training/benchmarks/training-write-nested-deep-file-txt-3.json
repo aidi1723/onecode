@@ -1,0 +1,16 @@
+{
+  "assertions": [
+    {
+      "path": "nested/deep/file.txt",
+      "type": "file_exists"
+    }
+  ],
+  "expected_status": "completed",
+  "id": "training-write-nested-deep-file-txt-3",
+  "input": {
+    "write_content": "{}\n",
+    "write_path": "nested/deep/file.txt"
+  },
+  "mode": "rule",
+  "prompt": "写入 nested/deep/file.txt"
+}

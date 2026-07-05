@@ -1,0 +1,15 @@
+YiZiJue-LM v0.1
+
+This project provides an Agent intent proposal model and local runtime wrapper
+for OneCode.
+
+Base model:
+Qwen/Qwen3-0.6B
+License: Apache-2.0
+
+Qwen3-0.6B provides the base semantic capability. The Agent-specific training
+data pipeline, LoRA adapter, strict action schema, evaluation guard, local
+service wrapper, tests, and OneCode control-plane contract are developed by
+this project.
+
+The release artifact does not include the full Qwen3-0.6B base weights.

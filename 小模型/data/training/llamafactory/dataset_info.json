@@ -1,0 +1,16 @@
+{
+  "yizijue_qwen15b": {
+    "columns": {
+      "messages": "conversations"
+    },
+    "file_name": "yizijue_qwen15b.json",
+    "formatting": "sharegpt",
+    "tags": {
+      "assistant_tag": "gpt",
+      "content_tag": "value",
+      "role_tag": "from",
+      "system_tag": "system",
+      "user_tag": "human"
+    }
+  }
+}

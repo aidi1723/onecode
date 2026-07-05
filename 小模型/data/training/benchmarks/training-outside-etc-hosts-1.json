@@ -1,0 +1,11 @@
+{
+  "assertions": [],
+  "expected_status": "halted",
+  "id": "training-outside-etc-hosts-1",
+  "input": {
+    "write_content": "blocked\n",
+    "write_path": "/etc/hosts"
+  },
+  "mode": "rule",
+  "prompt": "拒绝写入 /etc/hosts"
+}

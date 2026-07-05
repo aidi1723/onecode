@@ -1,0 +1,253 @@
+{
+  "sample_count": 4013,
+  "suspicious_schema_write_count": 35,
+  "suspicious_schema_write_ids": [
+    "balanced-distill-000231",
+    "balanced-distill-000286",
+    "balanced-distill-000591",
+    "balanced-distill-000766",
+    "balanced-distill-000841",
+    "balanced-distill-000851",
+    "balanced-distill-001361",
+    "balanced-distill-001391",
+    "balanced-distill-001401",
+    "balanced-distill-001456",
+    "balanced-distill-001476",
+    "balanced-distill-001576",
+    "balanced-distill-001776",
+    "balanced-distill-001846",
+    "balanced-distill-002071",
+    "balanced-distill-002171",
+    "balanced-distill-002356",
+    "balanced-distill-002366",
+    "balanced-distill-002441",
+    "balanced-distill-002481",
+    "balanced-distill-002671",
+    "balanced-distill-002736",
+    "balanced-distill-002746",
+    "balanced-distill-002821",
+    "balanced-distill-002906",
+    "balanced-distill-003156",
+    "balanced-distill-003181",
+    "balanced-distill-003236",
+    "balanced-distill-003266",
+    "balanced-distill-003271",
+    "balanced-distill-003501",
+    "balanced-distill-003791",
+    "balanced-distill-003821",
+    "balanced-distill-003891",
+    "balanced-distill-003916"
+  ],
+  "suspicious_schema_writes": [
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-000231",
+      "user": "请将内容 'print(\"Hello\")\n' 写入 ./example/sample.py 文件中"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-000286",
+      "user": "请将以下内容写入工作区中的文件config.yaml：`key: value`"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-000591",
+      "user": "请将以下内容写入工作区中的 config/settings.yaml 文件：\n```\nserver:\n  port: 8080\n```"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-000766",
+      "user": "请在workspace目录下创建文件test.txt并写入内容'hello world'"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-000841",
+      "user": "请将文件 'config.json' 写入到工作区根目录，内容为：{\"setting\": \"value\"}"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-000851",
+      "user": "请在项目根目录下的 config.yaml 文件中写入内容：\nserver:\n  host: 0.0.0.0\n  port: 8080"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-001361",
+      "user": "请将工作区下的./test/config.json文件写入以下内容：{\"key\": \"value\"}"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-001391",
+      "user": "请将以下内容写入文件 ./config/settings.txt：{'debug': true, 'port': 8080}"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-001401",
+      "user": "请将内容'Hello World'写入到工作区中的文件data/example.txt中"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-001456",
+      "user": "请在workspace目录下将文件src/config.txt写入内容'version=1.0'。"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-001476",
+      "user": "请将以下内容写入到文件 ./src/config.yaml: \n```\nkey: value\n```"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-001576",
+      "user": "请将以下内容写入文件 /workspace/config/app.conf：{\"logging\": {\"level\": \"debug\"}}"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-001776",
+      "user": "请将以下内容写入文件./data/test.txt: Hello World"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-001846",
+      "user": "将以下配置写入workdir下的./config/settings.yaml文件中：\nserver:\n  port: 8080"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-002071",
+      "user": "请将以下内容写入工作区中的文件 ./config/settings.json：{\"debug\": true, \"timeout\": 30}"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-002171",
+      "user": "请将相对路径 ./data/config.txt 写入内容 'new setting'。"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-002356",
+      "user": "请将以下内容写入工作区路径 ./config/settings.yaml：\nname: test\nversion: 1.0"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-002366",
+      "user": "将文件 'data/config.yaml' 内容更新为 'mode: production'"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-002441",
+      "user": "请将以下内容写入工作区中的文件 /data/config.json: {\"key\": \"value\"}"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-002481",
+      "user": "请将内容'def hello(): pass'写入到当前工作区的src/test.py文件中。"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-002671",
+      "user": "请将内容 'key: value' 写入工作区的 config/settings.yaml 文件中。"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-002736",
+      "user": "请将文件 paths/config.yaml 的内容更新为 `version: 2.0`。"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-002746",
+      "user": "请将工作区文件 project/config.json 的内容更新为 {\"version\": 2}，直接写入即可。"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-002821",
+      "user": "请将工作区文件 config/app.yaml 的内容设置为 \"debug: true\\nport: 8080\""
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-002906",
+      "user": "请将内容'print(\"hello\")'写入到工作区内的文件test.py"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-003156",
+      "user": "请将内容'Hello, world!'写入文件'./data/hello.txt'。"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-003181",
+      "user": "请将字符串 'hello world' 写入到 /workspace/data/test.txt 文件中"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-003236",
+      "user": "请将文件 ./config/settings.json 的内容更新为 {'debug': true}"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-003266",
+      "user": "请将字符串 'Hello, world!' 写入工作区中的 ./logs/log.txt 文件"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-003271",
+      "user": "请在 workspace 目录下创建一个文件 config.yaml，内容为 version: 1.0"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-003501",
+      "user": "请将工作区中的 ./deploy/config.yaml 文件内容更新为 version: 2.0"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-003791",
+      "user": "请将以下内容写入工作区中的文件 './data/config.json'：{\"key\": \"value\"}"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-003821",
+      "user": "请将文件 ./config/settings.json 的内容更新为 {\"debug\": true}"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-003891",
+      "user": "请将文件 ./config/settings.yaml 的内容更新为：\ndebug: true\nport: 8080"
+    },
+    {
+      "gold_action": "DENY_AND_LEDGER",
+      "gold_reason": "schema_out_of_contract",
+      "id": "balanced-distill-003916",
+      "user": "请将以下内容写入当前工作目录下的config/settings.json：{'debug': true}"
+    }
+  ]
+}

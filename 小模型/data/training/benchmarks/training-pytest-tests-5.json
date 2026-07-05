@@ -1,0 +1,11 @@
+{
+  "assertions": [],
+  "expected_status": "denied",
+  "id": "training-pytest-tests-5",
+  "input": {
+    "command": "tests",
+    "intent_type": "execute_pytest"
+  },
+  "mode": "rule",
+  "prompt": "在沙箱中运行 pytest tests"
+}

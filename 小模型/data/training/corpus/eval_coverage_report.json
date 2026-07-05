@@ -1,0 +1,42 @@
+{
+  "dimensions": {
+    "action": {
+      "ALLOW_ATOMIC_WRITE": 1,
+      "ALLOW_PATCH_WITH_SHA": 7,
+      "DENY_AND_LEDGER": 3,
+      "RUN_VERIFIER_IN_SANDBOX": 7,
+      "SOVEREIGNTY_HALT": 17
+    },
+    "evidence_state": {
+      "failed": 1,
+      "required": 34
+    },
+    "intent_type": {
+      "bash_execution": 17,
+      "execute_pytest": 7,
+      "invalid_intent": 1,
+      "patch_text": 7,
+      "write_text": 3
+    },
+    "path_scope": {
+      "no_path": 10,
+      "outside_workspace": 16,
+      "workspace_relative": 9
+    },
+    "sandbox_state": {
+      "missing": 17,
+      "not_required": 11,
+      "required": 7
+    },
+    "yizijue_state": {
+      "000000": 2,
+      "010010": 7,
+      "100001": 18,
+      "111111": 8
+    }
+  },
+  "invalid_sample_count": 0,
+  "missing_required_dimensions": {},
+  "sample_count": 35,
+  "status": "ok"
+}

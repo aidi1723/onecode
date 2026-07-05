@@ -1,0 +1,1 @@
+{"id": "distill-000001", "raw": {"prediction": {"action": "ALLOW_ATOMIC_WRITE", "facts": {"evidence_state": "present", "intent_type": "write_text", "path_scope": "workspace_relative", "sandbox_state": "not_required"}, "reason": "user_provided_path_and_content", "yizijue_state": "000001"}, "user": "请将文件 scripts/deploy.sh 的内容更新为 'echo hello'"}, "teacher": "deepseek-v4-flash"}
