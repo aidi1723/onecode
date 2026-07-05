@@ -9,6 +9,7 @@ OneCode 项目只作为规则引擎与清洗代码来源，不应继续作为训
 ## 后期维护先看
 
 - 本地维护入口：`/Users/aidi/大字典/小模型/LOCAL_MAINTENANCE.md`
+- 后期维护总览：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_MAINTENANCE_RUNBOOK_CN.md`
 - 中文收尾文档：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_FINAL_CLOSURE_CN_2026-07-05.md`
 - 完整验证命令：`bash scripts/verify.sh`
 
@@ -33,6 +34,12 @@ OneCode 项目只作为规则引擎与清洗代码来源，不应继续作为训
 ## 文档
 
 - 本地维护入口：`/Users/aidi/大字典/小模型/LOCAL_MAINTENANCE.md`
+- 后期维护总览：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_MAINTENANCE_RUNBOOK_CN.md`
+- 开发流程：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_DEVELOPMENT_WORKFLOW_CN.md`
+- 发布更新清单：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_RELEASE_UPDATE_CHECKLIST_CN.md`
+- 数据与训练维护：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_DATA_AND_TRAINING_MAINTENANCE_CN.md`
+- 故障排查：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_TROUBLESHOOTING_CN.md`
+- 维护更新记录：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_MAINTENANCE_CHANGELOG_CN.md`
 - 开发手册：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_DEVELOPMENT_MANUAL.md`
 - 训练手册：`/Users/aidi/大字典/小模型/docs/YIZIJUE_QWEN15B_TRAINING_RUNBOOK.md`
 - 2026-07-05 收尾交接：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_RELEASE_CLOSURE_2026-07-05.md`

@@ -70,6 +70,7 @@
 - Added `docs/YIZIJUE_LM_RELEASE_CLOSURE_2026-07-05.md` as the source handoff and GitHub publication closure record.
 - Added `docs/YIZIJUE_LM_FINAL_CLOSURE_CN_2026-07-05.md` as the Chinese final closure document for local handoff and GitHub update records.
 - Added root-level `LOCAL_MAINTENANCE.md` so later local maintenance and development can find the closure state directly from the project directory.
+- Added Chinese maintenance docs for runbook, development workflow, release update checklist, data/training maintenance, troubleshooting, and maintenance changelog.
 - Release documentation now reflects the current release self-check count and checksum-backed handoff status.
 
 ### Verification
