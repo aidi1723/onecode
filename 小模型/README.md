@@ -6,6 +6,12 @@
 
 OneCode 项目只作为规则引擎与清洗代码来源，不应继续作为训练资产主目录。
 
+## 后期维护先看
+
+- 本地维护入口：`/Users/aidi/大字典/小模型/LOCAL_MAINTENANCE.md`
+- 中文收尾文档：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_FINAL_CLOSURE_CN_2026-07-05.md`
+- 完整验证命令：`bash scripts/verify.sh`
+
 ## 关键数据文件
 
 - 总训练集：`/Users/aidi/大字典/小模型/data/train_data_distilled.jsonl`
@@ -26,6 +32,7 @@ OneCode 项目只作为规则引擎与清洗代码来源，不应继续作为训
 
 ## 文档
 
+- 本地维护入口：`/Users/aidi/大字典/小模型/LOCAL_MAINTENANCE.md`
 - 开发手册：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_DEVELOPMENT_MANUAL.md`
 - 训练手册：`/Users/aidi/大字典/小模型/docs/YIZIJUE_QWEN15B_TRAINING_RUNBOOK.md`
 - 2026-07-05 收尾交接：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_RELEASE_CLOSURE_2026-07-05.md`
