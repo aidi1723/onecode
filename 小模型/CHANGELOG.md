@@ -68,6 +68,7 @@
 - Prediction generation CLI now reports input validation errors before importing MLX runtime dependencies.
 - Prediction generation JSONL input now rejects empty input files, malformed `messages` fields, and rows without a user message before building prompts.
 - Added `docs/YIZIJUE_LM_RELEASE_CLOSURE_2026-07-05.md` as the source handoff and GitHub publication closure record.
+- Added `docs/YIZIJUE_LM_FINAL_CLOSURE_CN_2026-07-05.md` as the Chinese final closure document for local handoff and GitHub update records.
 - Release documentation now reflects the current release self-check count and checksum-backed handoff status.
 
 ### Verification

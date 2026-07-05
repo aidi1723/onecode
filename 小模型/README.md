@@ -29,6 +29,7 @@ OneCode 项目只作为规则引擎与清洗代码来源，不应继续作为训
 - 开发手册：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_DEVELOPMENT_MANUAL.md`
 - 训练手册：`/Users/aidi/大字典/小模型/docs/YIZIJUE_QWEN15B_TRAINING_RUNBOOK.md`
 - 2026-07-05 收尾交接：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_RELEASE_CLOSURE_2026-07-05.md`
+- 2026-07-05 中文收尾文档：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_FINAL_CLOSURE_CN_2026-07-05.md`
 - 更新日志：`/Users/aidi/大字典/小模型/CHANGELOG.md`
 
 ## 当前进度
