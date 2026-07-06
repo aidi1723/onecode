@@ -1,7 +1,7 @@
 # OneCode Yin-Yang Five-Element Runtime Rule Mapping Design
 
 Date: 2026-06-01
-Project root: `/Users/aidi/大字典/one code`
+Project root: `<onecode-repo>`
 Status: Approved for spec review
 
 ## Goal

@@ -98,7 +98,7 @@ Use `.env` for deployment values:
 ```text
 APP_TITLE=一字诀 OneWord
 ONEWORD_GATEWAY_BASE_URL=http://host.docker.internal:8080/v1
-ONEWORD_GATEWAY_TOKEN=dev-local-token
+ONEWORD_GATEWAY_TOKEN=<local-preview-token>
 ENDPOINTS=custom
 ```
 

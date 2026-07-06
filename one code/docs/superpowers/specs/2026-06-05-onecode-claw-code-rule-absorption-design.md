@@ -1,7 +1,7 @@
 # OneCode Claw-Code Rule Absorption Design
 
 Date: 2026-06-05
-Project root: `/Users/aidi/大字典/one code`
+Project root: `<onecode-repo>`
 Status: Draft for review
 Reference studied: `https://github.com/ultraworkers/claw-code`
 

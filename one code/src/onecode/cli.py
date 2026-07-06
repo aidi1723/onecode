@@ -231,6 +231,8 @@ def build_parser() -> argparse.ArgumentParser:
         default="responses",
     )
     run_model_parser.add_argument("--endpoint", default=None)
+    run_model_parser.add_argument("--verifier-policy", default=None)
+    run_model_parser.add_argument("--verifier", action="append", default=None)
 
     inspect_parser = subparsers.add_parser("inspect")
     inspect_parser.add_argument("--workspace", default=".")
@@ -775,9 +777,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.subcommand == "sandbox-smoke":
         try:
+            sandbox_workspace = Path(args.workspace)
+            if not sandbox_workspace.exists():
+                sandbox_workspace.mkdir(parents=True)
             result = run_sandbox_smoke(
                 SandboxConfig(
-                    workspace=Path(args.workspace),
+                    workspace=sandbox_workspace,
                     image=args.image,
                     network=args.network,
                     memory=args.memory,
@@ -1092,6 +1097,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.subcommand == "run-model":
         try:
+            verifier_specs = []
+            if args.verifier:
+                policy_path = run_plan_verifier_policy_path(Path(args.workspace), args.verifier_policy)
+                policy = load_verifier_policy(policy_path)
+                verifier_specs = validate_selected_verifiers(Path(args.workspace), policy, args.verifier)
             result = run_model_task(
                 args.task,
                 workspace=Path(args.workspace),
@@ -1103,6 +1113,9 @@ def main(argv: list[str] | None = None) -> int:
                 provider_kind=args.provider,
                 endpoint=args.endpoint,
             )
+            if verifier_specs and result["status"] == "completed":
+                verifier_results = [run_verifier(Path(args.workspace), spec) for spec in verifier_specs]
+                result = apply_verifier_evidence(result, Path(args.workspace), verifier_results)
         except ValueError as exc:
             parser.error(str(exc))
         print(json.dumps(attach_shell_projection(result), ensure_ascii=False, sort_keys=True))

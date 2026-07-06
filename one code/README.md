@@ -202,14 +202,14 @@ Use `/export` or `/export-last` in the TUI to print those paths when terminal bo
 Start OneCode's OpenAI-compatible HTTP API for a LibreChat custom endpoint:
 
 ```bash
-PYTHONPATH=src ONECODE_API_TOKEN=dev-local-token python3 -m onecode serve --host 127.0.0.1 --port 19080
+PYTHONPATH=src ONECODE_API_TOKEN=<local-preview-token> python3 -m onecode serve --host 127.0.0.1 --port 19080
 ```
 
 LibreChat should point its custom endpoint at:
 
 ```text
 ONECODE_API_BASE_URL=http://localhost:19080/v1
-ONECODE_API_TOKEN=dev-local-token
+ONECODE_API_TOKEN=<local-preview-token>
 ```
 
 The API exposes `/health`, `/v1/models`, and `/v1/chat/completions`. It calls OneCode core directly and does not depend on any OneWord gateway service.
@@ -226,7 +226,7 @@ loopback-only local flag.
 If the LibreChat shell repository is installed next to this repository as `../onecode-librechat`, start the full local OneCode Agent shell with:
 
 ```bash
-PYTHONPATH=src python3 -m onecode shell
+PYTHONPATH=src python3 -m onecode shell --show-credentials
 ```
 
 This launches a temporary local MongoDB, the OneCode API, and the LibreChat Web shell. Open:
@@ -243,14 +243,10 @@ state with:
 PYTHONPATH=src python3 -m onecode shell-status
 ```
 
-Local preview login:
-
-```text
-Email: onecode@local.test
-Password: OneCode123!
-```
-
-Registration is enabled by the launcher, so you can also create a local account from the login screen. Use `Ctrl+C` in the launcher terminal to stop all local services.
+The launcher can print the local preview login when `--show-credentials` is
+set. You can also pass `--email` and `--password` explicitly or create a local
+account from the login screen. Use `Ctrl+C` in the launcher terminal to stop all
+local services.
 
 ## Run
 

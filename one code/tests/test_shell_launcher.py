@@ -24,9 +24,9 @@ from onecode.shell_launcher import (
 
 class ShellLauncherConfigTests(unittest.TestCase):
     def test_default_librechat_dir_points_to_adjacent_onecode_shell(self):
-        project_root = Path("/Users/example/root/one code")
+        project_root = Path("/private/var/tmp/example-root/one code")
 
-        self.assertEqual(default_librechat_dir(project_root), Path("/Users/example/root/onecode-librechat"))
+        self.assertEqual(default_librechat_dir(project_root), Path("/private/var/tmp/example-root/onecode-librechat"))
 
     def test_build_librechat_env_is_onecode_only_and_allows_registration(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -150,13 +150,13 @@ class ShellLauncherConfigTests(unittest.TestCase):
                 config,
                 {
                     "OPENAI_API_KEY": "test-key",
-                    "OPENAI_BASE_URL": "http://10.0.0.184:6780/v1",
+                    "OPENAI_BASE_URL": "http://127.0.0.1:6780/v1",
                     "OPENAI_MODEL": "gpt-5.5",
                 },
             )
 
         self.assertEqual(env["ONECODE_MODEL_PROVIDER"], "chat")
-        self.assertEqual(env["ONECODE_MODEL_ENDPOINT"], "http://10.0.0.184:6780/v1")
+        self.assertEqual(env["ONECODE_MODEL_ENDPOINT"], "http://127.0.0.1:6780/v1")
         self.assertEqual(env["ONECODE_MODEL"], "gpt-5.5")
         self.assertEqual(env["OPENAI_API_KEY"], "test-key")
 

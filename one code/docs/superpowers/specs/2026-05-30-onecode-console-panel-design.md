@@ -2,7 +2,7 @@
 
 Date: 2026-05-30
 Status: Approved direction
-Scope: `/Users/aidi/大字典/one code` and `/Users/aidi/大字典/onecode-librechat`
+Scope: `<onecode-repo>` and `<librechat-repo>`
 
 ## Goal
 

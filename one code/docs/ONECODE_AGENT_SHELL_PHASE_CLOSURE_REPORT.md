@@ -1,5 +1,7 @@
 # OneCode Agent Shell 阶段收尾报告
 
+> 2026-07-06 最新对齐：本报告记录 2026-05-31 壳系统阶段基线。当前 n100 shell、verifier gate、编程任务和 evidence consistency 的最终状态以 `docs/ONECODE_N100_VERIFIER_SHELL_FINAL_CLOSURE_2026-07-06.md` 与 `docs/ONECODE_MAINTENANCE_LOG_2026-07-06.md` 为准；压力测试已在 `docs/ONECODE_TEMPORARY_CLOSURE_HANDOFF_2026-07-06.md` 中明确暂缓。
+
 日期：2026-05-31
 状态：阶段收尾
 范围：OneCode 内核 + LibreChat 壳
@@ -37,8 +39,8 @@ http://127.0.0.1:14080
 本地测试账号：
 
 ```text
-Email: onecode@local.test
-Password: OneCode123!
+Email: <local-preview-email>
+Password: <local-preview-password>
 ```
 
 当前服务进程：
@@ -85,7 +87,7 @@ Console 当前覆盖：
 - 支持从 OpenAI-compatible `/models` 接口发现模型列表。
 - 支持保存模型配置到 OneCode 用户配置。
 - 支持 API key 掩码显示。
-- 支持 endpoint 容错：例如 `10.0.0.184:6780/v1` 会规范化为 `http://10.0.0.184:6780/v1`。
+- 支持 endpoint 容错：例如 `127.0.0.1:6780/v1` 会规范化为 `http://127.0.0.1:6780/v1`。
 - 已实测模型直连普通对话可返回正常回复。
 
 ### 3.5 内核硬化
@@ -153,7 +155,7 @@ npm run build:client
 ```json
 {
   "configured": true,
-  "endpoint": "http://10.0.0.184:6780/v1",
+  "endpoint": "http://<local-model-endpoint>/v1",
   "model": "gpt-5.5",
   "api_key_configured": true
 }

@@ -1,5 +1,7 @@
 # OneCode LibreChat Shell v0.1 Closure Report
 
+> 2026-07-06 alignment note: this report preserves the v0.1 shell baseline evidence from 2026-05-31. The current n100 shell launcher/API/chat-completion smoke status is recorded in `docs/ONECODE_N100_VERIFIER_SHELL_FINAL_CLOSURE_2026-07-06.md` and `docs/ONECODE_MAINTENANCE_LOG_2026-07-06.md`; pressure testing is explicitly deferred in `docs/ONECODE_TEMPORARY_CLOSURE_HANDOFF_2026-07-06.md`.
+
 Date: 2026-05-31
 Scope: OneCode core plus LibreChat Web shell
 Status: Closed as v0.1 shell integration baseline
@@ -16,8 +18,8 @@ The gateway product line is intentionally out of scope. This stage does not depe
 
 ## Repositories
 
-- OneCode core: `/Users/aidi/大字典/one code`
-- LibreChat shell: `/Users/aidi/大字典/onecode-librechat`
+- OneCode core: `<onecode-repo>`
+- LibreChat shell: `<librechat-repo>`
 
 ## Product Surface Closed In This Phase
 
@@ -75,8 +77,8 @@ PYTHONPATH=src python3 -m onecode shell \
 Default local preview credentials:
 
 ```text
-Email: onecode@local.test
-Password: OneCode123!
+Email: <local-preview-email>
+Password: <local-preview-password>
 ```
 
 Open:
@@ -88,7 +90,7 @@ http://127.0.0.1:14080
 If the UI does not show `打开控制台` or `OneCode Console`, rebuild the production frontend and restart LibreChat. LibreChat reads `client/dist/index.html` into memory at backend startup:
 
 ```bash
-cd /Users/aidi/大字典/onecode-librechat
+cd <librechat-repo>
 npm run build:client
 ```
 

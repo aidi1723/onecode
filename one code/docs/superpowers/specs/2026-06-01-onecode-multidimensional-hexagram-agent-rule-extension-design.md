@@ -1,7 +1,7 @@
 # OneCode Multidimensional Hexagram Agent Rule Extension Design
 
 Date: 2026-06-01
-Project root: `/Users/aidi/大字典/one code`
+Project root: `<onecode-repo>`
 Status: Approved direction, pending implementation plan
 
 ## Goal

@@ -72,7 +72,7 @@ def validate_checkpoint_evidence(checkpoints: list[dict], path: Path) -> tuple[s
 def validate_trace_completion(ledger: dict, trace_path: Path) -> tuple[str | None, str | None]:
     if not trace_path.exists():
         return str(trace_path), "missing_trace"
-    completed_seen = False
+    completed_status = None
     try:
         lines = trace_path.read_text(encoding="utf-8").splitlines()
     except OSError:
@@ -87,11 +87,11 @@ def validate_trace_completion(ledger: dict, trace_path: Path) -> tuple[str | Non
         if not isinstance(event, dict):
             return str(trace_path), "invalid_trace_event"
         if event.get("event_type") == "run_completed":
-            completed_seen = True
-            if event.get("status") != ledger.get("status"):
-                return str(trace_path), "trace_status_mismatch"
-    if not completed_seen:
+            completed_status = event.get("status")
+    if completed_status is None:
         return str(trace_path), "missing_trace_run_completed"
+    if completed_status != ledger.get("status"):
+        return str(trace_path), "trace_status_mismatch"
     return None, None
 
 

@@ -96,6 +96,22 @@ def run_sandbox_smoke(
     completed = run_in_sandbox(config, command)
     marker = config.workspace / "sandbox-smoke.txt"
     passed = completed.returncode == 0 and marker.exists() and marker.read_text(encoding="utf-8") == "ok\n"
+    stderr_tail = (completed.stderr or "")[-4096:]
+    stdout_tail = (completed.stdout or "")[-4096:]
+    if not passed and _docker_daemon_unavailable(stderr_tail):
+        result = {
+            "status": "blocked",
+            "reason": "docker_daemon_unavailable",
+            "workspace": str(config.workspace),
+            "image": config.image,
+            "exit_code": completed.returncode,
+            "stdout_tail": stdout_tail,
+            "stderr_tail": stderr_tail,
+            "marker_path": str(marker),
+        }
+        write_sandbox_smoke_report(report_path, result)
+        return result
+
     reason = None
     if not passed:
         if completed.returncode == 0 and "True" in (completed.stdout or "") and not marker.exists():
@@ -108,12 +124,21 @@ def run_sandbox_smoke(
         "workspace": str(config.workspace),
         "image": config.image,
         "exit_code": completed.returncode,
-        "stdout_tail": (completed.stdout or "")[-4096:],
-        "stderr_tail": (completed.stderr or "")[-4096:],
+        "stdout_tail": stdout_tail,
+        "stderr_tail": stderr_tail,
         "marker_path": str(marker),
     }
     write_sandbox_smoke_report(report_path, result)
     return result
+
+
+def _docker_daemon_unavailable(stderr: str) -> bool:
+    lowered = stderr.lower()
+    return (
+        "cannot connect to the docker daemon" in lowered
+        or "is the docker daemon running" in lowered
+        or "permission denied while trying to connect to the docker api" in lowered
+    )
 
 
 def write_sandbox_smoke_report(path: Path | None, result: dict[str, object]) -> None:

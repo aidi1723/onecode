@@ -1,5 +1,7 @@
 # OneCode Project Closure Handoff
 
+> 2026-07-06 alignment note: this handoff preserves the 2026-07-03 project-wide hardening status. The latest verifier-gated delivery, n100 shell, and concrete programming-task closure is recorded in `docs/ONECODE_N100_VERIFIER_SHELL_FINAL_CLOSURE_2026-07-06.md`; the temporary closure and pressure-test deferral are recorded in `docs/ONECODE_TEMPORARY_CLOSURE_HANDOFF_2026-07-06.md`.
+
 Date: 2026-07-03
 Branch: `feature/gateway-iching-rule-sync`
 Repository: `https://github.com/aidi1723/onecode.git`
@@ -8,7 +10,7 @@ Status: Verified and ready for GitHub update
 ## 1. Scope
 
 This closure handoff covers the project-wide review and hardening pass for the
-local OneCode Python project under `/Users/aidi/大字典/one code`.
+local OneCode Python project under `<onecode-repo>`.
 
 Included areas:
 

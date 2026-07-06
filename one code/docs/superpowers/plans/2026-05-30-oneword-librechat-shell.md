@@ -12,38 +12,38 @@
 
 ## Implementation Notes
 
-- Use `/Users/aidi/大字典/oneword-librechat` as the working shell repository unless the user chooses another path before execution.
+- Use `<oneword-librechat-repo>` as the working shell repository unless the user chooses another path before execution.
 - Keep LibreChat's `LICENSE` file intact. The repo license is MIT, so full OneWord branding is acceptable as long as the license notice remains.
 - Do not put real upstream model provider keys in LibreChat. Use `ONEWORD_GATEWAY_TOKEN` as the custom endpoint key; keep `ONEWORD_UPSTREAM_API_KEY` only in `../oneword-agent-gateway`.
 - Use LibreChat configuration first: `.env`, `librechat.yaml`, `deploy-compose.yml`, and existing UI config. Edit React components only for brand polish that cannot be achieved by config.
 
 ## File Map
 
-- Create sibling repo: `/Users/aidi/大字典/oneword-librechat`
-- Modify: `/Users/aidi/大字典/oneword-librechat/.env.example`
-- Create: `/Users/aidi/大字典/oneword-librechat/librechat.yaml`
-- Create: `/Users/aidi/大字典/oneword-librechat/ONEWORD_SHELL.md`
-- Modify: `/Users/aidi/大字典/oneword-librechat/deploy-compose.yml`
-- Create: `/Users/aidi/大字典/oneword-librechat/scripts/oneword-smoke.mjs`
-- Modify: `/Users/aidi/大字典/oneword-librechat/package.json`
-- Create: `/Users/aidi/大字典/oneword-librechat/client/src/oneword/brand.ts`
-- Create: `/Users/aidi/大字典/oneword-librechat/client/src/oneword/brand.test.ts`
-- Modify later if needed: `/Users/aidi/大字典/oneword-librechat/client/src/components/Chat/Landing.tsx`
-- Modify later if needed: `/Users/aidi/大字典/oneword-librechat/client/src/components/Chat/Input/ConversationStarters.tsx`
+- Create sibling repo: `<oneword-librechat-repo>`
+- Modify: `<oneword-librechat-repo>/.env.example`
+- Create: `<oneword-librechat-repo>/librechat.yaml`
+- Create: `<oneword-librechat-repo>/ONEWORD_SHELL.md`
+- Modify: `<oneword-librechat-repo>/deploy-compose.yml`
+- Create: `<oneword-librechat-repo>/scripts/oneword-smoke.mjs`
+- Modify: `<oneword-librechat-repo>/package.json`
+- Create: `<oneword-librechat-repo>/client/src/oneword/brand.ts`
+- Create: `<oneword-librechat-repo>/client/src/oneword/brand.test.ts`
+- Modify later if needed: `<oneword-librechat-repo>/client/src/components/Chat/Landing.tsx`
+- Modify later if needed: `<oneword-librechat-repo>/client/src/components/Chat/Input/ConversationStarters.tsx`
 
 ### Task 1: Create And Pin The LibreChat Fork
 
 **Files:**
-- Create/modify repository: `/Users/aidi/大字典/oneword-librechat`
-- Read: `/Users/aidi/大字典/oneword-librechat/LICENSE`
-- Create: `/Users/aidi/大字典/oneword-librechat/ONEWORD_SHELL.md`
+- Create/modify repository: `<oneword-librechat-repo>`
+- Read: `<oneword-librechat-repo>/LICENSE`
+- Create: `<oneword-librechat-repo>/ONEWORD_SHELL.md`
 
 - [ ] **Step 1: Clone upstream into sibling directory**
 
 Run:
 
 ```bash
-cd /Users/aidi/大字典
+cd <workspace-root>
 git clone https://github.com/danny-avila/LibreChat.git oneword-librechat
 cd oneword-librechat
 git status --short
@@ -56,7 +56,7 @@ Expected: repository exists and `git status --short` prints no tracked changes.
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 git switch -c oneword-shell-phase1
 git rev-parse --short HEAD
 ```
@@ -65,7 +65,7 @@ Expected: prints an upstream commit hash. Record it in `ONEWORD_SHELL.md`.
 
 - [ ] **Step 3: Add shell integration documentation**
 
-Create `/Users/aidi/大字典/oneword-librechat/ONEWORD_SHELL.md` with:
+Create `<oneword-librechat-repo>/ONEWORD_SHELL.md` with:
 
 ```markdown
 # OneWord LibreChat Shell
@@ -86,7 +86,7 @@ LibreChat talks to the gateway through a custom OpenAI-compatible endpoint:
 APP_TITLE=一字诀 OneWord
 ENDPOINTS=custom
 ONEWORD_GATEWAY_BASE_URL=http://host.docker.internal:8080/v1
-ONEWORD_GATEWAY_TOKEN=dev-local-token
+ONEWORD_GATEWAY_TOKEN=<local-preview-token>
 ```
 
 For non-Docker local development, use:
@@ -107,7 +107,7 @@ LibreChat is MIT licensed. Keep the `LICENSE` file and copyright notice in redis
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 test -f LICENSE
 rg -n "MIT License|Permission is hereby granted" LICENSE
 ```
@@ -119,7 +119,7 @@ Expected: `test` exits 0 and `rg` prints MIT license text.
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 git add ONEWORD_SHELL.md
 git commit -m "docs: add oneword librechat shell notes"
 ```
@@ -129,13 +129,13 @@ Expected: commit succeeds with only `ONEWORD_SHELL.md`.
 ### Task 2: Configure OneWord As The Default LibreChat Endpoint
 
 **Files:**
-- Modify: `/Users/aidi/大字典/oneword-librechat/.env.example`
-- Create: `/Users/aidi/大字典/oneword-librechat/librechat.yaml`
+- Modify: `<oneword-librechat-repo>/.env.example`
+- Create: `<oneword-librechat-repo>/librechat.yaml`
 - Test by command: `rg`
 
 - [ ] **Step 1: Add OneWord environment defaults**
 
-Modify the UI section of `/Users/aidi/大字典/oneword-librechat/.env.example` so it contains:
+Modify the UI section of `<oneword-librechat-repo>/.env.example` so it contains:
 
 ```dotenv
 APP_TITLE=一字诀 OneWord
@@ -149,14 +149,14 @@ Add the OneWord gateway section near the provider endpoint settings:
 # OneWord gateway. This is the only model-facing key the Web shell should hold.
 ENDPOINTS=custom
 ONEWORD_GATEWAY_BASE_URL=http://host.docker.internal:8080/v1
-ONEWORD_GATEWAY_TOKEN=dev-local-token
+ONEWORD_GATEWAY_TOKEN=<local-preview-token>
 ```
 
 Leave any real provider keys blank or `user_provided`.
 
 - [ ] **Step 2: Add production `librechat.yaml`**
 
-Create `/Users/aidi/大字典/oneword-librechat/librechat.yaml` with:
+Create `<oneword-librechat-repo>/librechat.yaml` with:
 
 ```yaml
 version: 1.3.11
@@ -207,7 +207,7 @@ endpoints:
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 rg -n "APP_TITLE=一字诀 OneWord|ENDPOINTS=custom|ONEWORD_GATEWAY_BASE_URL|ONEWORD_GATEWAY_TOKEN|ONEWORD_UPSTREAM_API_KEY|host.docker.internal:8080|oneword-gateway" .env.example librechat.yaml
 ```
 
@@ -218,7 +218,7 @@ Expected: OneWord gateway values appear. `ONEWORD_UPSTREAM_API_KEY` does not app
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 git add .env.example librechat.yaml
 git commit -m "feat: configure oneword custom endpoint"
 ```
@@ -228,12 +228,12 @@ Expected: commit succeeds.
 ### Task 3: Add OneWord Brand Constants And Tests
 
 **Files:**
-- Create: `/Users/aidi/大字典/oneword-librechat/client/src/oneword/brand.ts`
-- Create: `/Users/aidi/大字典/oneword-librechat/client/src/oneword/brand.test.ts`
+- Create: `<oneword-librechat-repo>/client/src/oneword/brand.ts`
+- Create: `<oneword-librechat-repo>/client/src/oneword/brand.test.ts`
 
 - [ ] **Step 1: Write brand tests**
 
-Create `/Users/aidi/大字典/oneword-librechat/client/src/oneword/brand.test.ts` with:
+Create `<oneword-librechat-repo>/client/src/oneword/brand.test.ts` with:
 
 ```ts
 import { ONEWORD_BRAND, ONEWORD_EXECUTION_WORDS, ONEWORD_STARTER_PROMPTS } from './brand';
@@ -275,7 +275,7 @@ describe('OneWord brand constants', () => {
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 npm run test:client -- client/src/oneword/brand.test.ts
 ```
 
@@ -283,7 +283,7 @@ Expected: FAIL because `client/src/oneword/brand.ts` does not exist.
 
 - [ ] **Step 3: Add brand constants**
 
-Create `/Users/aidi/大字典/oneword-librechat/client/src/oneword/brand.ts` with:
+Create `<oneword-librechat-repo>/client/src/oneword/brand.ts` with:
 
 ```ts
 export const ONEWORD_BRAND = {
@@ -321,7 +321,7 @@ export const ONEWORD_STARTER_PROMPTS = [
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 npm run test:client -- client/src/oneword/brand.test.ts
 ```
 
@@ -332,7 +332,7 @@ Expected: PASS.
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 git add client/src/oneword/brand.ts client/src/oneword/brand.test.ts
 git commit -m "feat: add oneword brand constants"
 ```
@@ -342,17 +342,17 @@ Expected: commit succeeds.
 ### Task 4: Add Gateway Smoke Script
 
 **Files:**
-- Create: `/Users/aidi/大字典/oneword-librechat/scripts/oneword-smoke.mjs`
-- Modify: `/Users/aidi/大字典/oneword-librechat/package.json`
+- Create: `<oneword-librechat-repo>/scripts/oneword-smoke.mjs`
+- Modify: `<oneword-librechat-repo>/package.json`
 
 - [ ] **Step 1: Add smoke script**
 
-Create `/Users/aidi/大字典/oneword-librechat/scripts/oneword-smoke.mjs` with:
+Create `<oneword-librechat-repo>/scripts/oneword-smoke.mjs` with:
 
 ```js
 const rawBaseUrl = process.env.ONEWORD_GATEWAY_BASE_URL ?? 'http://localhost:8080/v1';
 const baseUrl = rawBaseUrl.replace(/\/$/, '');
-const token = process.env.ONEWORD_GATEWAY_TOKEN ?? 'dev-local-token';
+const token = process.env.ONEWORD_GATEWAY_TOKEN ?? '<local-preview-token>';
 
 const headers = {
   authorization: `Bearer ${token}`,
@@ -400,7 +400,7 @@ main().catch((error) => {
 
 - [ ] **Step 2: Add npm script**
 
-In `/Users/aidi/大字典/oneword-librechat/package.json`, add to `scripts`:
+In `<oneword-librechat-repo>/package.json`, add to `scripts`:
 
 ```json
 "oneword:smoke": "node scripts/oneword-smoke.mjs"
@@ -413,7 +413,7 @@ Keep valid JSON commas.
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 npm run oneword:smoke
 ```
 
@@ -424,7 +424,7 @@ Expected: FAIL with a connection error if the gateway is not running.
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 git add package.json scripts/oneword-smoke.mjs
 git commit -m "test: add oneword gateway smoke script"
 ```
@@ -434,18 +434,18 @@ Expected: commit succeeds.
 ### Task 5: Verify Local Gateway And LibreChat
 
 **Files:**
-- Read/execute: `/Users/aidi/大字典/oneword-agent-gateway/README.md`
-- Read/execute: `/Users/aidi/大字典/oneword-librechat/ONEWORD_SHELL.md`
-- Execute: `/Users/aidi/大字典/oneword-librechat/deploy-compose.yml`
+- Read/execute: `<oneword-agent-gateway-repo>/README.md`
+- Read/execute: `<oneword-librechat-repo>/ONEWORD_SHELL.md`
+- Execute: `<oneword-librechat-repo>/deploy-compose.yml`
 
 - [ ] **Step 1: Start the gateway**
 
 Run in terminal A:
 
 ```bash
-cd /Users/aidi/大字典/oneword-agent-gateway
+cd <oneword-agent-gateway-repo>
 export ONEWORD_WORKSPACE_ROOT="$(pwd)"
-export ONEWORD_GATEWAY_TOKEN="${ONEWORD_GATEWAY_TOKEN:-dev-local-token}"
+export ONEWORD_GATEWAY_TOKEN="${ONEWORD_GATEWAY_TOKEN:-<local-preview-token>}"
 export ONEWORD_UPSTREAM_API_KEY="$OPENAI_API_KEY"
 uvicorn agent_skill_dictionary.gateway_server:app --host 0.0.0.0 --port 8080
 ```
@@ -457,8 +457,8 @@ Expected: gateway starts on port `8080`.
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
-ONEWORD_GATEWAY_BASE_URL=http://localhost:8080/v1 ONEWORD_GATEWAY_TOKEN="${ONEWORD_GATEWAY_TOKEN:-dev-local-token}" npm run oneword:smoke
+cd <oneword-librechat-repo>
+ONEWORD_GATEWAY_BASE_URL=http://localhost:8080/v1 ONEWORD_GATEWAY_TOKEN="${ONEWORD_GATEWAY_TOKEN:-<local-preview-token>}" npm run oneword:smoke
 ```
 
 Expected: PASS if upstream key is configured. If upstream key is missing, the chat call should fail with the gateway's upstream-key state, proving the gateway boundary.
@@ -468,7 +468,7 @@ Expected: PASS if upstream key is configured. If upstream key is missing, the ch
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 cp .env.example .env
 ```
 
@@ -478,7 +478,7 @@ Then ensure `.env` contains:
 APP_TITLE=一字诀 OneWord
 ENDPOINTS=custom
 ONEWORD_GATEWAY_BASE_URL=http://host.docker.internal:8080/v1
-ONEWORD_GATEWAY_TOKEN=dev-local-token
+ONEWORD_GATEWAY_TOKEN=<local-preview-token>
 ```
 
 - [ ] **Step 4: Start LibreChat**
@@ -486,7 +486,7 @@ ONEWORD_GATEWAY_TOKEN=dev-local-token
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 docker compose -f deploy-compose.yml up -d
 ```
 
@@ -510,7 +510,7 @@ No ONEWORD_UPSTREAM_API_KEY appears in LibreChat UI or config
 If startup commands need adjustment, update `ONEWORD_SHELL.md` and commit:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 git add ONEWORD_SHELL.md
 git commit -m "docs: document oneword librechat smoke path"
 ```
@@ -520,15 +520,15 @@ Expected: commit only if docs changed.
 ### Task 6: Final Consistency Pass
 
 **Files:**
-- Review: `/Users/aidi/大字典/oneword-librechat`
-- Review: `/Users/aidi/大字典/one code/docs/superpowers/specs/2026-05-30-oneword-librechat-shell-design.md`
+- Review: `<oneword-librechat-repo>`
+- Review: `<onecode-repo>/docs/superpowers/specs/2026-05-30-oneword-librechat-shell-design.md`
 
 - [ ] **Step 1: Search for direct upstream key leakage**
 
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 rg -n "ONEWORD_UPSTREAM_API_KEY|sk-|OPENAI_API_KEY=.*sk-" . -g '!node_modules' -g '!package-lock.json'
 ```
 
@@ -539,7 +539,7 @@ Expected: no real upstream provider key appears in LibreChat config.
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 rg -n "一字诀|OneWord|oneword-gateway|ONEWORD_GATEWAY|ENDPOINTS=custom|allowedAddresses" .env.example librechat.yaml ONEWORD_SHELL.md client/src/oneword package.json
 ```
 
@@ -550,7 +550,7 @@ Expected: OneWord values appear consistently.
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 npm run test:client -- client/src/oneword/brand.test.ts
 npm run lint -- client/src/oneword/brand.ts client/src/oneword/brand.test.ts
 ```
@@ -562,7 +562,7 @@ Expected: both pass. If the repo lint command does not accept file arguments, ru
 Run:
 
 ```bash
-cd /Users/aidi/大字典/oneword-librechat
+cd <oneword-librechat-repo>
 git status --short
 git log --oneline --decorate -n 8
 ```

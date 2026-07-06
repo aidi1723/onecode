@@ -1,4 +1,5 @@
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,6 +8,7 @@ from unittest.mock import patch
 from onecode.cli import main
 from onecode.kernel.execution_engine import execute_plan
 from onecode.kernel.execution_tools import default_tool_registry
+from onecode.kernel.run_inspection import apply_verifier_evidence, inspect_run
 from onecode.kernel.model_loop import run_model_task
 from onecode.kernel.model_loop import execution_plan_from_model_plan
 from onecode.kernel.model_provider import (
@@ -25,6 +27,7 @@ from onecode.kernel.model_provider import (
     build_provider_config,
     normalize_chat_endpoint,
 )
+from onecode.kernel.verifier import VerifierSpec, run_verifier
 
 
 class FakeModelProvider:
@@ -821,6 +824,124 @@ class ModelLoopTests(unittest.TestCase):
         self.assertEqual(kwargs["endpoint"], "http://relay.test/v1/chat/completions")
         self.assertEqual(kwargs["http_timeout_seconds"], 12)
         process_exit_code.assert_called_once_with(status="completed", reason=None)
+
+    def test_cli_run_model_blocks_delivery_when_selected_verifier_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            tests_dir = workspace / "tests"
+            tests_dir.mkdir()
+            (tests_dir / "test_generated.py").write_text(
+                "import unittest\n\n"
+                "class GeneratedTests(unittest.TestCase):\n"
+                "    def test_generated(self):\n"
+                "        self.assertEqual(1, 2)\n",
+                encoding="utf-8",
+            )
+            policy_path = workspace / "verifiers.json"
+            policy_path.write_text(
+                json.dumps(
+                    {
+                        "verifiers": [
+                            {
+                                "id": "python-unittest",
+                                "command": [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+                                "cwd": ".",
+                                "timeout_ms": 5000,
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with (
+                patch(
+                    "onecode.cli.run_model_task",
+                    return_value={
+                        "run_id": "model-verifier",
+                        "status": "completed",
+                        "reason": None,
+                        "partial": False,
+                        "requested_count": 0,
+                        "completed_count": 0,
+                        "skipped_count": 0,
+                        "failed_count": 0,
+                        "assets": [],
+                    },
+                ),
+                patch("builtins.print") as printed,
+            ):
+                exit_code = main(
+                    [
+                        "run-model",
+                        "build broken project",
+                        "--workspace",
+                        tmp,
+                        "--run-id",
+                        "model-verifier",
+                        "--api-key",
+                        "test-key",
+                        "--verifier-policy",
+                        str(policy_path),
+                        "--verifier",
+                        "python-unittest",
+                    ]
+                )
+
+        result = json.loads(printed.call_args.args[0])
+        self.assertNotEqual(exit_code, 0)
+        self.assertEqual(result["status"], "halted")
+        self.assertEqual(result["reason"], "verifier_failed")
+        self.assertEqual(result["delivery_status"], "blocked")
+        self.assertEqual(result["verifier_results"][0]["status"], "failed")
+        self.assertIn("AssertionError", result["verifier_results"][0]["stderr_tail"])
+
+    def test_model_verifier_failure_keeps_inspection_evidence_consistent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            tests_dir = workspace / "tests"
+            tests_dir.mkdir()
+            (tests_dir / "test_generated.py").write_text(
+                "import unittest\n\n"
+                "class GeneratedTests(unittest.TestCase):\n"
+                "    def test_generated(self):\n"
+                "        self.assertEqual(1, 2)\n",
+                encoding="utf-8",
+            )
+            provider = FakeModelProvider(
+                ModelPlan(
+                    task="build generated project",
+                    assets=[ModelPlanAsset(path="src/generated.py", content="VALUE = 1\n")],
+                )
+            )
+            result = run_model_task(
+                "build project",
+                workspace=workspace,
+                run_id="model-verifier-inspect",
+                model="test-model",
+                api_key="test-key",
+                provider=provider,
+            )
+            verifier = run_verifier(
+                workspace,
+                VerifierSpec(
+                    id="python-unittest",
+                    command=[sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+                    cwd=".",
+                    timeout_ms=5000,
+                ),
+            )
+
+            enhanced = apply_verifier_evidence(result, workspace, [verifier])
+            exit_code, summary = inspect_run(workspace, "model-verifier-inspect")
+
+        self.assertEqual(enhanced["status"], "halted")
+        self.assertEqual(enhanced["reason"], "verifier_failed")
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(summary["status"], "halted")
+        self.assertEqual(summary["reason"], "verifier_failed")
+        self.assertEqual(summary["delivery_status"], "blocked")
+        self.assertEqual(summary["verifier_results"][0]["status"], "failed")
 
 
 if __name__ == "__main__":

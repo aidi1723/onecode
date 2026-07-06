@@ -49,7 +49,7 @@ Open WebUI must not call the real upstream model provider directly in the brande
 Default local environment:
 
 ```text
-ONEWORD_GATEWAY_TOKEN=dev-local-token
+ONEWORD_GATEWAY_TOKEN=<local-preview-token>
 ONEWORD_UPSTREAM_API_KEY=<real upstream key, gateway side only>
 ONEWORD_WORKSPACE_ROOT=<workspace root, gateway side only>
 Open WebUI provider base URL=http://localhost:8080/v1

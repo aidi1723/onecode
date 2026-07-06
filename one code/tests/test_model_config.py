@@ -46,14 +46,14 @@ class ModelConfigTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"ONECODE_HOME": tmp}, clear=True):
             written = write_model_config(
-                endpoint="10.0.0.184:6780/v1",
+                endpoint="127.0.0.1:6780/v1",
                 api_key="sk-test-secret",
                 model="gpt-5.5",
             )
             read_back = read_model_config()
 
-        self.assertEqual(written["endpoint"], "http://10.0.0.184:6780/v1")
-        self.assertEqual(read_back["endpoint"], "http://10.0.0.184:6780/v1")
+        self.assertEqual(written["endpoint"], "http://127.0.0.1:6780/v1")
+        self.assertEqual(read_back["endpoint"], "http://127.0.0.1:6780/v1")
 
     def test_model_config_defaults_model_and_provider(self):
         from onecode.kernel.model_config import read_model_config, write_model_config
@@ -134,10 +134,10 @@ class ModelConfigTests(unittest.TestCase):
                 return json.dumps({"data": [{"id": "gpt-5.5"}]}).encode("utf-8")
 
         with patch("onecode.kernel.model_config.urllib.request.urlopen", return_value=Response()) as urlopen:
-            payload = discover_models("10.0.0.184:6780/v1", "sk-test")
+            payload = discover_models("127.0.0.1:6780/v1", "sk-test")
 
         request = urlopen.call_args.args[0]
-        self.assertEqual(request.full_url, "http://10.0.0.184:6780/v1/models")
+        self.assertEqual(request.full_url, "http://127.0.0.1:6780/v1/models")
         self.assertEqual(payload["source"], "remote")
 
     def test_discover_models_falls_back_when_remote_fails(self):

@@ -463,7 +463,7 @@ In `api/server/services/OneCode/projectPicker.spec.js`, add tests that mock `glo
 Run:
 
 ```bash
-cd /Users/aidi/大字典/onecode-librechat/api
+cd <librechat-repo>/api
 npx jest server/services/OneCode/projectPicker.spec.js --coverage=false --runInBand
 ```
 
@@ -592,7 +592,7 @@ In `api/server/routes/onecode.spec.js`, add tests following existing mocks:
 Run:
 
 ```bash
-cd /Users/aidi/大字典/onecode-librechat/api
+cd <librechat-repo>/api
 npx jest server/routes/onecode.spec.js server/services/OneCode/projectPicker.spec.js --coverage=false --runInBand
 ```
 
@@ -845,7 +845,7 @@ export async function getOneCodeRunEvidence(
 Run:
 
 ```bash
-cd /Users/aidi/大字典/onecode-librechat
+cd <librechat-repo>
 npm run build:data-provider
 cd client
 npx jest src/onecode/project.test.ts --coverage=false --runInBand --reporters=default
@@ -981,7 +981,7 @@ it('renders project status and loads runs', async () => {
 Run:
 
 ```bash
-cd /Users/aidi/大字典/onecode-librechat/client
+cd <librechat-repo>/client
 npx jest src/components/OneCode/OneCodeConsolePanel.test.tsx --coverage=false --runInBand --reporters=default
 ```
 
@@ -1063,7 +1063,7 @@ it('opens the OneCode console from the project menu', () => {
 Run:
 
 ```bash
-cd /Users/aidi/大字典/onecode-librechat/client
+cd <librechat-repo>/client
 npx jest \
   src/onecode/project.test.ts \
   src/components/OneCode/OneCodeConsolePanel.test.tsx \
@@ -1085,7 +1085,7 @@ Expected: pass.
 Run:
 
 ```bash
-cd /Users/aidi/大字典/one\ code
+cd <workspace-root>/one\ code
 bash scripts/verify.sh
 ```
 
@@ -1096,7 +1096,7 @@ Expected: unittest and doctor pass.
 Run:
 
 ```bash
-cd /Users/aidi/大字典/onecode-librechat/api
+cd <librechat-repo>/api
 npx jest server/routes/onecode.spec.js server/services/OneCode/projectPicker.spec.js --coverage=false --runInBand
 ```
 
@@ -1107,7 +1107,7 @@ Expected: pass.
 Run:
 
 ```bash
-cd /Users/aidi/大字典/onecode-librechat/packages/api
+cd <librechat-repo>/packages/api
 npx jest src/endpoints/custom/onecode.spec.ts src/endpoints/custom/initialize.spec.ts --coverage=false --runInBand
 ```
 
@@ -1118,7 +1118,7 @@ Expected: pass.
 Run:
 
 ```bash
-cd /Users/aidi/大字典/onecode-librechat
+cd <librechat-repo>
 npm run build:data-provider
 ```
 
@@ -1129,7 +1129,7 @@ Expected: build succeeds.
 Start shell on non-conflicting ports:
 
 ```bash
-cd /Users/aidi/大字典/one\ code
+cd <workspace-root>/one\ code
 PYTHONPATH=src python3 -m onecode shell \
   --onecode-port 18080 \
   --librechat-port 13080 \
@@ -1144,7 +1144,7 @@ In another terminal, log in and call bridge endpoints:
 ```bash
 TOKEN=$(curl -sS -H 'content-type: application/json' \
   -X POST http://127.0.0.1:13080/api/auth/login \
-  --data '{"email":"onecode@local.test","password":"OneCode123!"}' \
+  --data '{"email":"<local-preview-email>","password":"<local-preview-password>"}' \
   | node -pe 'JSON.parse(fs.readFileSync(0,"utf8")).token')
 
 curl -sS -H "authorization: Bearer $TOKEN" \

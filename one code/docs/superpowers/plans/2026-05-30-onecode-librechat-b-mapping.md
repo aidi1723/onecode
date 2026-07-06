@@ -616,7 +616,7 @@ it('builds OneCode API URLs from ONECODE_API_BASE_URL', () => {
 
 - [ ] **Step 6: Run backend service tests to verify they fail**
 
-Run from `/Users/aidi/大字典/onecode-librechat/api`:
+Run from `<librechat-repo>/api`:
 
 ```bash
 npx jest server/services/OneCode/projectPicker.spec.js --coverage=false --runInBand
@@ -659,7 +659,7 @@ async function oneCodeFetch(pathname, options = {}) {
   const response = await fetch(oneCodeApiUrl(pathname), {
     ...options,
     headers: {
-      authorization: `Bearer ${process.env.ONECODE_API_TOKEN || 'dev-local-token'}`,
+      authorization: `Bearer ${process.env.ONECODE_API_TOKEN || '<local-preview-token>'}`,
       'content-type': 'application/json',
       ...(options.headers || {}),
     },
@@ -1025,21 +1025,21 @@ Expected: install, compileall, unittest `OK`, doctor `status: ok`.
 Run:
 
 ```bash
-cd /Users/aidi/大字典/onecode-librechat/client
+cd <librechat-repo>/client
 npx jest src/onecode/project.test.ts --coverage=false --runInBand
 ```
 
 Run:
 
 ```bash
-cd /Users/aidi/大字典/onecode-librechat/packages/api
+cd <librechat-repo>/packages/api
 npx jest src/endpoints/custom/onecode.spec.ts src/endpoints/custom/initialize.spec.ts --coverage=false --runInBand
 ```
 
 Run:
 
 ```bash
-cd /Users/aidi/大字典/onecode-librechat/api
+cd <librechat-repo>/api
 npx jest server/services/OneCode/projectPicker.spec.js --coverage=false --runInBand
 ```
 
@@ -1051,9 +1051,9 @@ With local OneCode API running, run:
 
 ```bash
 mkdir -p /private/tmp/onecode-b-mapping-smoke
-curl -sS -H 'authorization: Bearer dev-local-token' \
+curl -sS -H 'authorization: Bearer <local-preview-token>' \
   'http://127.0.0.1:8080/v1/onecode/project/status?workspace=/private/tmp/onecode-b-mapping-smoke'
-curl -sS -H 'authorization: Bearer dev-local-token' -H 'content-type: application/json' \
+curl -sS -H 'authorization: Bearer <local-preview-token>' -H 'content-type: application/json' \
   http://127.0.0.1:8080/v1/onecode/project/init \
   --data '{"workspace":"/private/tmp/onecode-b-mapping-smoke","git":true,"verifierPolicy":true}'
 ```

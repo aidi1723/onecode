@@ -1,5 +1,7 @@
 # OneCode Run Inspection Hotspot Closure
 
+> 2026-07-06 alignment note: this report preserves the 2026-07-05 inspect refactor closure. The current post-verifier inspect consistency fix, including the `corrupt/status_mismatch` repair, is closed in `docs/ONECODE_N100_VERIFIER_SHELL_FINAL_CLOSURE_2026-07-06.md`; pressure testing is deferred in `docs/ONECODE_TEMPORARY_CLOSURE_HANDOFF_2026-07-06.md`.
+
 Date: 2026-07-05
 Branch: `feature/gateway-iching-rule-sync`
 Repository: `https://github.com/aidi1723/onecode.git`

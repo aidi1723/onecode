@@ -77,6 +77,50 @@ class SandboxTests(unittest.TestCase):
         self.assertEqual(result["status"], "blocked")
         self.assertEqual(result["reason"], "docker_not_found")
 
+    def test_sandbox_smoke_returns_blocked_when_docker_daemon_unavailable(self):
+        from subprocess import CompletedProcess
+
+        from onecode.kernel.sandbox import SandboxConfig, run_sandbox_smoke
+
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "onecode.kernel.sandbox.shutil.which",
+            return_value="/usr/local/bin/docker",
+        ), patch(
+            "onecode.kernel.sandbox.run_in_sandbox",
+            return_value=CompletedProcess(
+                args=["docker", "run"],
+                returncode=1,
+                stdout="",
+                stderr="Cannot connect to the Docker daemon at unix:///tmp/docker.sock. Is the docker daemon running?\n",
+            ),
+        ):
+            result = run_sandbox_smoke(SandboxConfig(workspace=Path(tmp)))
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["reason"], "docker_daemon_unavailable")
+
+    def test_sandbox_smoke_returns_blocked_when_docker_socket_permission_denied(self):
+        from subprocess import CompletedProcess
+
+        from onecode.kernel.sandbox import SandboxConfig, run_sandbox_smoke
+
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "onecode.kernel.sandbox.shutil.which",
+            return_value="/usr/local/bin/docker",
+        ), patch(
+            "onecode.kernel.sandbox.run_in_sandbox",
+            return_value=CompletedProcess(
+                args=["docker", "run"],
+                returncode=1,
+                stdout="",
+                stderr="permission denied while trying to connect to the docker API at unix:///tmp/docker.sock\n",
+            ),
+        ):
+            result = run_sandbox_smoke(SandboxConfig(workspace=Path(tmp)))
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["reason"], "docker_daemon_unavailable")
+
     def test_sandbox_smoke_writes_report(self):
         from onecode.kernel.sandbox import SandboxConfig, run_sandbox_smoke
 
@@ -126,3 +170,20 @@ class SandboxTests(unittest.TestCase):
         self.assertEqual(exit_code, 2)
         self.assertEqual(result["status"], "blocked")
         self.assertEqual(result["reason"], "docker_not_found")
+
+    def test_cli_sandbox_smoke_creates_missing_workspace(self):
+        from onecode.cli import main
+
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "onecode.kernel.sandbox.shutil.which",
+            return_value=None,
+        ), patch("builtins.print") as print_mock:
+            workspace = Path(tmp) / "missing-smoke-workspace"
+            exit_code = main(["sandbox-smoke", "--workspace", str(workspace)])
+            result = __import__("json").loads(print_mock.call_args.args[0])
+            workspace_exists = workspace.is_dir()
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["reason"], "docker_not_found")
+        self.assertTrue(workspace_exists)

@@ -350,7 +350,7 @@ Publish target:
 
 - repository: `https://github.com/aidi1723/onecode.git`
 - branch: `feature/gateway-iching-rule-sync`
-- scope: project-local source, tests, scripts, README, and docs under `/Users/aidi/大字典/one code`
+- scope: project-local source, tests, scripts, README, and docs under `<onecode-repo>`
 - excluded scope: unrelated parent-directory files and generated material outside this project root
 
 Pre-publication checklist:

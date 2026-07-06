@@ -40,10 +40,10 @@ under the Apache License, Version 2.0, with copyright assigned to `aidi`.
   `True`, but the marker file did not appear on the
   host path. This indicates Colima did not propagate writes for that
   `/private/tmp` workspace mount.
-- `PYTHONPATH=src python3 -m onecode.cli sandbox-smoke --workspace /Users/aidi/大字典/one\ code/.onecode/sandbox-smoke --report /Users/aidi/大字典/one\ code/.onecode/sandbox-smoke/report.json`
+- `PYTHONPATH=src python3 -m onecode.cli sandbox-smoke --workspace <workspace-root>/one\ code/.onecode/sandbox-smoke --report <workspace-root>/one\ code/.onecode/sandbox-smoke/report.json`
   returned exit code `0` with `status: completed`, `exit_code: 0`,
   `stdout_tail: "True\n"`, and marker path
-  `/Users/aidi/大字典/one code/.onecode/sandbox-smoke/sandbox-smoke.txt`.
+  `<onecode-repo>/.onecode/sandbox-smoke/sandbox-smoke.txt`.
 - LibreChat browser smoke passed after rebuilding the frontend and restarting
   the shell: Playwright reached `/c/new`, page title was `one code`, selected
   model was `onecode-agent`, and the OneCode project button was visible.

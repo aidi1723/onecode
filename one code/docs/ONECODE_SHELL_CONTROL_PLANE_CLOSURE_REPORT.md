@@ -1,5 +1,7 @@
 # OneCode Shell Control Plane Closure Report
 
+> 2026-07-06 最新对齐：本报告记录 2026-06-03 控制面阶段闭环。当前 n100 live shell、`/v1/onecode/shell/schema`、authenticated `/v1/chat/completions` 和 cleanup 结果以 `docs/ONECODE_N100_VERIFIER_SHELL_FINAL_CLOSURE_2026-07-06.md` 为准；压力测试暂缓见 `docs/ONECODE_TEMPORARY_CLOSURE_HANDOFF_2026-07-06.md`。
+
 日期：2026-06-03
 状态：阶段收尾
 范围：壳系统对 evidence metrics、Manifest 边界和二阶架构风险的承接能力

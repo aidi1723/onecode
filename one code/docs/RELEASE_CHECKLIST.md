@@ -2,7 +2,7 @@
 
 ## System Boundary
 
-- [ ] Treat `/Users/aidi/大字典/one code` as the local development workspace.
+- [ ] Treat `<onecode-repo>` as the local development workspace.
       It may contain dirty experiments, generated assets, local shell files, and
       untracked research material.
 - [ ] Treat `/private/tmp/onecode-open-source-sync` as the clean open-source
@@ -57,3 +57,29 @@ Not applicable for this pass:
 
 - Browser smoke was not required because no browser UI behavior changed.
 - Production frontend rebuild was not required because no shell UI bundle changed.
+
+## 2026-07-06 n100 Verifier And Shell Closure Pass
+
+- [x] `docs/ONECODE_MAINTENANCE_LOG_2026-07-06.md` records the command-by-command maintenance log.
+- [x] `docs/ONECODE_N100_VERIFIER_SHELL_FINAL_CLOSURE_2026-07-06.md` records the final closure and handoff.
+- [x] `docs/ONECODE_TEMPORARY_CLOSURE_HANDOFF_2026-07-06.md` records temporary closure and pressure-test deferral.
+- [x] `run-model --verifier-policy --verifier` blocks delivery when a selected verifier fails.
+- [x] Verifier-failed runs inspect as `halted/verifier_failed/blocked` instead of `corrupt/status_mismatch`.
+- [x] Final result writes align `ledger.json`, `manifest.json`, and final `run_completed` trace state.
+- [x] Local focused verification passed: `tests.test_model_loop tests.test_inspect_cli tests.test_run_plan_cli`, 94 tests.
+- [x] Local full verification passed: `bash scripts/verify.sh`, 748 tests, 1 skipped, doctor status ok.
+- [x] n100 focused regression verification passed: 2 tests.
+- [x] n100 related suite passed: 94 tests.
+- [x] n100 real failing-verifier smoke returned `halted verifier_failed blocked` with non-corrupt inspect.
+- [x] n100 real passing-verifier smoke returned `completed deliverable passed` with non-corrupt inspect.
+- [x] n100 concrete programming smoke generated code/tests, passed verifier, passed manual unittest, and inspected as deliverable.
+- [x] n100 live shell smoke passed for launcher, health checks, LibreChat, shell schema, authenticated chat completion, file generation, and inspect.
+- [x] n100 shell services were stopped after testing; ports `19080`, `14080`, and `39017` returned connection refused.
+- [x] Pressure testing was explicitly deferred and is not claimed as complete.
+
+Not applicable for this pass:
+
+- Production deployment packaging was not changed.
+- LibreChat UI bundle was not changed.
+- Pressure testing was not run.
+- Previously recorded UI polish issues such as `/api/balance` console noise and command-shaped chat UX remain follow-ups.

@@ -2,7 +2,16 @@ import json
 from pathlib import Path
 from typing import Any
 
-from onecode.kernel.checkpoint import validate_skill_selection, wal_entry_hash, write_ledger
+from onecode.kernel.checkpoint import (
+    atomic_write_json,
+    manifest_size_metrics,
+    run_evidence_write_lock,
+    utc_now_iso,
+    validate_manifest_metrics,
+    validate_skill_selection,
+    wal_entry_hash,
+    write_ledger,
+)
 from onecode.kernel.context import create_context
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.inspection import (
@@ -15,7 +24,7 @@ from onecode.kernel.inspection import (
     validate_trace_completion,
 )
 from onecode.kernel.run_id import validate_run_id
-from onecode.kernel.trace import trace_evidence_metrics
+from onecode.kernel.trace import TraceEvent, trace_evidence_metrics, write_trace_event
 from onecode.kernel.wal import global_wal_evidence_metrics, global_wal_paths
 
 
@@ -78,14 +87,52 @@ def apply_verifier_evidence_from_dicts(result: dict, workspace: Path, verifier_d
             "reason": first_failure["reason"],
             "partial": True,
         }
-    context = create_context(
-        workspace_root=workspace,
-        http_timeout_seconds=60,
-        run_id=enhanced["run_id"],
-        resume_from_run_id=enhanced.get("resumed_from"),
+    return write_result_ledger(workspace, enhanced)
+
+
+def sync_manifest_final_status(context: Any, result: dict) -> None:
+    manifest, _, _ = read_json(context.manifest_path)
+    if manifest is None:
+        return
+    manifest = {
+        **manifest,
+        "updated_at": utc_now_iso(),
+        "status": result.get("status"),
+        "partial": result.get("partial"),
+        "reason": result.get("reason"),
+    }
+    if isinstance(result.get("state"), str):
+        manifest["current_state"] = result["state"]
+    metrics = manifest_size_metrics(manifest)
+    validate_manifest_metrics(metrics)
+    manifest["manifest_metrics"] = metrics
+    with run_evidence_write_lock(context.evidence_root):
+        atomic_write_json(context.manifest_path, manifest)
+
+
+def append_final_trace_status(context: Any, result: dict, verifier_dicts: list[dict]) -> None:
+    trace_path_value = result.get("trace_path")
+    if not isinstance(trace_path_value, str):
+        return
+    trace_path = Path(trace_path_value)
+    if not trace_path.exists():
+        return
+    write_trace_event(
+        trace_path,
+        TraceEvent(
+            trace_id=str(result.get("trace_id") or context.run_id),
+            run_id=context.run_id,
+            span_id="run-verifier-final",
+            parent_span_id="run",
+            event_type="run_completed",
+            status=str(result.get("status")),
+            payload={
+                "reason": result.get("reason"),
+                "delivery_status": result.get("delivery_status"),
+                "verifier_count": len(verifier_dicts),
+            },
+        ),
     )
-    write_ledger(context, enhanced)
-    return enhanced
 
 
 def task_status_from_verifier_dicts(result: dict, verifier_dicts: list[dict]) -> dict:
@@ -131,6 +178,13 @@ def write_result_ledger(workspace: Path, result: dict) -> dict:
         http_timeout_seconds=60,
         run_id=result["run_id"],
         resume_from_run_id=result.get("resumed_from"),
+    )
+    sync_manifest_final_status(context, result)
+    raw_verifier_results = result.get("verifier_results")
+    append_final_trace_status(
+        context,
+        result,
+        raw_verifier_results if isinstance(raw_verifier_results, list) else [],
     )
     write_ledger(context, result)
     return result

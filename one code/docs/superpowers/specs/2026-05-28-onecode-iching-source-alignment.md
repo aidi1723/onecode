@@ -1,7 +1,7 @@
 # OneCode Iching Source Alignment
 
 Date: 2026-05-28
-Project root: `/Users/aidi/大字典/one code`
+Project root: `<onecode-repo>`
 Status: Source alignment for v0.5+ kernel work
 
 ## Purpose

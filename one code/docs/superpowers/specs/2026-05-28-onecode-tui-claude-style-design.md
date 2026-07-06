@@ -1,7 +1,7 @@
 # OneWord Terminal TUI Design
 
 Date: 2026-05-28
-Project root: `/Users/aidi/大字典/one code`
+Project root: `<onecode-repo>`
 Status: Approved for implementation planning
 
 ## Goal
