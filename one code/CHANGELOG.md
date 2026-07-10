@@ -1,5 +1,152 @@
 # Changelog
 
+## 0.8.0 - 2026-07-10 - Canonical I Ching Runtime and Evidence Cutover
+
+### Added
+
+- Added immutable `onecode-iching-v1` and `onecode-iching-v2` trigram schemas.
+- Added canonical bottom-to-top trigram line invariants with `LI = 101` and
+  `XUN = 110` in the v2 schema.
+- Added pure trigram and 64-state conversion helpers so historical v1 evidence
+  can be interpreted without rewriting checkpoint, ledger, WAL, or training
+  artifacts.
+- Added a canonical encoding certificate covering all eight line patterns and
+  the qian/kun, zhen/xun, kan/li, and dui/gen complement pairs.
+- Added read-only evidence migration audits that preserve source files and
+  hashes while reporting v1-to-v2 status interpretations and affected trigrams.
+- Added auditable line-position, centrality, correspondence, adjacency,
+  trigram-virtue, opposite-hexagram, and inverse-hexagram profiles.
+
+### Compatibility
+
+- Activated `onecode-iching-v2` for all new runtime classifications and newly
+  written checkpoint, manifest, ledger, WAL, profile, and shell evidence.
+- Preserved deterministic legacy reads: evidence without `rule_schema` is
+  interpreted as `onecode-iching-v1` and is never rewritten in place.
+- Added `rule_schema` to profile identity and compact evidence. Global WAL uses
+  the compact alias `rsv`; shell projections expose the full field.
+- Bumped the shell projection schema from version 2 to version 3.
+- Kept LogosGate, PathGuard, approvals, verifier, sandbox, and physical evidence
+  dominant. New I Ching profiles are descriptive and do not alter `transition()`
+  or dispatch authority.
+
+### Verification
+
+- Added exhaustive v1/v2 trigram and 64-state round-trip regression coverage.
+- Compared all 64 states by trigram name and found no semantic action changes
+  and no `stop`-to-`continue` relaxation after the canonical cutover.
+- Updated canonical runtime examples: sovereignty breach `40`, valid project
+  context `49`, provider failure `42`, timeout `17`, and cooldown `39`.
+
+### CLI Configuration Command Split Follow-Up
+
+- Added `onecode.cli_commands.configuration` for
+  `list-verifier-presets`, `init-verifier-policy`, and the nested `config`
+  command family.
+- Preserved the exact top-level and nested argparse contracts, JSON output,
+  parser-error conversion, service exceptions, and exit codes.
+- Kept verifier-policy path validation and writing in the verifier service and
+  model configuration, permissions, secret masking, and discovery networking
+  in the model-config service.
+- Added direct mocked dispatch tests, temporary-home integration coverage,
+  dependency boundaries, reverse-dependency checks, secret-output checks, and
+  structural reduction assertions.
+- Kept the I Ching transition, dispatch, yin-yang, and five-element authority
+  unchanged.
+
+### Training and Benchmark Projection Follow-Up
+
+- Added record-level `rule_schema` to gateway training JSONL, YiZiJue-LM
+  corpus/evaluation/state rows, prediction files, LLaMA-Factory exports,
+  Axolotl exports, benchmark reports, and A/B reports.
+- Preserved the strict Action JSON fields unchanged; schema metadata remains in
+  the persisted record envelope and does not become a model decision variable.
+- Kept missing historical schema metadata as v1 and made current generators
+  emit v2 explicitly.
+- Added name-preserving v1-to-v2 profile interpretation before deriving
+  trigram, five-element, yin/yang pressure, and balance facts. Historical v1 Li
+  states therefore remain fire and historical v1 Xun states remain wood.
+- Added tests proving exported yin/yang, five-element, balance, transition, and
+  dispatch facts remain equal to the existing kernel profile.
+- Added the phase closure record at
+  `docs/ONECODE_TRAINING_BENCHMARK_RULE_SCHEMA_CLOSURE_2026-07-10.md`.
+
+### Runtime Balance Mutation Evidence Follow-Up
+
+- Added pure runtime `balance_mutation` evidence describing the existing
+  `raw_status_code -> balanced_status_code` result through changed yin/yang
+  lines and earth/human/heaven bands.
+- Added before/after yin-yang balance, pressure, elements, five-element
+  relation/modulation, transition, and dispatch facts sourced from the existing
+  kernel profiles.
+- Kept static `cross_cutting_profile()["mutation"]` as `null`, preserving profile
+  hashes and registry identity.
+- Added bounded result, checkpoint, manifest, ledger, and WAL summaries. WAL
+  uses the fixed four-scalar `bm` tuple to remain within size budgets.
+- Did not add mutation evidence to paths that never computed a raw-to-balanced
+  state pair; no evidence is fabricated.
+
+### Mutation Evidence Integrity and Shell v4 Follow-Up
+
+- Added full read-side validation that recomputes each persisted
+  `balance_mutation` certificate with the existing kernel and rejects tampered
+  line, element, transition, dispatch, or summary facts.
+- Added checkpoint/manifest summary consistency checks and stable corruption
+  reasons without rewriting historical evidence.
+- Added strict decoding for the compact global WAL `bm` tuple and restored its
+  named mutation summary during WAL-only inspection.
+- Bumped the shell projection schema from version 3 to version 4 and added the
+  read-only `balance_state` section for full and WAL-backed evidence.
+- Kept `balance_state` outside severity, next-action, control, delivery, resume,
+  transition, and dispatch decisions.
+- Added the phase closure record at
+  `docs/ONECODE_MUTATION_EVIDENCE_INTEGRITY_SHELL_V4_CLOSURE_2026-07-10.md`.
+
+### Shell v4 Public Contract Follow-Up
+
+- Added versioned, wheel-distributed Shell v4 schema and six projection-case
+  fixtures under `onecode.contracts`.
+- Added fresh-decoding public loaders using `importlib.resources` without
+  importing fixtures into production shell decision paths.
+- Changed Python, CLI, direct Web, and HTTP schema tests from partial assertions
+  to exact equality against one public fixture.
+- Covered completed, denied, halted/resumable, corrupt, WAL-only, and legacy
+  missing-field projections with exact-output fixtures.
+- Proved legacy missing schema remains v1, WAL aliases remain bounded, and
+  descriptive balance/evidence/skill fields do not alter shell authority.
+- Added the phase closure record at
+  `docs/ONECODE_SHELL_V4_PUBLIC_CONTRACT_CLOSURE_2026-07-10.md`.
+
+### CLI Read-Only Command Split Follow-Up
+
+- Extracted parser registration and dispatch for `inspect`, `list-runs`,
+  `doctor`, `math-audit`, and `shell-schema` into
+  `onecode.cli_commands.read_only`.
+- Preserved `onecode.cli.build_parser()` and `onecode.cli.main()` as public
+  compatibility entry points.
+- Added structural parser-contract, exact Shell v4 output, unknown-command,
+  import-boundary, and `main()` reduction tests.
+- Reduced `cli.main()` from 581 to 500 lines without expanding into write,
+  model, training, verifier, sandbox, Web, or TUI command paths.
+- Kept read-only output construction and exit-code rules unchanged and added
+  the phase closure record at
+  `docs/ONECODE_CLI_READ_ONLY_COMMAND_SPLIT_CLOSURE_2026-07-10.md`.
+
+### CLI Local Interface Command Split Follow-Up
+
+- Extracted parser registration and lazy dispatch for `serve`, `shell`,
+  `shell-status`, and `tui` into `onecode.cli_commands.local_interfaces`.
+- Preserved all local host/port, workspace, credential, browser, provider, and
+  unauthenticated-loopback parser contracts.
+- Added fake-module dispatch tests that verify calls, environment mutation,
+  JSON, errors, and exit codes without starting Web, TUI, MongoDB, LibreChat, or
+  a browser.
+- Added lazy-import, reverse-dependency, and structural reduction tests.
+- Reduced `cli.main()` from 500 to 472 lines and `build_parser()` to 214 lines
+  without entering runner, model, training, verifier, or sandbox paths.
+- Added the phase closure record at
+  `docs/ONECODE_CLI_LOCAL_INTERFACE_COMMAND_SPLIT_CLOSURE_2026-07-10.md`.
+
 ## 2026-07-05 - Run Inspection Hotspot Split
 
 This update completes the focused follow-up from the CLI service decoupling

@@ -6,6 +6,64 @@ from onecode.kernel.hexagram import IchingKernel
 
 
 class TestIchingKernel(unittest.TestCase):
+    def test_runtime_trigram_constants_use_canonical_bottom_to_top_encoding(self):
+        self.assertEqual(IchingKernel.LI, 0b101)
+        self.assertEqual(IchingKernel.XUN, 0b110)
+        self.assertEqual(IchingKernel.ZHEN ^ 0b111, IchingKernel.XUN)
+        self.assertEqual(IchingKernel.KAN ^ 0b111, IchingKernel.LI)
+
+    def test_line_position_profile_reports_proper_central_and_central_proper_lines(self):
+        status = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.KUN)
+
+        profile = IchingKernel.line_position_profile(status)
+
+        self.assertEqual([line["position_name"] for line in profile["lines"]], ["initial", "second", "third", "fourth", "fifth", "top"])
+        self.assertEqual(profile["central_lines"], [1, 4])
+        self.assertEqual(profile["central_proper_lines"], [1, 4])
+        self.assertTrue(profile["middle_alignment"])
+
+    def test_correspondence_profile_reports_response_pairs_and_adjacent_continuity(self):
+        status = IchingKernel.state_for_bits([1, 0, 1, 0, 1, 0])
+
+        profile = IchingKernel.correspondence_profile(status)
+
+        self.assertEqual([pair["line_indexes"] for pair in profile["response_pairs"]], [[0, 3], [1, 4], [2, 5]])
+        self.assertEqual(profile["responsive_pair_count"], 3)
+        self.assertTrue(profile["third_fourth_boundary"]["responsive"])
+        self.assertEqual(len(profile["adjacent_pairs"]), 5)
+
+    def test_trigram_virtues_cover_all_bagua_and_preserve_xun_li_meanings(self):
+        virtues = IchingKernel.trigram_virtue_records()
+
+        self.assertEqual(len(virtues), 8)
+        self.assertEqual(virtues[IchingKernel.XUN]["virtue"], "penetration")
+        self.assertEqual(virtues[IchingKernel.LI]["virtue"], "clarity_attachment")
+        self.assertEqual(virtues[IchingKernel.GEN]["runtime_tendency"], "stop")
+
+    def test_opposite_and_inverse_profiles_are_distinct_bit_derived_views(self):
+        status = 0b100011
+
+        opposite = IchingKernel.opposite_hexagram(status)
+        inverse = IchingKernel.inverse_hexagram(status)
+
+        self.assertEqual(opposite, status ^ 0b111111)
+        self.assertEqual(IchingKernel.opposite_hexagram(opposite), status)
+        self.assertEqual(inverse, 0b110001)
+        self.assertEqual(IchingKernel.inverse_hexagram(inverse), status)
+        self.assertEqual(IchingKernel.perspective_profile(status)["opposite_status_code"], opposite)
+        self.assertEqual(IchingKernel.perspective_profile(status)["inverse_status_code"], inverse)
+
+    def test_cross_cutting_profile_exposes_position_correspondence_virtue_and_perspective(self):
+        status = IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)
+
+        profile = IchingKernel.cross_cutting_profile(status)
+
+        self.assertEqual(profile["position"], IchingKernel.line_position_profile(status))
+        self.assertEqual(profile["correspondence"], IchingKernel.correspondence_profile(status))
+        self.assertEqual(profile["perspective"], IchingKernel.perspective_profile(status))
+        self.assertEqual(profile["outer_trigram_virtue"]["name"], "kan")
+        self.assertEqual(profile["inner_trigram_virtue"]["name"], "zhen")
+
     def test_hexagram_bitwise_收敛与自愈路由(self):
         status = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI)
         self.assertEqual(status, 59)
@@ -24,7 +82,7 @@ class TestIchingKernel(unittest.TestCase):
         )
 
         poisoned_status = IchingKernel.compute_status(IchingKernel.LI, IchingKernel.DUI)
-        self.assertEqual(poisoned_status, 51)
+        self.assertEqual(poisoned_status, 43)
         self.assertFalse(IchingKernel.should_skip(poisoned_status))
         self.assertEqual(IchingKernel.skip_decision(poisoned_status)["reason"], "sovereignty_fire_blocks_skip")
 
@@ -255,9 +313,9 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(IchingKernel.four_symbol_for_pair(0b01), "shao_yang")
         self.assertEqual(IchingKernel.hexagram_status(IchingKernel.QIAN, IchingKernel.DUI), 0b111011)
         record = IchingKernel.trigram_for_bits(0b101)
-        self.assertEqual(record["trigram"], IchingKernel.XUN)
-        self.assertEqual(record["name"], "xun")
-        self.assertEqual(record["element"], "wood")
+        self.assertEqual(record["trigram"], IchingKernel.LI)
+        self.assertEqual(record["name"], "li")
+        self.assertEqual(record["element"], "fire")
 
     def test_transition_assigns_differentiated_actions_across_all_states(self):
         actions = {IchingKernel.transition(status_code).action for status_code in range(64)}
@@ -787,6 +845,9 @@ class TestIchingKernel(unittest.TestCase):
                 "math",
                 "dimension",
                 "triadic",
+                "position",
+                "correspondence",
+                "perspective",
                 "mutation",
                 "nuclear",
                 "inner_trigram",
@@ -812,6 +873,8 @@ class TestIchingKernel(unittest.TestCase):
                 "element_dynamics",
                 "evolved_element_modulation",
                 "harmony",
+                "inner_trigram_virtue",
+                "outer_trigram_virtue",
             ],
         )
         self.assertEqual(
@@ -877,6 +940,28 @@ class TestIchingKernel(unittest.TestCase):
                 "changed_bands": ["human", "heaven"],
             },
         )
+
+    def test_balance_mutation_evidence_describes_existing_before_after_foundation(self):
+        before = 0b111111
+        after = IchingKernel.apply_balanced_event(before, "completed")
+
+        evidence = IchingKernel.balance_mutation_evidence(before, after)
+        before_profile = IchingKernel.cross_cutting_profile(before)
+        after_profile = IchingKernel.cross_cutting_profile(after)
+
+        self.assertEqual(evidence["mutation"], IchingKernel.mutation_profile(before, after))
+        self.assertEqual(evidence["before"]["binary"], before_profile["binary"])
+        self.assertEqual(evidence["after"]["binary"], after_profile["binary"])
+        self.assertEqual(evidence["before"]["yin_yang"], before_profile["yin_yang"])
+        self.assertEqual(evidence["after"]["yin_yang"], after_profile["yin_yang"])
+        self.assertEqual(evidence["before"]["element_dynamics"], before_profile["element_dynamics"])
+        self.assertEqual(evidence["after"]["element_dynamics"], after_profile["element_dynamics"])
+        self.assertEqual(evidence["before"]["transition"], before_profile["transition"])
+        self.assertEqual(evidence["after"]["transition"], after_profile["transition"])
+        self.assertEqual(evidence["before"]["dispatch_decision"], before_profile["dispatch_decision"])
+        self.assertEqual(evidence["after"]["dispatch_decision"], after_profile["dispatch_decision"])
+        self.assertIsNone(before_profile["mutation"])
+        self.assertIsNone(after_profile["mutation"])
 
     def test_nuclear_hexagram_projects_inner_trend_bottom_to_top(self):
         status = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI)

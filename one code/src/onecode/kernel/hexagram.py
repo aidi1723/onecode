@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 import math
 
+from onecode.kernel.iching_encoding import ACTIVE_RULE_SCHEMA
+
 
 @dataclass(frozen=True)
 class IchingTransition:
@@ -15,8 +17,8 @@ class IchingKernel:
     KAN = 0b010
     DUI = 0b011
     GEN = 0b100
-    XUN = 0b101
-    LI = 0b110
+    LI = 0b101
+    XUN = 0b110
     QIAN = 0b111
 
     TRIGRAM_NAMES = {
@@ -29,6 +31,18 @@ class IchingKernel:
         LI: "li",
         QIAN: "qian",
     }
+    TRIGRAM_VIRTUES = {
+        KUN: ("receptivity", "receive"),
+        ZHEN: ("initiation", "activate"),
+        KAN: ("risk", "checkpoint"),
+        DUI: ("exchange", "deliver"),
+        GEN: ("stopping", "stop"),
+        LI: ("clarity_attachment", "inspect"),
+        XUN: ("penetration", "refine"),
+        QIAN: ("strength", "advance"),
+    }
+    LINE_POSITION_NAMES = ("initial", "second", "third", "fourth", "fifth", "top")
+    RESPONSE_PAIRS = ((0, 3), (1, 4), (2, 5))
     FOUR_SYMBOLS = {
         0b00: "tai_yin",
         0b01: "shao_yang",
@@ -140,6 +154,9 @@ class IchingKernel:
             "math",
             "dimension",
             "triadic",
+            "position",
+            "correspondence",
+            "perspective",
             "mutation",
             "nuclear",
             "inner_trigram",
@@ -162,6 +179,8 @@ class IchingKernel:
             "element_dynamics",
             "evolved_element_modulation",
             "harmony",
+            "inner_trigram_virtue",
+            "outer_trigram_virtue",
         ],
         "onecode_runtime": [
             "transition",
@@ -363,6 +382,64 @@ class IchingKernel:
         ]
 
     @classmethod
+    def line_position_profile(cls, status_code: int) -> dict[str, object]:
+        normalized = status_code & 0b111111
+        lines = []
+        for line_index, position_name in enumerate(cls.LINE_POSITION_NAMES):
+            value = (normalized >> line_index) & 1
+            expected_value = 1 if line_index % 2 == 0 else 0
+            central = line_index in {1, 4}
+            proper = value == expected_value
+            lines.append(
+                {
+                    "line_index": line_index,
+                    "position_name": position_name,
+                    "value": value,
+                    "polarity": "yang" if value else "yin",
+                    "expected_polarity": "yang" if expected_value else "yin",
+                    "proper": proper,
+                    "central": central,
+                    "central_and_proper": central and proper,
+                }
+            )
+        central_lines = [int(line["line_index"]) for line in lines if line["central"]]
+        central_proper_lines = [int(line["line_index"]) for line in lines if line["central_and_proper"]]
+        return {
+            "lines": lines,
+            "proper_line_count": sum(bool(line["proper"]) for line in lines),
+            "central_lines": central_lines,
+            "central_proper_lines": central_proper_lines,
+            "middle_alignment": central_proper_lines == central_lines,
+        }
+
+    @classmethod
+    def correspondence_profile(cls, status_code: int) -> dict[str, object]:
+        normalized = status_code & 0b111111
+        values = [(normalized >> line_index) & 1 for line_index in range(6)]
+        response_pairs = [
+            {
+                "line_indexes": [inner_index, outer_index],
+                "polarities": ["yang" if values[inner_index] else "yin", "yang" if values[outer_index] else "yin"],
+                "responsive": values[inner_index] != values[outer_index],
+            }
+            for inner_index, outer_index in cls.RESPONSE_PAIRS
+        ]
+        adjacent_pairs = [
+            {
+                "line_indexes": [line_index, line_index + 1],
+                "same_polarity": values[line_index] == values[line_index + 1],
+                "responsive": values[line_index] != values[line_index + 1],
+            }
+            for line_index in range(5)
+        ]
+        return {
+            "response_pairs": response_pairs,
+            "responsive_pair_count": sum(bool(pair["responsive"]) for pair in response_pairs),
+            "adjacent_pairs": adjacent_pairs,
+            "third_fourth_boundary": adjacent_pairs[2],
+        }
+
+    @classmethod
     def trigram_record(cls, status_code: int, scope: str) -> dict:
         normalized = status_code & 0b111111
         if scope == "inner":
@@ -404,6 +481,21 @@ class IchingKernel:
     @classmethod
     def trigram_records(cls) -> dict[int, dict]:
         return {trigram: cls.standalone_trigram_record(trigram) for trigram in range(8)}
+
+    @classmethod
+    def trigram_virtue_record(cls, trigram: int) -> dict[str, str | int]:
+        normalized = trigram & 0b111
+        virtue, runtime_tendency = cls.TRIGRAM_VIRTUES[normalized]
+        return {
+            "trigram": normalized,
+            "name": cls.TRIGRAM_NAMES[normalized],
+            "virtue": virtue,
+            "runtime_tendency": runtime_tendency,
+        }
+
+    @classmethod
+    def trigram_virtue_records(cls) -> dict[int, dict[str, str | int]]:
+        return {trigram: cls.trigram_virtue_record(trigram) for trigram in range(8)}
 
     @classmethod
     def yin_yang_cross_profile(cls, status_code: int) -> dict:
@@ -1072,6 +1164,7 @@ class IchingKernel:
             runtime_action, runtime_reason = transition.action, transition.reason
         dispatch_decision = cls.dispatch_decision(transition)
         return {
+            "rule_schema": ACTIVE_RULE_SCHEMA,
             "status_code": normalized,
             "binary": format(normalized, "06b"),
             "math": {
@@ -1085,6 +1178,9 @@ class IchingKernel:
             },
             "dimension": cls.dimension_profile(6),
             "triadic": cls.triadic_profile(normalized),
+            "position": cls.line_position_profile(normalized),
+            "correspondence": cls.correspondence_profile(normalized),
+            "perspective": cls.perspective_profile(normalized),
             "mutation": None,
             "nuclear": cls.nuclear_profile(normalized),
             "outer_trigram": outer,
@@ -1093,6 +1189,8 @@ class IchingKernel:
             "liangyi": cls.liangyi_bits(normalized),
             "outer_trigram_record": cls.trigram_record(normalized, "outer"),
             "inner_trigram_record": cls.trigram_record(normalized, "inner"),
+            "outer_trigram_virtue": cls.trigram_virtue_record(outer),
+            "inner_trigram_virtue": cls.trigram_virtue_record(inner),
             "trigram_records": cls.trigram_records(),
             "outer_element": outer_element,
             "inner_element": inner_element,
@@ -1168,6 +1266,32 @@ class IchingKernel:
         }
 
     @classmethod
+    def balance_mutation_evidence(cls, before: int, after: int) -> dict[str, object]:
+        normalized_before = before & 0b111111
+        normalized_after = after & 0b111111
+        before_profile = cls.cross_cutting_profile(normalized_before)
+        after_profile = cls.cross_cutting_profile(normalized_after)
+
+        def state_evidence(profile: dict[str, object]) -> dict[str, object]:
+            return {
+                "status_code": profile["status_code"],
+                "binary": profile["binary"],
+                "yin_yang": profile["yin_yang"],
+                "inner_element": profile["inner_element"],
+                "outer_element": profile["outer_element"],
+                "element_dynamics": profile["element_dynamics"],
+                "transition": profile["transition"],
+                "dispatch_decision": profile["dispatch_decision"],
+            }
+
+        return {
+            "rule_schema": ACTIVE_RULE_SCHEMA,
+            "mutation": cls.mutation_profile(normalized_before, normalized_after),
+            "before": state_evidence(before_profile),
+            "after": state_evidence(after_profile),
+        }
+
+    @classmethod
     def nuclear_hexagram(cls, status_code: int) -> int:
         bits = cls.bits_for_state(status_code & 0b111111, width=6)
         return cls.state_for_bits([bits[1], bits[2], bits[3], bits[2], bits[3], bits[4]])
@@ -1190,6 +1314,28 @@ class IchingKernel:
             "element_relation": cls.element_cross_relation(outer_element, inner_element),
             "transition_action": transition.action,
             "transition_reason": transition.reason,
+        }
+
+    @classmethod
+    def opposite_hexagram(cls, status_code: int) -> int:
+        return (status_code & 0b111111) ^ 0b111111
+
+    @classmethod
+    def inverse_hexagram(cls, status_code: int) -> int:
+        bits = cls.bits_for_state(status_code & 0b111111, width=6)
+        return cls.state_for_bits(list(reversed(bits)))
+
+    @classmethod
+    def perspective_profile(cls, status_code: int) -> dict[str, int | str]:
+        normalized = status_code & 0b111111
+        opposite = cls.opposite_hexagram(normalized)
+        inverse = cls.inverse_hexagram(normalized)
+        return {
+            "status_code": normalized,
+            "opposite_status_code": opposite,
+            "opposite_binary": format(opposite, "06b"),
+            "inverse_status_code": inverse,
+            "inverse_binary": format(inverse, "06b"),
         }
 
     @classmethod

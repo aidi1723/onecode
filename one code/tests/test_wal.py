@@ -5,6 +5,7 @@ from pathlib import Path
 
 from onecode.kernel.checkpoint import global_wal_entry, skill_selection_sha256
 from onecode.kernel.context import create_context
+from onecode.kernel.iching_encoding import RULE_SCHEMA_V2
 from onecode.kernel.wal import (
     global_wal_evidence_metrics,
     global_wal_metrics_summary,
@@ -41,6 +42,18 @@ class GlobalWalTests(unittest.TestCase):
             wal_path.write_text("{not json\n", encoding="utf-8")
 
             with self.assertRaisesRegex(ValueError, "invalid_global_wal_json"):
+                read_validated_global_wal_entries(workspace)
+
+    def test_read_validated_global_wal_entries_rejects_invalid_balance_mutation_tuple(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            wal_path = workspace / ".onecode" / "global-ledger.jsonl"
+            wal_path.parent.mkdir(parents=True)
+            entry = {"v": 1, "rid": "run-1", "st": "completed", "bm": [1, 7, 63, 31], "prev": None}
+            entry["hash"] = wal_entry_hash(entry)
+            wal_path.write_text(json.dumps(entry, sort_keys=True) + "\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "invalid_global_wal_balance_mutation"):
                 read_validated_global_wal_entries(workspace)
 
     def test_read_validated_global_wal_entries_preserves_segment_path(self):
@@ -97,6 +110,31 @@ class GlobalWalTests(unittest.TestCase):
             self.assertEqual(entry["rt"], "critical")
             self.assertEqual(entry["cm"], "full")
             self.assertEqual(entry["cr"], "critical_trust_event")
+            self.assertEqual(entry["rsv"], RULE_SCHEMA_V2)
+
+    def test_global_wal_entry_records_compact_balance_mutation_summary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="wal-balance-mutation")
+            entry = global_wal_entry(
+                context,
+                {
+                    "run_id": "wal-balance-mutation",
+                    "status": "completed",
+                    "partial": False,
+                    "reason": None,
+                    "intent_type": "write_text",
+                    "balance_mutation_summary": {
+                        "asset_count": 2,
+                        "changed_asset_count": 2,
+                        "total_changed_line_count": 2,
+                        "changed_bands": ["heaven"],
+                        "latest_before_status_code": 63,
+                        "latest_after_status_code": 31,
+                    },
+                },
+            )
+
+        self.assertEqual(entry["bm"], [2, 2, 63, 31])
 
     def test_global_wal_entry_records_compact_skill_selection_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:

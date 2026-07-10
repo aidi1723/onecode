@@ -21,6 +21,10 @@ The merged `main` branch was verified after the fast-forward merge and tag creat
 
 Doctor smoke cases remained aligned with the rule surface:
 
+> Historical encoding note (2026-07-10): these numeric examples use
+> `onecode-iching-v1`. Current canonical v2 examples are documented in
+> `docs/ONECODE_ICHING_V2_CANONICALIZATION_CLOSURE_2026-07-10.md`.
+
 - completed write: `GEN/QIAN = 39`, `cooldown + continue`
 - resume skip: status code `35`, `cooldown + continue`
 - sovereignty breach: `LI/KUN = 48`, `halt + stop`

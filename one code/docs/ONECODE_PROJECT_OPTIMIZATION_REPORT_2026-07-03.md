@@ -89,7 +89,10 @@ Added a Phase 1 skill-evidence layer:
 - Skill token routing now handles punctuation-separated task text, conservative plural/verb aliases, and phrase capabilities when all component tokens are present.
 - `skill_selection` evidence is persisted in result, ledger, manifest, checkpoint records, and compact global WAL hash/reason/count fields when a skill is actually selected.
 - Runner, checkpoint, ledger, and global WAL boundaries now validate `skill_selection` schema before writing, rejecting forbidden fields, count mismatches, invalid hashes, and oversized evidence.
-- Shell projection schema is now version 2 and exposes only compact skill state in `control_state`: skill-context status, selection reason, selected count, and selection hash.
+- At the time of this report, shell projection schema version 2 exposed only
+  compact skill state in `control_state`: skill-context status, selection
+  reason, selected count, and selection hash. The 2026-07-10 I Ching schema
+  cutover subsequently bumped the projection to version 3.
 - WAL-only inspect summaries now carry compact skill-selection aliases into shell projection, so inspect/list consumers get the same bounded reason/count/hash without raw skill details.
 - Project review found and closed a schema bypass where direct writers could place raw fields inside `skill_context_summary` or use arbitrary skill selection status/reason/mode/risk strings.
 - Follow-up review found and closed a read-side drift where full-evidence inspect summaries did not project compact skill-selection aliases and did not reject tampered full `skill_selection` documents. Full inspect now validates ledger/manifest selection evidence and exposes only bounded status/reason/count/hash aliases to shell projection.

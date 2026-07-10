@@ -83,3 +83,23 @@ Not applicable for this pass:
 - LibreChat UI bundle was not changed.
 - Pressure testing was not run.
 - Previously recorded UI polish issues such as `/api/balance` console noise and command-shaped chat UX remain follow-ups.
+
+## 2026-07-10 v0.8.0 Canonical Runtime and CLI Closure Pass
+
+- [x] Package, Python, TUI, and HTTP public version identifiers are aligned to `0.8.0`.
+- [x] Canonical `onecode-iching-v2` encoding and deterministic legacy v1 interpretation are documented.
+- [x] Training, benchmark, mutation evidence, Shell v4, and CLI command-family closures are indexed.
+- [x] Shell contract fixtures are packaged as wheel assets and remain read-only.
+- [x] CLI read-only, local-interface, and configuration adapters preserve parser and dispatch compatibility.
+- [x] Raw API keys are absent from public CLI output and closure records.
+- [x] Forbidden core-formula diff scan has no matches.
+- [x] Focused configuration/Web/runner verification passed: 161 tests.
+- [x] Full local verification passed for v0.8.0: 824 tests, 1 environment-dependent skip, doctor status ok.
+- [x] Release audit built `onecode-0.8.0-py3-none-any.whl`, verified wheel assets, and performed no package publication.
+- [ ] GitHub branch update commit and remote push are recorded after final version verification.
+
+Not applicable for this pass:
+
+- No production deployment is performed.
+- No GitHub Release or package registry publication is performed.
+- No merge into `main` is performed without a separate operator instruction.

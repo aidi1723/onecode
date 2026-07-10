@@ -52,6 +52,28 @@ def wal_entry_hash(entry: dict[str, Any]) -> str:
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
+def decode_balance_mutation_tuple(value: Any) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    if not isinstance(value, list) or len(value) != 4:
+        raise ValueError("invalid_global_wal_balance_mutation")
+    changed_assets, changed_lines, before, after = value
+    values = (changed_assets, changed_lines, before, after)
+    if any(isinstance(item, bool) or not isinstance(item, int) for item in values):
+        raise ValueError("invalid_global_wal_balance_mutation")
+    if changed_assets < 0 or changed_lines < 0 or changed_lines > changed_assets * 6:
+        raise ValueError("invalid_global_wal_balance_mutation")
+    if not 0 <= before <= 63 or not 0 <= after <= 63:
+        raise ValueError("invalid_global_wal_balance_mutation")
+    return {
+        "changed_asset_count": changed_assets,
+        "total_changed_line_count": changed_lines,
+        "latest_before_status_code": before,
+        "latest_after_status_code": after,
+        "changed_bands": [],
+    }
+
+
 def read_validated_global_wal_entries(workspace_root: Path) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     for wal_path in global_wal_paths(workspace_root):
@@ -73,6 +95,7 @@ def read_validated_global_wal_segment(path: Path) -> list[dict[str, Any]]:
             raise ValueError("invalid_global_wal_json") from exc
         if not isinstance(value, dict):
             raise ValueError("invalid_global_wal_entry")
+        decode_balance_mutation_tuple(value.get("bm"))
         if "hash" in value or "prev" in value:
             if value.get("prev") != previous_hash:
                 raise ValueError("global_wal_chain_prev_mismatch")

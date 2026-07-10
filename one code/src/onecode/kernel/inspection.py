@@ -3,6 +3,7 @@ import string
 from pathlib import Path
 
 from onecode.kernel.checkpoint import evidence_chain_hash, sha256_file, sha256_text
+from onecode.kernel.hexagram import IchingKernel
 
 
 VALID_RUN_STATUSES = {"completed", "skipped", "denied", "halted"}
@@ -44,6 +45,60 @@ def validate_ledger_counts(ledger: dict, path: Path) -> tuple[str | None, str | 
     return None, None
 
 
+def mutation_summary_from_assets(assets: list[dict]) -> dict:
+    mutation_records = [asset.get("balance_mutation") for asset in assets if isinstance(asset, dict)]
+    mutation_records = [mutation for mutation in mutation_records if isinstance(mutation, dict)]
+    changed_records = [mutation for mutation in mutation_records if mutation["mutation"]["change_count"] > 0]
+    changed_bands = sorted(
+        {
+            band
+            for mutation in changed_records
+            for band in mutation["mutation"]["changed_bands"]
+        },
+        key=("earth", "human", "heaven").index,
+    )
+    latest = mutation_records[-1]["mutation"] if mutation_records else {}
+    return {
+        "asset_count": len(assets),
+        "changed_asset_count": len(changed_records),
+        "total_changed_line_count": sum(mutation["mutation"]["change_count"] for mutation in changed_records),
+        "changed_bands": changed_bands,
+        "latest_before_status_code": latest.get("before"),
+        "latest_after_status_code": latest.get("after"),
+    }
+
+
+def validate_balance_mutation_evidence(data: dict, path: Path) -> tuple[str | None, str | None]:
+    assets = data.get("assets")
+    summary = data.get("balance_mutation_summary")
+    if assets is None and summary is None:
+        return None, None
+    if not isinstance(assets, list):
+        return str(path), "invalid_balance_mutation_evidence"
+    for asset in assets:
+        if not isinstance(asset, dict):
+            return str(path), "invalid_balance_mutation_evidence"
+        mutation = asset.get("balance_mutation")
+        if mutation is None:
+            continue
+        before = asset.get("raw_status_code")
+        after = asset.get("balanced_status_code")
+        if isinstance(before, bool) or not isinstance(before, int):
+            return str(path), "invalid_balance_mutation_evidence"
+        if isinstance(after, bool) or not isinstance(after, int):
+            return str(path), "invalid_balance_mutation_evidence"
+        if mutation != IchingKernel.balance_mutation_evidence(before, after):
+            return str(path), "invalid_balance_mutation_evidence"
+    if summary is not None:
+        try:
+            expected_summary = mutation_summary_from_assets(assets)
+        except (KeyError, TypeError, ValueError):
+            return str(path), "invalid_balance_mutation_evidence"
+        if summary != expected_summary:
+            return str(path), "balance_mutation_summary_mismatch"
+    return None, None
+
+
 def validate_checkpoint_evidence(checkpoints: list[dict], path: Path) -> tuple[str | None, str | None]:
     for checkpoint in checkpoints:
         if not isinstance(checkpoint.get("path"), str) or not checkpoint["path"]:
@@ -66,6 +121,8 @@ def validate_checkpoint_evidence(checkpoints: list[dict], path: Path) -> tuple[s
             return corrupt_checkpoint_path, corrupt_checkpoint_reason
         if checkpoint_payload.get("status") != checkpoint.get("status"):
             return str(path), "checkpoint_record_mismatch"
+        if checkpoint_payload.get("balance_mutation_summary") != checkpoint.get("balance_mutation_summary"):
+            return str(path), "balance_mutation_summary_mismatch"
     return None, None
 
 

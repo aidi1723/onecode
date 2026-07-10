@@ -53,6 +53,11 @@ Therefore `63 -> 39` is the macro transition result for pure yang completion. It
 
 ## Sovereignty And Timeout Cases
 
+> Historical encoding note (2026-07-10): the numeric examples in this v0.6
+> report use `onecode-iching-v1`. Current canonical v2 writes record sovereignty
+> breach as status `40`; see
+> `docs/ONECODE_ICHING_V2_CANONICALIZATION_CLOSURE_2026-07-10.md`.
+
 Sovereignty breach remains:
 
 ```text

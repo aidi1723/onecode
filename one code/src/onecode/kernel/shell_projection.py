@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from onecode.kernel.iching_encoding import normalize_rule_schema
+from onecode.kernel.wal import decode_balance_mutation_tuple
+
 
 BLOCKED_STATUSES = {"denied", "halted", "blocked", "rejected"}
 WARNING_STATUSES = {"partial", "skipped"}
-SHELL_PROJECTION_VERSION = 2
+SHELL_PROJECTION_VERSION = 4
 SHELL_PROJECTION_FIELDS = (
     "version",
     "run_id",
@@ -15,11 +18,13 @@ SHELL_PROJECTION_FIELDS = (
     "compact_message",
     "rule_state",
     "control_state",
+    "balance_state",
     "delivery_state",
     "evidence_ref",
     "resume_state",
 )
 RULE_STATE_FIELDS = (
+    "rule_schema",
     "status_code",
     "transition_action",
     "transition_reason",
@@ -33,6 +38,13 @@ CONTROL_STATE_FIELDS = (
     "selected_skill_count",
     "skill_selection_sha256",
     "recovery_action",
+)
+BALANCE_STATE_FIELDS = (
+    "changed_asset_count",
+    "changed_line_count",
+    "changed_bands",
+    "before_status_code",
+    "after_status_code",
 )
 DELIVERY_STATE_FIELDS = (
     "status",
@@ -75,6 +87,7 @@ def shell_projection_schema() -> dict[str, Any]:
             "compact_message": {"type": "string", "description": "Single-line human-readable summary."},
             "rule_state": {"type": "object", "fields": list(RULE_STATE_FIELDS)},
             "control_state": {"type": "object", "fields": list(CONTROL_STATE_FIELDS)},
+            "balance_state": {"type": "object", "fields": list(BALANCE_STATE_FIELDS)},
             "delivery_state": {"type": "object", "fields": list(DELIVERY_STATE_FIELDS)},
             "evidence_ref": {"type": "object", "fields": list(EVIDENCE_REF_FIELDS)},
             "resume_state": {"type": "object", "fields": list(RESUME_STATE_FIELDS)},
@@ -82,6 +95,7 @@ def shell_projection_schema() -> dict[str, Any]:
         "nested_fields": {
             "rule_state": list(RULE_STATE_FIELDS),
             "control_state": list(CONTROL_STATE_FIELDS),
+            "balance_state": list(BALANCE_STATE_FIELDS),
             "delivery_state": list(DELIVERY_STATE_FIELDS),
             "evidence_ref": list(EVIDENCE_REF_FIELDS),
             "resume_state": list(RESUME_STATE_FIELDS),
@@ -96,6 +110,7 @@ def project_run_to_shell(run: dict[str, Any]) -> dict[str, Any]:
     evidence_ref = _evidence_ref(run)
     rule_state = _rule_state(run)
     control_state = _control_state(run)
+    balance_state = _balance_state(run)
     delivery_state = _delivery_state(run)
     resume_state = {
         "resumed": run.get("resumed") if isinstance(run.get("resumed"), bool) else None,
@@ -111,6 +126,7 @@ def project_run_to_shell(run: dict[str, Any]) -> dict[str, Any]:
         "compact_message": _compact_message(run, status_label, severity, next_action, evidence_ref, rule_state),
         "rule_state": rule_state,
         "control_state": control_state,
+        "balance_state": balance_state,
         "delivery_state": delivery_state,
         "evidence_ref": evidence_ref,
         "resume_state": resume_state,
@@ -181,6 +197,7 @@ def _next_action(run: dict[str, Any], severity: str) -> str:
 
 def _rule_state(run: dict[str, Any]) -> dict[str, Any]:
     return {
+        "rule_schema": normalize_rule_schema(run.get("rule_schema", run.get("rsv"))),
         "status_code": _integer(
             run.get("iching_status_code", run.get("global_status_code", run.get("task_status_code")))
         ),
@@ -257,6 +274,25 @@ def _delivery_state(run: dict[str, Any]) -> dict[str, Any]:
         "completed_count": _integer(run.get("completed_count")),
         "skipped_count": _integer(run.get("skipped_count")),
         "failed_count": _integer(run.get("failed_count")),
+    }
+
+
+def _balance_state(run: dict[str, Any]) -> dict[str, Any]:
+    summary = run.get("balance_mutation_summary")
+    if not isinstance(summary, dict):
+        try:
+            summary = decode_balance_mutation_tuple(run.get("bm")) or {}
+        except ValueError:
+            summary = {}
+    changed_bands = summary.get("changed_bands")
+    if not isinstance(changed_bands, list) or not all(isinstance(band, str) for band in changed_bands):
+        changed_bands = []
+    return {
+        "changed_asset_count": _integer(summary.get("changed_asset_count")),
+        "changed_line_count": _integer(summary.get("total_changed_line_count")),
+        "changed_bands": changed_bands,
+        "before_status_code": _integer(summary.get("latest_before_status_code")),
+        "after_status_code": _integer(summary.get("latest_after_status_code")),
     }
 
 

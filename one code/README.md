@@ -2,6 +2,9 @@
 
 OneCode is a local-first agent kernel prototype. It focuses on scoped file writes, append-only run evidence, stateful resumption, and deterministic Iching-derived status profiles.
 
+Current version: **v0.8.0**. The release closure and verification index is
+recorded in `docs/ONECODE_V0_8_FINAL_CLOSURE_2026-07-10.md`.
+
 The core kernel has no runtime third-party dependency. Textual is an optional TUI dependency.
 
 OneCode is licensed under the Apache License, Version 2.0.
@@ -60,6 +63,22 @@ This runs:
 
 ## Current Closure Records
 
+The July 10, 2026 v0.8.0 closure is documented in:
+
+- `docs/ONECODE_V0_8_FINAL_CLOSURE_2026-07-10.md`
+- `docs/ONECODE_ICHING_V2_CANONICALIZATION_CLOSURE_2026-07-10.md`
+- `docs/ONECODE_TRAINING_BENCHMARK_RULE_SCHEMA_CLOSURE_2026-07-10.md`
+- `docs/ONECODE_RUNTIME_BALANCE_MUTATION_EVIDENCE_CLOSURE_2026-07-10.md`
+- `docs/ONECODE_MUTATION_EVIDENCE_INTEGRITY_SHELL_V4_CLOSURE_2026-07-10.md`
+- `docs/ONECODE_SHELL_V4_PUBLIC_CONTRACT_CLOSURE_2026-07-10.md`
+- `docs/ONECODE_CLI_READ_ONLY_COMMAND_SPLIT_CLOSURE_2026-07-10.md`
+- `docs/ONECODE_CLI_LOCAL_INTERFACE_COMMAND_SPLIT_CLOSURE_2026-07-10.md`
+- `docs/ONECODE_CLI_CONFIGURATION_COMMAND_SPLIT_CLOSURE_2026-07-10.md`
+
+These records preserve the authority chain from yin/yang lines through
+trigrams, five-element dynamics, balance, transition, and dispatch. Shell,
+contract, evidence, and CLI changes remain subordinate to the kernel rules.
+
 The July 3, 2026 hardening pass is documented in:
 
 - `docs/ONECODE_PROJECT_OPTIMIZATION_REPORT_2026-07-03.md`
@@ -102,7 +121,7 @@ not yet force all kernel execution paths through Docker.
 
 Shell-facing adapters should consume `shell_projection` instead of inferring
 status from raw kernel evidence. The current projection schema is versioned as
-`version: 2` and exposes:
+`version: 4` and exposes:
 
 - `status_label`, `severity`, `next_action`, and `compact_message` for concise
   UI/CLI rendering
@@ -110,6 +129,8 @@ status from raw kernel evidence. The current projection schema is versioned as
   dispatch decision
 - `control_state` for bounded project/runtime/skill/recovery evidence summaries,
   including compact skill-selection hash/reason/count when present
+- `balance_state` for descriptive raw-to-balanced mutation counts, bands, and
+  before/after status codes when present
 - `delivery_state` for requested/completed/skipped/failed counts
 - `evidence_ref` for WAL/full evidence references and profile hash lookup
 - `resume_state` for resumed run relationships
@@ -130,6 +151,33 @@ The same contract is exposed over the local Web API:
 GET /v1/onecode/shell/schema
 Authorization: Bearer <ONECODE_API_TOKEN>
 ```
+
+Versioned public fixtures are installed in `onecode.contracts`. Python adapters
+can call `load_shell_projection_v4_schema()` and
+`load_shell_projection_v4_cases()` to validate exact v4 compatibility. These
+fixtures are read-only output contracts; runtime severity, next action,
+transition, dispatch, and safety decisions must continue to come from the
+kernel and shell projection code rather than from fixture data.
+
+The existing read-only CLI commands `inspect`, `list-runs`, `doctor`,
+`math-audit`, and `shell-schema` are registered and dispatched by the focused
+`onecode.cli_commands.read_only` adapter. `onecode.cli.build_parser()` and
+`onecode.cli.main()` remain the public compatibility entry points. The adapter
+does not own write, model, training, verifier, sandbox, Web, or TUI execution.
+
+The local interface commands `serve`, `shell`, `shell-status`, and `tui` are
+registered and dispatched by `onecode.cli_commands.local_interfaces`. Web, TUI,
+and shell-launcher modules remain lazily imported only after their matching
+command is selected, so importing the CLI does not start or initialize local
+interface services.
+
+The verifier-policy commands `list-verifier-presets` and
+`init-verifier-policy`, together with the nested `config` model commands, are
+registered and dispatched by `onecode.cli_commands.configuration`. Path
+containment, preset validation, overwrite behavior, model-config permissions,
+API-key masking, and model discovery remain owned by the existing verifier and
+model-config services. The CLI adapter adds no configuration authority and
+does not expose raw API keys in its JSON output.
 
 Run the Docker sandbox smoke check:
 

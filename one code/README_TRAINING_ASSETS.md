@@ -6,7 +6,7 @@ Do not store YiZiJue-LM distillation data, cleaned training data, model checkpoi
 
 The YiZiJue-LM small-model workspace is:
 
-`/Users/aidi/大字典/小模型`
+`<yizijue-lm-repo>`
 
 Use that workspace for:
 

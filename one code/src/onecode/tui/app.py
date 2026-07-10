@@ -24,7 +24,7 @@ from onecode.kernel.shell_projection import project_run_to_shell
 
 # --- Config ---
 
-APP_VERSION = "0.1.0-alpha"
+APP_VERSION = "0.8.0"
 DEFAULT_MODEL = "gpt-5.5"
 DEFAULT_WORKSPACE = Path("/private/tmp/oneword-tui-live")
 API_KEY_WARNING = "提示: 未检测到 OPENAI_API_KEY。AI 对话功能已禁用，但本地接入命令仍可正常执行。"

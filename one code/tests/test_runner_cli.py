@@ -8,6 +8,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from onecode.cli import main
+from onecode.contracts import load_shell_projection_v4_schema
+from onecode.kernel.iching_encoding import RULE_SCHEMA_V2
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.runner import run_deadline_breach, run_task, trace_budget_breach, validate_resource_budget
 
@@ -19,6 +21,7 @@ class RunnerTests(unittest.TestCase):
 
             self.assertEqual(result["status"], "completed")
             self.assertEqual(result["state"], "000000")
+            self.assertEqual(result["rule_schema"], RULE_SCHEMA_V2)
             self.assertFalse(result["partial"])
             manifest_path = Path(result["manifest_path"])
             ledger_path = Path(result["ledger_path"])
@@ -28,6 +31,7 @@ class RunnerTests(unittest.TestCase):
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["checkpoints"][0]["status"], "completed")
             self.assertIn("duration_ms", result["assets"][0])
+            self.assertEqual(result["assets"][0]["rule_schema"], RULE_SCHEMA_V2)
             self.assertEqual(result["assets"][0]["duration_ms"], manifest["checkpoints"][0]["duration_ms"])
 
     def test_run_task_writes_trace_events(self):
@@ -139,6 +143,7 @@ class RunnerTests(unittest.TestCase):
             self.assertTrue(Path(result["manifest_path"]).exists())
             self.assertTrue(Path(result["ledger_path"]).exists())
             manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
+            ledger = json.loads(Path(result["ledger_path"]).read_text(encoding="utf-8"))
             self.assertGreaterEqual(manifest["checkpoints"][0]["duration_ms"], 10)
             self.assertEqual(result["assets"][0]["duration_ms"], manifest["checkpoints"][0]["duration_ms"])
 
@@ -405,10 +410,7 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(completed.returncode, 0, completed.stderr)
         payload = json.loads(completed.stdout)
-        self.assertEqual(payload["name"], "onecode.shell_projection")
-        self.assertEqual(payload["version"], 2)
-        self.assertIn("rule_state", payload["fields"])
-        self.assertEqual(payload["nested_fields"]["rule_state"][0], "status_code")
+        self.assertEqual(payload, load_shell_projection_v4_schema())
 
     def test_cli_run_prints_json_result(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1248,6 +1250,7 @@ class RunnerMultiAssetTests(unittest.TestCase):
             )
 
             manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
+            ledger = json.loads(Path(result["ledger_path"]).read_text(encoding="utf-8"))
 
             self.assertEqual(result["status"], "completed")
             self.assertEqual(result["requested_count"], 2)
@@ -1264,6 +1267,26 @@ class RunnerMultiAssetTests(unittest.TestCase):
             self.assertEqual(result["assets"][0]["four_symbol_decision"], "overflow")
             self.assertEqual(result["assets"][0]["four_symbol_change_mask"], 0b100000)
             self.assertEqual(result["assets"][1]["balanced_status_code"], 0b011111)
+            self.assertEqual(
+                result["assets"][0]["balance_mutation"],
+                IchingKernel.balance_mutation_evidence(
+                    result["assets"][0]["raw_status_code"],
+                    result["assets"][0]["balanced_status_code"],
+                ),
+            )
+            self.assertEqual(result["assets"][0]["iching_status_code"], 0b100111)
+            self.assertEqual(result["assets"][0]["balance_action"], "cooldown")
+            self.assertEqual(
+                result["balance_mutation_summary"],
+                {
+                    "asset_count": 2,
+                    "changed_asset_count": 2,
+                    "total_changed_line_count": 2,
+                    "changed_bands": ["heaven"],
+                    "latest_before_status_code": 0b111111,
+                    "latest_after_status_code": 0b011111,
+                },
+            )
             self.assertEqual(result["global_entropy_decision"], "accept_positive_polarity")
             self.assertIsNone(result["global_entropy_reason"])
             self.assertEqual(result["global_status_code"], IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN))
@@ -1271,6 +1294,20 @@ class RunnerMultiAssetTests(unittest.TestCase):
             self.assertIn("global_entropy", result)
             self.assertEqual(result["ledger_path"], str(Path(result["ledger_path"])))
             self.assertEqual(len(manifest["checkpoints"]), 2)
+            self.assertEqual(
+                manifest["checkpoints"][0]["balance_mutation_summary"],
+                {
+                    "asset_count": 1,
+                    "changed_asset_count": 1,
+                    "total_changed_line_count": 1,
+                    "changed_bands": ["heaven"],
+                    "latest_before_status_code": 0b111111,
+                    "latest_after_status_code": 0b011111,
+                },
+            )
+            self.assertEqual(manifest["balance_mutation_summary"], manifest["checkpoints"][-1]["balance_mutation_summary"])
+            self.assertEqual(ledger["balance_mutation_summary"], result["balance_mutation_summary"])
+            self.assertEqual(ledger["assets"][0]["balance_mutation"], result["assets"][0]["balance_mutation"])
             self.assertEqual(manifest["global_entropy_decision"], result["global_entropy_decision"])
             self.assertEqual(manifest["global_status_code"], result["global_status_code"])
             self.assertEqual((workspace / "src" / "a.py").read_text(encoding="utf-8"), "a = 1\n")

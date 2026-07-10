@@ -6,6 +6,7 @@ from onecode.kernel.action_intent import ActionIntent, ActionType
 from onecode.kernel.checkpoint import validate_skill_selection, write_checkpoint, write_global_wal, write_ledger
 from onecode.kernel.context import create_context
 from onecode.kernel.hexagram import COMPLETE, IchingKernel, IchingTransition
+from onecode.kernel.iching_encoding import ACTIVE_RULE_SCHEMA
 from onecode.kernel.logos_gate import LogosGate
 from onecode.kernel.path_guard import PathGuard
 from onecode.kernel.patching import PatchIntent, commit_patch
@@ -18,6 +19,7 @@ from onecode.kernel.wal import global_wal_evidence_metrics
 
 RULE_DRIVEN_RESULT_FIELDS = {
     "assets",
+    "balance_mutation_summary",
     "completed_count",
     "decision",
     "failed_count",
@@ -37,6 +39,7 @@ RULE_DRIVEN_RESULT_FIELDS = {
     "partial",
     "payload",
     "reason",
+    "rule_schema",
     "requested_count",
     "resumed",
     "resumed_from",
@@ -120,6 +123,7 @@ def halted_result(
     result = {
         "run_id": context.run_id,
         "status": "halted",
+        "rule_schema": ACTIVE_RULE_SCHEMA,
         "state": str(COMPLETE),
         "manifest_path": str(context.manifest_path),
         "ledger_path": str(ledger_path),
@@ -462,10 +466,12 @@ def asset_entry(
     four_symbol_decision: str,
     four_symbol_change_mask: int,
     four_symbol_reason: str | None,
+    balance_mutation: dict[str, object],
     payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     entry = {
         "index": index,
+        "rule_schema": ACTIVE_RULE_SCHEMA,
         "status": gate_result["status"],
         "partial": gate_result["partial"],
         "reason": gate_result["reason"],
@@ -476,6 +482,7 @@ def asset_entry(
         "balanced_status_code": balanced_status_code,
         "balance_mask": balance_mask,
         "balance_action": balance_action,
+        "balance_mutation": balance_mutation,
         "four_symbol_decision": four_symbol_decision,
         "four_symbol_change_mask": four_symbol_change_mask,
         "four_symbol_reason": four_symbol_reason,
@@ -490,6 +497,35 @@ def asset_entry(
     if "sha256" in gate_result["payload"]:
         entry["sha256"] = gate_result["payload"]["sha256"]
     return entry
+
+
+def balance_mutation_summary(assets: list[dict[str, Any]]) -> dict[str, Any]:
+    mutations = [asset.get("balance_mutation") for asset in assets if isinstance(asset, dict)]
+    mutation_records = [mutation for mutation in mutations if isinstance(mutation, dict)]
+    changed_records = [
+        mutation
+        for mutation in mutation_records
+        if isinstance(mutation.get("mutation"), dict) and mutation["mutation"].get("change_count", 0) > 0
+    ]
+    changed_bands = sorted(
+        {
+            band
+            for mutation in changed_records
+            for band in mutation["mutation"].get("changed_bands", [])
+            if isinstance(band, str)
+        },
+        key=("earth", "human", "heaven").index,
+    )
+    latest = mutation_records[-1] if mutation_records else {}
+    latest_mutation = latest.get("mutation") if isinstance(latest.get("mutation"), dict) else {}
+    return {
+        "asset_count": len(assets),
+        "changed_asset_count": len(changed_records),
+        "total_changed_line_count": sum(int(mutation["mutation"]["change_count"]) for mutation in changed_records),
+        "changed_bands": changed_bands,
+        "latest_before_status_code": latest_mutation.get("before"),
+        "latest_after_status_code": latest_mutation.get("after"),
+    }
 
 
 def run_task(
@@ -636,6 +672,7 @@ def _run_task_with_context(
         iching_profile: dict[str, Any],
         duration_ms: int,
         run_control: dict[str, Any],
+        balance_mutation_summary: dict[str, Any],
     ) -> None:
         checkpoint = {
             "payload": payload,
@@ -648,6 +685,7 @@ def _run_task_with_context(
             "iching_profile": iching_profile,
             "duration_ms": duration_ms,
             "run_control": run_control,
+            "balance_mutation_summary": balance_mutation_summary,
         }
         if defer_completed_evidence:
             pending_checkpoints.append(checkpoint)
@@ -668,6 +706,7 @@ def _run_task_with_context(
             duration_ms=duration_ms,
             run_control=run_control,
             skill_selection=skill_selection,
+            balance_mutation_summary=balance_mutation_summary,
         )
 
     def flush_deferred_checkpoints() -> None:
@@ -689,6 +728,7 @@ def _run_task_with_context(
                 duration_ms=checkpoint["duration_ms"],
                 run_control=checkpoint["run_control"],
                 skill_selection=skill_selection,
+                balance_mutation_summary=checkpoint["balance_mutation_summary"],
             )
         pending_checkpoints.clear()
 
@@ -792,6 +832,8 @@ def _run_task_with_context(
                 "global_entropy_decision": run_control["decision"],
                 "global_entropy_reason": run_control.get("reason"),
             }
+            balance_mutation = IchingKernel.balance_mutation_evidence(raw_status_code, balanced_status_code)
+            checkpoint_mutation_summary = balance_mutation_summary([{"balance_mutation": balance_mutation}])
             checkpoint_payload = gate_result["payload"]
             entry_payload = checkpoint_payload
             if intent.action_type == ActionType.WRITE_TEXT and "sha256" in checkpoint_payload:
@@ -818,6 +860,7 @@ def _run_task_with_context(
                 iching_profile=iching_profile,
                 duration_ms=duration_ms,
                 run_control=run_control_payload,
+                balance_mutation_summary=checkpoint_mutation_summary,
             )
             record_trace(
                 f"checkpoint-{index}",
@@ -860,6 +903,7 @@ def _run_task_with_context(
                     str(four_symbol_balance["decision"]),
                     int(four_symbol_balance["change_mask"]),
                     four_symbol_balance["reason"] if isinstance(four_symbol_balance["reason"], str) else None,
+                    balance_mutation,
                     entry_payload,
                 )
             )
@@ -879,6 +923,7 @@ def _run_task_with_context(
     global_transition = IchingKernel.transition(global_status_code)
     result = {
         "run_id": context.run_id,
+        "rule_schema": ACTIVE_RULE_SCHEMA,
         "status": "completed" if aggregate_success else last_asset["status"],
         "state": str(COMPLETE),
         "manifest_path": str(context.manifest_path),
@@ -893,6 +938,7 @@ def _run_task_with_context(
         "resumed_from": context.resume_from_run_id,
         "resumed": last_asset["resumed"],
         "assets": assets,
+        "balance_mutation_summary": balance_mutation_summary(assets),
         "requested_count": len(intents),
         "completed_count": completed_count,
         "skipped_count": skipped_count,

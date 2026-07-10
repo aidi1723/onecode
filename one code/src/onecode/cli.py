@@ -7,6 +7,10 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+from onecode.cli_commands.configuration import (
+    dispatch_configuration_command,
+    register_configuration_commands,
+)
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.diagnostics import run_doctor
 from onecode.kernel.run_inspection import (
@@ -35,7 +39,6 @@ from onecode.kernel.model_loop import (
     is_patch_only_repair_plan,
     run_model_task,
 )
-from onecode.kernel.model_config import discover_models, read_model_config, write_model_config
 from onecode.kernel.model_provider import api_key_from_env, build_provider_config
 from onecode.kernel.sandbox import SandboxConfig, run_sandbox_smoke
 from onecode.kernel.self_audit import audit_self
@@ -50,8 +53,6 @@ from onecode.kernel.verifier import (
     run_verifier,
     task_status_from_results,
     validate_selected_verifiers,
-    verifier_policy_presets_summary,
-    write_verifier_policy,
 )
 from onecode.kernel.gateway_engine import adjudicate_gateway_prediction, validate_assistant_content
 from onecode.kernel.training_data import (
@@ -88,6 +89,11 @@ from onecode.kernel.yizijue_transformers import (
     run_state_corpus_predictions_with_yizijue_logits,
 )
 from onecode.benchmark import compare_benchmark_tasks, load_benchmark_tasks, run_benchmark_tasks
+from onecode.cli_commands.read_only import dispatch_read_only_command, register_read_only_commands
+from onecode.cli_commands.local_interfaces import (
+    dispatch_local_interface_command,
+    register_local_interface_commands,
+)
 
 
 def positive_int(value: str) -> int:
@@ -234,37 +240,11 @@ def build_parser() -> argparse.ArgumentParser:
     run_model_parser.add_argument("--verifier-policy", default=None)
     run_model_parser.add_argument("--verifier", action="append", default=None)
 
-    inspect_parser = subparsers.add_parser("inspect")
-    inspect_parser.add_argument("--workspace", default=".")
-    inspect_parser.add_argument("--run-id", required=True)
+    register_read_only_commands(subparsers)
 
-    list_runs_parser = subparsers.add_parser("list-runs")
-    list_runs_parser.add_argument("--workspace", default=".")
+    register_configuration_commands(subparsers)
 
-    subparsers.add_parser("list-verifier-presets")
-
-    init_verifier_policy_parser = subparsers.add_parser("init-verifier-policy")
-    init_verifier_policy_parser.add_argument("--workspace", default=".")
-    init_verifier_policy_parser.add_argument("--output", default=DEFAULT_VERIFIER_POLICY_PATH)
-    init_verifier_policy_parser.add_argument("--preset", action="append", default=None)
-    init_verifier_policy_parser.add_argument("--force", action="store_true")
-
-    subparsers.add_parser("doctor")
     subparsers.add_parser("audit-self")
-    subparsers.add_parser("math-audit")
-    subparsers.add_parser("shell-schema")
-
-    config_parser = subparsers.add_parser("config")
-    config_subparsers = config_parser.add_subparsers(dest="config_action", required=True)
-    config_set_model_parser = config_subparsers.add_parser("set-model")
-    config_set_model_parser.add_argument("--endpoint", required=True)
-    config_set_model_parser.add_argument("--api-key", required=True)
-    config_set_model_parser.add_argument("--model", default=None)
-    config_set_model_parser.add_argument("--provider", default="openai-compatible")
-    config_subparsers.add_parser("show")
-    config_discover_parser = config_subparsers.add_parser("discover-models")
-    config_discover_parser.add_argument("--endpoint", required=True)
-    config_discover_parser.add_argument("--api-key", required=True)
 
     benchmark_parser = subparsers.add_parser("benchmark")
     benchmark_parser.add_argument("--tasks-dir", default="benchmarks/tasks")
@@ -378,63 +358,7 @@ def build_parser() -> argparse.ArgumentParser:
     pretraining_readiness_parser.add_argument("--configs-dir", default="data/training/configs")
     pretraining_readiness_parser.add_argument("--report", default="data/training/PRETRAINING_READINESS_REPORT.json")
 
-    serve_parser = subparsers.add_parser("serve")
-    serve_parser.description = "Serve OneCode as an OpenAI-compatible endpoint for LibreChat."
-    serve_parser.add_argument("--host", default="127.0.0.1")
-    serve_parser.add_argument("--port", type=int, default=19080)
-    serve_parser.add_argument("--allow-unauthenticated-local", action="store_true")
-
-    shell_parser = subparsers.add_parser("shell")
-    shell_parser.description = "Launch the local OneCode Agent shell with LibreChat."
-    shell_parser.add_argument("--onecode-root", default=str(Path.cwd()))
-    shell_parser.add_argument("--librechat-dir", default=None)
-    shell_parser.add_argument("--workspace", default=None)
-    shell_parser.add_argument("--onecode-host", default="127.0.0.1")
-    shell_parser.add_argument("--onecode-port", type=int, default=19080)
-    shell_parser.add_argument("--librechat-host", default="127.0.0.1")
-    shell_parser.add_argument("--librechat-port", type=int, default=14080)
-    shell_parser.add_argument("--mongo-port", type=int, default=39017)
-    shell_parser.add_argument("--api-token", default="dev-local-token")
-    shell_parser.add_argument("--email", default="onecode@local.test")
-    shell_parser.add_argument("--password", default="OneCode123!")
-    shell_parser.add_argument("--show-credentials", action="store_true")
-    shell_parser.add_argument("--no-browser", dest="open_browser", action="store_false")
-    shell_parser.set_defaults(open_browser=True)
-
-    shell_status_parser = subparsers.add_parser("shell-status")
-    shell_status_parser.description = "Check whether the local OneCode Agent shell services are reachable."
-    shell_status_parser.add_argument("--onecode-root", default=str(Path.cwd()))
-    shell_status_parser.add_argument("--librechat-dir", default=None)
-    shell_status_parser.add_argument("--workspace", default=None)
-    shell_status_parser.add_argument("--onecode-host", default="127.0.0.1")
-    shell_status_parser.add_argument("--onecode-port", type=int, default=19080)
-    shell_status_parser.add_argument("--librechat-host", default="127.0.0.1")
-    shell_status_parser.add_argument("--librechat-port", type=int, default=14080)
-    shell_status_parser.add_argument("--mongo-port", type=int, default=39017)
-    shell_status_parser.add_argument("--api-token", default="dev-local-token")
-    shell_status_parser.add_argument("--email", default="onecode@local.test")
-    shell_status_parser.add_argument("--password", default="OneCode123!")
-    shell_status_parser.set_defaults(open_browser=False, show_credentials=True)
-
-    tui_parser = subparsers.add_parser("tui")
-    tui_parser.add_argument("--workspace", default=None)
-    tui_parser.add_argument("--model", default=None)
-    tui_parser.add_argument(
-        "--provider",
-        choices=[
-            "chat",
-            "openai-compatible",
-            "compatible",
-            "qwen",
-            "dashscope",
-            "deepseek",
-            "kimi",
-            "moonshot",
-            "zhipu",
-            "glm",
-        ],
-        default=None,
-    )
+    register_local_interface_commands(subparsers)
     return parser
 
 def build_run_plan_repair_prompt(
@@ -583,161 +507,22 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    if args.subcommand == "inspect":
-        exit_code, result = inspect_run(Path(args.workspace), args.run_id)
-        print(json.dumps(attach_shell_projection(result), ensure_ascii=False, sort_keys=True))
-        return exit_code
+    read_only_exit_code = dispatch_read_only_command(args)
+    if read_only_exit_code is not None:
+        return read_only_exit_code
 
-    if args.subcommand == "list-runs":
-        result = list_runs(Path(args.workspace))
-        print(json.dumps(attach_shell_projection_to_runs_payload(result), ensure_ascii=False, sort_keys=True))
-        return 0
+    local_interface_exit_code = dispatch_local_interface_command(args, parser)
+    if local_interface_exit_code is not None:
+        return local_interface_exit_code
 
-    if args.subcommand == "list-verifier-presets":
-        print(json.dumps(verifier_policy_presets_summary(), ensure_ascii=False, sort_keys=True))
-        return 0
-
-    if args.subcommand == "init-verifier-policy":
-        try:
-            result = write_verifier_policy(
-                workspace=Path(args.workspace),
-                output=args.output,
-                preset_ids=args.preset,
-                force=args.force,
-            )
-        except ValueError as exc:
-            parser.error(str(exc))
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return 0
-
-    if args.subcommand == "tui":
-        from onecode.tui.app import run_tui
-        run_tui(
-            workspace=Path(args.workspace) if args.workspace is not None else None,
-            model=args.model,
-            provider_kind=args.provider,
-        )
-        return 0
-
-    if args.subcommand == "serve":
-        from onecode.web.api import run_server
-
-        if args.allow_unauthenticated_local:
-            os.environ["ONECODE_ALLOW_UNAUTHENTICATED"] = "true"
-        run_server(host=args.host, port=args.port)
-        return 0
-
-    if args.subcommand == "shell":
-        from onecode.shell_launcher import config_from_args, launch_shell
-
-        try:
-            return launch_shell(config_from_args(args))
-        except (FileNotFoundError, RuntimeError) as exc:
-            parser.error(str(exc))
-
-    if args.subcommand == "shell-status":
-        from onecode.shell_launcher import config_from_args, shell_status
-
-        result = shell_status(config_from_args(args))
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return 0 if result["status"] == "ok" else 1
-
-    if args.subcommand == "doctor":
-        result = run_doctor()
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return 0 if result["status"] == "ok" else 1
+    configuration_exit_code = dispatch_configuration_command(args, parser)
+    if configuration_exit_code is not None:
+        return configuration_exit_code
 
     if args.subcommand == "audit-self":
         result = audit_self(Path.cwd(), run_doctor)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 0 if result["status"] == "ok" else 1
-
-    if args.subcommand == "math-audit":
-        graph = IchingKernel.transition_graph()
-        attractors = IchingKernel.attractor_analysis()
-        stability = IchingKernel.stability_analysis()
-        topology = IchingKernel.topology_certificate()
-        lyapunov = IchingKernel.lyapunov_certificate()
-        totality = IchingKernel.totality_certificate()
-        safety_dominance = IchingKernel.safety_dominance_certificate()
-        collision_risk = IchingKernel.collision_risk_certificate()
-        entropy_gate = {
-            "low_entropy_halt_probe": IchingKernel.entropy_gate_certificate(
-                [
-                    IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
-                    IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
-                    IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
-                ]
-            ),
-            "exploration_probe": IchingKernel.entropy_gate_certificate(
-                [
-                    IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN),
-                    IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
-                    IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN),
-                    IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN),
-                ]
-            ),
-        }
-        energies = [IchingKernel.lyapunov_energy(status_code) for status_code in range(64)]
-        result = {
-            "status": "ok",
-            "state_count": len(graph),
-            "transition_count": len(graph),
-            "attractor_count": len(attractors["attractors"]),
-            "attractors": attractors["attractors"],
-            "unclassified_state_count": len(attractors["unclassified_states"]),
-            "lyapunov_min": min(energies),
-            "lyapunov_max": max(energies),
-            "stability": stability,
-            "topology": topology,
-            "lyapunov": lyapunov,
-            "entropy_gate": entropy_gate,
-            "totality": totality,
-            "safety_dominance": safety_dominance,
-            "collision_risk": collision_risk,
-            "accepted_mappings": [
-                "transition_graph",
-                "attractor_analysis",
-                "stability_analysis",
-                "topology_certificate",
-                "lyapunov_certificate",
-                "entropy_gate_certificate",
-                "totality_certificate",
-                "safety_dominance_certificate",
-                "collision_risk_certificate",
-                "lyapunov_energy",
-                "state_distribution_entropy",
-                "hysteresis_gate",
-            ],
-            "reference_only": [
-                "probabilistic_sampling",
-                "runtime_gain_learning",
-                "multi_agent_tensor_product",
-            ],
-        }
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return 0
-
-    if args.subcommand == "shell-schema":
-        print(json.dumps(shell_projection_schema(), ensure_ascii=False, sort_keys=True))
-        return 0
-
-    if args.subcommand == "config":
-        if args.config_action == "set-model":
-            result = write_model_config(
-                endpoint=args.endpoint,
-                api_key=args.api_key,
-                model=args.model,
-                provider=args.provider,
-            )
-            print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-            return 0
-        if args.config_action == "show":
-            print(json.dumps(read_model_config(), ensure_ascii=False, sort_keys=True))
-            return 0
-        if args.config_action == "discover-models":
-            print(json.dumps(discover_models(args.endpoint, args.api_key), ensure_ascii=False, sort_keys=True))
-            return 0
 
     if args.subcommand == "benchmark":
         try:

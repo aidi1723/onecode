@@ -7,6 +7,7 @@ from unittest.mock import patch
 from onecode.kernel.checkpoint import file_lock, sha256_file, skill_selection_sha256, write_checkpoint, write_ledger
 from onecode.kernel.context import create_context
 from onecode.kernel.hexagram import COMPLETE
+from onecode.kernel.iching_encoding import RULE_SCHEMA_V2
 
 
 class CheckpointTests(unittest.TestCase):
@@ -36,11 +37,14 @@ class CheckpointTests(unittest.TestCase):
             checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
 
             self.assertEqual(checkpoint["next_state"], "000000")
+            self.assertEqual(checkpoint["rule_schema"], RULE_SCHEMA_V2)
             self.assertIn("duration_ms", checkpoint)
             self.assertGreaterEqual(checkpoint["duration_ms"], 0)
             self.assertEqual(manifest["run_id"], "checkpoint-test")
             self.assertEqual(manifest["current_state"], "000000")
             self.assertEqual(manifest["status"], "completed")
+            self.assertEqual(manifest["rule_schema"], RULE_SCHEMA_V2)
+            self.assertEqual(manifest["checkpoints"][0]["rule_schema"], RULE_SCHEMA_V2)
             self.assertFalse(manifest["partial"])
             self.assertEqual(manifest["checkpoints"][0]["sha256"], sha256_file(checkpoint_path))
             self.assertIn("duration_ms", manifest["checkpoints"][0])
@@ -62,6 +66,7 @@ class CheckpointTests(unittest.TestCase):
             ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
             self.assertEqual(ledger["run_id"], "ledger-test")
             self.assertEqual(ledger["status"], "completed")
+            self.assertEqual(ledger["rule_schema"], RULE_SCHEMA_V2)
 
     def test_write_ledger_keeps_append_only_history(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -238,7 +238,9 @@ class IchingKernelIntegrationTests(unittest.TestCase):
             registry_files = list((workspace / ".onecode" / "profile-registry").glob("*.json"))
             registry_profile = json.loads(registry_path.read_text(encoding="utf-8"))
 
-            self.assertEqual(profile_hash, sha256_text(canonical_json_line(first["iching_profile"])))
+            from onecode.kernel.checkpoint import static_profile_projection
+
+            self.assertEqual(profile_hash, sha256_text(canonical_json_line(static_profile_projection(first["iching_profile"]))))
             self.assertEqual(profile_hash, sha256_text(canonical_json_line(registry_profile)))
             self.assertIn("element_matrix", registry_profile)
             self.assertEqual(first["iching_profile"]["status_code"], registry_profile["status_code"])

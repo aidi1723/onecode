@@ -965,7 +965,7 @@ def gateway_console_html() -> str:
 
 
 class OneCodeRequestHandler(BaseHTTPRequestHandler):
-    server_version = "OneCodeHTTP/0.1"
+    server_version = "OneCodeHTTP/0.8"
 
     def do_GET(self) -> None:
         path = urlparse(self.path).path

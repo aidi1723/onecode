@@ -14,6 +14,7 @@ from onecode.kernel.inspection import (
     validate_ledger_counts,
     validate_status_document,
 )
+from onecode.kernel.iching_encoding import ACTIVE_RULE_SCHEMA
 from onecode.kernel.path_guard import PathGuard
 from onecode.kernel.patching import PatchIntent, commit_patch
 from onecode.kernel.runner import run_task
@@ -347,6 +348,7 @@ def compare_benchmark_tasks(
     onecode_metrics = onecode["metrics"]
     report = {
         "status": "completed" if onecode["status"] == "completed" else "failed",
+        "rule_schema": ACTIVE_RULE_SCHEMA,
         "task_count": len(tasks),
         "arms": {
             "baseline": baseline,
@@ -411,6 +413,7 @@ def benchmark_report_from_scores(
     evidence_complete_count = sum(1 for score in scores if score["evidence_complete"])
     return {
         "status": "completed" if passed_count == len(scores) else "failed",
+        "rule_schema": ACTIVE_RULE_SCHEMA,
         "task_count": len(tasks),
         "passed_count": passed_count,
         "failed_count": len(scores) - passed_count,

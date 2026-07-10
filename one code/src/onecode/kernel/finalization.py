@@ -6,7 +6,20 @@ from typing import Any
 from onecode.kernel.checkpoint import write_checkpoint, write_ledger
 from onecode.kernel.context import create_context
 from onecode.kernel.hexagram import COMPLETE, IchingKernel
+from onecode.kernel.iching_encoding import ACTIVE_RULE_SCHEMA
 from onecode.kernel.trace import TraceEvent, write_trace_event
+
+
+def single_balance_mutation_summary(balance_mutation: dict[str, object]) -> dict[str, object]:
+    mutation = balance_mutation["mutation"]
+    return {
+        "asset_count": 1,
+        "changed_asset_count": 1 if mutation["change_count"] > 0 else 0,
+        "total_changed_line_count": mutation["change_count"],
+        "changed_bands": mutation["changed_bands"],
+        "latest_before_status_code": mutation["before"],
+        "latest_after_status_code": mutation["after"],
+    }
 
 
 def finalize_run_event(
@@ -47,6 +60,8 @@ def finalize_run_event(
     balanced_status_code = IchingKernel.apply_balanced_event(raw_status_code, reason or status)
     balance_mask = IchingKernel.balance_mask(raw_status_code)
     balanced_transition = IchingKernel.transition(balanced_status_code)
+    balance_mutation = IchingKernel.balance_mutation_evidence(raw_status_code, balanced_status_code)
+    mutation_summary = single_balance_mutation_summary(balance_mutation)
     four_symbol_balance = IchingKernel.four_symbol_balance_vector(raw_status_code)
     run_control = IchingKernel.entropy_regulated_status([raw_status_code])
     global_status_code = int(run_control["status_code"])
@@ -73,6 +88,7 @@ def finalize_run_event(
         iching_transition_reason=iching_transition.reason,
         iching_profile=iching_profile,
         run_control=run_control_payload,
+        balance_mutation_summary=mutation_summary,
     )
     write_trace_event(
         trace_path,
@@ -91,6 +107,7 @@ def finalize_run_event(
     failed_count = 1 if status in {"denied", "halted"} else 0
     result = {
         "run_id": context.run_id,
+        "rule_schema": ACTIVE_RULE_SCHEMA,
         "status": status,
         "state": str(COMPLETE),
         "manifest_path": str(context.manifest_path),
@@ -105,6 +122,7 @@ def finalize_run_event(
         "assets": [
             {
                 "index": 1,
+                "rule_schema": ACTIVE_RULE_SCHEMA,
                 "status": status,
                 "partial": partial,
                 "reason": reason,
@@ -115,6 +133,7 @@ def finalize_run_event(
                 "balanced_status_code": balanced_status_code,
                 "balance_mask": balance_mask,
                 "balance_action": balanced_transition.action,
+                "balance_mutation": balance_mutation,
                 "four_symbol_decision": str(four_symbol_balance["decision"]),
                 "four_symbol_change_mask": int(four_symbol_balance["change_mask"]),
                 "four_symbol_reason": four_symbol_balance["reason"] if isinstance(four_symbol_balance["reason"], str) else None,
@@ -127,6 +146,7 @@ def finalize_run_event(
                 "iching_profile": iching_profile,
             }
         ],
+        "balance_mutation_summary": mutation_summary,
         "requested_count": 1,
         "completed_count": completed_count,
         "skipped_count": skipped_count,

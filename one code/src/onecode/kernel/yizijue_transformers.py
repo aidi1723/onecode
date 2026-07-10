@@ -85,6 +85,7 @@ def run_state_corpus_predictions_with_yizijue_logits(
                 json.dumps(
                     {
                         "id": row["id"],
+                        "rule_schema": row["rule_schema"],
                         "prediction": result["text"],
                     },
                     ensure_ascii=False,

@@ -397,6 +397,16 @@ class InspectCliTests(unittest.TestCase):
             self.assertEqual(summary["evidence_metrics"]["global_wal"]["entry_count"], 1)
             self.assertEqual(summary["evidence_metrics"]["global_wal"]["entries_by_capture_mode"]["full"], 1)
             self.assertIn("profile_sha256", summary)
+            self.assertEqual(
+                summary["balance_mutation_summary"],
+                {
+                    "changed_asset_count": 1,
+                    "total_changed_line_count": 1,
+                    "latest_before_status_code": 63,
+                    "latest_after_status_code": 31,
+                    "changed_bands": [],
+                },
+            )
             self.assertEqual(summary["shell_projection"]["run_id"], "inspect-wal")
             self.assertEqual(summary["shell_projection"]["severity"], "ok")
             self.assertEqual(summary["shell_projection"]["evidence_ref"]["mode"], "wal")
@@ -522,6 +532,100 @@ class InspectCliTests(unittest.TestCase):
             self.assertEqual(summary["status"], "corrupt")
             self.assertEqual(summary["corrupt_reason"], "invalid_skill_selection_evidence")
             self.assertEqual(summary["corrupt_path"], str(ledger_path.resolve()))
+
+    def test_cli_inspect_rejects_tampered_balance_mutation_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            run_task(
+                "inspect mutation tamper",
+                workspace=workspace,
+                run_id="inspect-mutation-tamper",
+                write_path="src/value.py",
+                write_content="VALUE = 1\n",
+                completed_evidence_mode="full",
+                evidence_durability="strict",
+            )
+            ledger_path = workspace / ".onecode" / "runs" / "inspect-mutation-tamper" / "ledger.json"
+            ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+            ledger["assets"][0]["balance_mutation"]["mutation"]["changed_lines"] = [0]
+            ledger_path.write_text(json.dumps(ledger, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+
+            exit_code, summary = inspect_run(workspace, "inspect-mutation-tamper")
+
+            self.assertEqual(exit_code, 1)
+            self.assertEqual(summary["status"], "corrupt")
+            self.assertEqual(summary["corrupt_reason"], "invalid_balance_mutation_evidence")
+            self.assertEqual(summary["corrupt_path"], str(ledger_path.resolve()))
+
+    def test_cli_inspect_rejects_balance_mutation_summary_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            run_task(
+                "inspect mutation summary",
+                workspace=workspace,
+                run_id="inspect-mutation-summary",
+                write_path="src/value.py",
+                write_content="VALUE = 1\n",
+                completed_evidence_mode="full",
+                evidence_durability="strict",
+            )
+            ledger_path = workspace / ".onecode" / "runs" / "inspect-mutation-summary" / "ledger.json"
+            ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+            ledger["balance_mutation_summary"]["total_changed_line_count"] = 6
+            ledger_path.write_text(json.dumps(ledger, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+
+            exit_code, summary = inspect_run(workspace, "inspect-mutation-summary")
+
+            self.assertEqual(exit_code, 1)
+            self.assertEqual(summary["status"], "corrupt")
+            self.assertEqual(summary["corrupt_reason"], "balance_mutation_summary_mismatch")
+            self.assertEqual(summary["corrupt_path"], str(ledger_path.resolve()))
+
+    def test_cli_inspect_projects_validated_full_balance_mutation_summary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_task(
+                "inspect mutation summary",
+                workspace=workspace,
+                run_id="inspect-mutation-valid",
+                write_path="src/value.py",
+                write_content="VALUE = 1\n",
+                completed_evidence_mode="full",
+                evidence_durability="strict",
+            )
+
+            exit_code, summary = inspect_run(workspace, "inspect-mutation-valid")
+            from onecode.kernel.shell_projection import project_run_to_shell
+            shell_projection = project_run_to_shell(summary)
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(summary["balance_mutation_summary"], result["balance_mutation_summary"])
+            self.assertEqual(shell_projection["version"], 4)
+            self.assertEqual(shell_projection["balance_state"]["changed_line_count"], 1)
+
+    def test_cli_inspect_rejects_manifest_checkpoint_mutation_summary_drift(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            run_task(
+                "inspect manifest mutation",
+                workspace=workspace,
+                run_id="inspect-manifest-mutation",
+                write_path="src/value.py",
+                write_content="VALUE = 1\n",
+                completed_evidence_mode="full",
+                evidence_durability="strict",
+            )
+            manifest_path = workspace / ".onecode" / "runs" / "inspect-manifest-mutation" / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["balance_mutation_summary"]["total_changed_line_count"] = 6
+            manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+
+            exit_code, summary = inspect_run(workspace, "inspect-manifest-mutation")
+
+            self.assertEqual(exit_code, 1)
+            self.assertEqual(summary["status"], "corrupt")
+            self.assertEqual(summary["corrupt_reason"], "balance_mutation_summary_mismatch")
+            self.assertEqual(summary["corrupt_path"], str(manifest_path.resolve()))
 
     def test_cli_list_runs_includes_wal_only_runs(self):
         with tempfile.TemporaryDirectory() as tmp:

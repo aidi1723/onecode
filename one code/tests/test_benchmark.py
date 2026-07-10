@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from onecode.kernel.hexagram import IchingKernel
+from onecode.kernel.iching_encoding import RULE_SCHEMA_V2
 
 class BenchmarkTests(unittest.TestCase):
     def test_load_benchmark_task_requires_id_prompt_and_expected_status(self):
@@ -120,12 +122,23 @@ class BenchmarkTests(unittest.TestCase):
             report = json.loads(report_path.read_text(encoding="utf-8"))
 
         self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["rule_schema"], RULE_SCHEMA_V2)
+        self.assertEqual(report["rule_schema"], RULE_SCHEMA_V2)
         self.assertEqual(result["task_count"], 1)
         self.assertEqual(result["passed_count"], 1)
         self.assertEqual(report["scores"][0]["task_id"], "write-file-basic")
         self.assertEqual(result["entries"][0]["result"]["shell_projection"]["run_id"], "benchmark-write-file-basic")
         self.assertEqual(result["entries"][0]["result"]["shell_projection"]["severity"], "ok")
         self.assertEqual(report["entries"][0]["result"]["shell_projection"]["severity"], "ok")
+        benchmark_result = result["entries"][0]["result"]
+        self.assertEqual(
+            benchmark_result["assets"][0]["balance_mutation"],
+            IchingKernel.balance_mutation_evidence(
+                benchmark_result["assets"][0]["raw_status_code"],
+                benchmark_result["assets"][0]["balanced_status_code"],
+            ),
+        )
+        self.assertEqual(benchmark_result["balance_mutation_summary"]["asset_count"], 1)
 
     def test_cli_benchmark_run_writes_report(self):
         from onecode.cli import main
@@ -204,6 +217,16 @@ class BenchmarkTests(unittest.TestCase):
                 workspace_root=root / "workspaces",
             )
             self.assertEqual(result["status"], "completed")
+            for entry in result["entries"]:
+                runtime_result = entry["result"]
+                self.assertEqual(
+                    runtime_result["assets"][0]["balance_mutation"],
+                    IchingKernel.balance_mutation_evidence(
+                        runtime_result["assets"][0]["raw_status_code"],
+                        runtime_result["assets"][0]["balanced_status_code"],
+                    ),
+                )
+                self.assertEqual(runtime_result["balance_mutation_summary"]["asset_count"], 1)
             self.assertEqual(result["passed_count"], 3)
             self.assertEqual(result["metrics"]["evidence_completeness"], 1.0)
             for entry in result["entries"]:
@@ -418,6 +441,7 @@ class BenchmarkTests(unittest.TestCase):
             )
 
         self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["rule_schema"], RULE_SCHEMA_V2)
         self.assertEqual(result["task_count"], 1)
         self.assertEqual(result["arms"]["onecode"]["metrics"]["pass_at_1"], 1.0)
         self.assertEqual(result["arms"]["onecode"]["metrics"]["evidence_completeness"], 1.0)

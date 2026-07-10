@@ -62,7 +62,7 @@ class TuiLayoutTests(unittest.TestCase):
             panel = WelcomePanel(app)
             text = str(panel.renderable)
 
-            self.assertIn("一字诀 OneWord v0.1.0-alpha", text)
+            self.assertIn("一字诀 OneWord v0.8.0", text)
             self.assertIn("test-model", text)
             self.assertIn("接入大模型", text)
             self.assertIn("状态: 未配置 API 密钥", text)

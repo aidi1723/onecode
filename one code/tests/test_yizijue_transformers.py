@@ -3,6 +3,8 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+from onecode.kernel.iching_encoding import RULE_SCHEMA_V2
+
 
 class FakeTokenizer:
     def __init__(self) -> None:
@@ -153,6 +155,7 @@ class YiZiJueTransformersTests(unittest.TestCase):
         rows = [
             {
                 "id": "sample-1",
+                "rule_schema": RULE_SCHEMA_V2,
                 "input": "运行 pytest 验证一下",
                 "basis": {
                     "projection": "verification_request",
@@ -197,6 +200,7 @@ class YiZiJueTransformersTests(unittest.TestCase):
         self.assertEqual(result["status"], "completed")
         self.assertEqual(result["sample_count"], 1)
         self.assertEqual(written[0]["id"], "sample-1")
+        self.assertEqual(written[0]["rule_schema"], RULE_SCHEMA_V2)
         self.assertIn("RUN_VERIFIER_IN_SANDBOX", written[0]["prediction"])
 
     def test_cli_run_yizijue_lm_transformers_eval_writes_predictions(self):

@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from onecode.kernel.hexagram import IchingKernel
+from onecode.kernel.iching_encoding import RULE_SCHEMA_V1, RULE_SCHEMA_V2
 from onecode.kernel.training_data import (
     TrainingSample,
     adjudicate_gateway_prediction,
@@ -68,8 +70,48 @@ class TrainingDataSchemaTests(unittest.TestCase):
         payload = json.loads(data["messages"][2]["content"])
 
         self.assertEqual(data["model_base"], "Qwen2.5-Coder-1.5B-Instruct")
+        self.assertEqual(data["rule_schema"], RULE_SCHEMA_V2)
         self.assertEqual(payload["facts"]["intent_type"], "write_text")
         self.assertEqual(payload["action"], "ALLOW_ATOMIC_WRITE")
+
+    def test_validate_training_sample_normalizes_legacy_missing_schema_to_v1(self):
+        sample = TrainingSample(
+            id="legacy-write",
+            user="write",
+            facts={
+                "intent_type": "write_text",
+                "path_scope": "workspace_relative",
+                "sandbox_state": "not_required",
+                "evidence_state": "required",
+            },
+            yizijue_state="111111",
+            action="ALLOW_ATOMIC_WRITE",
+            reason="safe_workspace_write",
+        ).to_dict()
+        sample.pop("rule_schema")
+
+        validated = validate_training_sample(sample)
+
+        self.assertEqual(validated["rule_schema"], RULE_SCHEMA_V1)
+
+    def test_validate_training_sample_rejects_unknown_rule_schema(self):
+        sample = TrainingSample(
+            id="unknown-schema",
+            user="write",
+            facts={
+                "intent_type": "write_text",
+                "path_scope": "workspace_relative",
+                "sandbox_state": "not_required",
+                "evidence_state": "required",
+            },
+            yizijue_state="111111",
+            action="ALLOW_ATOMIC_WRITE",
+            reason="safe_workspace_write",
+        ).to_dict()
+        sample["rule_schema"] = "unknown-schema"
+
+        with self.assertRaisesRegex(ValueError, "unknown I Ching rule schema"):
+            validate_training_sample(sample)
 
     def test_validate_training_sample_rejects_unknown_action(self):
         sample = TrainingSample(
@@ -113,6 +155,7 @@ class TrainingDataSchemaTests(unittest.TestCase):
         self.assertEqual(result["sample_count"], 1)
         self.assertEqual(len(lines), 1)
         self.assertEqual(json.loads(lines[0])["id"], "deny-outside-001")
+        self.assertEqual(json.loads(lines[0])["rule_schema"], RULE_SCHEMA_V2)
 
     def test_assistant_payload_is_compact_json(self):
         payload = assistant_payload(
@@ -129,6 +172,7 @@ class TrainingDataSchemaTests(unittest.TestCase):
 
         self.assertNotIn("\n", payload)
         self.assertEqual(json.loads(payload)["action"], "RUN_VERIFIER_IN_SANDBOX")
+        self.assertEqual(set(json.loads(payload)), {"facts", "yizijue_state", "action", "reason"})
 
 
 class YiZiJueLmDataTests(unittest.TestCase):
@@ -145,6 +189,20 @@ class YiZiJueLmDataTests(unittest.TestCase):
 
         self.assertEqual(row["output_type"], "chat_reply")
         self.assertIsNone(row["action"])
+        self.assertEqual(row["rule_schema"], RULE_SCHEMA_V1)
+
+    def test_validate_yizijue_lm_sample_rejects_unknown_rule_schema(self):
+        with self.assertRaisesRegex(ValueError, "unknown I Ching rule schema"):
+            validate_yizijue_lm_sample(
+                {
+                    "id": "chat-unknown-schema",
+                    "input": "你好",
+                    "output_type": "chat_reply",
+                    "reply": "你好",
+                    "action": None,
+                    "rule_schema": "unknown-schema",
+                }
+            )
 
     def test_validate_yizijue_lm_sample_accepts_action_json(self):
         action = json.loads(
@@ -182,6 +240,7 @@ class YiZiJueLmDataTests(unittest.TestCase):
         output_types = {row["output_type"] for row in rows}
         self.assertEqual(result["status"], "completed")
         self.assertEqual(result["sample_count"], len(rows))
+        self.assertTrue(all(row["rule_schema"] == RULE_SCHEMA_V2 for row in rows))
         self.assertIn("chat_reply", output_types)
         self.assertIn("clarify", output_types)
         self.assertIn("action_json", output_types)
@@ -192,12 +251,55 @@ class YiZiJueLmDataTests(unittest.TestCase):
         state_rows = [row for row in rows if row["id"].startswith("lm-iching-state-")]
 
         self.assertEqual(len(state_rows), 64)
+        self.assertTrue(all(row["rule_schema"] == RULE_SCHEMA_V2 for row in state_rows))
         self.assertEqual(
             {row["action"]["yizijue_state"] for row in state_rows},
             {format(status_code, "06b") for status_code in range(64)},
         )
         self.assertTrue(all(row["output_type"] == "action_json" for row in state_rows))
         self.assertTrue(all(validate_yizijue_lm_sample(row) for row in state_rows))
+
+    def test_iching_rule_rows_preserve_kernel_yin_yang_five_element_and_balance_facts(self):
+        state_row = next(row for row in iching_rule_lm_samples() if row["id"] == "lm-iching-state-101010")
+        state_record = yizijue_lm_state_rows_from_lm_rows([state_row])[0]
+        profile = IchingKernel.cross_cutting_profile(int("101010", 2))
+
+        self.assertEqual(state_record["rule_schema"], profile["rule_schema"])
+        self.assertEqual(state_record["basis"]["yin_yang"]["balance"], profile["yin_yang"]["balance"])
+        self.assertEqual(state_record["basis"]["yin_yang"]["pressure"], profile["yin_yang"]["pressure"])
+        self.assertEqual(state_record["basis"]["elements"]["outer"], profile["element_dynamics"]["outer_element"])
+        self.assertEqual(state_record["basis"]["elements"]["inner"], profile["element_dynamics"]["inner_element"])
+        self.assertEqual(state_record["basis"]["elements"]["relation"], profile["element_dynamics"]["cross_relation"])
+        self.assertEqual(state_record["basis"]["elements"]["modulation"], profile["element_dynamics"]["modulation"])
+        self.assertEqual(set(state_record["action"]), {"facts", "yizijue_state", "action", "reason"})
+
+    def test_legacy_v1_li_state_preserves_fire_semantics_under_current_kernel(self):
+        legacy_row = {
+            "id": "legacy-li-li",
+            "input": "legacy li state",
+            "output_type": "action_json",
+            "reply": "",
+            "rule_schema": RULE_SCHEMA_V1,
+            "action": json.loads(
+                assistant_payload(
+                    facts={
+                        "intent_type": "write_text",
+                        "path_scope": "workspace_relative",
+                        "sandbox_state": "not_required",
+                        "evidence_state": "required",
+                    },
+                    yizijue_state="110110",
+                    action="SOVEREIGNTY_HALT",
+                    reason="sovereignty_fire_boundary_halt",
+                )
+            ),
+        }
+
+        basis = state_basis_for_lm_row(legacy_row)
+
+        self.assertEqual(basis["trigrams"], {"outer": "li", "inner": "li"})
+        self.assertEqual(basis["elements"]["outer"], "fire")
+        self.assertEqual(basis["elements"]["inner"], "fire")
 
     def test_iching_rule_lm_samples_include_runtime_totality_mappings(self):
         rows = iching_rule_lm_samples()
@@ -293,6 +395,7 @@ class YiZiJueLmDataTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "completed")
         self.assertEqual(result["sample_count"], len(rows))
+        self.assertTrue(all(row["rule_schema"] == RULE_SCHEMA_V2 for row in rows))
         self.assertTrue(any(row["id"].startswith("lm-eval-write-") for row in rows))
         self.assertTrue(all(validate_yizijue_lm_sample(row) for row in rows))
 
@@ -309,6 +412,7 @@ class YiZiJueLmDataTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(result["status"], "completed")
         self.assertEqual(result["sample_count"], len(rows))
+        self.assertTrue(all(row["rule_schema"] == RULE_SCHEMA_V2 for row in rows))
         self.assertGreaterEqual(result["sample_count"], 20)
 
     def test_evaluate_yizijue_lm_predictions_scores_chat_clarify_and_actions(self):
@@ -531,6 +635,7 @@ class YiZiJueLmDataTests(unittest.TestCase):
                 http_timeout_seconds=7,
             )
             predictions = read_yizijue_lm_prediction_jsonl(predictions_path)
+            written_rows = [json.loads(line) for line in predictions_path.read_text(encoding="utf-8").splitlines()]
 
         self.assertEqual(result["status"], "completed")
         self.assertEqual(result["sample_count"], 2)
@@ -539,6 +644,11 @@ class YiZiJueLmDataTests(unittest.TestCase):
         self.assertEqual(provider.prompts[0]["model"], "yizijue-test")
         self.assertEqual(provider.prompts[0]["http_timeout_seconds"], 7)
         self.assertEqual(predictions["eval-write"]["action"]["action"], "ALLOW_ATOMIC_WRITE")
+        self.assertEqual(
+            {row["id"]: row["rule_schema"] for row in written_rows},
+            {"eval-chat": RULE_SCHEMA_V1, "eval-write": RULE_SCHEMA_V2},
+        )
+        self.assertEqual(predictions["eval-write"]["rule_schema"], RULE_SCHEMA_V2)
 
     def test_cli_run_yizijue_lm_eval_accepts_injected_provider(self):
         from onecode.cli import main
@@ -1020,6 +1130,7 @@ class TrainingDataExportTests(unittest.TestCase):
         self.assertGreaterEqual(result["sample_count"], 120)
         self.assertIn("yizijue_qwen15b", info)
         self.assertIn("conversations", dataset[0])
+        self.assertEqual(dataset[0]["rule_schema"], RULE_SCHEMA_V2)
         self.assertEqual(dataset[0]["conversations"][0]["from"], "system")
         self.assertEqual(dataset[0]["conversations"][2]["from"], "gpt")
 
@@ -1034,6 +1145,7 @@ class TrainingDataExportTests(unittest.TestCase):
             row = json.loads(first_line)
 
         self.assertEqual(result["status"], "completed")
+        self.assertEqual(row["rule_schema"], RULE_SCHEMA_V2)
         self.assertGreaterEqual(result["sample_count"], 120)
         self.assertIn("messages", row)
         self.assertEqual(row["messages"][0]["role"], "system")

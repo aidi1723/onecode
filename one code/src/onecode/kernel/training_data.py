@@ -19,6 +19,7 @@ from onecode.kernel.gateway_engine import (
     validate_assistant_content,
 )
 from onecode.kernel.hexagram import IchingKernel
+from onecode.kernel.iching_encoding import ACTIVE_RULE_SCHEMA, convert_status, normalize_rule_schema
 
 
 MODEL_BASE = "Qwen2.5-Coder-1.5B-Instruct"
@@ -59,11 +60,13 @@ class TrainingSample:
     action: str
     reason: str
     model_base: str = MODEL_BASE
+    rule_schema: str = ACTIVE_RULE_SCHEMA
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "model_base": self.model_base,
+            "rule_schema": normalize_rule_schema(self.rule_schema),
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": self.user},
@@ -108,8 +111,10 @@ def build_adjudicated_feedback_samples(
 def validate_training_sample(data: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError("training sample must be an object")
-    if sorted(data) != ["id", "messages", "model_base"]:
-        raise ValueError("training sample fields must be id, messages, model_base")
+    allowed_fields = {"id", "messages", "model_base", "rule_schema"}
+    if set(data) - allowed_fields or not {"id", "messages", "model_base"}.issubset(data):
+        raise ValueError("training sample fields must be id, messages, model_base, and optional rule_schema")
+    rule_schema = normalize_rule_schema(data.get("rule_schema"))
     require_string(data["id"], "id")
     if data["model_base"] != MODEL_BASE:
         raise ValueError(f"model_base must be {MODEL_BASE}")
@@ -130,7 +135,7 @@ def validate_training_sample(data: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("system prompt does not match training contract")
 
     validate_assistant_content(messages[2]["content"])
-    return data
+    return {**data, "rule_schema": rule_schema}
 
 
 def write_jsonl(path: Path, samples: list[TrainingSample]) -> dict[str, Any]:
@@ -145,8 +150,11 @@ def write_jsonl(path: Path, samples: list[TrainingSample]) -> dict[str, Any]:
 def validate_yizijue_lm_sample(data: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError("YiZiJue-LM sample must be an object")
-    if sorted(data) != ["action", "id", "input", "output_type", "reply"]:
-        raise ValueError("YiZiJue-LM sample fields must be action, id, input, output_type, reply")
+    allowed_fields = {"action", "id", "input", "output_type", "reply", "rule_schema"}
+    required_fields = {"action", "id", "input", "output_type", "reply"}
+    if set(data) - allowed_fields or not required_fields.issubset(data):
+        raise ValueError("YiZiJue-LM sample fields must be action, id, input, output_type, reply, and optional rule_schema")
+    rule_schema = normalize_rule_schema(data.get("rule_schema"))
     require_string(data["id"], "id")
     require_string(data["input"], "input")
     output_type = require_string(data["output_type"], "output_type")
@@ -165,14 +173,18 @@ def validate_yizijue_lm_sample(data: dict[str, Any]) -> dict[str, Any]:
         if action is not None:
             raise ValueError(f"{output_type} samples require action to be null")
         require_string(data["reply"], "reply")
-    return data
+    return {**data, "rule_schema": rule_schema}
 
 
 def validate_yizijue_lm_state_sample(data: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError("YiZiJue-LM state sample must be an object")
-    if sorted(data) != ["action", "basis", "id", "input", "output_type", "reply"]:
-        raise ValueError("YiZiJue-LM state sample fields must be action, basis, id, input, output_type, reply")
+    allowed_fields = {"action", "basis", "id", "input", "output_type", "reply", "rule_schema"}
+    required_fields = {"action", "basis", "id", "input", "output_type", "reply"}
+    if set(data) - allowed_fields or not required_fields.issubset(data):
+        raise ValueError(
+            "YiZiJue-LM state sample fields must be action, basis, id, input, output_type, reply, and optional rule_schema"
+        )
     base = validate_yizijue_lm_sample(
         {
             "id": data["id"],
@@ -180,6 +192,7 @@ def validate_yizijue_lm_state_sample(data: dict[str, Any]) -> dict[str, Any]:
             "output_type": data["output_type"],
             "reply": data["reply"],
             "action": data["action"],
+            **({"rule_schema": data["rule_schema"]} if "rule_schema" in data else {}),
         }
     )
     basis = data["basis"]
@@ -217,9 +230,10 @@ def validate_yizijue_lm_state_sample(data: dict[str, Any]) -> dict[str, Any]:
     return {**base, "basis": basis}
 
 
-def enrich_basis_with_kernel_profile(basis: dict[str, Any]) -> dict[str, Any]:
+def enrich_basis_with_kernel_profile(basis: dict[str, Any], rule_schema: str = ACTIVE_RULE_SCHEMA) -> dict[str, Any]:
     state = require_string(basis["state"], "basis.state")
-    status_code = int(state, 2)
+    source_schema = normalize_rule_schema(rule_schema)
+    status_code = convert_status(int(state, 2), source_schema, ACTIVE_RULE_SCHEMA)
     profile = IchingKernel.cross_cutting_profile(status_code)
     yin_yang = profile["yin_yang"]
     inner_record = profile["inner_trigram_record"]
@@ -247,6 +261,7 @@ def enrich_basis_with_kernel_profile(basis: dict[str, Any]) -> dict[str, Any]:
 
 def state_basis_for_lm_row(row: dict[str, Any]) -> dict[str, Any]:
     sample = validate_yizijue_lm_sample(row)
+    rule_schema = sample["rule_schema"]
     if sample["output_type"] == "chat_reply":
         return enrich_basis_with_kernel_profile({
             "projection": "simple_chat",
@@ -254,7 +269,7 @@ def state_basis_for_lm_row(row: dict[str, Any]) -> dict[str, Any]:
             "state_label": "chat_smalltalk",
             "transition": "reply_only",
             "rule": "simple chat returns a short local reply without execution",
-        })
+        }, rule_schema)
     if sample["output_type"] == "clarify":
         return enrich_basis_with_kernel_profile({
             "projection": "ambiguous_request",
@@ -262,7 +277,7 @@ def state_basis_for_lm_row(row: dict[str, Any]) -> dict[str, Any]:
             "state_label": "kun_clarify_boundary",
             "transition": "clarify_required",
             "rule": "ambiguous requests must ask for target, scope, and verification",
-        })
+        }, rule_schema)
     action = sample["action"]
     action_name = action["action"]
     facts = action["facts"]
@@ -273,7 +288,7 @@ def state_basis_for_lm_row(row: dict[str, Any]) -> dict[str, Any]:
             "state_label": "qian_safe_write",
             "transition": "atomic_write_allowed",
             "rule": "workspace-relative writes may proceed with evidence",
-        })
+        }, rule_schema)
     if action_name == "ALLOW_PATCH_WITH_SHA":
         return enrich_basis_with_kernel_profile({
             "projection": "safe_workspace_patch",
@@ -281,7 +296,7 @@ def state_basis_for_lm_row(row: dict[str, Any]) -> dict[str, Any]:
             "state_label": "qian_safe_patch",
             "transition": "sha_patch_allowed",
             "rule": "workspace-relative patches require sha verification",
-        })
+        }, rule_schema)
     if action_name == "RUN_VERIFIER_IN_SANDBOX":
         return enrich_basis_with_kernel_profile({
             "projection": "verification_request",
@@ -289,7 +304,7 @@ def state_basis_for_lm_row(row: dict[str, Any]) -> dict[str, Any]:
             "state_label": "kan_sandbox_verifier",
             "transition": "sandbox_required",
             "rule": "verification commands must run in a sandbox",
-        })
+        }, rule_schema)
     if action_name == "SOVEREIGNTY_HALT":
         return enrich_basis_with_kernel_profile({
             "projection": "danger_or_boundary_breach",
@@ -297,7 +312,7 @@ def state_basis_for_lm_row(row: dict[str, Any]) -> dict[str, Any]:
             "state_label": "gen_sovereignty_halt",
             "transition": "hard_halt",
             "rule": "dangerous or outside-workspace actions must halt",
-        })
+        }, rule_schema)
     if facts["intent_type"] == "invalid_intent":
         projection = "undefined_intent"
         rule = "undefined intent must be denied and recorded"
@@ -310,7 +325,7 @@ def state_basis_for_lm_row(row: dict[str, Any]) -> dict[str, Any]:
         "state_label": "kun_deny_ledger",
         "transition": "deny_and_record",
         "rule": rule,
-    })
+    }, rule_schema)
 
 
 def yizijue_lm_state_rows_from_lm_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -329,7 +344,7 @@ def yizijue_lm_state_rows_from_lm_rows(rows: list[dict[str, Any]]) -> list[dict[
 
 
 def yizijue_lm_base_samples() -> list[dict[str, Any]]:
-    return [
+    rows = [
         {
             "id": "lm-chat-hello",
             "input": "你好",
@@ -352,6 +367,7 @@ def yizijue_lm_base_samples() -> list[dict[str, Any]]:
             "action": None,
         },
     ]
+    return [validate_yizijue_lm_sample({**row, "rule_schema": ACTIVE_RULE_SCHEMA}) for row in rows]
 
 
 def yizijue_lm_action_row(
@@ -369,6 +385,7 @@ def yizijue_lm_action_row(
             "input": user_input,
             "output_type": "action_json",
             "reply": "",
+            "rule_schema": ACTIVE_RULE_SCHEMA,
             "action": validate_assistant_content(
                 assistant_payload(
                     facts=facts,
@@ -530,7 +547,7 @@ def natural_language_rule_lm_samples() -> list[dict[str, Any]]:
                     reason=spec["reason"],
                 )
             )
-    return [validate_yizijue_lm_sample(row) for row in rows]
+    return [validate_yizijue_lm_sample({**row, "rule_schema": ACTIVE_RULE_SCHEMA}) for row in rows]
 
 
 def yizijue_lm_eval_samples() -> list[dict[str, Any]]:
@@ -677,7 +694,7 @@ def yizijue_lm_eval_samples() -> list[dict[str, Any]]:
                     reason=spec["reason"],
                 )
             )
-    return [validate_yizijue_lm_sample(row) for row in rows]
+    return [validate_yizijue_lm_sample({**row, "rule_schema": ACTIVE_RULE_SCHEMA}) for row in rows]
 
 
 def build_yizijue_lm_evalset(path: Path) -> dict[str, Any]:
@@ -789,6 +806,7 @@ def iching_rule_lm_samples() -> list[dict[str, Any]]:
                 ),
                 "output_type": "action_json",
                 "reply": "",
+                "rule_schema": ACTIVE_RULE_SCHEMA,
                 "action": action_payload_for_status(status_code),
             }
         )
@@ -802,6 +820,7 @@ def iching_rule_lm_samples() -> list[dict[str, Any]]:
                 ),
                 "output_type": "action_json",
                 "reply": "",
+                "rule_schema": ACTIVE_RULE_SCHEMA,
                 "action": action_payload_for_totality_sample(sample),
             }
         )
@@ -818,6 +837,7 @@ def yizijue_lm_rows_from_training_samples(samples: list[TrainingSample]) -> list
                 "input": sample.user,
                 "output_type": "action_json",
                 "reply": "",
+                "rule_schema": sample.rule_schema,
                 "action": payload,
             }
         )
@@ -856,6 +876,7 @@ def export_llamafactory_bundle(output_dir: Path, samples: list[TrainingSample]) 
         rows.append(
             {
                 "id": sample["id"],
+                "rule_schema": sample["rule_schema"],
                 "conversations": [
                     {"from": "system", "value": messages[0]["content"]},
                     {"from": "human", "value": messages[1]["content"]},
@@ -895,7 +916,14 @@ def export_axolotl_jsonl(output_dir: Path, samples: list[TrainingSample]) -> dic
     rows = sample_dicts(samples)
     with dataset_path.open("w", encoding="utf-8") as handle:
         for row in rows:
-            handle.write(json.dumps({"messages": row["messages"]}, ensure_ascii=False, sort_keys=True) + "\n")
+            handle.write(
+                json.dumps(
+                    {"messages": row["messages"], "rule_schema": row["rule_schema"]},
+                    ensure_ascii=False,
+                    sort_keys=True,
+                )
+                + "\n"
+            )
     config = (
         "datasets:\n"
         f"  - path: {dataset_path.name}\n"
@@ -1080,7 +1108,11 @@ def evaluate_training_predictions(
     }
 
 
-def normalize_yizijue_lm_prediction(sample_id: str, prediction: dict[str, Any]) -> dict[str, Any]:
+def normalize_yizijue_lm_prediction(
+    sample_id: str,
+    prediction: dict[str, Any],
+    rule_schema: str | None = None,
+) -> dict[str, Any]:
     if not isinstance(prediction, dict):
         raise ValueError("prediction must be an object")
     return validate_yizijue_lm_sample(
@@ -1090,11 +1122,16 @@ def normalize_yizijue_lm_prediction(sample_id: str, prediction: dict[str, Any]) 
             "output_type": prediction.get("output_type"),
             "reply": prediction.get("reply"),
             "action": prediction.get("action"),
+            **({"rule_schema": rule_schema} if rule_schema is not None else {}),
         }
     )
 
 
-def normalize_yizijue_lm_state_prediction(sample_id: str, prediction: dict[str, Any]) -> dict[str, Any]:
+def normalize_yizijue_lm_state_prediction(
+    sample_id: str,
+    prediction: dict[str, Any],
+    rule_schema: str | None = None,
+) -> dict[str, Any]:
     if not isinstance(prediction, dict):
         raise ValueError("prediction must be an object")
     return validate_yizijue_lm_state_sample(
@@ -1105,6 +1142,7 @@ def normalize_yizijue_lm_state_prediction(sample_id: str, prediction: dict[str, 
             "output_type": prediction.get("output_type"),
             "reply": prediction.get("reply"),
             "action": prediction.get("action"),
+            **({"rule_schema": rule_schema} if rule_schema is not None else {}),
         }
     )
 
@@ -1284,7 +1322,11 @@ def read_yizijue_lm_state_prediction_jsonl(path: Path) -> dict[str, dict[str, An
             raise ValueError(f"line {line_number}: id must be a non-empty string")
         prediction = row.get("prediction")
         try:
-            predictions[sample_id] = normalize_yizijue_lm_state_prediction(sample_id, prediction)
+            predictions[sample_id] = normalize_yizijue_lm_state_prediction(
+                sample_id,
+                prediction,
+                normalize_rule_schema(row.get("rule_schema")),
+            )
         except ValueError as exc:
             raise ValueError(f"line {line_number}: {exc}") from exc
     return predictions
@@ -1306,7 +1348,11 @@ def read_yizijue_lm_prediction_jsonl(path: Path) -> dict[str, dict[str, Any]]:
             raise ValueError(f"line {line_number}: id must be a non-empty string")
         prediction = row.get("prediction")
         try:
-            predictions[sample_id] = normalize_yizijue_lm_prediction(sample_id, prediction)
+            predictions[sample_id] = normalize_yizijue_lm_prediction(
+                sample_id,
+                prediction,
+                normalize_rule_schema(row.get("rule_schema")),
+            )
         except ValueError as exc:
             raise ValueError(f"line {line_number}: {exc}") from exc
     return predictions
@@ -1360,6 +1406,7 @@ def run_yizijue_lm_eval_predictions(
                 json.dumps(
                     {
                         "id": row["id"],
+                        "rule_schema": row["rule_schema"],
                         "prediction": {
                             "output_type": prediction["output_type"],
                             "reply": prediction["reply"],
@@ -1386,6 +1433,7 @@ def training_samples_from_rows(rows: list[dict[str, Any]]) -> list[TrainingSampl
                 yizijue_state=payload["yizijue_state"],
                 action=payload["action"],
                 reason=payload["reason"],
+                rule_schema=normalize_rule_schema(row.get("rule_schema")),
             )
         )
     return samples

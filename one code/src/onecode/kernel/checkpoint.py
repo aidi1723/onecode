@@ -14,6 +14,7 @@ from typing import Any
 from onecode.kernel.context import OneCodeContext
 from onecode.kernel.evidence_policy import classify_event
 from onecode.kernel.hexagram import HexagramStatusCode
+from onecode.kernel.iching_encoding import ACTIVE_RULE_SCHEMA, normalize_rule_schema
 from onecode.kernel.wal import wal_entry_hash
 
 _RUN_LOCKS: dict[Path, threading.Lock] = {}
@@ -131,11 +132,15 @@ def rotate_global_wal_if_needed(wal_path: Path) -> None:
 
 
 STATIC_PROFILE_KEYS = {
+    "rule_schema",
     "status_code",
     "binary",
     "math",
     "dimension",
     "triadic",
+    "position",
+    "correspondence",
+    "perspective",
     "mutation",
     "nuclear",
     "outer_trigram",
@@ -144,6 +149,8 @@ STATIC_PROFILE_KEYS = {
     "liangyi",
     "outer_trigram_record",
     "inner_trigram_record",
+    "outer_trigram_virtue",
+    "inner_trigram_virtue",
     "trigram_records",
     "outer_element",
     "inner_element",
@@ -166,7 +173,44 @@ STATIC_PROFILE_KEYS = {
 
 
 def static_profile_projection(profile: dict[str, Any]) -> dict[str, Any]:
-    return {key: profile[key] for key in sorted(STATIC_PROFILE_KEYS) if key in profile}
+    projection = {key: profile[key] for key in sorted(STATIC_PROFILE_KEYS) if key in profile}
+    position = projection.get("position")
+    if isinstance(position, dict):
+        projection["position"] = {
+            "proper_line_count": position.get("proper_line_count"),
+            "central_proper_lines": position.get("central_proper_lines"),
+            "middle_alignment": position.get("middle_alignment"),
+        }
+    correspondence = projection.get("correspondence")
+    if isinstance(correspondence, dict):
+        response_pairs = correspondence.get("response_pairs")
+        adjacent_pairs = correspondence.get("adjacent_pairs")
+        third_fourth_boundary = correspondence.get("third_fourth_boundary")
+        projection["correspondence"] = {
+            "responsive_pair_count": correspondence.get("responsive_pair_count"),
+            "response_pattern": [pair.get("responsive") for pair in response_pairs if isinstance(pair, dict)]
+            if isinstance(response_pairs, list)
+            else [],
+            "adjacent_pattern": [pair.get("responsive") for pair in adjacent_pairs if isinstance(pair, dict)]
+            if isinstance(adjacent_pairs, list)
+            else [],
+            "third_fourth_responsive": third_fourth_boundary.get("responsive")
+            if isinstance(third_fourth_boundary, dict)
+            else None,
+        }
+    perspective = projection.get("perspective")
+    if isinstance(perspective, dict):
+        projection["perspective"] = {
+            "opposite_status_code": perspective.get("opposite_status_code"),
+            "inverse_status_code": perspective.get("inverse_status_code"),
+        }
+    for key in ("inner_trigram_virtue", "outer_trigram_virtue"):
+        virtue = projection.get(key)
+        if isinstance(virtue, dict):
+            projection[key] = {
+                "virtue": virtue.get("virtue"),
+            }
+    return projection
 
 
 def profile_sha256(profile: dict[str, Any]) -> str:
@@ -225,6 +269,7 @@ def compact_iching_profile(
         harmony = {}
     return {
         "profile_format": "compact_v1",
+        "rule_schema": normalize_rule_schema(profile.get("rule_schema")),
         "profile_sha256": digest,
         "profile_registry_ref": registry_ref or profile_registry_ref(digest),
         "status_code": profile.get("status_code"),
@@ -328,6 +373,7 @@ def global_wal_entry(context: OneCodeContext, result: dict[str, Any]) -> dict[st
         "sc": result.get("skipped_count"),
         "fc": result.get("failed_count"),
         "isc": result.get("iching_status_code"),
+        "rsv": normalize_rule_schema(result.get("rule_schema", ACTIVE_RULE_SCHEMA)),
         "ita": result.get("iching_transition_action"),
         "ph": profile_hash,
         "pr": profile_ref,
@@ -349,6 +395,14 @@ def global_wal_entry(context: OneCodeContext, result: dict[str, Any]) -> dict[st
         wal_assets = global_wal_asset_entries(result)
         if wal_assets:
             entry["as"] = wal_assets
+    mutation_summary = result.get("balance_mutation_summary")
+    if isinstance(mutation_summary, dict):
+        entry["bm"] = [
+            mutation_summary.get("changed_asset_count"),
+            mutation_summary.get("total_changed_line_count"),
+            mutation_summary.get("latest_before_status_code"),
+            mutation_summary.get("latest_after_status_code"),
+        ]
     return entry
 
 
@@ -746,8 +800,10 @@ def write_checkpoint(
     iching_profile: dict[str, Any] | None = None,
     duration_ms: int = 0,
     run_control: dict[str, Any] | None = None,
+    rule_schema: str = ACTIVE_RULE_SCHEMA,
     domain_projection: dict[str, Any] | None = None,
     skill_selection: dict[str, Any] | None = None,
+    balance_mutation_summary: dict[str, Any] | None = None,
 ) -> Path:
     with run_evidence_write_lock(context.evidence_root):
         existing_manifest = read_manifest(context.manifest_path)
@@ -770,8 +826,10 @@ def write_checkpoint(
         if status == "completed" and not partial and reason is None:
             registry_ref = ensure_profile_registry_entry(context.workspace_root, iching_profile)
         evidence_profile = compact_completed_evidence_profile(status, partial, reason, iching_profile, registry_ref)
+        evidence_rule_schema = normalize_rule_schema(rule_schema)
         checkpoint = {
             "run_id": context.run_id,
+            "rule_schema": evidence_rule_schema,
             "turn_index": turn_number,
             "previous_state": str(context.state),
             "next_state": str(next_state),
@@ -786,6 +844,7 @@ def write_checkpoint(
             "iching_profile": evidence_profile,
             "duration_ms": duration_ms,
             "run_control": run_control,
+            "balance_mutation_summary": balance_mutation_summary,
             "resumed_from": resumed_from,
             "ready_assets": ready_assets,
             "resume_audit_events": resume_audit_events,
@@ -799,6 +858,7 @@ def write_checkpoint(
         checkpoint_hash = sha256_file(checkpoint_path)
         checkpoint_record = {
             "path": str(checkpoint_path),
+            "rule_schema": evidence_rule_schema,
             "sha256": checkpoint_hash,
             "turn_index": turn_number,
             "status": status,
@@ -812,6 +872,7 @@ def write_checkpoint(
             "iching_profile": evidence_profile,
             "duration_ms": duration_ms,
             "run_control": run_control,
+            "balance_mutation_summary": balance_mutation_summary,
             "resumed_from": resumed_from,
             "ready_assets": ready_assets,
             "resume_audit_events": resume_audit_events,
@@ -834,6 +895,7 @@ def write_checkpoint(
                 checkpoint_record["patch_evidence"] = patch_evidence
         manifest = {
             "manifest_schema_version": 1,
+            "rule_schema": evidence_rule_schema,
             "run_id": context.run_id,
             "created_at": existing_manifest.get("created_at") if existing_manifest else utc_now_iso(),
             "updated_at": utc_now_iso(),
@@ -846,6 +908,7 @@ def write_checkpoint(
             "iching_transition_action": iching_transition_action,
             "iching_transition_reason": iching_transition_reason,
             "iching_profile": evidence_profile,
+            "balance_mutation_summary": balance_mutation_summary,
             **(run_control or {}),
             "resumed_from": resumed_from,
             "ready_assets": ready_assets,
@@ -867,6 +930,7 @@ def write_ledger(context: OneCodeContext, result: dict[str, Any]) -> Path:
     ledger_path = context.evidence_root / "ledger.json"
     ledger_history_path = context.evidence_root / "ledger.jsonl"
     evidence_result = dict(result)
+    evidence_result["rule_schema"] = normalize_rule_schema(result.get("rule_schema", ACTIVE_RULE_SCHEMA))
     evidence_skill_selection = validate_skill_selection(result.get("skill_selection"))
     if evidence_skill_selection is not None:
         evidence_result["skill_selection"] = evidence_skill_selection

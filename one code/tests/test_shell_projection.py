@@ -3,8 +3,10 @@ import unittest
 
 class ShellProjectionTests(unittest.TestCase):
     def test_shell_projection_schema_is_explicit_and_stable(self):
+        from onecode.kernel.iching_encoding import RULE_SCHEMA_V1
         from onecode.kernel.shell_projection import (
             CONTROL_STATE_FIELDS,
+            BALANCE_STATE_FIELDS,
             DELIVERY_STATE_FIELDS,
             EVIDENCE_REF_FIELDS,
             RESUME_STATE_FIELDS,
@@ -16,14 +18,16 @@ class ShellProjectionTests(unittest.TestCase):
 
         projection = project_run_to_shell({"run_id": "schema-run", "status": "completed"})
 
-        self.assertEqual(SHELL_PROJECTION_VERSION, 2)
+        self.assertEqual(SHELL_PROJECTION_VERSION, 4)
         self.assertEqual(tuple(projection.keys()), SHELL_PROJECTION_FIELDS)
         self.assertEqual(tuple(projection["rule_state"].keys()), RULE_STATE_FIELDS)
         self.assertEqual(tuple(projection["control_state"].keys()), CONTROL_STATE_FIELDS)
+        self.assertEqual(tuple(projection["balance_state"].keys()), BALANCE_STATE_FIELDS)
         self.assertEqual(tuple(projection["delivery_state"].keys()), DELIVERY_STATE_FIELDS)
         self.assertEqual(tuple(projection["evidence_ref"].keys()), EVIDENCE_REF_FIELDS)
         self.assertEqual(tuple(projection["resume_state"].keys()), RESUME_STATE_FIELDS)
         self.assertEqual(projection["version"], SHELL_PROJECTION_VERSION)
+        self.assertEqual(projection["rule_state"]["rule_schema"], RULE_SCHEMA_V1)
 
     def test_shell_projection_schema_payload_is_machine_readable(self):
         from onecode.kernel.shell_projection import shell_projection_schema
@@ -31,10 +35,11 @@ class ShellProjectionTests(unittest.TestCase):
         schema = shell_projection_schema()
 
         self.assertEqual(schema["name"], "onecode.shell_projection")
-        self.assertEqual(schema["version"], 2)
+        self.assertEqual(schema["version"], 4)
         self.assertEqual(schema["fields"]["severity"]["values"], ["blocked", "corrupt", "missing", "ok", "warning"])
         self.assertIn("rule_state", schema["fields"])
         self.assertIn("control_state", schema["fields"])
+        self.assertIn("balance_state", schema["fields"])
         self.assertIn("evidence_ref", schema["fields"])
         self.assertEqual(
             schema["nested_fields"]["control_state"],
@@ -166,7 +171,7 @@ class ShellProjectionTests(unittest.TestCase):
             }
         )
 
-        self.assertEqual(projection["version"], 2)
+        self.assertEqual(projection["version"], 4)
         self.assertEqual(projection["run_id"], "wal-run")
         self.assertEqual(projection["status_label"], "completed")
         self.assertEqual(projection["severity"], "ok")
@@ -181,6 +186,50 @@ class ShellProjectionTests(unittest.TestCase):
         self.assertEqual(projection["evidence_ref"]["profile_sha256"], "abc123")
         self.assertIn("wal-run", projection["compact_message"])
         self.assertIn("completed", projection["compact_message"])
+
+    def test_balance_state_projects_full_summary_without_changing_control_decisions(self):
+        from onecode.kernel.shell_projection import project_run_to_shell
+
+        projection = project_run_to_shell(
+            {
+                "run_id": "balance-full",
+                "status": "completed",
+                "balance_mutation_summary": {
+                    "asset_count": 2,
+                    "changed_asset_count": 2,
+                    "total_changed_line_count": 2,
+                    "changed_bands": ["heaven"],
+                    "latest_before_status_code": 63,
+                    "latest_after_status_code": 31,
+                },
+            }
+        )
+
+        self.assertEqual(projection["severity"], "ok")
+        self.assertEqual(projection["next_action"], "idle")
+        self.assertEqual(
+            projection["balance_state"],
+            {
+                "changed_asset_count": 2,
+                "changed_line_count": 2,
+                "changed_bands": ["heaven"],
+                "before_status_code": 63,
+                "after_status_code": 31,
+            },
+        )
+
+    def test_balance_state_projects_wal_tuple_alias(self):
+        from onecode.kernel.shell_projection import project_run_to_shell
+
+        projection = project_run_to_shell(
+            {"run_id": "balance-wal", "status": "completed", "bm": [1, 1, 63, 31]}
+        )
+
+        self.assertEqual(projection["balance_state"]["changed_asset_count"], 1)
+        self.assertEqual(projection["balance_state"]["changed_line_count"], 1)
+        self.assertEqual(projection["balance_state"]["changed_bands"], [])
+        self.assertEqual(projection["balance_state"]["before_status_code"], 63)
+        self.assertEqual(projection["balance_state"]["after_status_code"], 31)
 
     def test_wal_compact_skill_aliases_project_to_control_state(self):
         from onecode.kernel.shell_projection import project_run_to_shell

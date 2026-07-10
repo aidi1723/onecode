@@ -40,7 +40,9 @@ work, record verification evidence, and prepare the GitHub repository update.
 
 - Added structured JSON request body parsing diagnostics.
 - Preserved `_read_json()` compatibility while adding result-based error handling.
-- Exposed compact skill state in shell projection schema version 2.
+- Exposed compact skill state in shell projection schema version 2 at the time
+  of this maintenance entry; the 2026-07-10 I Ching schema cutover later bumped
+  the projection to version 3.
 - Ensured inspect/list consumers receive bounded aliases instead of raw skill detail.
 
 ### Documentation

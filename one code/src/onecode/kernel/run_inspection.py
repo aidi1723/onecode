@@ -18,6 +18,7 @@ from onecode.kernel.inspection import (
     LEDGER_COUNT_FIELDS,
     read_json,
     validate_checkpoint_evidence,
+    validate_balance_mutation_evidence,
     validate_evidence_chain,
     validate_ledger_counts,
     validate_status_document,
@@ -25,7 +26,7 @@ from onecode.kernel.inspection import (
 )
 from onecode.kernel.run_id import validate_run_id
 from onecode.kernel.trace import TraceEvent, trace_evidence_metrics, write_trace_event
-from onecode.kernel.wal import global_wal_evidence_metrics, global_wal_paths
+from onecode.kernel.wal import decode_balance_mutation_tuple, global_wal_evidence_metrics, global_wal_paths
 
 
 def delivery_summary(ledger: dict) -> dict[str, int | str]:
@@ -449,6 +450,7 @@ def inspect_global_wal_run(workspace: Path, run_id: str) -> tuple[int, dict] | N
         "ssh": entry.get("ssh"),
         "ssr": entry.get("ssr"),
         "ssc": entry.get("ssc"),
+        "balance_mutation_summary": decode_balance_mutation_tuple(entry.get("bm")),
         "manifest_path": entry.get("mp"),
         "ledger_path": entry.get("lp"),
         "wal_path": entry_wal_path,
@@ -521,6 +523,9 @@ def validate_run_documents(
     corrupt_path, corrupt_reason = validate_ledger_counts(ledger, ledger_path)
     if corrupt_path is not None:
         return None, {}, corrupt_inspection_payload(run_id, corrupt_path, corrupt_reason, manifest_path, ledger_path)
+    corrupt_path, corrupt_reason = validate_balance_mutation_evidence(ledger, ledger_path)
+    if corrupt_path is not None:
+        return None, {}, corrupt_inspection_payload(run_id, corrupt_path, corrupt_reason, manifest_path, ledger_path)
     if "checkpoints" not in manifest:
         return None, {}, corrupt_inspection_payload(
             run_id,
@@ -549,6 +554,15 @@ def validate_run_documents(
     corrupt_path, corrupt_reason = validate_checkpoint_evidence(checkpoints, manifest_path)
     if corrupt_path is not None:
         return None, {}, corrupt_inspection_payload(run_id, corrupt_path, corrupt_reason, manifest_path, ledger_path)
+    latest_checkpoint_summary = checkpoints[-1].get("balance_mutation_summary") if checkpoints else None
+    if manifest.get("balance_mutation_summary") != latest_checkpoint_summary:
+        return None, {}, corrupt_inspection_payload(
+            run_id,
+            str(manifest_path),
+            "balance_mutation_summary_mismatch",
+            manifest_path,
+            ledger_path,
+        )
     if all(field in ledger for field in LEDGER_COUNT_FIELDS):
         resolved_count = ledger["completed_count"] + ledger["skipped_count"] + ledger["failed_count"]
         if resolved_count != len(checkpoints):
@@ -632,6 +646,9 @@ def run_inspection_summary(
         ),
         "iching_transition_reason": ledger.get(
             "iching_transition_reason", manifest.get("iching_transition_reason")
+        ),
+        "balance_mutation_summary": ledger.get(
+            "balance_mutation_summary", manifest.get("balance_mutation_summary")
         ),
         "assets": checkpoint_assets(checkpoints, workspace_root),
         "manifest_path": str(manifest_path),
