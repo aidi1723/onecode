@@ -98,8 +98,24 @@ Publish action: not performed
 The single skipped test requires the optional `ONECODE_GLOBAL_COMMAND`
 environment configuration and does not represent a source failure.
 
-The GitHub commit and push identifiers are appended only after those actions
-complete successfully.
+## GitHub Update Record
+
+The verified version source was committed and pushed successfully:
+
+```text
+Repository: aidi1723/onecode
+Branch: feature/gateway-iching-rule-sync
+Version commit: 35ac8fa
+Commit subject: release: prepare OneCode v0.8.0 canonical runtime
+Remote update: 93255bf..35ac8fa
+```
+
+The update contains only files under the `one code/` project directory. Parent
+repository projects, local images, reports, datasets, and unrelated worktree
+changes were not staged or pushed.
+
+No merge into `main`, GitHub Release creation, package publication, or
+production deployment was performed.
 
 ## Residual Maintenance
 
