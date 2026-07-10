@@ -78,7 +78,8 @@ Focused verification was also performed during the session for:
 - [x] source changes scoped to project root
 - [x] parent-directory unrelated files excluded from release scope
 - [x] no new runtime third-party dependency introduced
-- [x] Apache-2.0 license record preserved
+- [x] Apache-2.0 license record preserved at the time of this maintenance pass;
+      relicensed to GPL-3.0-only on 2026-07-10
 - [x] tests and doctor gate passed
 - [x] residual risks recorded
 - [x] GitHub branch update requested by owner

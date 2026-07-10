@@ -110,7 +110,8 @@ Console 当前覆盖：
 
 ```text
 Copyright (c) 2026 aidi
-Licensed under the Apache License, Version 2.0.
+This phase was originally recorded under Apache License 2.0. The project was
+relicensed to GPL-3.0-only on 2026-07-10.
 ```
 
 ## 4. 验证证据

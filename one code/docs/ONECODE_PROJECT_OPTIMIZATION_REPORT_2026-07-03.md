@@ -360,7 +360,9 @@ Pre-publication checklist:
 
 - source and test changes are intentional project hardening work
 - no new runtime third-party dependency was introduced
-- license remains Apache-2.0 as recorded in `LICENSE` and `README.md`
+- at the time of this report, the license remained Apache-2.0; the project was
+  relicensed to GPL-3.0-only on 2026-07-10, as recorded in
+  `docs/ONECODE_GPL_V3_RELICENSING_CLOSURE_2026-07-10.md`
 - release docs record the read-only skill boundary and residual risks
 - final verification evidence is captured in this report and in `docs/ONECODE_MAINTENANCE_LOG_2026-07-03.md`
 

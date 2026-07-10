@@ -74,7 +74,8 @@ Readiness checklist:
 - [x] closure report updated
 - [x] maintenance log added
 - [x] no new runtime dependency introduced
-- [x] Apache-2.0 license record preserved
+- [x] Apache-2.0 license record preserved at the time of this handoff; the
+      project was relicensed to GPL-3.0-only on 2026-07-10
 - [x] residual risks documented
 
 Publication path:

@@ -103,3 +103,17 @@ Not applicable for this pass:
 - No production deployment is performed.
 - No GitHub Release or package registry publication is performed.
 - No merge into `main` is performed without a separate operator instruction.
+
+## 2026-07-10 GPL v3 Relicensing Pass
+
+- [x] `LICENSE` contains the unmodified GNU General Public License Version 3 text.
+- [x] `pyproject.toml` declares the PEP 639 SPDX expression `GPL-3.0-only`
+      without the superseded License classifier.
+- [x] README identifies GPL v3 only and its source-availability obligation.
+- [x] Historical Apache statements are retained only as dated historical context.
+- [x] Local contributor history shows project-controlled author identities and no separate external contributor identity.
+- [x] No `NOTICE`, bundled third-party source license, or alternate copying file was found in the project tree.
+- [x] Automated license consistency coverage was added.
+- [x] Full verification passed with 825 tests and 1 environment-dependent skip;
+      wheel metadata reports `License-Expression: GPL-3.0-only` and includes
+      `License-File: LICENSE`.

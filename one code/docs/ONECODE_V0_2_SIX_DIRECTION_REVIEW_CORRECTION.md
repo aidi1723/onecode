@@ -12,7 +12,8 @@ v0.1 or early v0.2 gaps as current defects.
 - Result: `384 tests OK`
 - Doctor: `status: ok`
 - Core posture: local-first, rule-constrained, evidence-first Agent kernel
-- License posture: Apache License 2.0, copyright `aidi`
+- License posture at the time of review: Apache License 2.0, copyright `aidi`;
+  relicensed to GPL-3.0-only on 2026-07-10
 
 ## Corrections To Earlier Review Claims
 

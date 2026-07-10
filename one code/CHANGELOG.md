@@ -2,6 +2,15 @@
 
 ## 0.8.0 - 2026-07-10 - Canonical I Ching Runtime and Evidence Cutover
 
+### Licensing
+
+- Changed the project license from Apache License 2.0 to GNU General Public
+  License Version 3 only (`GPL-3.0-only`).
+- Replaced `LICENSE` with the unmodified GNU GPL v3 official text and aligned
+  PEP 639 package metadata, README, historical license notes, and release
+  records.
+- Added a license consistency test and a dedicated relicensing closure record.
+
 ### Added
 
 - Added immutable `onecode-iching-v1` and `onecode-iching-v2` trigram schemas.

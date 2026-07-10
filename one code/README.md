@@ -7,7 +7,9 @@ recorded in `docs/ONECODE_V0_8_FINAL_CLOSURE_2026-07-10.md`.
 
 The core kernel has no runtime third-party dependency. Textual is an optional TUI dependency.
 
-OneCode is licensed under the Apache License, Version 2.0.
+OneCode is licensed under the GNU General Public License, Version 3 only
+(`GPL-3.0-only`). Modified and redistributed versions must remain under GPL v3
+and provide the corresponding source as required by the license.
 
 The short module entrypoint is `python3 -m onecode`. The older explicit CLI module form, such as `python3 -m onecode.cli doctor`, remains supported.
 

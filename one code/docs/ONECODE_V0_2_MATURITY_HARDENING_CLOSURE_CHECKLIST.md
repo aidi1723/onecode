@@ -18,7 +18,9 @@
 This phase adds the v0.2 foundations for sandboxing, observability, human
 approval evidence, benchmark definitions, and release governance. It does not
 yet make every kernel execution path run inside Docker. The project is licensed
-under the Apache License, Version 2.0, with copyright assigned to `aidi`.
+under the Apache License, Version 2.0, with copyright assigned to `aidi`, at
+the time of that closure. The project was relicensed to GPL-3.0-only on
+2026-07-10.
 
 ## Verification
 
