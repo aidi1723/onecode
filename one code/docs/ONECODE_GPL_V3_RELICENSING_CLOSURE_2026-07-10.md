@@ -52,9 +52,19 @@ evidence authority, or public data contracts.
 
 ## Publication Boundary
 
-This record documents the local source migration. A GitHub push, branch merge,
-GitHub Release, package publication, or production deployment requires a
-separate explicit publication action and verification record.
+The verified migration was committed and pushed to the existing GitHub feature
+branch:
+
+```text
+Repository: aidi1723/onecode
+Branch: feature/gateway-iching-rule-sync
+License commit: 4878c18
+Commit subject: license: relicense OneCode under GPL-3.0-only
+Remote update: 10d8adf..4878c18
+```
+
+No merge into `main`, GitHub Release, package registry publication, or
+production deployment was performed.
 
 ## Verification Record
 
