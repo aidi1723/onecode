@@ -1,4 +1,5 @@
 from pathlib import Path
+import inspect
 from typing import Any, Callable
 
 from onecode.kernel.model_provider import (
@@ -17,6 +18,7 @@ from onecode.kernel.context import create_context
 from onecode.kernel.hexagram import COMPLETE
 from onecode.kernel.runner import run_task
 from onecode.kernel.trace import TraceEvent, write_trace_event
+from onecode.kernel.safe_agent_router import SafeAgentRoute, route_safe_agent_task
 
 
 def write_texts_from_plan(plan: ModelPlan) -> list[str]:
@@ -191,6 +193,8 @@ def execute_model_plan(
     run_id: str | None,
     resume_from_run_id: str | None,
     run_metadata: dict[str, Any],
+    require_explicit_approval: bool = False,
+    approval_callback: Callable[[ExecutionStep], bool] | None = None,
 ) -> dict[str, Any]:
     if plan.execution_steps:
         context = create_context(workspace_root=workspace, run_id=run_id, resume_from_run_id=resume_from_run_id)
@@ -199,6 +203,8 @@ def execute_model_plan(
             workspace=workspace,
             run_id=context.run_id,
             resume_from_run_id=resume_from_run_id,
+            approval_callback=approval_callback,
+            require_explicit_approval=require_explicit_approval,
         )
         trace_dict = execution_trace_to_dict(trace)
         result = {
@@ -251,6 +257,88 @@ def execute_model_plan(
     )
 
 
+def resolve_safe_agent_planning_context(
+    task: str,
+    task_mode: str | None,
+    safe_agent_route: SafeAgentRoute | None,
+) -> tuple[SafeAgentRoute | None, dict[str, Any]]:
+    route = safe_agent_route
+    if task_mode is not None and route is None:
+        route = route_safe_agent_task(task)
+    safe_agent_context = (
+        route.to_planning_context()
+        if route is not None
+        else {"status": "not_requested", "safety_boundary": "method_only"}
+    )
+    return route, {"task_mode": task_mode, "safe_agent": safe_agent_context}
+
+
+def invalid_safe_agent_result(run_id: str | None, route: SafeAgentRoute) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "status": "halted",
+        "reason": "safe_agent_router_invalid",
+        "partial": True,
+        "requested_count": 0,
+        "completed_count": 0,
+        "skipped_count": 0,
+        "failed_count": 1,
+        "assets": [],
+        "safe_agent": route.to_planning_context(),
+    }
+
+
+def no_action_result(
+    *,
+    model_context: Any,
+    trace_path: Path,
+    plan: ModelPlan,
+    provider_config: Any,
+    resolved_model: str,
+    safe_agent_context: object,
+) -> dict[str, Any]:
+    return {
+        "run_id": model_context.run_id,
+        "status": "halted",
+        "reason": "no_actionable_plan",
+        "detail": plan.no_action_reason,
+        "partial": True,
+        "intent_type": "no_action",
+        "trace_id": model_context.run_id,
+        "trace_path": str(trace_path),
+        "manifest_path": None,
+        "ledger_path": None,
+        "requested_count": 0,
+        "completed_count": 0,
+        "skipped_count": 0,
+        "failed_count": 1,
+        "assets": [],
+        "model_provider": "openai" if provider_config.env_key == "OPENAI_API_KEY" else provider_config.provider_kind,
+        "model": resolved_model,
+        "safe_agent": safe_agent_context,
+    }
+
+
+def resolve_model_runtime(
+    provider_kind: str,
+    endpoint: str | None,
+    model: str | None,
+    api_key: str | None,
+) -> tuple[Any, str, str]:
+    provider_config = build_provider_config(provider_kind, endpoint=endpoint, model=model)
+    resolved_api_key = api_key if api_key is not None else api_key_from_env(provider_kind=provider_kind)
+    if resolved_api_key is None:
+        raise MissingModelApiKey(f"{provider_config.env_key} is required for model-backed runs")
+    return provider_config, provider_config.model, resolved_api_key
+
+
+def validate_model_task_limits(http_timeout_seconds: float, max_repair_attempts: int) -> None:
+    if isinstance(http_timeout_seconds, bool) or not isinstance(http_timeout_seconds, (int, float)) or http_timeout_seconds <= 0:
+        raise ValueError("http_timeout_seconds must be greater than zero")
+    if isinstance(max_repair_attempts, bool) or not isinstance(max_repair_attempts, int) or max_repair_attempts < 0:
+        raise ValueError("max_repair_attempts must be a non-negative integer")
+
+
 def run_model_task(
     task: str,
     workspace: Path,
@@ -264,18 +352,20 @@ def run_model_task(
     endpoint: str | None = None,
     plan_approval: Callable[[ModelPlan], bool] | None = None,
     max_repair_attempts: int = 0,
+    task_mode: str | None = None,
+    safe_agent_route: SafeAgentRoute | None = None,
+    require_explicit_approval: bool = False,
+    execution_approval: Callable[[ExecutionStep], bool] | None = None,
 ) -> dict[str, Any]:
-    if isinstance(http_timeout_seconds, bool) or not isinstance(http_timeout_seconds, (int, float)) or http_timeout_seconds <= 0:
-        raise ValueError("http_timeout_seconds must be greater than zero")
-    if isinstance(max_repair_attempts, bool) or not isinstance(max_repair_attempts, int) or max_repair_attempts < 0:
-        raise ValueError("max_repair_attempts must be a non-negative integer")
-    provider_config = build_provider_config(provider_kind, endpoint=endpoint, model=model)
-    resolved_model = provider_config.model
-    resolved_api_key = api_key if api_key is not None else api_key_from_env(provider_kind=provider_kind)
-    if resolved_api_key is None:
-        raise MissingModelApiKey(f"{provider_config.env_key} is required for model-backed runs")
+    validate_model_task_limits(http_timeout_seconds, max_repair_attempts)
+    provider_config, resolved_model, resolved_api_key = resolve_model_runtime(
+        provider_kind, endpoint, model, api_key
+    )
 
     active_provider = provider or build_provider(resolved_api_key, provider_kind, endpoint)
+    route, planning_context = resolve_safe_agent_planning_context(task, task_mode, safe_agent_route)
+    if route is not None and route.status == "invalid":
+        return invalid_safe_agent_result(run_id, route)
     model_context = create_context(workspace_root=workspace, run_id=run_id, resume_from_run_id=resume_from_run_id)
     trace_path = model_context.evidence_root / "trace.jsonl"
     trace_id = model_context.run_id
@@ -295,7 +385,13 @@ def run_model_task(
             },
         ),
     )
-    plan = active_provider.create_plan(task, model=resolved_model, http_timeout_seconds=http_timeout_seconds)
+    plan = _create_provider_plan(
+        active_provider,
+        task,
+        model=resolved_model,
+        http_timeout_seconds=http_timeout_seconds,
+        planning_context=planning_context,
+    )
     write_trace_event(
         trace_path,
         TraceEvent(
@@ -311,9 +407,19 @@ def run_model_task(
                 "asset_count": len(plan.assets),
                 "patch_count": len(plan.patches),
                 "execution_step_count": len(plan.execution_steps),
+                "no_action": plan.no_action_reason is not None,
             },
         ),
     )
+    if plan.no_action_reason is not None:
+        return no_action_result(
+            model_context=model_context,
+            trace_path=trace_path,
+            plan=plan,
+            provider_config=provider_config,
+            resolved_model=resolved_model,
+            safe_agent_context=planning_context["safe_agent"],
+        )
     if plan_approval is not None and not plan_approval(plan):
         return {
             "run_id": run_id,
@@ -339,6 +445,7 @@ def run_model_task(
         "model_plan_asset_count": len(plan.assets),
         "model_plan_patch_count": len(plan.patches),
         "model_plan_execution_step_count": len(plan.execution_steps),
+        "safe_agent": planning_context["safe_agent"],
     }
     result = execute_model_plan(
         plan,
@@ -347,16 +454,20 @@ def run_model_task(
         run_id=run_id,
         resume_from_run_id=resume_from_run_id,
         run_metadata=run_metadata,
+        require_explicit_approval=require_explicit_approval,
+        approval_callback=execution_approval,
     )
     if result["status"] == "completed" or max_repair_attempts <= 0:
         return result
 
     failed_result = result
     for attempt in range(1, max_repair_attempts + 1):
-        repair_plan = active_provider.create_plan(
+        repair_plan = _create_provider_plan(
+            active_provider,
             repair_prompt(task, failed_result),
             model=resolved_model,
             http_timeout_seconds=http_timeout_seconds,
+            planning_context=planning_context,
         )
         if not is_patch_only_repair_plan(repair_plan):
             return repair_rejected_result(
@@ -380,9 +491,29 @@ def run_model_task(
             run_id=run_id,
             resume_from_run_id=resume_from_run_id,
             run_metadata=repair_metadata,
+            require_explicit_approval=require_explicit_approval,
+            approval_callback=execution_approval,
         )
         merged = merge_repair_result(result, repair_result, repair_attempt_count=attempt)
         if repair_result.get("status") == "completed":
             return merged
         failed_result = merged
     return failed_result
+
+
+def _create_provider_plan(
+    provider: Any,
+    task: str,
+    *,
+    model: str,
+    http_timeout_seconds: float,
+    planning_context: dict[str, Any],
+) -> ModelPlan:
+    parameters = inspect.signature(provider.create_plan).parameters
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "http_timeout_seconds": http_timeout_seconds,
+    }
+    if "planning_context" in parameters:
+        kwargs["planning_context"] = planning_context
+    return provider.create_plan(task, **kwargs)

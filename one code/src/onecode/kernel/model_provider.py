@@ -98,6 +98,7 @@ class ModelPlan:
     assets: list[ModelPlanAsset] = field(default_factory=list)
     patches: list[ModelPlanPatch] = field(default_factory=list)
     execution_steps: list[ModelExecutionStep] = field(default_factory=list)
+    no_action_reason: str | None = None
 
 
 MODEL_PLAN_SCHEMA = {
@@ -165,8 +166,28 @@ MODEL_PLAN_SCHEMA = {
                 }
             },
         },
+        "no_action": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["reason"],
+            "properties": {"reason": {"type": "string", "minLength": 1}},
+        },
     },
 }
+
+MODEL_TOOL_CONTRACTS = {
+    "list_files": {"approval": False, "params": {"path": "string", "max_entries": "integer", "max_depth": "integer"}},
+    "read_text": {"approval": False, "params": {"path": "string", "max_bytes": "integer", "max_lines": "integer"}},
+    "search_text": {"approval": False, "params": {"query": "string", "path": "string", "regex": "boolean", "max_matches": "integer"}},
+    "git_status": {"approval": False, "params": {}},
+    "run_command": {"approval": True, "params": {"argv": "string[]", "timeout_seconds": "integer"}},
+    "write_text": {"approval": True, "params": {"path": "string", "content": "string"}},
+    "patch_text": {
+        "approval": True,
+        "params": {"path": "string", "search_block": "string", "replace_block": "string"},
+    },
+}
+SUPPORTED_MODEL_TOOLS = frozenset(MODEL_TOOL_CONTRACTS)
 
 
 def canonical_provider_kind(provider_kind: str) -> str:
@@ -232,12 +253,16 @@ def validate_model_plan(data: dict[str, Any]) -> ModelPlan:
     assets = data.get("assets", [])
     patches = data.get("patches", [])
     execution_plan = data.get("execution_plan")
+    no_action = data.get("no_action")
     if not isinstance(assets, list):
         raise ValueError("assets must be a list")
     if not isinstance(patches, list):
         raise ValueError("patches must be a list")
     execution_steps = validate_execution_plan(execution_plan) if execution_plan is not None else []
-    if not assets and not patches and not execution_steps:
+    if no_action is not None and (assets or patches or execution_steps):
+        raise ValueError("no_action cannot be combined with actions")
+    no_action_reason = validate_no_action(no_action) if no_action is not None else None
+    if not assets and not patches and not execution_steps and no_action_reason is None:
         raise ValueError("plan must include at least one asset, patch, or execution step")
 
     plan_assets: list[ModelPlanAsset] = []
@@ -278,7 +303,22 @@ def validate_model_plan(data: dict[str, Any]) -> ModelPlan:
         plan_patches.append(
             ModelPlanPatch(path=path, search_block=search_block, replace_block=replace_block)
         )
-    return ModelPlan(task=task, assets=plan_assets, patches=plan_patches, execution_steps=execution_steps)
+    return ModelPlan(
+        task=task,
+        assets=plan_assets,
+        patches=plan_patches,
+        execution_steps=execution_steps,
+        no_action_reason=no_action_reason,
+    )
+
+
+def validate_no_action(value: Any) -> str:
+    if not isinstance(value, dict) or set(value) != {"reason"}:
+        raise ValueError("no_action must contain only reason")
+    reason = value.get("reason")
+    if not isinstance(reason, str) or not reason.strip():
+        raise ValueError("no_action.reason must be a non-empty string")
+    return reason.strip()
 
 
 def validate_execution_plan(execution_plan: Any) -> list[ModelExecutionStep]:
@@ -345,6 +385,8 @@ def validate_tool_call(step_index: int, call_index: int, tool_call: Any) -> Mode
     params = tool_call.get("params")
     if not isinstance(tool_name, str) or tool_name == "":
         raise ValueError(f"execution step {step_index} tool {call_index} name must be a non-empty string")
+    if tool_name not in SUPPORTED_MODEL_TOOLS:
+        raise ValueError(f"execution step {step_index} tool {call_index} unsupported tool: {tool_name}")
     if not isinstance(description, str):
         raise ValueError(f"execution step {step_index} tool {call_index} description must be a string")
     if not isinstance(params, dict):
@@ -384,16 +426,19 @@ class OpenAIResponsesProvider:
         self.api_key = api_key
         self.endpoint = endpoint
 
-    def request_payload(self, task: str, *, model: str) -> dict[str, Any]:
+    def request_payload(
+        self,
+        task: str,
+        *,
+        model: str,
+        planning_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         return {
             "model": model,
             "input": [
                 {
                     "role": "system",
-                    "content": (
-                        "Return only a JSON task plan. Use assets for full-file writes and patches for exact "
-                        "search/replace edits. Do not execute commands. Do not include commentary."
-                    ),
+                    "content": canonical_planning_prompt(planning_context),
                 },
                 {"role": "user", "content": task},
             ],
@@ -407,8 +452,15 @@ class OpenAIResponsesProvider:
             },
         }
 
-    def create_plan(self, task: str, *, model: str, http_timeout_seconds: float) -> ModelPlan:
-        body = json.dumps(self.request_payload(task, model=model)).encode("utf-8")
+    def create_plan(
+        self,
+        task: str,
+        *,
+        model: str,
+        http_timeout_seconds: float,
+        planning_context: dict[str, Any] | None = None,
+    ) -> ModelPlan:
+        body = json.dumps(self.request_payload(task, model=model, planning_context=planning_context)).encode("utf-8")
         request = urllib.request.Request(
             self.endpoint,
             data=body,
@@ -436,20 +488,19 @@ class OpenAIChatCompletionsProvider:
         self.api_key = api_key
         self.endpoint = endpoint
 
-    def request_payload(self, task: str, *, model: str) -> dict[str, Any]:
+    def request_payload(
+        self,
+        task: str,
+        *,
+        model: str,
+        planning_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         return {
             "model": model,
             "messages": [
                 {
                     "role": "system",
-                    "content": (
-                        "Return only JSON with this exact object shape: "
-                        "{\"task\": string, \"assets\": [{\"path\": string, \"content\": string}], "
-                        "\"patches\": [{\"path\": string, \"search_block\": string, \"replace_block\": string}]}. "
-                        "Use assets for full-file writes, patches for exact search/replace edits, or "
-                        "execution_plan.steps for multi-step tool plans. "
-                        "Do not execute commands. Do not include commentary. Do not use markdown fences."
-                    ),
+                    "content": canonical_planning_prompt(planning_context),
                 },
                 {"role": "user", "content": task},
             ],
@@ -474,8 +525,15 @@ class OpenAIChatCompletionsProvider:
             raise ValueError("model response JSON must be an object")
         return validate_model_plan(payload)
 
-    def create_plan(self, task: str, *, model: str, http_timeout_seconds: float) -> ModelPlan:
-        body = json.dumps(self.request_payload(task, model=model)).encode("utf-8")
+    def create_plan(
+        self,
+        task: str,
+        *,
+        model: str,
+        http_timeout_seconds: float,
+        planning_context: dict[str, Any] | None = None,
+    ) -> ModelPlan:
+        body = json.dumps(self.request_payload(task, model=model, planning_context=planning_context)).encode("utf-8")
         request = urllib.request.Request(
             self.endpoint,
             data=body,
@@ -494,3 +552,21 @@ class OpenAIChatCompletionsProvider:
         if not isinstance(response_payload, dict):
             raise ModelProviderError("model response envelope must be an object")
         return self.parse_response(response_payload)
+
+
+def canonical_planning_prompt(planning_context: dict[str, Any] | None = None) -> str:
+    context = planning_context if isinstance(planning_context, dict) else {}
+    contract = {
+        "task_mode": context.get("task_mode"),
+        "safe_agent": context.get("safe_agent", {"status": "not_requested", "safety_boundary": "method_only"}),
+        "tools": MODEL_TOOL_CONTRACTS,
+        "output_schema": MODEL_PLAN_SCHEMA,
+    }
+    return (
+        "Return only one JSON object matching output_schema. Use execution_plan.steps for tool calls. "
+        "Read-only tools may be planned automatically. Tools with approval=true must only be planned; "
+        "the OneCode host decides approval and execution. Safe-Agent context provides method guidance only. "
+        "If no valid workspace action can be planned, return no_action with a concrete reason. "
+        "Do not include commentary or markdown fences. Contract: "
+        + json.dumps(contract, ensure_ascii=False, sort_keys=True)
+    )

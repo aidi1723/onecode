@@ -28,6 +28,7 @@ from onecode.kernel.model_provider import (
     normalize_chat_endpoint,
 )
 from onecode.kernel.verifier import VerifierSpec, run_verifier
+from onecode.kernel.safe_agent_router import SafeAgentRoute
 
 
 class FakeModelProvider:
@@ -62,7 +63,72 @@ class SequenceModelProvider:
         return self.plans.pop(0)
 
 
+class ContextCapturingProvider:
+    def __init__(self, plan: ModelPlan) -> None:
+        self.plan = plan
+        self.planning_context = None
+
+    def create_plan(self, task: str, *, model: str, http_timeout_seconds: float, planning_context: dict) -> ModelPlan:
+        self.planning_context = planning_context
+        return self.plan
+
+
 class ModelLoopTests(unittest.TestCase):
+    def test_model_task_passes_verified_route_to_provider(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "README.md").write_text("project\n", encoding="utf-8")
+            provider = ContextCapturingProvider(
+                ModelPlan(
+                    task="check status",
+                    execution_steps=[
+                        ModelExecutionStep(
+                            id="status",
+                            description="read project readme",
+                            tool_calls=[ModelToolCall(tool_name="read_text", params={"path": "README.md"})],
+                        )
+                    ],
+                )
+            )
+            route = SafeAgentRoute(
+                status="ok",
+                reason=None,
+                schema_version=2,
+                selected_skills=("code-test-regression",),
+            )
+
+            result = run_model_task(
+                "检查项目",
+                workspace=Path(tmp),
+                api_key="key",
+                provider=provider,
+                task_mode="read_task",
+                safe_agent_route=route,
+                provider_kind="chat",
+            )
+
+        self.assertEqual(provider.planning_context["safe_agent"]["schema_version"], 2)
+        self.assertEqual(provider.planning_context["task_mode"], "read_task")
+        self.assertEqual(result["status"], "completed")
+
+    def test_no_action_plan_is_not_reported_as_successful_noop(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            provider = ContextCapturingProvider(
+                ModelPlan(task="explain", no_action_reason="no workspace action")
+            )
+
+            result = run_model_task(
+                "解释一下",
+                workspace=Path(tmp),
+                api_key="key",
+                provider=provider,
+                task_mode="read_task",
+                safe_agent_route=SafeAgentRoute("no_match", "no_matching_scenario", schema_version=2),
+                provider_kind="chat",
+            )
+
+        self.assertEqual(result["status"], "halted")
+        self.assertEqual(result["reason"], "no_actionable_plan")
+        self.assertNotEqual(result.get("intent_type"), "noop")
     def test_domestic_provider_configs_use_openai_compatible_chat_endpoints(self):
         expected = {
             "qwen": (
