@@ -20,6 +20,31 @@ from onecode.kernel.hexagram import IchingKernel
 
 
 class ExecutionEngineTests(unittest.TestCase):
+    def test_guarded_step_requires_explicit_approval_when_enabled(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan = ExecutionPlan(
+                task="guarded write",
+                steps=[
+                    ExecutionStep(
+                        id="write",
+                        description="write output",
+                        tool_calls=[
+                            ToolCallSpec(
+                                tool_name="write_text",
+                                params={"path": "out.txt", "content": "blocked\n"},
+                            )
+                        ],
+                    )
+                ],
+            )
+
+            trace = execute_plan(plan, workspace=workspace, require_explicit_approval=True)
+
+            self.assertFalse(trace.success)
+            self.assertEqual(trace.reason, "approval_required")
+            self.assertFalse((workspace / "out.txt").exists())
+
     def test_guardrail_config_rejects_boolean_numeric_limits(self):
         with self.assertRaisesRegex(ValueError, "max_steps must be positive"):
             GuardrailConfig(max_steps=True)

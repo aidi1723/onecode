@@ -59,7 +59,7 @@ class GuardrailConfig:
     max_tool_calls_per_step: int = 5
     max_duration_ms: int = 300_000
     forbidden_tools: list[str] = field(default_factory=list)
-    require_approval_for: list[str] = field(default_factory=lambda: ["write_text", "patch_text"])
+    require_approval_for: list[str] = field(default_factory=lambda: ["write_text", "patch_text", "run_command"])
     max_consecutive_failures: int = 3
 
     def __post_init__(self) -> None:

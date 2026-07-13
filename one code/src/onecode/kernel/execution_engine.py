@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import subprocess
 import time
 from pathlib import Path
 
@@ -180,14 +181,34 @@ def execute_step(
             )
             break
 
-        action = tool.plan_action(tool_call.params)
-        result = run_task(
-            plan.task,
-            workspace=workspace,
-            run_id=run_id,
-            resume_from_run_id=resume_from_run_id,
-            plan_actions=[action],
-        )
+        try:
+            action = tool.plan_action(tool_call.params)
+            if tool.runner_managed:
+                result = run_task(
+                    plan.task,
+                    workspace=workspace,
+                    run_id=run_id,
+                    resume_from_run_id=resume_from_run_id,
+                    plan_actions=[action],
+                )
+            else:
+                output = tool.execute(tool_call.params, workspace)
+                result = {
+                    "status": "completed",
+                    "reason": None,
+                    "intent_type": tool.name,
+                    "payload": output,
+                    "assets": [],
+                }
+        except PathGuardError:
+            result = {"status": "halted", "reason": "sovereignty_breach", "payload": {}, "assets": []}
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            result = {
+                "status": "halted",
+                "reason": str(exc) or "tool_failed",
+                "payload": {},
+                "assets": [],
+            }
         runner_results.append(result)
         success = result["status"] in {"completed", "skipped"}
         reason = result.get("reason")
@@ -225,6 +246,7 @@ def execute_plan(
     tool_registry: ToolRegistry | None = None,
     guardrails: GuardrailConfig | None = None,
     approval_callback: ApprovalCallback | None = None,
+    require_explicit_approval: bool = False,
 ) -> ExecutionTrace:
     config = guardrails or GuardrailConfig()
     registry = tool_registry or default_tool_registry()
@@ -261,11 +283,16 @@ def execute_plan(
 
         approved_layer: list[ExecutionStep] = []
         for step in layer:
-            if should_require_approval(step, config) and approval_callback is not None and not approval_callback(step):
-                step_results.append(StepResult(step_id=step.id, status="skipped", reason="approval_rejected"))
-                processed_step_ids.add(step.id)
-            else:
-                approved_layer.append(step)
+            if should_require_approval(step, config):
+                if approval_callback is None and require_explicit_approval:
+                    step_results.append(StepResult(step_id=step.id, status="failed", reason="approval_required"))
+                    processed_step_ids.add(step.id)
+                    continue
+                if approval_callback is not None and not approval_callback(step):
+                    step_results.append(StepResult(step_id=step.id, status="skipped", reason="approval_rejected"))
+                    processed_step_ids.add(step.id)
+                    continue
+            approved_layer.append(step)
         if not approved_layer:
             continue
         bandwidth_blocked = [step for step in approved_layer if step_blocked_by_bandwidth(step, registry)]
