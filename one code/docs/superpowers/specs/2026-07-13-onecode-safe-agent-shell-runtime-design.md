@@ -217,4 +217,3 @@ test must additionally demonstrate:
 - `修改 README.md` returns approval-required without changing the file;
 - an approved bounded change executes and records evidence;
 - an empty plan is visibly non-successful.
-
