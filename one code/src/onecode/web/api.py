@@ -348,18 +348,21 @@ def handle_onecode_run_resume(run_id: str, body: dict[str, Any]) -> tuple[dict[s
         return error_payload("invalid_workspace", str(exc)), 400
     message = body.get("message")
     task = message if isinstance(message, str) and message.strip() else f"继续运行 {run_id}"
+    stored_config = read_model_config(include_secret=True)
+    effective_model = resolve_effective_model_config(os.environ, stored_config)
     try:
         result = run_model_task(
             task,
             workspace=workspace,
             run_id=None,
             resume_from_run_id=run_id,
-            model=os.getenv("ONECODE_MODEL") or os.getenv("OPENAI_MODEL") or None,
-            provider_kind=os.getenv("ONECODE_MODEL_PROVIDER", "responses"),
-            endpoint=os.getenv("ONECODE_MODEL_ENDPOINT") or None,
+            model=effective_model.model,
+            api_key=effective_model.api_key,
+            provider_kind=effective_model.provider,
+            endpoint=effective_model.endpoint,
         )
-    except MissingModelApiKey:
-        result = run_light_task(task, workspace=workspace, resume_from_run_id=run_id)
+    except MissingModelApiKey as exc:
+        return error_payload("model_configuration_missing", str(exc)), 503
     except ModelProviderError as exc:
         return error_payload("model_provider_error", str(exc)), 502
     return attach_shell_projection(result), 200

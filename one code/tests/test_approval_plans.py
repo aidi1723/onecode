@@ -59,6 +59,27 @@ class ApprovalPlanTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "model_metadata"):
                 persist_approval_plan(Path(tmp), guarded_plan(), model_metadata={"api_key": "secret"})
 
+    def test_plan_store_rejects_invalid_tool_parameters_before_writing(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+
+        malformed = ModelPlan(
+            task="bad command",
+            execution_steps=[
+                ModelExecutionStep(
+                    id="bad",
+                    description="bad argv",
+                    tool_calls=[ModelToolCall(tool_name="run_command", params={"argv": ["echo", 1]})],
+                )
+            ],
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            with self.assertRaisesRegex(ValueError, "argv"):
+                persist_approval_plan(workspace, malformed, model_metadata={})
+
+            pending = workspace / ".onecode" / "pending-plans"
+            self.assertFalse(pending.exists())
+
     def test_only_one_concurrent_request_can_claim_pending_plan(self):
         from onecode.kernel.approval_plans import claim_approval_plan, persist_approval_plan
 

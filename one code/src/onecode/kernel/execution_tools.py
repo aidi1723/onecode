@@ -53,13 +53,14 @@ class WriteTextTool(ToolDefinition):
     runner_managed: bool = True
 
     def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
+        _reject_unknown_params(params, {"path", "content", "status_code"})
         action = {
             "action_type": "write_text",
-            "path": params.get("path", ""),
-            "content": params.get("content", ""),
+            "path": _required_string(params, "path"),
+            "content": _string_value(params, "content"),
         }
         if "status_code" in params:
-            action["status_code"] = params["status_code"]
+            action["status_code"] = _status_code(params["status_code"])
         return action
 
 
@@ -70,14 +71,15 @@ class PatchTextTool(ToolDefinition):
     runner_managed: bool = True
 
     def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
+        _reject_unknown_params(params, {"path", "search_block", "replace_block", "status_code"})
         action = {
             "action_type": "patch_text",
-            "path": params.get("path", ""),
-            "search_block": params.get("search_block", ""),
-            "replace_block": params.get("replace_block", ""),
+            "path": _required_string(params, "path"),
+            "search_block": _required_string(params, "search_block"),
+            "replace_block": _string_value(params, "replace_block"),
         }
         if "status_code" in params:
-            action["status_code"] = params["status_code"]
+            action["status_code"] = _status_code(params["status_code"])
         return action
 
 
@@ -88,6 +90,7 @@ class ReadTextTool(ToolDefinition):
     runner_managed: bool = False
 
     def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
+        _reject_unknown_params(params, {"path", "max_bytes", "max_lines"})
         return {
             "action_type": self.name,
             "path": _required_string(params, "path"),
@@ -122,9 +125,10 @@ class ListFilesTool(ToolDefinition):
     runner_managed: bool = False
 
     def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
+        _reject_unknown_params(params, {"path", "max_entries", "max_depth"})
         return {
             "action_type": self.name,
-            "path": params.get("path", "."),
+            "path": _optional_path(params),
             "max_entries": _bounded_int(params.get("max_entries", 200), "max_entries", 1, 5_000),
             "max_depth": _bounded_int(params.get("max_depth", 4), "max_depth", 0, 20),
         }
@@ -152,6 +156,19 @@ class SearchTextTool(ToolDefinition):
     runner_managed: bool = False
 
     def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
+        _reject_unknown_params(
+            params,
+            {
+                "query",
+                "path",
+                "regex",
+                "max_matches",
+                "max_depth",
+                "max_files",
+                "max_file_bytes",
+                "max_total_bytes",
+            },
+        )
         regex = params.get("regex", False)
         if not isinstance(regex, bool):
             raise ValueError("regex must be boolean")
@@ -163,7 +180,7 @@ class SearchTextTool(ToolDefinition):
         return {
             "action_type": self.name,
             "query": query,
-            "path": params.get("path", "."),
+            "path": _optional_path(params),
             "max_matches": _bounded_int(params.get("max_matches", 200), "max_matches", 1, 5_000),
             "max_depth": _bounded_int(params.get("max_depth", 8), "max_depth", 0, 20),
             "max_files": _bounded_int(params.get("max_files", 200), "max_files", 1, 1_000),
@@ -292,6 +309,7 @@ class RunCommandTool(ToolDefinition):
             raise ValueError("argv must be a non-empty bounded string list")
         if not all(isinstance(item, str) and item and len(item) <= 4_096 for item in argv):
             raise ValueError("argv must be a non-empty bounded string list")
+        _reject_unknown_params(params, {"argv", "timeout_seconds"})
         return {
             "action_type": self.name,
             "argv": list(argv),
@@ -363,6 +381,32 @@ def _bounded_int(value: Any, name: str, minimum: int, maximum: int) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or not minimum <= value <= maximum:
         raise ValueError(f"{name} must be between {minimum} and {maximum}")
     return value
+
+
+def _string_value(params: dict[str, Any], key: str) -> str:
+    value = params.get(key)
+    if not isinstance(value, str):
+        raise ValueError(f"{key} must be a string")
+    return value
+
+
+def _optional_path(params: dict[str, Any]) -> str:
+    value = params.get("path", ".")
+    if not isinstance(value, str) or not value:
+        raise ValueError("path must be a non-empty string")
+    return value
+
+
+def _status_code(value: Any) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 63:
+        raise ValueError("status_code must be between 0 and 63")
+    return value
+
+
+def _reject_unknown_params(params: dict[str, Any], allowed: set[str]) -> None:
+    unknown = set(params) - allowed
+    if unknown:
+        raise ValueError(f"unknown tool parameters: {', '.join(sorted(unknown))}")
 
 
 def _collect_bounded_files(

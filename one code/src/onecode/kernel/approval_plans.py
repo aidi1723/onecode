@@ -11,6 +11,7 @@ import time
 from typing import Any
 
 from onecode.kernel.model_provider import ModelPlan, validate_model_plan
+from onecode.kernel.execution_tools import default_tool_registry
 
 
 PLAN_ID_PATTERN = re.compile(r"[a-f0-9]{32}\Z")
@@ -39,6 +40,7 @@ def persist_approval_plan(
     model_metadata: dict[str, Any],
 ) -> StoredApprovalPlan:
     root = Path(workspace).resolve()
+    _validate_plan_tool_parameters(plan)
     metadata = _validated_model_metadata(model_metadata)
     plan_id = secrets.token_hex(16)
     created_at = time.time()
@@ -134,10 +136,12 @@ def _load_approval_plan_path(
     if not isinstance(plan_payload, dict):
         raise ValueError("approval_plan_invalid")
     metadata = _validated_model_metadata(document.get("model_metadata"))
+    plan = validate_model_plan(plan_payload)
+    _validate_plan_tool_parameters(plan)
     return StoredApprovalPlan(
         plan_id=plan_id,
         workspace=str(root),
-        plan=validate_model_plan(plan_payload),
+        plan=plan,
         model_metadata=metadata,
         plan_sha256=digest,
         created_at=float(created_at),
@@ -150,6 +154,33 @@ def _validate_load_request(plan_id: str, max_age_seconds: int) -> None:
         raise ValueError("invalid_plan_id")
     if isinstance(max_age_seconds, bool) or not isinstance(max_age_seconds, int) or max_age_seconds <= 0:
         raise ValueError("max_age_seconds must be positive")
+
+
+def _validate_plan_tool_parameters(plan: ModelPlan) -> None:
+    registry = default_tool_registry()
+    calls: list[tuple[str, dict[str, Any]]] = []
+    calls.extend(("write_text", {"path": asset.path, "content": asset.content}) for asset in plan.assets)
+    calls.extend(
+        (
+            "patch_text",
+            {
+                "path": patch.path,
+                "search_block": patch.search_block,
+                "replace_block": patch.replace_block,
+            },
+        )
+        for patch in plan.patches
+    )
+    calls.extend(
+        (tool_call.tool_name, dict(tool_call.params))
+        for step in plan.execution_steps
+        for tool_call in step.tool_calls
+    )
+    for tool_name, params in calls:
+        tool = registry.get(tool_name)
+        if tool is None:
+            raise ValueError(f"unsupported approval tool: {tool_name}")
+        tool.plan_action(params)
 
 
 def finalize_approval_plan(stored: StoredApprovalPlan, decision: str, result: dict[str, Any]) -> Path:

@@ -784,6 +784,77 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(run_model.call_args.kwargs["resume_from_run_id"], "source-api")
         self.assertEqual(run_model.call_args.kwargs["workspace"], Path(tmp).resolve())
 
+    def test_onecode_resume_without_model_key_returns_configuration_failure(self):
+        from onecode.web.api import handle_onecode_run_resume
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+            },
+            clear=True,
+        ):
+            payload, status = handle_onecode_run_resume(
+                "source-api",
+                {"workspace": tmp, "message": "继续完成"},
+            )
+            evidence_exists = (Path(tmp) / ".onecode").exists()
+
+        self.assertEqual(status, 503)
+        self.assertEqual(payload["error"]["type"], "model_configuration_missing")
+        self.assertFalse(evidence_exists)
+
+    def test_claimed_plan_execution_failure_is_archived_and_not_replayable(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelExecutionStep, ModelPlan, ModelToolCall
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(
+                    task="missing command",
+                    execution_steps=[
+                        ModelExecutionStep(
+                            id="missing",
+                            description="run missing command",
+                            tool_calls=[
+                                ModelToolCall(
+                                    tool_name="run_command",
+                                    params={"argv": ["onecode-command-that-does-not-exist"]},
+                                )
+                            ],
+                        )
+                    ],
+                ),
+                model_metadata={"model": "m"},
+            )
+
+            failed_payload, failed_status = handle_onecode_plan_approval(
+                stored.plan_id,
+                {"workspace": tmp, "approved": True},
+            )
+            replay_payload, replay_status = handle_onecode_plan_approval(
+                stored.plan_id,
+                {"workspace": tmp, "approved": True},
+            )
+
+            executing = workspace / ".onecode" / "executing-plans" / f"{stored.plan_id}.json"
+            archived = workspace / ".onecode" / "approval-plans" / f"{stored.plan_id}.json"
+            self.assertFalse(executing.exists())
+            self.assertTrue(archived.exists())
+
+        self.assertEqual((failed_status, failed_payload["status"]), (200, "halted"))
+        self.assertEqual(replay_status, 409)
+        self.assertEqual(replay_payload["error"]["message"], "approval_plan_already_resolved")
+
     def test_onecode_resume_endpoint_rejects_run_id_path_traversal(self):
         from onecode.web.api import handle_onecode_run_resume
 
