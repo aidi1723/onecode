@@ -19,6 +19,7 @@ class SafeAgentRoute:
     selected_scenarios: tuple[str, ...] = ()
     selected_skills: tuple[str, ...] = ()
     execution_order: tuple[str, ...] = ()
+    expected_outputs: tuple[tuple[str, tuple[str, ...]], ...] = ()
     verifier_expectations: tuple[str, ...] = ()
     registry_summary: dict[str, int | str] = field(default_factory=dict)
 
@@ -31,6 +32,10 @@ class SafeAgentRoute:
             "selected_scenarios": list(self.selected_scenarios),
             "selected_skills": list(self.selected_skills),
             "execution_order": list(self.execution_order),
+            "expected_outputs": [
+                {"skill": skill, "items": list(items)}
+                for skill, items in self.expected_outputs
+            ],
             "verifier_expectations": list(self.verifier_expectations),
             "registry_verification": dict(self.registry_summary),
             "safety_boundary": "method_only",
@@ -113,6 +118,7 @@ def _validate_task_pack(payload: dict[str, Any]) -> SafeAgentRoute:
     if not isinstance(selected_skills_payload, list):
         return SafeAgentRoute("invalid", "selected_skills_invalid")
     selected_skills: list[str] = []
+    expected_outputs: list[tuple[str, tuple[str, ...]]] = []
     verifier_expectations: list[str] = []
     for item in selected_skills_payload:
         if not isinstance(item, dict) or item.get("status") != "trusted":
@@ -121,13 +127,11 @@ def _validate_task_pack(payload: dict[str, Any]) -> SafeAgentRoute:
         if not isinstance(name, str) or not name:
             return SafeAgentRoute("invalid", "selected_skill_name_invalid")
         selected_skills.append(name)
+        expected = _bounded_guidance_lines(item.get("expected_output"))
+        if expected:
+            expected_outputs.append((name, expected))
         expectations = item.get("verifier_expectations")
-        if isinstance(expectations, str) and expectations.strip():
-            verifier_expectations.extend(
-                line.removeprefix("- ").strip()
-                for line in expectations.splitlines()
-                if line.strip()
-            )
+        verifier_expectations.extend(_bounded_guidance_lines(expectations))
 
     selected_scenarios_payload = payload.get("selected_scenarios")
     if not isinstance(selected_scenarios_payload, list):
@@ -162,6 +166,7 @@ def _validate_task_pack(payload: dict[str, Any]) -> SafeAgentRoute:
         selected_scenarios=selected_scenarios,
         selected_skills=tuple(selected_skills),
         execution_order=execution_order,
+        expected_outputs=tuple(expected_outputs),
         verifier_expectations=tuple(dict.fromkeys(verifier_expectations)),
         registry_summary=registry_summary,
     )
@@ -171,3 +176,17 @@ def _strict_nonnegative_int(value: Any) -> int | None:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         return None
     return value
+
+
+def _bounded_guidance_lines(value: Any) -> tuple[str, ...]:
+    if not isinstance(value, str):
+        return ()
+    lines = []
+    for raw_line in value.splitlines():
+        line = raw_line.removeprefix("- ").strip()
+        if not line:
+            continue
+        lines.append(line[:500])
+        if len(lines) >= 16:
+            break
+    return tuple(lines)

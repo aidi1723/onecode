@@ -110,6 +110,32 @@ class ModelLoopTests(unittest.TestCase):
         self.assertEqual(provider.planning_context["task_mode"], "read_task")
         self.assertEqual(result["status"], "completed")
 
+    def test_invalid_safe_agent_route_is_persisted_without_model_call(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            provider = ContextCapturingProvider(
+                ModelPlan(task="unused", no_action_reason="must not be called")
+            )
+
+            result = run_model_task(
+                "检查项目",
+                workspace=Path(tmp),
+                api_key="key",
+                provider=provider,
+                task_mode="read_task",
+                safe_agent_route=SafeAgentRoute("invalid", "registry_verification_failed", schema_version=2),
+                provider_kind="chat",
+            )
+
+            trace_path = Path(result["trace_path"])
+            events = [json.loads(line) for line in trace_path.read_text(encoding="utf-8").splitlines()]
+
+        self.assertEqual(result["status"], "halted")
+        self.assertEqual(result["reason"], "safe_agent_router_invalid")
+        self.assertIsNotNone(result["run_id"])
+        self.assertEqual(events[0]["event_type"], "safe_agent_route_rejected")
+        self.assertEqual(events[0]["payload"]["reason"], "registry_verification_failed")
+        self.assertIsNone(provider.planning_context)
+
     def test_no_action_plan_is_not_reported_as_successful_noop(self):
         with tempfile.TemporaryDirectory() as tmp:
             provider = ContextCapturingProvider(
@@ -136,6 +162,7 @@ class ModelLoopTests(unittest.TestCase):
             provider = ContextCapturingProvider(
                 ModelPlan(
                     task="write result",
+                    assets=[ModelPlanAsset(path="docs/result.md", content="done\n")],
                     execution_steps=[
                         ModelExecutionStep(
                             id="write",
@@ -166,6 +193,52 @@ class ModelLoopTests(unittest.TestCase):
             self.assertRegex(result["plan_id"], r"^[a-f0-9]{32}$")
             self.assertTrue((workspace / ".onecode" / "pending-plans" / f"{result['plan_id']}.json").exists())
             self.assertFalse((workspace / "docs" / "result.md").exists())
+            self.assertEqual(result["plan_summary"]["actions"][0]["tool"], "write_text")
+            self.assertEqual(result["plan_summary"]["actions"][0]["path"], "docs/result.md")
+            self.assertEqual(result["plan_summary"]["actions"][0]["content_bytes"], 5)
+            self.assertEqual(len(result["plan_summary"]["actions"]), 1)
+
+    def test_guarded_command_approval_summary_displays_exact_argv(self):
+        from onecode.web.api import format_run_result
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            provider = ContextCapturingProvider(
+                ModelPlan(
+                    task="run tests",
+                    execution_steps=[
+                        ModelExecutionStep(
+                            id="tests",
+                            description="run focused tests",
+                            tool_calls=[
+                                ModelToolCall(
+                                    tool_name="run_command",
+                                    params={"argv": ["python", "-m", "unittest", "tests.test_web_api"]},
+                                )
+                            ],
+                        )
+                    ],
+                )
+            )
+
+            result = run_model_task(
+                "运行测试",
+                workspace=workspace,
+                api_key="key",
+                provider=provider,
+                provider_kind="chat",
+                task_mode="change_task",
+                safe_agent_route=SafeAgentRoute("no_match", "no_matching_scenario", schema_version=2),
+                require_explicit_approval=True,
+            )
+
+        self.assertEqual(
+            result["plan_summary"]["actions"][0]["argv"],
+            ["python", "-m", "unittest", "tests.test_web_api"],
+        )
+        approval_message = format_run_result(result, "approval_required")
+        self.assertIn('"argv"', approval_message)
+        self.assertIn('"tests.test_web_api"', approval_message)
     def test_domestic_provider_configs_use_openai_compatible_chat_endpoints(self):
         expected = {
             "qwen": (

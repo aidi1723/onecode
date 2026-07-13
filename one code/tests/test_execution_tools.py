@@ -1,6 +1,11 @@
 import tempfile
 import unittest
+import json
+import os
 from pathlib import Path
+import subprocess
+import sys
+from unittest.mock import patch
 
 from onecode.kernel.path_guard import PathGuardError
 
@@ -90,19 +95,110 @@ class ExecutionToolsTests(unittest.TestCase):
             workspace = Path(tmp)
             (workspace / "README.md").write_text("visible-needle\n", encoding="utf-8")
             (workspace / ".env.local").write_text("TOKEN=secret-needle\n", encoding="utf-8")
+            (workspace / "environment-link").symlink_to(".env.local")
 
             searched = SearchTextTool().execute({"query": "needle", "path": "."}, workspace)
 
             with self.assertRaises(PathGuardError):
                 ReadTextTool().execute({"path": ".env.local"}, workspace)
+            with self.assertRaises(PathGuardError):
+                ReadTextTool().execute({"path": "environment-link"}, workspace)
 
         self.assertEqual([match["path"] for match in searched["matches"]], ["README.md"])
+
+    def test_search_text_enforces_literal_file_byte_and_depth_limits(self):
+        from onecode.kernel.execution_tools import SearchTextTool
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "top").mkdir()
+            (workspace / "top" / "small.txt").write_text("visible needle\n", encoding="utf-8")
+            (workspace / "top" / "large.txt").write_text("x" * 200 + " needle\n", encoding="utf-8")
+            (workspace / "deep" / "child").mkdir(parents=True)
+            (workspace / "deep" / "child" / "hidden.txt").write_text("needle\n", encoding="utf-8")
+
+            result = SearchTextTool().execute(
+                {
+                    "query": "needle",
+                    "path": ".",
+                    "max_depth": 2,
+                    "max_files": 10,
+                    "max_file_bytes": 50,
+                    "max_total_bytes": 100,
+                },
+                workspace,
+            )
+
+            with self.assertRaisesRegex(ValueError, "literal"):
+                SearchTextTool().execute({"query": "(a+)+$", "regex": True}, workspace)
+
+        self.assertEqual([match["path"] for match in result["matches"]], ["top/small.txt"])
+        self.assertLessEqual(result["scanned_file_count"], 10)
+        self.assertLessEqual(result["scanned_bytes"], 100)
+        self.assertTrue(result["truncated"])
+
+    def test_search_text_processes_collected_files_before_reporting_file_limit(self):
+        from onecode.kernel.execution_tools import SearchTextTool
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            for name in ("a.txt", "b.txt", "c.txt"):
+                (workspace / name).write_text("needle\n", encoding="utf-8")
+
+            result = SearchTextTool().execute(
+                {"query": "needle", "path": ".", "max_depth": 1, "max_files": 2},
+                workspace,
+            )
+
+        self.assertEqual([match["path"] for match in result["matches"]], ["a.txt", "b.txt"])
+        self.assertEqual(result["scanned_file_count"], 2)
+        self.assertTrue(result["truncated"])
+
+    def test_git_status_disables_repository_fsmonitor_hook(self):
+        from onecode.kernel.execution_tools import GitStatusTool
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            marker = workspace / "fsmonitor-ran"
+            hook = workspace / "fsmonitor.sh"
+            hook.write_text(f"#!/bin/sh\ntouch '{marker}'\nprintf '\\n'\n", encoding="utf-8")
+            hook.chmod(0o755)
+            subprocess.run(["git", "init"], cwd=workspace, capture_output=True, check=True)
+            subprocess.run(
+                ["git", "config", "core.fsmonitor", str(hook)],
+                cwd=workspace,
+                capture_output=True,
+                check=True,
+            )
+
+            result = GitStatusTool().execute({}, workspace)
+            hook_ran = marker.exists()
+
+        self.assertFalse(hook_ran)
+        self.assertTrue(any("fsmonitor.sh" in entry for entry in result["entries"]))
 
     def test_run_command_requires_argv(self):
         from onecode.kernel.execution_tools import RunCommandTool
 
         with self.assertRaisesRegex(ValueError, "argv"):
             RunCommandTool().plan_action({"command": "pwd && rm file"})
+
+    def test_run_command_scrubs_service_secrets_from_environment_and_evidence(self):
+        from onecode.kernel.execution_tools import RunCommandTool
+
+        secret = "service-secret-must-not-persist"
+        script = f"import os; print(os.getenv('OPENAI_API_KEY', 'missing')); print('{secret}')"
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            os.environ,
+            {"PATH": os.environ.get("PATH", ""), "OPENAI_API_KEY": secret},
+            clear=True,
+        ):
+            result = RunCommandTool().execute({"argv": [sys.executable, "-c", script]}, Path(tmp))
+
+        serialized = json.dumps(result)
+        self.assertNotIn(secret, serialized)
+        self.assertIn("missing", result["stdout"])
+        self.assertIn("[REDACTED]", serialized)
 
 
 if __name__ == "__main__":

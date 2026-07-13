@@ -77,9 +77,11 @@ class PathGuard:
         root = workspace_root.resolve()
         target = (root / requested).resolve()
         try:
-            target.relative_to(root)
+            resolved_relative = target.relative_to(root)
         except ValueError as exc:
             raise PathGuardError("path escapes workspace root") from exc
+        if cls.is_sensitive_read_path(resolved_relative):
+            raise PathGuardError("sensitive paths are not readable")
         return target
 
     @staticmethod

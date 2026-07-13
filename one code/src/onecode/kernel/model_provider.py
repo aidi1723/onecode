@@ -178,7 +178,18 @@ MODEL_PLAN_SCHEMA = {
 MODEL_TOOL_CONTRACTS = {
     "list_files": {"approval": False, "params": {"path": "string", "max_entries": "integer", "max_depth": "integer"}},
     "read_text": {"approval": False, "params": {"path": "string", "max_bytes": "integer", "max_lines": "integer"}},
-    "search_text": {"approval": False, "params": {"query": "string", "path": "string", "regex": "boolean", "max_matches": "integer"}},
+    "search_text": {
+        "approval": False,
+        "params": {
+            "query": "literal string",
+            "path": "string",
+            "max_matches": "integer",
+            "max_depth": "integer",
+            "max_files": "integer",
+            "max_file_bytes": "integer",
+            "max_total_bytes": "integer",
+        },
+    },
     "git_status": {"approval": False, "params": {}},
     "run_command": {"approval": True, "params": {"argv": "string[]", "timeout_seconds": "integer"}},
     "write_text": {"approval": True, "params": {"path": "string", "content": "string"}},

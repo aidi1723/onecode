@@ -69,12 +69,43 @@ def load_approval_plan(
     *,
     max_age_seconds: int = DEFAULT_MAX_PLAN_AGE_SECONDS,
 ) -> StoredApprovalPlan:
-    if not isinstance(plan_id, str) or PLAN_ID_PATTERN.fullmatch(plan_id) is None:
-        raise ValueError("invalid_plan_id")
-    if isinstance(max_age_seconds, bool) or not isinstance(max_age_seconds, int) or max_age_seconds <= 0:
-        raise ValueError("max_age_seconds must be positive")
+    _validate_load_request(plan_id, max_age_seconds)
     root = Path(workspace).resolve()
     path = root / ".onecode" / "pending-plans" / f"{plan_id}.json"
+    return _load_approval_plan_path(root, plan_id, path, max_age_seconds=max_age_seconds)
+
+
+def claim_approval_plan(
+    workspace: Path,
+    plan_id: str,
+    *,
+    max_age_seconds: int = DEFAULT_MAX_PLAN_AGE_SECONDS,
+) -> StoredApprovalPlan:
+    _validate_load_request(plan_id, max_age_seconds)
+    root = Path(workspace).resolve()
+    pending = root / ".onecode" / "pending-plans" / f"{plan_id}.json"
+    executing_directory = root / ".onecode" / "executing-plans"
+    executing_directory.mkdir(parents=True, exist_ok=True)
+    claimed = executing_directory / f"{plan_id}.json"
+    try:
+        pending.replace(claimed)
+    except FileNotFoundError as exc:
+        archived = root / ".onecode" / "approval-plans" / f"{plan_id}.json"
+        if claimed.exists():
+            raise ValueError("approval_plan_in_progress") from exc
+        if archived.exists():
+            raise ValueError("approval_plan_already_resolved") from exc
+        raise ValueError("approval_plan_not_found") from exc
+    return _load_approval_plan_path(root, plan_id, claimed, max_age_seconds=max_age_seconds)
+
+
+def _load_approval_plan_path(
+    root: Path,
+    plan_id: str,
+    path: Path,
+    *,
+    max_age_seconds: int,
+) -> StoredApprovalPlan:
     try:
         raw = path.read_bytes()
     except FileNotFoundError as exc:
@@ -112,6 +143,13 @@ def load_approval_plan(
         created_at=float(created_at),
         path=path,
     )
+
+
+def _validate_load_request(plan_id: str, max_age_seconds: int) -> None:
+    if not isinstance(plan_id, str) or PLAN_ID_PATTERN.fullmatch(plan_id) is None:
+        raise ValueError("invalid_plan_id")
+    if isinstance(max_age_seconds, bool) or not isinstance(max_age_seconds, int) or max_age_seconds <= 0:
+        raise ValueError("max_age_seconds must be positive")
 
 
 def finalize_approval_plan(stored: StoredApprovalPlan, decision: str, result: dict[str, Any]) -> Path:

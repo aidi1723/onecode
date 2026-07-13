@@ -150,7 +150,7 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(parse_limit(True), 20)
         self.assertEqual(parse_window_seconds(True), 60)
 
-    def test_chat_completion_falls_back_to_rule_run_without_model_key(self):
+    def test_task_without_model_key_returns_visible_configuration_failure(self):
         from onecode.web.api import handle_chat_completion
 
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
@@ -168,22 +168,12 @@ class OneCodeWebApiTests(unittest.TestCase):
                     "messages": [{"role": "user", "content": "查：看看项目"}],
                 }
             )
-            result = payload["onecode"]["result"]
-            summary = payload["onecode"]["summary"]
-            wal_exists = Path(result["wal_path"]).exists()
+            evidence_exists = (Path(tmp) / ".onecode").exists()
 
-        self.assertEqual(status_code, 200)
-        self.assertEqual(payload["object"], "chat.completion")
-        self.assertEqual(payload["choices"][0]["message"]["role"], "assistant")
-        self.assertIn("OneCode run", payload["choices"][0]["message"]["content"])
-        self.assertEqual(payload["onecode"]["mode"], "rule_fallback")
-        self.assertEqual(summary["run_id"], result["run_id"])
-        self.assertEqual(summary["severity"], "ok")
-        self.assertEqual(summary["evidence_ref"]["mode"], "wal")
-        self.assertEqual(summary["rule_state"]["status_code"], result["iching_status_code"])
-        self.assertEqual(result["evidence_mode"], "wal")
-        self.assertIsNone(result["ledger_path"])
-        self.assertTrue(wal_exists)
+        self.assertEqual(status_code, 503)
+        self.assertEqual(payload["error"]["type"], "model_configuration_missing")
+        self.assertIn("OPENAI_API_KEY", payload["error"]["message"])
+        self.assertFalse(evidence_exists)
 
     def test_error_payload_uses_openai_style_error(self):
         from onecode.web.api import error_payload
@@ -344,6 +334,36 @@ class OneCodeWebApiTests(unittest.TestCase):
             self.assertEqual(payload["status"], "completed")
             self.assertEqual((workspace / "docs" / "result.md").read_text(encoding="utf-8"), "done\n")
             self.assertFalse(stored.path.exists())
+
+    def test_approval_handler_rejects_terminal_plan_replay(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(task="write result", assets=[ModelPlanAsset(path="docs/result.md", content="done\n")]),
+                model_metadata={"model": "m"},
+            )
+
+            first_payload, first_status = handle_onecode_plan_approval(
+                stored.plan_id,
+                {"workspace": tmp, "approved": True},
+            )
+            replay_payload, replay_status = handle_onecode_plan_approval(
+                stored.plan_id,
+                {"workspace": tmp, "approved": True},
+            )
+
+        self.assertEqual((first_status, first_payload["status"]), (200, "completed"))
+        self.assertEqual(replay_status, 409)
+        self.assertEqual(replay_payload["error"]["message"], "approval_plan_already_resolved")
 
     def test_approval_handler_records_rejection_without_execution(self):
         from onecode.kernel.approval_plans import persist_approval_plan
@@ -1119,9 +1139,22 @@ class OneCodeWebApiTests(unittest.TestCase):
                 "ONECODE_WORKSPACE_ROOT": tmp,
                 "ONECODE_MODEL_PROVIDER": "chat",
                 "ONECODE_API_TOKEN": "test-token",
+                "OPENAI_API_KEY": "test-key",
                 "ONECODE_HOME": str(Path(tmp) / "home"),
             },
             clear=True,
+        ), patch(
+            "onecode.web.api.run_model_task",
+            return_value={
+                "run_id": "stream-smoke",
+                "status": "completed",
+                "reason": None,
+                "requested_count": 1,
+                "completed_count": 1,
+                "skipped_count": 0,
+                "failed_count": 0,
+                "assets": [],
+            },
         ):
             with local_test_server(OneCodeRequestHandler) as (_server, base_url):
                 chat_body = json.dumps(
@@ -1185,12 +1218,14 @@ class OneCodeWebApiTests(unittest.TestCase):
                     },
                     method="POST",
                 )
-                with urlopen(chat_request, timeout=5) as response:
-                    chat_payload = json.loads(response.read().decode("utf-8"))
+                with self.assertRaises(HTTPError) as raised:
+                    urlopen(chat_request, timeout=5)
+                chat_status = raised.exception.code
+                chat_payload = json.loads(raised.exception.read().decode("utf-8"))
 
         self.assertEqual(models_payload["data"][0]["id"], "onecode-agent")
-        self.assertEqual(chat_payload["choices"][0]["message"]["role"], "assistant")
-        self.assertEqual(chat_payload["onecode"]["mode"], "rule_fallback")
+        self.assertEqual(chat_status, 503)
+        self.assertEqual(chat_payload["error"]["type"], "model_configuration_missing")
 
     def test_http_server_serves_shell_schema(self):
         from onecode.web.api import OneCodeRequestHandler

@@ -20,6 +20,7 @@ def valid_task_pack() -> dict:
             {
                 "name": "code-test-regression",
                 "status": "trusted",
+                "expected_output": "- targeted test report\n- regression risk notes",
                 "verifier_expectations": "- targeted test run\n- failure coverage",
                 "safe_workflow": "private workflow body",
             }
@@ -62,6 +63,15 @@ class SafeAgentRouterTests(unittest.TestCase):
         self.assertEqual(route.execution_order, ("code-test-regression",))
         context = route.to_planning_context()
         self.assertEqual(context["safety_boundary"], "method_only")
+        self.assertEqual(
+            context["expected_outputs"],
+            [
+                {
+                    "skill": "code-test-regression",
+                    "items": ["targeted test report", "regression risk notes"],
+                }
+            ],
+        )
         self.assertNotIn("safe_workflow", json.dumps(context))
 
     def test_rejects_tampered_registry(self):

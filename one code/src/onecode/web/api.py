@@ -18,7 +18,7 @@ from onecode.kernel.diagnostics import run_doctor
 from onecode.kernel.effective_model_config import resolve_effective_model_config
 from onecode.kernel.run_inspection import inspect_run, list_runs
 from onecode.kernel.model_loop import execute_model_plan, run_model_task
-from onecode.kernel.approval_plans import finalize_approval_plan, load_approval_plan
+from onecode.kernel.approval_plans import claim_approval_plan, finalize_approval_plan
 from onecode.kernel.model_config import (
     DEFAULT_ONECODE_MODEL,
     discover_models,
@@ -371,9 +371,10 @@ def handle_onecode_plan_approval(plan_id: str, body: dict[str, Any]) -> tuple[di
         return error_payload("invalid_approval", "approved must be boolean"), 400
     try:
         workspace = workspace_from_value(body.get("workspace") if isinstance(body.get("workspace"), str) else None)
-        stored = load_approval_plan(workspace, plan_id)
+        stored = claim_approval_plan(workspace, plan_id)
     except ValueError as exc:
-        return error_payload("invalid_approval_plan", str(exc)), 400
+        status = 409 if str(exc) in {"approval_plan_in_progress", "approval_plan_already_resolved"} else 400
+        return error_payload("invalid_approval_plan", str(exc)), status
     if not approved:
         result = {
             "run_id": None,
@@ -781,25 +782,10 @@ def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
                 endpoint=endpoint,
                 api_key=stored_api_key,
             )
-        except MissingModelApiKey:
-            result = run_light_task(
-                user_message,
-                workspace=workspace,
-                run_id=str(run_id) if run_id else None,
-            )
-            return chat_completion_payload(format_run_result(result, "chat_fallback"), model, result, "chat_fallback"), 200
+        except MissingModelApiKey as exc:
+            return error_payload("model_configuration_missing", str(exc)), 503
         except ModelProviderError as exc:
-            result = run_light_task(
-                user_message,
-                workspace=workspace,
-                run_id=str(run_id) if run_id else None,
-            )
-            return chat_completion_payload(
-                f"{format_run_result(result, 'chat_fallback')}\n\n模型直连失败：{exc}",
-                model,
-                result,
-                "chat_fallback",
-            ), 200
+            return error_payload("model_provider_error", str(exc)), 502
         return chat_completion_payload(content, model, {"status": "completed", "run_id": run_id}, "chat"), 200
 
     try:
@@ -815,13 +801,8 @@ def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
             require_explicit_approval=True,
         )
         mode = "approval_required" if result.get("reason") == "approval_required" else "model"
-    except MissingModelApiKey:
-        result = run_light_task(
-            user_message,
-            workspace=workspace,
-            run_id=str(run_id) if run_id else None,
-        )
-        mode = "rule_fallback"
+    except MissingModelApiKey as exc:
+        return error_payload("model_configuration_missing", str(exc)), 503
     except ValueError as exc:
         if "plan must include at least one asset" not in str(exc):
             return error_payload("invalid_model_plan", str(exc)), 502
@@ -852,10 +833,15 @@ def format_run_result(result: dict[str, Any], mode: str) -> str:
     if mode == "approval" and result.get("status") == "completed":
         return "计划已批准并执行完成，结果已写入 OneCode 证据链。"
     if result.get("reason") == "approval_required":
-        return (
+        message = (
             "计划已生成，但包含写入或命令操作，尚未执行。"
             f"审批计划 ID：`{result.get('plan_id')}`。确认后再执行。"
         )
+        summary = result.get("plan_summary")
+        actions = summary.get("actions") if isinstance(summary, dict) else None
+        if isinstance(actions, list):
+            message += "\n待审批操作：\n```json\n" + json.dumps(actions, ensure_ascii=False, indent=2) + "\n```"
+        return message
     if result.get("reason") == "no_actionable_plan":
         return "模型没有生成可执行计划，本次任务未执行。请补充明确目标或检查模型配置。"
     if mode == "chat_fallback":

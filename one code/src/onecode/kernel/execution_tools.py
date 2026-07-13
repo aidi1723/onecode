@@ -1,10 +1,36 @@
 from dataclasses import dataclass
+import os
 import re
 import subprocess
 from pathlib import Path
 from typing import Any
 
 from onecode.kernel.path_guard import PathGuard
+
+
+COMMAND_ENV_ALLOWLIST = frozenset(
+    {
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TEMP",
+        "TMP",
+        "LANG",
+        "LC_ALL",
+        "TERM",
+        "SHELL",
+        "USER",
+        "LOGNAME",
+        "PYTHONPATH",
+        "VIRTUAL_ENV",
+        "SYSTEMROOT",
+    }
+)
+SENSITIVE_ENV_MARKERS = ("KEY", "TOKEN", "SECRET", "PASSWORD", "PASSWD", "AUTH", "CREDENTIAL")
+SENSITIVE_ASSIGNMENT_PATTERN = re.compile(
+    r"(?i)\b(api[_-]?key|token|secret|password|passwd|authorization|credential)\b(\s*[:=]\s*)([^\s,;]+)"
+)
+MAX_DIRECTORY_SCAN_ENTRIES = 10_000
 
 
 @dataclass(frozen=True)
@@ -109,21 +135,13 @@ class ListFilesTool(ToolDefinition):
         if not target.exists():
             raise ValueError("list_target_not_found")
         root = workspace.resolve()
-        candidates = [target] if target.is_file() else sorted(target.rglob("*"), key=lambda path: str(path))
-        files = []
-        truncated = False
-        for candidate in candidates:
-            relative = candidate.relative_to(root)
-            if PathGuard.is_sensitive_read_path(relative) or len(relative.parts) - len(
-                target.relative_to(root).parts
-            ) > action["max_depth"]:
-                continue
-            if candidate.is_symlink() or not candidate.is_file():
-                continue
-            if len(files) >= action["max_entries"]:
-                truncated = True
-                break
-            files.append(str(relative))
+        candidates, truncated = _collect_bounded_files(
+            target,
+            root,
+            max_depth=action["max_depth"],
+            max_files=action["max_entries"],
+        )
+        files = [str(candidate.relative_to(root)) for candidate in candidates]
         return {"path": str(target.relative_to(root)), "files": files, "truncated": truncated}
 
 
@@ -137,38 +155,66 @@ class SearchTextTool(ToolDefinition):
         regex = params.get("regex", False)
         if not isinstance(regex, bool):
             raise ValueError("regex must be boolean")
+        if regex:
+            raise ValueError("search_text supports literal queries only")
+        query = _required_string(params, "query")
+        if len(query) > 2_000:
+            raise ValueError("query must not exceed 2000 characters")
         return {
             "action_type": self.name,
-            "query": _required_string(params, "query"),
+            "query": query,
             "path": params.get("path", "."),
-            "regex": regex,
             "max_matches": _bounded_int(params.get("max_matches", 200), "max_matches", 1, 5_000),
+            "max_depth": _bounded_int(params.get("max_depth", 8), "max_depth", 0, 20),
+            "max_files": _bounded_int(params.get("max_files", 200), "max_files", 1, 1_000),
+            "max_file_bytes": _bounded_int(
+                params.get("max_file_bytes", 200_000), "max_file_bytes", 1, 1_000_000
+            ),
+            "max_total_bytes": _bounded_int(
+                params.get("max_total_bytes", 20_000_000), "max_total_bytes", 1, 50_000_000
+            ),
         }
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         action = self.plan_action(params)
         target = PathGuard.resolve_read_target(workspace, _required_string(action, "path"))
-        pattern = re.compile(action["query"] if action["regex"] else re.escape(action["query"]))
         root = workspace.resolve()
-        candidates = [target] if target.is_file() else sorted(target.rglob("*"), key=lambda path: str(path))
+        candidates, truncated = _collect_bounded_files(
+            target,
+            root,
+            max_depth=action["max_depth"],
+            max_files=action["max_files"],
+        )
         matches = []
-        truncated = False
+        scanned_file_count = 0
+        scanned_bytes = 0
+        match_limit_reached = False
         for candidate in candidates:
-            if (
-                not candidate.is_file()
-                or candidate.is_symlink()
-                or PathGuard.is_sensitive_read_path(candidate.relative_to(root))
-            ):
-                continue
+            remaining_bytes = action["max_total_bytes"] - scanned_bytes
+            if remaining_bytes <= 0:
+                truncated = True
+                break
+            read_limit = min(action["max_file_bytes"], remaining_bytes)
             try:
-                text = candidate.read_text(encoding="utf-8")
+                with candidate.open("rb") as handle:
+                    raw = handle.read(read_limit + 1)
             except (UnicodeDecodeError, OSError):
                 continue
+            scanned_file_count += 1
+            scanned_bytes += min(len(raw), read_limit)
+            if len(raw) > read_limit:
+                truncated = True
+                continue
+            try:
+                text = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                continue
             for line_number, line in enumerate(text.splitlines(), start=1):
-                if pattern.search(line) is None:
+                if action["query"] not in line:
                     continue
                 if len(matches) >= action["max_matches"]:
                     truncated = True
+                    match_limit_reached = True
                     break
                 matches.append(
                     {
@@ -177,9 +223,15 @@ class SearchTextTool(ToolDefinition):
                         "text": line[:500],
                     }
                 )
-            if truncated:
+            if match_limit_reached:
                 break
-        return {"query": action["query"], "matches": matches, "truncated": truncated}
+        return {
+            "query": action["query"],
+            "matches": matches,
+            "scanned_file_count": scanned_file_count,
+            "scanned_bytes": scanned_bytes,
+            "truncated": truncated,
+        }
 
 
 @dataclass(frozen=True)
@@ -195,13 +247,32 @@ class GitStatusTool(ToolDefinition):
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         self.plan_action(params)
+        environment = _command_environment()
+        environment.update(
+            {
+                "GIT_CONFIG_GLOBAL": os.devnull,
+                "GIT_CONFIG_SYSTEM": os.devnull,
+                "GIT_OPTIONAL_LOCKS": "0",
+            }
+        )
         completed = subprocess.run(
-            ["git", "status", "--short", "--untracked-files=normal"],
+            [
+                "git",
+                "--no-optional-locks",
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                f"core.hooksPath={os.devnull}",
+                "status",
+                "--short",
+                "--untracked-files=normal",
+            ],
             cwd=workspace,
             capture_output=True,
             text=True,
             timeout=10,
             check=False,
+            env=environment,
         )
         if completed.returncode != 0:
             raise ValueError("git_status_failed")
@@ -229,6 +300,7 @@ class RunCommandTool(ToolDefinition):
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         action = self.plan_action(params)
+        sensitive_values = _sensitive_environment_values()
         completed = subprocess.run(
             action["argv"],
             cwd=workspace,
@@ -237,13 +309,16 @@ class RunCommandTool(ToolDefinition):
             timeout=action["timeout_seconds"],
             check=False,
             shell=False,
+            env=_command_environment(),
         )
+        stdout = redact_sensitive_text(completed.stdout, sensitive_values=sensitive_values)
+        stderr = redact_sensitive_text(completed.stderr, sensitive_values=sensitive_values)
         return {
-            "argv": action["argv"],
+            "argv": [redact_sensitive_text(item, sensitive_values=sensitive_values) for item in action["argv"]],
             "returncode": completed.returncode,
-            "stdout": completed.stdout[-100_000:],
-            "stderr": completed.stderr[-100_000:],
-            "truncated": len(completed.stdout) > 100_000 or len(completed.stderr) > 100_000,
+            "stdout": stdout[-100_000:],
+            "stderr": stderr[-100_000:],
+            "truncated": len(stdout) > 100_000 or len(stderr) > 100_000,
         }
 
 
@@ -288,3 +363,72 @@ def _bounded_int(value: Any, name: str, minimum: int, maximum: int) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or not minimum <= value <= maximum:
         raise ValueError(f"{name} must be between {minimum} and {maximum}")
     return value
+
+
+def _collect_bounded_files(
+    target: Path,
+    root: Path,
+    *,
+    max_depth: int,
+    max_files: int,
+) -> tuple[list[Path], bool]:
+    if target.is_symlink():
+        return [], True
+    if target.is_file():
+        return [target], False
+
+    files: list[Path] = []
+    directories: list[tuple[Path, int]] = [(target, 0)]
+    scanned_entries = 0
+    while directories:
+        directory, directory_depth = directories.pop(0)
+        try:
+            with os.scandir(directory) as iterator:
+                entries = []
+                for entry in iterator:
+                    scanned_entries += 1
+                    if scanned_entries > MAX_DIRECTORY_SCAN_ENTRIES:
+                        return files, True
+                    entries.append(entry)
+        except OSError:
+            continue
+        for entry in sorted(entries, key=lambda item: item.name):
+            candidate = Path(entry.path)
+            relative = candidate.relative_to(root)
+            if entry.is_symlink() or PathGuard.is_sensitive_read_path(relative):
+                continue
+            candidate_depth = directory_depth + 1
+            try:
+                if entry.is_file(follow_symlinks=False):
+                    if candidate_depth > max_depth:
+                        continue
+                    if len(files) >= max_files:
+                        return files, True
+                    files.append(candidate)
+                elif entry.is_dir(follow_symlinks=False) and candidate_depth < max_depth:
+                    directories.append((candidate, candidate_depth))
+            except OSError:
+                continue
+    return files, False
+
+
+def _command_environment() -> dict[str, str]:
+    environment = {key: value for key, value in os.environ.items() if key in COMMAND_ENV_ALLOWLIST}
+    environment.setdefault("PATH", os.defpath)
+    return environment
+
+
+def _sensitive_environment_values() -> tuple[str, ...]:
+    values = {
+        value
+        for key, value in os.environ.items()
+        if value and len(value) >= 4 and any(marker in key.upper() for marker in SENSITIVE_ENV_MARKERS)
+    }
+    return tuple(sorted(values, key=len, reverse=True))
+
+
+def redact_sensitive_text(text: str, *, sensitive_values: tuple[str, ...] | None = None) -> str:
+    redacted = text
+    for value in sensitive_values if sensitive_values is not None else _sensitive_environment_values():
+        redacted = redacted.replace(value, "[REDACTED]")
+    return SENSITIVE_ASSIGNMENT_PATTERN.sub(r"\1\2[REDACTED]", redacted)

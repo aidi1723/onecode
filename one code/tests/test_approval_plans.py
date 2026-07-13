@@ -1,6 +1,8 @@
 import json
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from pathlib import Path
 
 from onecode.kernel.model_provider import ModelExecutionStep, ModelPlan, ModelToolCall
@@ -56,6 +58,27 @@ class ApprovalPlanTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaisesRegex(ValueError, "model_metadata"):
                 persist_approval_plan(Path(tmp), guarded_plan(), model_metadata={"api_key": "secret"})
+
+    def test_only_one_concurrent_request_can_claim_pending_plan(self):
+        from onecode.kernel.approval_plans import claim_approval_plan, persist_approval_plan
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            stored = persist_approval_plan(workspace, guarded_plan(), model_metadata={})
+            barrier = Barrier(2)
+
+            def claim():
+                barrier.wait()
+                try:
+                    return claim_approval_plan(workspace, stored.plan_id).path.parent.name
+                except ValueError as exc:
+                    return str(exc)
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                results = list(executor.map(lambda _index: claim(), range(2)))
+
+        self.assertEqual(results.count("executing-plans"), 1)
+        self.assertEqual(results.count("approval_plan_in_progress"), 1)
 
 
 if __name__ == "__main__":
