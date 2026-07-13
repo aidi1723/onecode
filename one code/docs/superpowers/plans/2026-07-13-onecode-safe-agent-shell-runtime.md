@@ -23,7 +23,7 @@
 - Create: `src/onecode/kernel/safe_agent_router.py`
 - Create: `tests/test_safe_agent_router.py`
 
-- [ ] **Step 1: Write failing adapter tests**
+- [x] **Step 1: Write failing adapter tests**
 
 ```python
 class SafeAgentRouterTests(unittest.TestCase):
@@ -46,23 +46,23 @@ class SafeAgentRouterTests(unittest.TestCase):
         self.assertEqual((route.status, route.reason), ("unavailable", "router_command_not_found"))
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run: `.venv/bin/python -m unittest tests.test_safe_agent_router -v`
 
 Expected: import failure for `onecode.kernel.safe_agent_router`.
 
-- [ ] **Step 3: Implement the adapter**
+- [x] **Step 3: Implement the adapter**
 
 Create `SafeAgentRoute` with status, reason, schema version, route ID, selected scenarios, trusted skill names, execution order, verifier expectations, and registry summary. `route_safe_agent_task()` runs `safe-agent-router-task-pack TASK --format json` with a timeout and output limit. Validation requires Schema v2, complete routing, clean registry verification, zero tampering, and trusted selected skills. Planning context uses an explicit field allowlist and `method_only` safety boundary.
 
-- [ ] **Step 4: Run GREEN**
+- [x] **Step 4: Run GREEN**
 
 Run: `.venv/bin/python -m unittest tests.test_safe_agent_router -v`
 
 Expected: all adapter tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/onecode/kernel/safe_agent_router.py tests/test_safe_agent_router.py
@@ -78,7 +78,7 @@ git commit -m "feat: add verified safe-agent router adapter"
 - Create: `tests/test_effective_model_config.py`
 - Modify: `src/onecode/web/api.py`
 
-- [ ] **Step 1: Write failing classification tests**
+- [x] **Step 1: Write failing classification tests**
 
 ```python
 def test_natural_project_check_is_read_task():
@@ -95,7 +95,7 @@ def test_explanatory_question_is_chat():
     assert classify_task("什么是 Safe-Agent-Skills？") == "chat"
 ```
 
-- [ ] **Step 2: Write failing effective-config test**
+- [x] **Step 2: Write failing effective-config test**
 
 ```python
 def test_environment_precedence_is_public_and_redacted():
@@ -109,25 +109,25 @@ def test_environment_precedence_is_public_and_redacted():
     assert "secret" not in repr(result.public)
 ```
 
-- [ ] **Step 3: Run RED**
+- [x] **Step 3: Run RED**
 
 Run: `.venv/bin/python -m unittest tests.test_task_classification tests.test_effective_model_config -v`
 
 Expected: both modules are missing.
 
-- [ ] **Step 4: Implement three-way classification**
+- [x] **Step 4: Implement three-way classification**
 
 Expose `classify_task(text, explicit_mode=None) -> Literal["chat", "read_task", "change_task"]`. Change signals take precedence over read signals; explicit validated modes take precedence over inference. Question punctuation alone cannot demote an imperative request.
 
-- [ ] **Step 5: Implement effective configuration**
+- [x] **Step 5: Implement effective configuration**
 
 Expose an immutable result containing provider, endpoint, model, API key, and a redacted `public` mapping. Resolve environment, then stored values, then defaults. Record a source label for each public value and never include secret text in public output.
 
-- [ ] **Step 6: Wire Web routing and diagnostics**
+- [x] **Step 6: Wire Web routing and diagnostics**
 
 Validate optional `metadata.onecode_mode`, use direct chat only for `chat`, pass the task mode to model planning, and expose the redacted effective config in project status.
 
-- [ ] **Step 7: Run GREEN and commit**
+- [x] **Step 7: Run GREEN and commit**
 
 Run: `.venv/bin/python -m unittest tests.test_task_classification tests.test_effective_model_config tests.test_web_api -v`
 
@@ -144,7 +144,7 @@ git commit -m "fix: classify shell tasks and expose effective model config"
 - Create: `tests/test_execution_tools.py`
 - Modify: `tests/test_execution_engine.py`
 
-- [ ] **Step 1: Write failing tool tests**
+- [x] **Step 1: Write failing tool tests**
 
 ```python
 def test_default_registry_exposes_read_and_guarded_tools():
@@ -162,7 +162,7 @@ def test_run_command_requires_argv(tmp_path):
         RunCommandTool().plan_action({"command": "pwd && rm file"})
 ```
 
-- [ ] **Step 2: Write failing approval test**
+- [x] **Step 2: Write failing approval test**
 
 ```python
 def test_guarded_step_requires_approval_without_execution(tmp_path):
@@ -171,21 +171,21 @@ def test_guarded_step_requires_approval_without_execution(tmp_path):
     assert not (tmp_path / "out.txt").exists()
 ```
 
-- [ ] **Step 3: Run RED**
+- [x] **Step 3: Run RED**
 
 Run: `.venv/bin/python -m unittest tests.test_execution_tools tests.test_execution_engine -v`
 
 Expected: new tools are absent and the guarded write currently executes.
 
-- [ ] **Step 4: Implement tools**
+- [x] **Step 4: Implement tools**
 
 Add `list_files`, `read_text`, `search_text`, and `git_status` with path resolution, symlink escape protection, byte/line/match limits, and JSON-safe output. Add `run_command` using only a bounded `argv: list[str]`, `shell=False`, selected-workspace cwd, timeout, and bounded stdout/stderr. Keep write/patch routed through `run_task`.
 
-- [ ] **Step 5: Enforce approval**
+- [x] **Step 5: Enforce approval**
 
 When a guarded tool has no approval callback, return `approval_required` without execution. Execute only when a callback exists and returns true. Rejection returns `approval_rejected`.
 
-- [ ] **Step 6: Run GREEN and commit**
+- [x] **Step 6: Run GREEN and commit**
 
 Run: `.venv/bin/python -m unittest tests.test_execution_tools tests.test_execution_engine -v`
 
@@ -202,7 +202,7 @@ git commit -m "feat: add guarded shell inspection tools"
 - Create: `tests/test_model_provider_contract.py`
 - Modify: `tests/test_model_loop.py`
 
-- [ ] **Step 1: Write failing contract tests**
+- [x] **Step 1: Write failing contract tests**
 
 ```python
 def test_both_providers_receive_the_same_tools_and_safe_agent_context():
@@ -218,7 +218,7 @@ def test_model_plan_accepts_explicit_no_action():
     assert plan.no_action_reason == "no workspace action"
 ```
 
-- [ ] **Step 2: Write failing model-loop router test**
+- [x] **Step 2: Write failing model-loop router test**
 
 ```python
 def test_model_task_passes_verified_route_to_provider(tmp_path):
@@ -228,21 +228,21 @@ def test_model_task_passes_verified_route_to_provider(tmp_path):
     assert provider.planning_context["safe_agent"]["schema_version"] == 2
 ```
 
-- [ ] **Step 3: Run RED**
+- [x] **Step 3: Run RED**
 
 Run: `.venv/bin/python -m unittest tests.test_model_provider_contract tests.test_model_loop -v`
 
 Expected: missing planning-context parameters and no-action field.
 
-- [ ] **Step 4: Implement canonical contract**
+- [x] **Step 4: Implement canonical contract**
 
 Extend `ModelPlan` and `MODEL_PLAN_SCHEMA` with `no_action.reason`. Require exactly one of actionable assets/patches/execution steps or no-action. Generate one canonical system contract containing task mode, exact tool parameter schemas, approval policy, and allowlisted Safe-Agent planning context; use it for both providers.
 
-- [ ] **Step 5: Integrate router and no-action result**
+- [x] **Step 5: Integrate router and no-action result**
 
 `run_model_task` accepts task mode and an optional injected route. It calls the latest router by default. Invalid integrity output halts before model planning; unavailable/no-scenario routes remain explicit but may continue. No-action returns `halted/no_actionable_plan` and never calls lightweight `noop` execution.
 
-- [ ] **Step 6: Run GREEN and commit**
+- [x] **Step 6: Run GREEN and commit**
 
 Run: `.venv/bin/python -m unittest tests.test_model_provider_contract tests.test_model_loop tests.test_model_config -v`
 
@@ -259,7 +259,7 @@ git commit -m "feat: route model plans through safe-agent context"
 - Modify: `src/onecode/web/api.py`
 - Modify: `tests/test_web_api.py`
 
-- [ ] **Step 1: Write failing plan-store tests**
+- [x] **Step 1: Write failing plan-store tests**
 
 ```python
 def test_plan_round_trip_checks_digest_and_workspace(tmp_path):
@@ -275,7 +275,7 @@ def test_tampered_plan_is_rejected(tmp_path):
         load_approval_plan(tmp_path, stored.plan_id)
 ```
 
-- [ ] **Step 2: Write failing Web tests**
+- [x] **Step 2: Write failing Web tests**
 
 ```python
 def test_change_task_returns_approval_required_without_mutation(self):
@@ -289,21 +289,21 @@ def test_approved_endpoint_executes_revalidated_plan(self):
     self.assertEqual((status, payload["status"]), (200, "completed"))
 ```
 
-- [ ] **Step 3: Run RED**
+- [x] **Step 3: Run RED**
 
 Run: `.venv/bin/python -m unittest tests.test_approval_plans tests.test_web_api -v`
 
 Expected: approval store and handler are missing.
 
-- [ ] **Step 4: Implement atomic plan store**
+- [x] **Step 4: Implement atomic plan store**
 
 Store canonical allowlisted JSON under `.onecode/pending-plans/<plan-id>.json` with SHA256 and atomic replace. Validate plan ID, workspace, digest, age, tools, and parameters on load. Exclude credentials and raw skill bodies.
 
-- [ ] **Step 5: Implement Web approval flow**
+- [x] **Step 5: Implement Web approval flow**
 
 Persist guarded plans and return `approval_required` with a bounded summary. Add authenticated `POST /v1/onecode/plans/<plan-id>/approval` accepting `approved: bool`. Revalidate approved plans before execution; record rejection without executing. Remove the empty-plan `chat_fallback` that creates a successful `noop`.
 
-- [ ] **Step 6: Run GREEN and commit**
+- [x] **Step 6: Run GREEN and commit**
 
 Run: `.venv/bin/python -m unittest tests.test_approval_plans tests.test_web_api -v`
 
@@ -319,7 +319,7 @@ git commit -m "feat: require approval for guarded shell plans"
 - Modify: `tests/test_shell_launcher.py`
 - Modify: `tests/test_cli_local_interface_commands.py`
 
-- [ ] **Step 1: Write failing launcher tests**
+- [x] **Step 1: Write failing launcher tests**
 
 ```python
 def test_shell_defaults_workspace_to_onecode_root():
@@ -332,17 +332,17 @@ def test_runtime_config_is_outside_workspace(tmp_path):
     assert build_runtime_config(config).parent == tmp_path / "state"
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run: `.venv/bin/python -m unittest tests.test_shell_launcher tests.test_cli_local_interface_commands -v`
 
 Expected: current workspace default is temporary and no state-root field exists.
 
-- [ ] **Step 3: Implement separate roots**
+- [x] **Step 3: Implement separate roots**
 
 Add `runtime_state_root` to `ShellLaunchConfig`. Default workspace to `onecode_root`; default state root to `tempfile.gettempdir()/onecode-librechat-live`. Write LibreChat YAML under state root while keeping OneCode workspace and allowed roots on the selected project.
 
-- [ ] **Step 4: Run GREEN and commit**
+- [x] **Step 4: Run GREEN and commit**
 
 Run: `.venv/bin/python -m unittest tests.test_shell_launcher tests.test_cli_local_interface_commands -v`
 
@@ -358,33 +358,32 @@ git commit -m "fix: bind shell tasks to selected project workspace"
 - Modify: `docs/ONECODE_SAFE_AGENT_SHELL_INTEGRATION_ISSUE_2026-07-13.md`
 - Modify: `docs/superpowers/plans/2026-07-13-onecode-safe-agent-shell-runtime.md`
 
-- [ ] **Step 1: Run focused regression suite**
+- [x] **Step 1: Run focused regression suite**
 
 Run all new test modules plus `test_execution_engine`, `test_model_loop`, `test_shell_launcher`, `test_cli_local_interface_commands`, and `test_web_api` with unittest verbose mode.
 
 Expected: all non-socket tests pass; socket tests skip only when sandbox binding is unavailable.
 
-- [ ] **Step 2: Run project verification**
+- [x] **Step 2: Run project verification**
 
 Run: `bash scripts/verify.sh`
 
 Expected: exit code 0 and all required gates pass.
 
-- [ ] **Step 3: Update README and issue status**
+- [x] **Step 3: Update README and issue status**
 
 Document dynamic latest-router use, selected workspace, automatic reads, approval flow, no-action behavior, and redacted configuration. Mark the issue `Resolved` with exact verification results.
 
-- [ ] **Step 4: Restart live shell**
+- [x] **Step 4: Restart live shell**
 
 Run `.venv/bin/python -m onecode shell --workspace "/Users/aidi/大字典/one code" --show-credentials --no-browser` after stopping the old foreground launcher.
 
 Expected: MongoDB, OneCode API, and LibreChat pass readiness checks on ports 39017, 19080, and 14080.
 
-- [ ] **Step 5: Run live read and guarded smoke checks**
+- [x] **Step 5: Run live read and guarded smoke checks**
 
 Submit `检查当前项目状态`; verify a read execution trace and Safe-Agent Schema v2 summary. Submit `修改 README.md`; verify `approval_required` and unchanged README, then reject the plan. Verify an injected no-action response returns `halted/no_actionable_plan` without a successful noop WAL entry.
 
-- [ ] **Step 6: Review and commit documentation**
+- [x] **Step 6: Review and commit documentation**
 
 Run `git diff --check` and `git status --short`, stage only README, issue record, and this plan, then commit with `docs: close safe-agent shell integration issue`.
-

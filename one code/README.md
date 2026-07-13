@@ -298,6 +298,31 @@ set. You can also pass `--email` and `--password` explicitly or create a local
 account from the login screen. Use `Ctrl+C` in the launcher terminal to stop all
 local services.
 
+Shell tasks run against the selected project workspace; LibreChat runtime
+state remains under the temporary shell state directory. Natural-language
+inspection requests are routed through the installed Safe-Agent Router and use
+the current verified Schema v2 catalog dynamically, so OneCode does not embed a
+stale catalog snapshot. The selected scenarios, trusted skill names, registry
+summary, and verifier expectations are recorded in bounded planning evidence.
+Safe-Agent guidance never grants tool or filesystem permission.
+
+Workspace-bounded `list_files`, `read_text`, `search_text`, and `git_status`
+operations may run automatically. File writes, patches, and argv-only command
+execution stop before mutation and return a persisted approval plan. Approve or
+reject that exact plan in chat with:
+
+```text
+批准计划 <plan-id>
+拒绝计划 <plan-id>
+```
+
+Approval reloads and validates the plan digest, workspace, age, tools, and
+parameters before execution. Rejection records the decision without executing
+the plan. A model response without an actionable plan returns
+`halted/no_actionable_plan`; it is never reported as a successful `noop`.
+Project status exposes the effective provider, endpoint source, and model
+source while keeping API keys redacted.
+
 ## Run
 
 Write one asset:

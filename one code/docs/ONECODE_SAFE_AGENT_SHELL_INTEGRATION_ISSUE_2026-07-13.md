@@ -1,7 +1,7 @@
 # OneCode Safe-Agent Shell Integration Issue
 
 Date: 2026-07-13
-Status: Confirmed
+Status: Resolved
 Severity: High
 Affected surface: LibreChat shell, OneCode Web API, model planning, skill routing
 
@@ -92,3 +92,54 @@ snapshot of the catalog into the OneCode repository.
    exposing credentials.
 9. Unit, contract, Web API, and live shell smoke tests cover the repaired flow.
 
+## Resolution
+
+- The shell now separates the selected project workspace from temporary
+  LibreChat runtime state.
+- Non-trivial tasks dynamically call `safe-agent-router-task-pack --format
+  json` and pass an allowlisted Schema v2 planning context to both supported
+  model-provider contracts.
+- Natural-language project inspection is classified as a task, and the default
+  registry now provides bounded list/read/search/git-status tools.
+- Writes, patches, and argv-only commands persist a digest-bound approval plan.
+  Chat commands `批准计划 <plan-id>` and `拒绝计划 <plan-id>` execute or reject
+  the revalidated plan.
+- Empty plans now halt with `no_actionable_plan`. Effective model configuration
+  sources are visible without exposing API keys.
+- Root directory reads use a read-specific path boundary. They skip `.git`,
+  `.env*`, and symbolic links while preserving the stricter existing write
+  boundary.
+
+`project/status` may still report `skill_context.status=missing` when the
+project has no static `.onecode/skills` manifests. This is separate from the
+runtime Safe-Agent integration: each non-trivial model task calls the external
+router, and its Schema v2 status is recorded under the run's `safe_agent`
+evidence.
+
+## Verification
+
+- Focused final regression: 167 tests passed.
+- Approval, model, and Web API suite: 96 tests passed.
+- Shell and CLI suite: 36 tests passed.
+- Full `PYTHONPATH=src bash scripts/verify.sh`: 864 tests passed, 1 skipped;
+  source-quality gates and `doctor` passed.
+- Latest router check selected scenario `skill-router-quality-review`, returned
+  Schema v2, covered all required capabilities, and verified 172 catalog
+  skills, 166 trusted skills, and 0 tampered records.
+- `http://127.0.0.1:14080/login` returned HTTP 200 after MongoDB, OneCode API,
+  and LibreChat readiness checks passed.
+- Live read run `f25170c3a1d04520afe80e34f295fa4c` completed both
+  `git_status` and root `list_files` with Schema v2 Safe-Agent evidence.
+- Live change run `27a4146cc5024117b6b45beb80484ab5` returned
+  `approval_required` before creating `safe-agent-approval-smoke.txt`. Chat
+  rejection of plan `d424510f11ee45000f8d50029a55502b` returned
+  `approval_rejected`; the file remained absent.
+
+## Residual risks
+
+- Simple read tasks can legitimately return a Schema v2 route with
+  `no_matching_scenario`; this is explicit evidence and does not bypass OneCode
+  permissions.
+- The local LibreChat process logs optional Meilisearch and RAG availability
+  warnings. Chat, model routing, and OneCode task execution remain healthy, but
+  search indexing and file-upload RAG require those separate services.
