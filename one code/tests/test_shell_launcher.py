@@ -23,6 +23,43 @@ from onecode.shell_launcher import (
 
 
 class ShellLauncherConfigTests(unittest.TestCase):
+    def test_shell_defaults_workspace_to_onecode_root_and_separates_runtime_state(self):
+        class Args:
+            onecode_root = "/tmp/example-onecode"
+            librechat_dir = "/tmp/example-librechat"
+            workspace = None
+            onecode_host = "127.0.0.1"
+            librechat_host = "127.0.0.1"
+            api_token = "token"
+            open_browser = False
+            show_credentials = False
+
+        config = config_from_args(Args())
+
+        self.assertEqual(config.workspace_root, Path("/tmp/example-onecode").resolve())
+        self.assertNotEqual(config.runtime_state_root, config.workspace_root)
+        self.assertEqual(config.runtime_state_root, Path(tempfile.gettempdir()) / "onecode-librechat-live")
+
+    def test_runtime_config_uses_explicit_state_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = ShellLaunchConfig(
+                onecode_root=Path(tmp) / "one code",
+                librechat_dir=Path(tmp) / "onecode-librechat",
+                onecode_host="127.0.0.1",
+                onecode_port=18080,
+                librechat_host="127.0.0.1",
+                librechat_port=13080,
+                mongo_port=37017,
+                api_token="test-token",
+                workspace_root=Path(tmp) / "workspace",
+                runtime_state_root=Path(tmp) / "state",
+            )
+
+            path = build_runtime_config(config)
+
+            self.assertEqual(path.parent, Path(tmp) / "state")
+            self.assertFalse((Path(tmp) / "workspace" / "librechat.onecode.yaml").exists())
+
     def test_default_librechat_dir_points_to_adjacent_onecode_shell(self):
         project_root = Path("/private/var/tmp/example-root/one code")
 

@@ -4,6 +4,7 @@ import os
 import secrets
 import subprocess
 import sys
+import tempfile
 import time
 import webbrowser
 from dataclasses import dataclass
@@ -31,6 +32,7 @@ class ShellLaunchConfig:
     mongo_port: int
     api_token: str
     workspace_root: Path
+    runtime_state_root: Path | None = None
     email: str = DEFAULT_LOCAL_EMAIL
     password: str = DEFAULT_LOCAL_PASSWORD
     open_browser: bool = True
@@ -76,12 +78,13 @@ def build_librechat_env(config: ShellLaunchConfig, base_env: Mapping[str, str] |
 
 
 def runtime_config_path(config: ShellLaunchConfig) -> Path:
-    return config.workspace_root / "librechat.onecode.yaml"
+    state_root = config.runtime_state_root or config.workspace_root
+    return state_root / "librechat.onecode.yaml"
 
 
 def build_runtime_config(config: ShellLaunchConfig) -> Path:
-    config.workspace_root.mkdir(parents=True, exist_ok=True)
     path = runtime_config_path(config)
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         "\n".join(
             [
@@ -345,7 +348,8 @@ def config_from_args(args: object) -> ShellLaunchConfig:
     librechat_dir_arg = getattr(args, "librechat_dir", None)
     librechat_dir = Path(librechat_dir_arg).resolve() if librechat_dir_arg else default_librechat_dir(onecode_root)
     workspace_arg = getattr(args, "workspace", None)
-    workspace_root = Path(workspace_arg).resolve() if workspace_arg else Path("/private/tmp/onecode-librechat-live")
+    workspace_root = Path(workspace_arg).resolve() if workspace_arg else onecode_root
+    runtime_state_root = Path(tempfile.gettempdir()) / "onecode-librechat-live"
     return ShellLaunchConfig(
         onecode_root=onecode_root,
         librechat_dir=librechat_dir,
@@ -356,6 +360,7 @@ def config_from_args(args: object) -> ShellLaunchConfig:
         mongo_port=getattr(args, "mongo_port", DEFAULT_MONGO_PORT),
         api_token=getattr(args, "api_token", "dev-local-token"),
         workspace_root=workspace_root,
+        runtime_state_root=runtime_state_root,
         email=getattr(args, "email", DEFAULT_LOCAL_EMAIL),
         password=getattr(args, "password", DEFAULT_LOCAL_PASSWORD),
         open_browser=getattr(args, "open_browser", True),
