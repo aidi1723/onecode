@@ -120,6 +120,12 @@ snapshot of the catalog into the OneCode repository.
 - Search uses literal matching with depth, file, byte, scan, and result limits.
   Missing model credentials now return `503 model_configuration_missing`
   instead of a successful rule/noop fallback.
+- Resume requests resolve the same effective stored/environment model
+  configuration as initial tasks and return the same visible 503 error when
+  credentials are absent.
+- Approval plans validate every asset, patch, and tool call against the real
+  execution registry before persistence and again before execution. Malformed
+  or unknown parameters cannot be stored for later approval.
 
 `project/status` may still report `skill_context.status=missing` when the
 project has no static `.onecode/skills` manifests. This is separate from the
@@ -129,8 +135,8 @@ evidence.
 
 ## Verification
 
-- Focused final regression: 176 tests passed.
-- Full `PYTHONPATH=src bash scripts/verify.sh`: 872 tests passed, 1 skipped;
+- Focused final regression: 129 tests passed.
+- Full `PYTHONPATH=src bash scripts/verify.sh`: 875 tests passed, 1 skipped;
   source-quality gates and `doctor` passed.
 - Latest router check selected scenario `skill-router-quality-review`, returned
   Schema v2, covered all required capabilities, and verified 172 catalog
