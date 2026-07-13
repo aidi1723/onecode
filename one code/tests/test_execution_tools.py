@@ -54,6 +54,50 @@ class ExecutionToolsTests(unittest.TestCase):
         self.assertEqual(len(searched["matches"]), 2)
         self.assertTrue(searched["truncated"])
 
+    def test_list_files_accepts_workspace_root(self):
+        from onecode.kernel.execution_tools import ListFilesTool
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "README.md").write_text("project\n", encoding="utf-8")
+
+            listed = ListFilesTool().execute({"path": ".", "max_entries": 10}, workspace)
+
+        self.assertEqual(listed["path"], ".")
+        self.assertEqual(listed["files"], ["README.md"])
+
+    def test_list_files_skips_symlinks_outside_workspace(self):
+        from onecode.kernel.execution_tools import ListFilesTool, ReadTextTool
+
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside_tmp:
+            workspace = Path(tmp)
+            outside = Path(outside_tmp) / "secret.txt"
+            outside.write_text("secret\n", encoding="utf-8")
+            (workspace / "README.md").write_text("project\n", encoding="utf-8")
+            (workspace / "external.txt").symlink_to(outside)
+
+            listed = ListFilesTool().execute({"path": ".", "max_entries": 10}, workspace)
+
+            with self.assertRaises(PathGuardError):
+                ReadTextTool().execute({"path": "external.txt"}, workspace)
+
+        self.assertEqual(listed["files"], ["README.md"])
+
+    def test_root_search_skips_environment_secrets(self):
+        from onecode.kernel.execution_tools import ReadTextTool, SearchTextTool
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "README.md").write_text("visible-needle\n", encoding="utf-8")
+            (workspace / ".env.local").write_text("TOKEN=secret-needle\n", encoding="utf-8")
+
+            searched = SearchTextTool().execute({"query": "needle", "path": "."}, workspace)
+
+            with self.assertRaises(PathGuardError):
+                ReadTextTool().execute({"path": ".env.local"}, workspace)
+
+        self.assertEqual([match["path"] for match in searched["matches"]], ["README.md"])
+
     def test_run_command_requires_argv(self):
         from onecode.kernel.execution_tools import RunCommandTool
 

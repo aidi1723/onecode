@@ -71,7 +71,7 @@ class ReadTextTool(ToolDefinition):
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         action = self.plan_action(params)
-        target = PathGuard.resolve_target(workspace, action["path"])
+        target = PathGuard.resolve_read_target(workspace, action["path"])
         if not target.is_file():
             raise ValueError("read_target_not_file")
         raw = target.read_bytes()
@@ -105,7 +105,7 @@ class ListFilesTool(ToolDefinition):
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         action = self.plan_action(params)
-        target = PathGuard.resolve_target(workspace, _required_string(action, "path"))
+        target = PathGuard.resolve_read_target(workspace, _required_string(action, "path"))
         if not target.exists():
             raise ValueError("list_target_not_found")
         root = workspace.resolve()
@@ -114,11 +114,11 @@ class ListFilesTool(ToolDefinition):
         truncated = False
         for candidate in candidates:
             relative = candidate.relative_to(root)
-            if ".git" in relative.parts or len(relative.parts) - len(target.relative_to(root).parts) > action["max_depth"]:
+            if PathGuard.is_sensitive_read_path(relative) or len(relative.parts) - len(
+                target.relative_to(root).parts
+            ) > action["max_depth"]:
                 continue
-            if candidate.is_symlink():
-                PathGuard.resolve_target(root, str(relative))
-            if not candidate.is_file():
+            if candidate.is_symlink() or not candidate.is_file():
                 continue
             if len(files) >= action["max_entries"]:
                 truncated = True
@@ -147,14 +147,18 @@ class SearchTextTool(ToolDefinition):
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         action = self.plan_action(params)
-        target = PathGuard.resolve_target(workspace, _required_string(action, "path"))
+        target = PathGuard.resolve_read_target(workspace, _required_string(action, "path"))
         pattern = re.compile(action["query"] if action["regex"] else re.escape(action["query"]))
         root = workspace.resolve()
         candidates = [target] if target.is_file() else sorted(target.rglob("*"), key=lambda path: str(path))
         matches = []
         truncated = False
         for candidate in candidates:
-            if not candidate.is_file() or candidate.is_symlink() or ".git" in candidate.relative_to(root).parts:
+            if (
+                not candidate.is_file()
+                or candidate.is_symlink()
+                or PathGuard.is_sensitive_read_path(candidate.relative_to(root))
+            ):
                 continue
             try:
                 text = candidate.read_text(encoding="utf-8")

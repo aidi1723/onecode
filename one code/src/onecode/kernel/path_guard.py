@@ -62,3 +62,26 @@ class PathGuard:
         except ValueError as exc:
             raise PathGuardError("path escapes workspace root") from exc
         return target
+
+    @classmethod
+    def resolve_read_target(cls, workspace_root: Path, relative_path: str) -> Path:
+        if not isinstance(relative_path, str) or relative_path == "":
+            raise PathGuardError("path must be a non-empty relative string")
+
+        requested = Path(relative_path)
+        if requested.is_absolute():
+            raise PathGuardError("absolute paths are not allowed")
+        if cls.is_sensitive_read_path(requested):
+            raise PathGuardError("sensitive paths are not readable")
+
+        root = workspace_root.resolve()
+        target = (root / requested).resolve()
+        try:
+            target.relative_to(root)
+        except ValueError as exc:
+            raise PathGuardError("path escapes workspace root") from exc
+        return target
+
+    @staticmethod
+    def is_sensitive_read_path(path: Path) -> bool:
+        return any(part == ".git" or part == ".env" or part.startswith(".env.") for part in path.parts)
