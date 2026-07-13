@@ -139,6 +139,11 @@ class OneCodeWebApiTests(unittest.TestCase):
 
         self.assertFalse(should_run_onecode_task("你会执行数学任务吗？能够用数学公式把八卦的规则写出来吗"))
 
+    def test_natural_language_project_check_is_classified_as_task(self):
+        from onecode.web.api import should_run_onecode_task
+
+        self.assertTrue(should_run_onecode_task("检查当前项目是否已经集成 safe-agent-skills"))
+
     def test_query_numeric_parsers_reject_boolean_values(self):
         from onecode.web.api import parse_limit, parse_window_seconds
 
@@ -452,6 +457,37 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertNotIn("skills", payload["skill_context"])
         self.assertNotIn("invalid_skills", payload["skill_context"])
         self.assertIn("content_sha256", payload["project_context"]["memory_files"][0])
+
+    def test_project_status_exposes_effective_model_sources_without_secret(self):
+        from onecode.web.api import project_status_payload
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "environment-secret",
+            },
+            clear=True,
+        ), patch(
+            "onecode.web.api.read_model_config",
+            return_value={
+                "provider": "openai-compatible",
+                "endpoint": "http://stored.example/v1",
+                "model": "stored-model",
+                "api_key": "stored-secret",
+            },
+        ):
+            payload = project_status_payload(Path(tmp))
+
+        config = payload["effective_model_config"]
+        self.assertEqual(config["provider"], "chat")
+        self.assertEqual(config["provider_source"], "environment")
+        self.assertEqual(config["endpoint_source"], "stored")
+        self.assertTrue(config["api_key_configured"])
+        self.assertNotIn("environment-secret", json.dumps(payload))
+        self.assertNotIn("stored-secret", json.dumps(payload))
 
     def test_project_status_projects_latest_run_for_shell_consumers(self):
         from onecode.kernel.runner import run_task

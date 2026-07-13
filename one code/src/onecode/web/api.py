@@ -14,6 +14,7 @@ from typing import Any, BinaryIO, Mapping
 from urllib.parse import parse_qs, urlparse
 
 from onecode.kernel.diagnostics import run_doctor
+from onecode.kernel.effective_model_config import resolve_effective_model_config
 from onecode.kernel.run_inspection import inspect_run, list_runs
 from onecode.kernel.model_loop import run_model_task
 from onecode.kernel.model_config import (
@@ -35,6 +36,7 @@ from onecode.kernel.shell_projection import (
     shell_projection_schema,
 )
 from onecode.kernel.runtime_config import inspect_runtime_config
+from onecode.kernel.task_classification import classify_task
 from onecode.kernel.run_id import validate_optional_run_id, validate_run_id
 from onecode.kernel.wal import global_wal_metrics_summary
 from onecode.kernel.verifier import (
@@ -227,6 +229,7 @@ def project_status_payload(workspace: Path) -> dict[str, Any]:
     policy_path = resolved / DEFAULT_VERIFIER_POLICY_PATH
     runs = list_runs(resolved)["runs"]
     latest_run = attach_shell_projection(runs[-1]) if runs else None
+    effective_model = resolve_effective_model_config(os.environ, read_model_config(include_secret=True))
     return {
         "workspace": str(resolved),
         "exists": resolved.exists() and resolved.is_dir(),
@@ -238,6 +241,7 @@ def project_status_payload(workspace: Path) -> dict[str, Any]:
         "project_context": discover_project_context(resolved),
         "runtime_config": inspect_runtime_config(resolved),
         "skill_context": public_skill_context(discover_skill_context(resolved)),
+        "effective_model_config": effective_model.public,
     }
 
 
@@ -597,15 +601,7 @@ def error_payload(error_type: str, message: str) -> dict[str, Any]:
 
 
 def should_run_onecode_task(user_message: str) -> bool:
-    stripped = user_message.strip()
-    lowered = stripped.lower()
-    if any(marker in stripped for marker in ("吗", "？", "?")) and not any(marker in lowered for marker in PATH_MARKERS):
-        return False
-    if stripped.startswith(TASK_PREFIXES):
-        return True
-    if any(marker in lowered for marker in PATH_MARKERS):
-        return True
-    return any(marker in stripped for marker in TASK_MARKERS)
+    return classify_task(user_message) != "chat"
 
 
 def direct_chat_completion(
