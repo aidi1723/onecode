@@ -9,6 +9,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .venv/
+.worktrees/
 .onecode/
 .playwright-cli/
 .onecode-complex-plan.json
