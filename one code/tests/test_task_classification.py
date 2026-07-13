@@ -18,6 +18,22 @@ class TaskClassificationTests(unittest.TestCase):
         self.assertEqual(classify_task("修改 README.md"), "change_task")
         self.assertEqual(classify_task("安装项目依赖"), "change_task")
 
+    def test_english_imperative_with_modifiers_is_change_task(self):
+        from onecode.kernel.task_classification import classify_task
+
+        self.assertEqual(
+            classify_task(
+                "Create exactly one file named safe-agent-final-smoke-20260713.txt "
+                "in the project root with exact content: final approval smoke."
+            ),
+            "change_task",
+        )
+
+    def test_english_writing_question_without_project_action_is_chat(self):
+        from onecode.kernel.task_classification import classify_task
+
+        self.assertEqual(classify_task("Write a brief explanation of Safe-Agent-Skills."), "chat")
+
     def test_explanatory_question_is_chat(self):
         from onecode.kernel.task_classification import classify_task
 

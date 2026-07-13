@@ -7,6 +7,7 @@ TaskMode = Literal["chat", "read_task", "change_task"]
 VALID_TASK_MODES = frozenset({"chat", "read_task", "change_task"})
 
 CHANGE_PREFIXES = ("造：", "改：", "写：", "跑：", "执行：", "修：", "测试：")
+ENGLISH_FILE_CHANGE_PREFIXES = ("create ", "write ", "edit ", "delete ")
 READ_PREFIXES = ("查：", "检查：", "审查：", "诊断：")
 CHANGE_SIGNALS = (
     "修改",
@@ -62,7 +63,11 @@ def classify_task(text: str, *, explicit_mode: str | None = None) -> TaskMode:
 
     stripped = text.strip()
     lowered = stripped.lower()
-    if stripped.startswith(CHANGE_PREFIXES) or any(signal in lowered for signal in CHANGE_SIGNALS):
+    if (
+        stripped.startswith(CHANGE_PREFIXES)
+        or _starts_english_file_change_request(lowered)
+        or any(signal in lowered for signal in CHANGE_SIGNALS)
+    ):
         return "change_task"
     if stripped.startswith(READ_PREFIXES):
         return "read_task"
@@ -77,3 +82,9 @@ def classify_task(text: str, *, explicit_mode: str | None = None) -> TaskMode:
 
 def _has_imperative_signal(text: str) -> bool:
     return any(signal in text for signal in ("看", "读", "查", "解释", "review", "read", "check", "inspect"))
+
+
+def _starts_english_file_change_request(text: str) -> bool:
+    if not text.startswith(ENGLISH_FILE_CHANGE_PREFIXES):
+        return False
+    return " file " in f" {text} " or any(signal in text for signal in PATH_SIGNALS)
