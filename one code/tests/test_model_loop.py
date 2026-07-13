@@ -129,6 +129,43 @@ class ModelLoopTests(unittest.TestCase):
         self.assertEqual(result["status"], "halted")
         self.assertEqual(result["reason"], "no_actionable_plan")
         self.assertNotEqual(result.get("intent_type"), "noop")
+
+    def test_guarded_model_plan_is_persisted_before_execution(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            provider = ContextCapturingProvider(
+                ModelPlan(
+                    task="write result",
+                    execution_steps=[
+                        ModelExecutionStep(
+                            id="write",
+                            description="write result",
+                            tool_calls=[
+                                ModelToolCall(
+                                    tool_name="write_text",
+                                    params={"path": "docs/result.md", "content": "done\n"},
+                                )
+                            ],
+                        )
+                    ],
+                )
+            )
+
+            result = run_model_task(
+                "修改 docs/result.md",
+                workspace=workspace,
+                api_key="key",
+                provider=provider,
+                provider_kind="chat",
+                task_mode="change_task",
+                safe_agent_route=SafeAgentRoute("no_match", "no_matching_scenario", schema_version=2),
+                require_explicit_approval=True,
+            )
+
+            self.assertEqual(result["reason"], "approval_required")
+            self.assertRegex(result["plan_id"], r"^[a-f0-9]{32}$")
+            self.assertTrue((workspace / ".onecode" / "pending-plans" / f"{result['plan_id']}.json").exists())
+            self.assertFalse((workspace / "docs" / "result.md").exists())
     def test_domestic_provider_configs_use_openai_compatible_chat_endpoints(self):
         expected = {
             "qwen": (

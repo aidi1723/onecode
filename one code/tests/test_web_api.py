@@ -256,14 +256,152 @@ class OneCodeWebApiTests(unittest.TestCase):
             payload, status_code = handle_chat_completion(
                 {
                     "model": "onecode-agent",
-                    "messages": [{"role": "user", "content": "你好"}],
+                    "messages": [{"role": "user", "content": "检查当前项目"}],
                 }
             )
 
         self.assertEqual(status_code, 200)
-        self.assertEqual(payload["onecode"]["mode"], "chat_fallback")
-        self.assertEqual(payload["onecode"]["result"]["status"], "completed")
-        self.assertIn("没有生成文件变更", payload["choices"][0]["message"]["content"])
+        self.assertEqual(payload["onecode"]["mode"], "no_action")
+        self.assertEqual(payload["onecode"]["result"]["status"], "halted")
+        self.assertEqual(payload["onecode"]["result"]["reason"], "no_actionable_plan")
+        self.assertNotIn("completed", payload["choices"][0]["message"]["content"])
+
+    def test_change_task_enables_router_and_explicit_approval(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+            },
+            clear=True,
+        ), patch(
+            "onecode.web.api.read_model_config",
+            return_value={"provider": "chat", "model": "m", "endpoint": "http://model/v1", "api_key": "key"},
+        ), patch(
+            "onecode.web.api.run_model_task",
+            return_value={
+                "run_id": "pending-run",
+                "status": "halted",
+                "reason": "approval_required",
+                "partial": False,
+                "requested_count": 1,
+                "completed_count": 0,
+                "skipped_count": 0,
+                "failed_count": 0,
+                "assets": [],
+                "plan_id": "abc123",
+            },
+        ) as run_model:
+            payload, status = handle_chat_completion(
+                {"model": "onecode-agent", "messages": [{"role": "user", "content": "修改 docs/result.md"}]}
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["onecode"]["result"]["reason"], "approval_required")
+        self.assertEqual(run_model.call_args.kwargs["task_mode"], "change_task")
+        self.assertTrue(run_model.call_args.kwargs["require_explicit_approval"])
+
+    def test_approval_handler_executes_revalidated_plan(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelExecutionStep, ModelPlan, ModelToolCall
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(
+                    task="write result",
+                    execution_steps=[
+                        ModelExecutionStep(
+                            id="write",
+                            description="write result",
+                            tool_calls=[
+                                ModelToolCall(
+                                    tool_name="write_text",
+                                    params={"path": "docs/result.md", "content": "done\n"},
+                                )
+                            ],
+                        )
+                    ],
+                ),
+                model_metadata={"model": "m", "model_provider": "openai", "safe_agent": {}},
+            )
+
+            payload, status = handle_onecode_plan_approval(
+                stored.plan_id,
+                {"workspace": tmp, "approved": True},
+            )
+
+            self.assertEqual(status, 200)
+            self.assertEqual(payload["status"], "completed")
+            self.assertEqual((workspace / "docs" / "result.md").read_text(encoding="utf-8"), "done\n")
+            self.assertFalse(stored.path.exists())
+
+    def test_approval_handler_records_rejection_without_execution(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(task="write result", assets=[ModelPlanAsset(path="docs/result.md", content="done\n")]),
+                model_metadata={"model": "m"},
+            )
+
+            payload, status = handle_onecode_plan_approval(
+                stored.plan_id,
+                {"workspace": tmp, "approved": False},
+            )
+
+            self.assertEqual(status, 200)
+            self.assertEqual(payload["reason"], "approval_rejected")
+            self.assertFalse((workspace / "docs" / "result.md").exists())
+
+    def test_chat_can_approve_pending_plan_without_model_call(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(task="write result", assets=[ModelPlanAsset(path="docs/result.md", content="done\n")]),
+                model_metadata={"model": "m"},
+            )
+            with patch("onecode.web.api.run_model_task") as run_model, patch("onecode.web.api.direct_chat_completion") as chat:
+                payload, status = handle_chat_completion(
+                    {
+                        "model": "onecode-agent",
+                        "messages": [{"role": "user", "content": f"批准计划 {stored.plan_id}"}],
+                        "metadata": {"workspace": tmp},
+                    }
+                )
+
+            self.assertEqual(status, 200)
+            self.assertEqual(payload["onecode"]["mode"], "approval")
+            self.assertEqual(payload["onecode"]["result"]["status"], "completed")
+            self.assertEqual((workspace / "docs" / "result.md").read_text(encoding="utf-8"), "done\n")
+            run_model.assert_not_called()
+            chat.assert_not_called()
 
     def test_general_math_question_uses_direct_chat_answer_not_run_summary(self):
         from onecode.web.api import handle_chat_completion

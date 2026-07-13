@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import subprocess
 import urllib.error
@@ -16,7 +17,8 @@ from urllib.parse import parse_qs, urlparse
 from onecode.kernel.diagnostics import run_doctor
 from onecode.kernel.effective_model_config import resolve_effective_model_config
 from onecode.kernel.run_inspection import inspect_run, list_runs
-from onecode.kernel.model_loop import run_model_task
+from onecode.kernel.model_loop import execute_model_plan, run_model_task
+from onecode.kernel.approval_plans import finalize_approval_plan, load_approval_plan
 from onecode.kernel.model_config import (
     DEFAULT_ONECODE_MODEL,
     discover_models,
@@ -77,6 +79,7 @@ TASK_MARKERS = (
 PATH_MARKERS = ("src/", "tests/", ".py", ".js", ".ts", ".tsx", ".md", ".json", ".yaml", ".yml")
 LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
 DEFAULT_MAX_REQUEST_BYTES = 1_000_000
+APPROVAL_MESSAGE_PATTERN = re.compile(r"^(批准|确认|拒绝)计划\s+([a-f0-9]{32})\s*$")
 
 
 @dataclass(frozen=True)
@@ -362,6 +365,43 @@ def handle_onecode_run_resume(run_id: str, body: dict[str, Any]) -> tuple[dict[s
     return attach_shell_projection(result), 200
 
 
+def handle_onecode_plan_approval(plan_id: str, body: dict[str, Any]) -> tuple[dict[str, Any], int]:
+    approved = body.get("approved")
+    if not isinstance(approved, bool):
+        return error_payload("invalid_approval", "approved must be boolean"), 400
+    try:
+        workspace = workspace_from_value(body.get("workspace") if isinstance(body.get("workspace"), str) else None)
+        stored = load_approval_plan(workspace, plan_id)
+    except ValueError as exc:
+        return error_payload("invalid_approval_plan", str(exc)), 400
+    if not approved:
+        result = {
+            "run_id": None,
+            "status": "cancelled",
+            "reason": "approval_rejected",
+            "partial": False,
+            "requested_count": 0,
+            "completed_count": 0,
+            "skipped_count": 1,
+            "failed_count": 0,
+            "assets": [],
+            "plan_id": plan_id,
+        }
+        finalize_approval_plan(stored, "rejected", result)
+        return result, 200
+    result = execute_model_plan(
+        stored.plan,
+        workspace=workspace,
+        http_timeout_seconds=60,
+        run_id=None,
+        resume_from_run_id=None,
+        run_metadata={**stored.model_metadata, "approved_plan_id": plan_id},
+        approval_callback=lambda _step: True,
+    )
+    finalize_approval_plan(stored, "approved", result)
+    return attach_shell_projection(result), 200
+
+
 def run_light_task(task: str, *, workspace: Path, run_id: str | None = None, resume_from_run_id: str | None = None) -> dict[str, Any]:
     return run_task(
         task,
@@ -604,6 +644,13 @@ def should_run_onecode_task(user_message: str) -> bool:
     return classify_task(user_message) != "chat"
 
 
+def parse_approval_message(user_message: str) -> tuple[str, bool] | None:
+    match = APPROVAL_MESSAGE_PATTERN.fullmatch(user_message.strip())
+    if match is None:
+        return None
+    return match.group(2), match.group(1) != "拒绝"
+
+
 def direct_chat_completion(
     messages: list[dict[str, Any]],
     *,
@@ -698,19 +745,34 @@ def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
     except ValueError as exc:
         return error_payload("invalid_workspace", str(exc)), 400
     model = str(body.get("model") or DEFAULT_MODEL_ID)
-    execution_model = model
+    approval_message = parse_approval_message(user_message)
+    if approval_message is not None:
+        plan_id, approved = approval_message
+        result, status_code = handle_onecode_plan_approval(
+            plan_id,
+            {"workspace": str(workspace), "approved": approved},
+        )
+        if status_code != 200:
+            return result, status_code
+        return chat_completion_payload(format_run_result(result, "approval"), model, result, "approval"), 200
+    metadata = body.get("metadata") if isinstance(body.get("metadata"), dict) else {}
+    explicit_mode = metadata.get("onecode_mode") if isinstance(metadata.get("onecode_mode"), str) else None
+    try:
+        task_mode = classify_task(user_message, explicit_mode=explicit_mode)
+    except ValueError as exc:
+        return error_payload("invalid_task_mode", str(exc)), 400
     stored_config = read_model_config(include_secret=True)
-    if execution_model == DEFAULT_MODEL_ID:
-        execution_model = os.getenv("ONECODE_MODEL") or os.getenv("OPENAI_MODEL") or stored_config.get("model") or None
-    provider_kind = os.getenv("ONECODE_MODEL_PROVIDER") or stored_config.get("provider") or "responses"
-    endpoint = os.getenv("ONECODE_MODEL_ENDPOINT") or stored_config.get("endpoint") or None
-    stored_api_key = stored_config.get("api_key") if isinstance(stored_config.get("api_key"), str) else None
-    run_id = body.get("metadata", {}).get("run_id") if isinstance(body.get("metadata"), dict) else None
+    effective_model = resolve_effective_model_config(os.environ, stored_config)
+    execution_model = effective_model.model if model == DEFAULT_MODEL_ID else model
+    provider_kind = effective_model.provider
+    endpoint = effective_model.endpoint
+    stored_api_key = effective_model.api_key
+    run_id = metadata.get("run_id")
     try:
         run_id = validate_optional_run_id(str(run_id) if run_id else None)
     except ValueError as exc:
         return error_payload("invalid_run_id", str(exc)), 400
-    if not should_run_onecode_task(user_message):
+    if task_mode == "chat":
         try:
             content = direct_chat_completion(
                 body.get("messages") if isinstance(body.get("messages"), list) else [],
@@ -749,8 +811,10 @@ def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
             api_key=stored_api_key,
             provider_kind=provider_kind,
             endpoint=endpoint,
+            task_mode=task_mode,
+            require_explicit_approval=True,
         )
-        mode = "model"
+        mode = "approval_required" if result.get("reason") == "approval_required" else "model"
     except MissingModelApiKey:
         result = run_light_task(
             user_message,
@@ -761,12 +825,20 @@ def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
     except ValueError as exc:
         if "plan must include at least one asset" not in str(exc):
             return error_payload("invalid_model_plan", str(exc)), 502
-        result = run_light_task(
-            user_message,
-            workspace=workspace,
-            run_id=str(run_id) if run_id else None,
-        )
-        mode = "chat_fallback"
+        result = {
+            "run_id": str(run_id) if run_id else None,
+            "status": "halted",
+            "reason": "no_actionable_plan",
+            "detail": str(exc),
+            "partial": True,
+            "intent_type": "no_action",
+            "requested_count": 0,
+            "completed_count": 0,
+            "skipped_count": 0,
+            "failed_count": 1,
+            "assets": [],
+        }
+        mode = "no_action"
     except ModelProviderError as exc:
         return error_payload("model_provider_error", str(exc)), 502
 
@@ -775,6 +847,17 @@ def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
 
 
 def format_run_result(result: dict[str, Any], mode: str) -> str:
+    if mode == "approval" and result.get("status") == "cancelled":
+        return "计划已拒绝，未执行任何变更。"
+    if mode == "approval" and result.get("status") == "completed":
+        return "计划已批准并执行完成，结果已写入 OneCode 证据链。"
+    if result.get("reason") == "approval_required":
+        return (
+            "计划已生成，但包含写入或命令操作，尚未执行。"
+            f"审批计划 ID：`{result.get('plan_id')}`。确认后再执行。"
+        )
+    if result.get("reason") == "no_actionable_plan":
+        return "模型没有生成可执行计划，本次任务未执行。请补充明确目标或检查模型配置。"
     if mode == "chat_fallback":
         return (
             "我收到了这条消息，但模型没有生成文件变更或执行计划。"
@@ -1125,6 +1208,17 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
                 return
             run_id = path.removeprefix("/v1/onecode/runs/").removesuffix("/resume").strip("/")
             payload, status_code = handle_onecode_run_resume(run_id, body)
+            self._send_json(payload, status_code=status_code)
+            return
+        if path.startswith("/v1/onecode/plans/") and path.endswith("/approval"):
+            if not self._authorized():
+                self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
+                return
+            body = self._read_json_or_send_error()
+            if body is None:
+                return
+            plan_id = path.removeprefix("/v1/onecode/plans/").removesuffix("/approval").strip("/")
+            payload, status_code = handle_onecode_plan_approval(plan_id, body)
             self._send_json(payload, status_code=status_code)
             return
         if path == "/v1/onecode/verifier/policy":

@@ -19,6 +19,7 @@ from onecode.kernel.hexagram import COMPLETE
 from onecode.kernel.runner import run_task
 from onecode.kernel.trace import TraceEvent, write_trace_event
 from onecode.kernel.safe_agent_router import SafeAgentRoute, route_safe_agent_task
+from onecode.kernel.approval_plans import model_plan_requires_approval, persist_approval_plan
 
 
 def write_texts_from_plan(plan: ModelPlan) -> list[str]:
@@ -319,6 +320,112 @@ def no_action_result(
     }
 
 
+def pending_approval_result(
+    *,
+    workspace: Path,
+    model_context: Any,
+    trace_path: Path,
+    plan: ModelPlan,
+    provider_config: Any,
+    resolved_model: str,
+    safe_agent_context: object,
+) -> dict[str, Any]:
+    model_provider = "openai" if provider_config.env_key == "OPENAI_API_KEY" else provider_config.provider_kind
+    stored = persist_approval_plan(
+        workspace,
+        plan,
+        model_metadata={
+            "model": resolved_model,
+            "model_provider": model_provider,
+            "safe_agent": safe_agent_context,
+        },
+    )
+    tool_names = [tool.tool_name for step in plan.execution_steps for tool in step.tool_calls]
+    return {
+        "run_id": model_context.run_id,
+        "status": "halted",
+        "reason": "approval_required",
+        "partial": False,
+        "intent_type": "execution_plan",
+        "trace_id": model_context.run_id,
+        "trace_path": str(trace_path),
+        "manifest_path": None,
+        "ledger_path": None,
+        "requested_count": len(plan.execution_steps) or len(plan.assets) + len(plan.patches),
+        "completed_count": 0,
+        "skipped_count": 0,
+        "failed_count": 0,
+        "assets": [],
+        "plan_id": stored.plan_id,
+        "plan_sha256": stored.plan_sha256,
+        "plan_summary": {
+            "task": plan.task,
+            "step_count": len(plan.execution_steps),
+            "asset_count": len(plan.assets),
+            "patch_count": len(plan.patches),
+            "tool_names": tool_names,
+        },
+        "model_provider": model_provider,
+        "model": resolved_model,
+        "safe_agent": safe_agent_context,
+    }
+
+
+def maybe_pending_approval_result(
+    required: bool,
+    workspace: Path,
+    model_context: Any,
+    trace_path: Path,
+    plan: ModelPlan,
+    provider_config: Any,
+    resolved_model: str,
+    planning_context: dict[str, Any],
+) -> dict[str, Any] | None:
+    if not required or not model_plan_requires_approval(plan):
+        return None
+    return pending_approval_result(
+        workspace=workspace,
+        model_context=model_context,
+        trace_path=trace_path,
+        plan=plan,
+        provider_config=provider_config,
+        resolved_model=resolved_model,
+        safe_agent_context=planning_context["safe_agent"],
+    )
+
+
+def early_model_plan_result(
+    *,
+    require_explicit_approval: bool,
+    workspace: Path,
+    model_context: Any,
+    trace_path: Path,
+    plan: ModelPlan,
+    provider_config: Any,
+    resolved_model: str,
+    planning_context: dict[str, Any],
+) -> dict[str, Any] | None:
+    if plan.no_action_reason is not None:
+        return no_action_result(
+            model_context=model_context,
+            trace_path=trace_path,
+            plan=plan,
+            provider_config=provider_config,
+            resolved_model=resolved_model,
+            safe_agent_context=planning_context["safe_agent"],
+        )
+    return maybe_pending_approval_result(
+        require_explicit_approval,
+        workspace,
+        model_context,
+        trace_path,
+        plan,
+        provider_config,
+        resolved_model,
+        planning_context,
+    )
+
+
 def resolve_model_runtime(
     provider_kind: str,
     endpoint: str | None,
@@ -411,15 +518,13 @@ def run_model_task(
             },
         ),
     )
-    if plan.no_action_reason is not None:
-        return no_action_result(
-            model_context=model_context,
-            trace_path=trace_path,
-            plan=plan,
-            provider_config=provider_config,
-            resolved_model=resolved_model,
-            safe_agent_context=planning_context["safe_agent"],
-        )
+    early_result = early_model_plan_result(
+        require_explicit_approval=require_explicit_approval, workspace=workspace, model_context=model_context,
+        trace_path=trace_path, plan=plan, provider_config=provider_config, resolved_model=resolved_model,
+        planning_context=planning_context,
+    )
+    if early_result is not None:
+        return early_result
     if plan_approval is not None and not plan_approval(plan):
         return {
             "run_id": run_id,
