@@ -51,6 +51,8 @@ inspection tasks.
 6. Empty model plans were converted to a successful lightweight `noop` run.
 7. Environment variables could override stored model configuration without a
    visible effective-configuration record.
+8. English file-change requests with modifiers between the imperative verb
+   and `file` could be classified as ordinary chat.
 
 ## Safety decision
 
@@ -126,6 +128,8 @@ snapshot of the catalog into the OneCode repository.
 - Approval plans validate every asset, patch, and tool call against the real
   execution registry before persistence and again before execution. Malformed
   or unknown parameters cannot be stored for later approval.
+- English imperative file requests now tolerate modifiers such as `exactly
+  one` while ordinary writing questions remain direct chat.
 
 `project/status` may still report `skill_context.status=missing` when the
 project has no static `.onecode/skills` manifests. This is separate from the
@@ -135,8 +139,9 @@ evidence.
 
 ## Verification
 
-- Focused final regression: 129 tests passed.
-- Full `PYTHONPATH=src bash scripts/verify.sh`: 875 tests passed, 1 skipped;
+- Focused resume/approval regression: 129 tests passed. Focused task
+  classification regression: 8 tests passed.
+- Full `PYTHONPATH=src bash scripts/verify.sh`: 877 tests passed, 1 skipped;
   source-quality gates and `doctor` passed.
 - Latest router check selected scenario `skill-router-quality-review`, returned
   Schema v2, covered all required capabilities, and verified 172 catalog
@@ -150,6 +155,12 @@ evidence.
   creating `safe-agent-approval-smoke-v2.txt`. Chat rejection of plan
   `98a36cafb2fa4ffd3f8e48897afb3480` returned
   `approval_rejected`; the file remained absent.
+- Final read run `97e1b54902ef4ef3909656d2a1ee3204` completed exactly
+  `git_status` and root `list_files` after the final service restart.
+- Final English change run `02bc6f2eb8214ac1af0fa59208679ab9`
+  returned one visible `write_text` action and stopped at `approval_required`.
+  Chat rejection of plan `61667e17ea7515348581f0d1bbc66595` archived the
+  plan, and `safe-agent-final-smoke-20260713.txt` remained absent.
 
 ## Residual risks
 
