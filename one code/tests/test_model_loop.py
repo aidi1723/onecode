@@ -18,6 +18,7 @@ from onecode.kernel.model_provider import (
     ModelPlan,
     ModelPlanAsset,
     ModelPlanPatch,
+    ModelProviderTimeout,
     ModelToolCall,
     OpenAIChatCompletionsProvider,
     OpenAIResponsesProvider,
@@ -73,7 +74,161 @@ class ContextCapturingProvider:
         return self.plan
 
 
+class TimeoutProvider:
+    def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+        raise ModelProviderTimeout("model request timed out")
+
+
+class InvalidPlanProvider:
+    def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+        raise ValueError("model response was not valid JSON")
+
+
+class SequenceThenTimeoutProvider:
+    def __init__(self, first_plan):
+        self.first_plan = first_plan
+        self.call_count = 0
+
+    def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+        self.call_count += 1
+        if self.call_count == 1:
+            return self.first_plan
+        raise ModelProviderTimeout("model request timed out")
+
+
 class ModelLoopTests(unittest.TestCase):
+    def test_model_timeout_writes_failed_terminal_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_model_task(
+                "check project",
+                workspace=Path(tmp),
+                run_id="model-timeout",
+                api_key="key",
+                model="m",
+                provider=TimeoutProvider(),
+                task_mode="read_task",
+                safe_agent_route=SafeAgentRoute(
+                    "no_match", "no_matching_scenario", schema_version=2
+                ),
+            )
+
+            events = [
+                json.loads(line)
+                for line in Path(result["trace_path"]).read_text().splitlines()
+            ]
+            model_events = [
+                event["event_type"]
+                for event in events
+                if event["span_id"] == "model-call"
+            ]
+
+            self.assertEqual(
+                (result["status"], result["reason"]),
+                ("halted", "model_provider_timeout"),
+            )
+            self.assertEqual(model_events, ["model_call_started", "model_call_failed"])
+            self.assertTrue(Path(result["ledger_path"]).is_file())
+            self.assertTrue(Path(result["manifest_path"]).is_file())
+            self.assertNotIn(
+                "key", Path(result["ledger_path"]).read_text(encoding="utf-8")
+            )
+
+    def test_invalid_model_plan_writes_failed_terminal_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_model_task(
+                "check project",
+                workspace=Path(tmp),
+                run_id="invalid-model-plan",
+                api_key="key",
+                model="m",
+                provider=InvalidPlanProvider(),
+            )
+            events = [
+                json.loads(line)
+                for line in Path(result["trace_path"]).read_text().splitlines()
+            ]
+            terminal = [
+                event
+                for event in events
+                if event["span_id"] == "model-call"
+                and event["event_type"]
+                in {"model_call_completed", "model_call_failed"}
+            ]
+
+            self.assertEqual(result["reason"], "invalid_model_plan")
+            self.assertEqual(
+                [event["event_type"] for event in terminal], ["model_call_failed"]
+            )
+            self.assertTrue(Path(result["ledger_path"]).is_file())
+            self.assertTrue(Path(result["manifest_path"]).is_file())
+
+    def test_repair_timeout_has_its_own_failed_terminal_event(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            first_plan = ModelPlan(
+                task="build broken module",
+                execution_steps=[
+                    ModelExecutionStep(
+                        id="write",
+                        description="write invalid python",
+                        tool_calls=[
+                            ModelToolCall(
+                                tool_name="write_text",
+                                params={
+                                    "path": "src/generated.py",
+                                    "content": "def status():\n    return (\n",
+                                },
+                            )
+                        ],
+                    ),
+                    ModelExecutionStep(
+                        id="patch",
+                        description="compile-gated patch should fail",
+                        depends_on=["write"],
+                        tool_calls=[
+                            ModelToolCall(
+                                tool_name="patch_text",
+                                params={
+                                    "path": "src/generated.py",
+                                    "search_block": "return (",
+                                    "replace_block": "return [",
+                                },
+                            )
+                        ],
+                    ),
+                ],
+            )
+            result = run_model_task(
+                "build module with repair",
+                workspace=workspace,
+                run_id="repair-timeout",
+                model="test-model",
+                api_key="test-key",
+                provider=SequenceThenTimeoutProvider(first_plan),
+                max_repair_attempts=1,
+            )
+            events = [
+                json.loads(line)
+                for line in Path(result["trace_path"]).read_text().splitlines()
+            ]
+            by_span = {
+                span: [
+                    event["event_type"]
+                    for event in events
+                    if event["span_id"] == span
+                ]
+                for span in ("model-call", "model-repair-1")
+            }
+
+            self.assertEqual(
+                by_span["model-call"],
+                ["model_call_started", "model_call_completed"],
+            )
+            self.assertEqual(
+                by_span["model-repair-1"],
+                ["model_call_started", "model_call_failed"],
+            )
+
     def test_model_task_passes_verified_route_to_provider(self):
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "README.md").write_text("project\n", encoding="utf-8")

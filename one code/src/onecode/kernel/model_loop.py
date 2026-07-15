@@ -1,11 +1,14 @@
 from pathlib import Path
 import hashlib
 import inspect
+import time
 from typing import Any, Callable
 
 from onecode.kernel.model_provider import (
     MissingModelApiKey,
     ModelPlan,
+    ModelProviderError,
+    ModelProviderTimeout,
     OpenAIChatCompletionsProvider,
     OpenAIResponsesProvider,
     api_key_from_env,
@@ -18,7 +21,7 @@ from onecode.kernel.execution_plan_loader import execution_trace_to_dict
 from onecode.kernel.checkpoint import write_checkpoint, write_ledger
 from onecode.kernel.context import create_context
 from onecode.kernel.hexagram import COMPLETE
-from onecode.kernel.runner import run_task
+from onecode.kernel.runner import halted_result, run_task
 from onecode.kernel.trace import TraceEvent, write_trace_event
 from onecode.kernel.safe_agent_router import SafeAgentRoute, route_safe_agent_task
 from onecode.kernel.approval_plans import model_plan_requires_approval, persist_approval_plan
@@ -532,6 +535,111 @@ def validate_model_task_limits(http_timeout_seconds: float, max_repair_attempts:
         raise ValueError("max_repair_attempts must be a non-negative integer")
 
 
+def traced_provider_plan(
+    *,
+    provider: Any,
+    task: str,
+    model_context: Any,
+    trace_path: Path,
+    provider_config: Any,
+    resolved_model: str,
+    http_timeout_seconds: float,
+    planning_context: dict[str, Any],
+    span_id: str,
+) -> tuple[ModelPlan | None, dict[str, Any] | None]:
+    started_at = time.monotonic()
+    write_trace_event(
+        trace_path,
+        TraceEvent(
+            trace_id=model_context.run_id,
+            run_id=model_context.run_id,
+            span_id=span_id,
+            parent_span_id="run",
+            event_type="model_call_started",
+            status="started",
+            payload={
+                "provider": provider_config.provider_kind,
+                "model": resolved_model,
+            },
+        ),
+    )
+    try:
+        plan = _create_provider_plan(
+            provider,
+            task,
+            model=resolved_model,
+            http_timeout_seconds=http_timeout_seconds,
+            planning_context=planning_context,
+        )
+    except (ModelProviderError, ValueError) as exc:
+        if isinstance(exc, ModelProviderTimeout):
+            reason = "model_provider_timeout"
+        elif isinstance(exc, ModelProviderError):
+            reason = "model_provider_error"
+        elif str(exc) == "plan must include at least one asset":
+            reason = "no_actionable_plan"
+        else:
+            reason = "invalid_model_plan"
+        elapsed_ms = max(0, int((time.monotonic() - started_at) * 1000))
+        failure = {
+            "provider": provider_config.provider_kind,
+            "model": resolved_model,
+            "failure_kind": reason,
+            "elapsed_ms": elapsed_ms,
+            "retryable": False,
+            "safe_agent": planning_context["safe_agent"],
+        }
+        write_trace_event(
+            trace_path,
+            TraceEvent(
+                trace_id=model_context.run_id,
+                run_id=model_context.run_id,
+                span_id=span_id,
+                parent_span_id="run",
+                event_type="model_call_failed",
+                status="halted",
+                duration_ms=elapsed_ms,
+                payload=failure,
+            ),
+        )
+        return None, failure
+    elapsed_ms = max(0, int((time.monotonic() - started_at) * 1000))
+    write_trace_event(
+        trace_path,
+        TraceEvent(
+            trace_id=model_context.run_id,
+            run_id=model_context.run_id,
+            span_id=span_id,
+            parent_span_id="run",
+            event_type="model_call_completed",
+            status="completed",
+            duration_ms=elapsed_ms,
+            payload={
+                "provider": provider_config.provider_kind,
+                "model": resolved_model,
+                "asset_count": len(plan.assets),
+                "patch_count": len(plan.patches),
+                "execution_step_count": len(plan.execution_steps),
+                "no_action": plan.no_action_reason is not None,
+            },
+        ),
+    )
+    return plan, None
+
+
+def failed_model_result(
+    model_context: Any, failure: dict[str, Any]
+) -> dict[str, Any]:
+    return halted_result(
+        model_context,
+        reason=str(failure["failure_kind"]),
+        payload=failure,
+        trace_id=model_context.run_id,
+        checkpoint_intent_type="model_plan",
+        write_checkpoint_evidence=True,
+    )
+
+
 def run_model_task(
     task: str,
     workspace: Path,
@@ -561,49 +669,20 @@ def run_model_task(
     trace_path = model_context.evidence_root / "trace.jsonl"
     if route is not None and route.status == "invalid":
         return invalid_safe_agent_result(model_context, trace_path, route)
-    trace_id = model_context.run_id
-    write_trace_event(
-        trace_path,
-        TraceEvent(
-            trace_id=trace_id,
-            run_id=model_context.run_id,
-            span_id="model-call",
-            parent_span_id="run",
-            event_type="model_call_started",
-            status="started",
-            payload={
-                "provider": provider_config.provider_kind,
-                "model": resolved_model,
-                "task": task,
-            },
-        ),
-    )
-    plan = _create_provider_plan(
-        active_provider,
-        task,
-        model=resolved_model,
+    plan, failure = traced_provider_plan(
+        provider=active_provider,
+        task=task,
+        model_context=model_context,
+        trace_path=trace_path,
+        provider_config=provider_config,
+        resolved_model=resolved_model,
         http_timeout_seconds=http_timeout_seconds,
         planning_context=planning_context,
+        span_id="model-call",
     )
-    write_trace_event(
-        trace_path,
-        TraceEvent(
-            trace_id=trace_id,
-            run_id=model_context.run_id,
-            span_id="model-call",
-            parent_span_id="run",
-            event_type="model_call_completed",
-            status="completed",
-            payload={
-                "provider": provider_config.provider_kind,
-                "model": resolved_model,
-                "asset_count": len(plan.assets),
-                "patch_count": len(plan.patches),
-                "execution_step_count": len(plan.execution_steps),
-                "no_action": plan.no_action_reason is not None,
-            },
-        ),
-    )
+    if failure is not None:
+        return failed_model_result(model_context, failure)
+    assert plan is not None
     early_result = early_model_plan_result(
         require_explicit_approval=require_explicit_approval, workspace=workspace, model_context=model_context,
         trace_path=trace_path, plan=plan, provider_config=provider_config, resolved_model=resolved_model,
@@ -653,13 +732,20 @@ def run_model_task(
 
     failed_result = result
     for attempt in range(1, max_repair_attempts + 1):
-        repair_plan = _create_provider_plan(
-            active_provider,
-            repair_prompt(task, failed_result),
-            model=resolved_model,
+        repair_plan, failure = traced_provider_plan(
+            provider=active_provider,
+            task=repair_prompt(task, failed_result),
+            model_context=model_context,
+            trace_path=trace_path,
+            provider_config=provider_config,
+            resolved_model=resolved_model,
             http_timeout_seconds=http_timeout_seconds,
             planning_context=planning_context,
+            span_id=f"model-repair-{attempt}",
         )
+        if failure is not None:
+            return failed_model_result(model_context, failure)
+        assert repair_plan is not None
         if not is_patch_only_repair_plan(repair_plan):
             return repair_rejected_result(
                 result,
