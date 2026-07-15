@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased - 2026-07-16 - vNext Maintenance Governance
+
+### Changed
+
+- Extracted request-body parsing, JSON response encoding, bearer authentication,
+  and workspace-root validation from `src/onecode/web/api.py` into four focused
+  stdlib-only modules.
+- Preserved the existing `onecode.web.api` import surface, endpoint payloads,
+  status codes, loopback authentication policy, constant-time token comparison,
+  request-size limits, and workspace path restrictions.
+- Reduced the Web API route coordinator from 1,409 to 1,297 lines without
+  moving route handlers or changing the local/trusted-loopback deployment model.
+- Added a current release-line audit that records the unrelated
+  `origin/main` ancestry and the non-destructive sync-branch decision.
+
+### Verification
+
+- TDD module-boundary tests failed on each missing module before implementation
+  and passed after the minimal extraction.
+- Full Web API suite: 75 tests passed.
+- Full project verification: 907 tests passed, 1 environment-only skip;
+  source-quality and doctor gates passed.
+- Live LibreChat `v0.8.7` shell health passed. A 10-second model boundary
+  returned one structured HTTP 504, and a 60-second retry completed with full
+  evidence.
+
 ## Unreleased - 2026-07-15 - LibreChat v0.8.7 Shell Hardening
 
 ### Changed

@@ -96,3 +96,26 @@ Focused verification was also performed during the session for:
 - Current Web API is still local/trusted-loopback only.
 - Large module decomposition remains future maintenance work.
 - The branch should be reviewed before merging to `main` if the repository uses pull requests.
+
+## 2026-07-16 vNext Maintenance Governance Update
+
+- Refreshed the release-line audit after the LibreChat `v0.8.7` shell
+  hardening. Local `main` still shares ancestry with the review line, while
+  fetched `origin/main` does not.
+- Kept publication separate from implementation: no push, pull request,
+  history rewrite, or unrelated-history merge was performed.
+- Extracted request-body, response, authentication, and workspace helpers from
+  `src/onecode/web/api.py` while preserving compatibility imports and route
+  behavior.
+- Reduced `src/onecode/web/api.py` from 1,409 to 1,297 lines. Route extraction
+  remains a separate follow-up after these helper boundaries stabilize.
+- Verified 75 Web API tests and 907 full-suite tests with one environment-only
+  skip. Source quality and doctor passed.
+- Started the integrated LibreChat `v0.8.7` shell from the isolated source.
+  Health and provenance passed; a bounded 10-second model request returned HTTP
+  504, while the 60-second success-path request completed with full evidence.
+
+Current records:
+
+- `docs/ONECODE_VNEXT_RELEASE_LINE_AUDIT_2026-07-16.md`
+- `docs/ONECODE_VNEXT_MAINTENANCE_GOVERNANCE_V087_CLOSURE_2026-07-16.md`
