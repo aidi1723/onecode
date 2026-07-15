@@ -164,11 +164,15 @@ Task 12 must classify each row as `ported`, `superseded-by-v0.8.7`, or
 node --version
 corepack npm --version
 corepack npm ci
-npm run build:data-provider
-npm run build:client
+corepack npm run build:data-provider
+corepack npm run build:client-package
+corepack npm run build:client
 ```
 
 Expected: supported Node >=20.19, Corepack-selected npm `11.13.0`, clean dependency install, data-provider build, and client build all pass before OneCode files are ported.
+The client-package build is required because `client/src/main.jsx` imports
+`@librechat/client/style.css`, which is generated at
+`packages/client/dist/style.css` rather than installed as a prebuilt artifact.
 
 - [ ] **Step 8: Record the baseline evidence outside source control**
 
