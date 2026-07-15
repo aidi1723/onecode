@@ -119,3 +119,20 @@ Current records:
 
 - `docs/ONECODE_VNEXT_RELEASE_LINE_AUDIT_2026-07-16.md`
 - `docs/ONECODE_VNEXT_MAINTENANCE_GOVERNANCE_V087_CLOSURE_2026-07-16.md`
+
+## 2026-07-16 Final Alignment And GitHub Handoff
+
+- Integrated the verified vNext helper extraction onto
+  `feature/gateway-iching-rule-sync` at implementation head `1f3d691`.
+- Reconciled the July 15 isolated-shell closure with the July 16 integrated
+  branch state without rewriting the earlier historical verification claims.
+- Refreshed `origin`: the remote feature baseline is `cca465a`, it is an
+  ancestor of the integrated line, and the line is eligible for a normal
+  fast-forward update.
+- Kept `origin/main` out of scope because it has no merge base with the current
+  release line. No force-push, unrelated-history merge, tag, GitHub Release,
+  package publication, or deployment is authorized.
+- Added the consolidated closure and rollback record at
+  `docs/ONECODE_V087_VNEXT_GITHUB_CLOSURE_2026-07-16.md`.
+- Excluded all parent-directory user changes and untracked research assets from
+  staging and publication scope.

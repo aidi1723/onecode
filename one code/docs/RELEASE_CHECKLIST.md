@@ -119,3 +119,33 @@ Not applicable for this pass:
       `License-File: LICENSE`.
 - [x] GitHub branch update pushed license commit `4878c18` to
       `feature/gateway-iching-rule-sync`.
+
+## 2026-07-16 LibreChat v0.8.7 And vNext GitHub Closure Pass
+
+- [x] LibreChat provenance is pinned to community tag `v0.8.7` at `9e74cc0e`,
+      verified shell head `224e73e8`, and rollback checkpoint `a7201646`.
+- [x] vNext helper extraction is integrated on
+      `feature/gateway-iching-rule-sync` at implementation head `1f3d691b`.
+- [x] `origin/feature/gateway-iching-rule-sync` at `cca465af` is an ancestor of
+      the integrated line; no force-push is required or authorized.
+- [x] `origin/main` remains unrelated and is excluded from this publication.
+- [x] Parent-directory dirty files and untracked assets are excluded; only
+      explicit `one code/` paths may be staged.
+- [x] `bash scripts/release-audit.sh` passes, including source quality, wheel
+      build, and wheel-asset integrity.
+- [x] `bash scripts/verify-core.sh` passes with 234 tests and doctor status
+      `ok`.
+- [x] `PYTHONPATH=src bash scripts/verify.sh` passes with 907 tests, 1 existing
+      environment-only skip, and doctor status `ok`.
+- [x] `PYTHONPATH=src .venv/bin/python -m unittest tests.test_web_api -v`
+      passes.
+- [x] `git diff --check` and final staged-path review pass.
+- [ ] Local and remote feature-branch refs match after a non-force push.
+
+Not applicable for this pass:
+
+- Frontend source did not change in the final alignment pass, so the prior
+  LibreChat build and desktop/mobile browser acceptance remain the applicable
+  UI evidence; no new frontend build or browser run is required.
+- No SEO content, social announcement, production deployment, GitHub Release,
+  package registry publication, tag, pull request, or `main` merge is included.

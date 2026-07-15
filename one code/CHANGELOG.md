@@ -26,6 +26,19 @@
   returned one structured HTTP 504, and a 60-second retry completed with full
   evidence.
 
+### Integration And Publication
+
+- Integrated the four helper-extraction commits and their closure records onto
+  `feature/gateway-iching-rule-sync`; the implementation head before final
+  publication-document alignment is `1f3d691b175754f5bd8c3677eaf0e3d72cdeb973`.
+- Confirmed that `origin/feature/gateway-iching-rule-sync` is an ancestor of
+  the integrated line, allowing a normal fast-forward update without force.
+- Preserved the unrelated-history boundary with `origin/main`; no merge,
+  rebase, force-push, GitHub Release, or package publication is part of this
+  update.
+- Added the consolidated GitHub closure record at
+  `docs/ONECODE_V087_VNEXT_GITHUB_CLOSURE_2026-07-16.md`.
+
 ## Unreleased - 2026-07-15 - LibreChat v0.8.7 Shell Hardening
 
 ### Changed

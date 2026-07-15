@@ -3,6 +3,13 @@
 Date: 2026-07-15
 Status: Verified in isolated worktrees; no cutover or publication performed
 
+Post-closure update (2026-07-16): the OneCode commits from this verified phase
+were integrated into `feature/gateway-iching-rule-sync` and are included in the
+owner-authorized fast-forward GitHub update described in
+`ONECODE_V087_VNEXT_GITHUB_CLOSURE_2026-07-16.md`. The status above remains the
+historical state at the end of the July 15 verification session. The separate
+LibreChat repository was not published or cut over by this OneCode update.
+
 ## Outcome
 
 OneCode's local Web shell is ported to the exact LibreChat `v0.8.7` community
@@ -162,8 +169,11 @@ Summary: 47 `ported`, 7 `superseded-by-v0.8.7`, 0 `approved-removal`.
   records evidence; improving model quality is separate from execution safety.
 - `librechat.yaml` is intentionally tracked with force because upstream ignores
   local runtime config files. Future upgrades must preserve that tracked file.
-- No merge, push, tag, deployment, worktree deletion, or operator-shell cutover
-  has been performed. Those remain separate explicit decisions.
+- At the end of the July 15 phase, no merge, push, tag, deployment, worktree
+  deletion, or operator-shell cutover had been performed. On July 16 the
+  OneCode commits were locally integrated and authorized for publication to the
+  existing feature branch. LibreChat publication, deployment, and shell cutover
+  remain separate explicit decisions.
 
 ## Stop Condition
 

@@ -65,15 +65,30 @@ This runs:
 
 ## Current Closure Records
 
-The July 15, 2026 LibreChat v0.8.7 shell upgrade and runtime hardening is
-documented in:
+The July 16, 2026 integrated LibreChat v0.8.7 and vNext maintenance line is
+summarized in:
+
+- `docs/ONECODE_V087_VNEXT_GITHUB_CLOSURE_2026-07-16.md`
+
+The implementation is integrated on `feature/gateway-iching-rule-sync` at
+OneCode implementation head `1f3d691b175754f5bd8c3677eaf0e3d72cdeb973`.
+The exact LibreChat source is community tag `v0.8.7` at `9e74cc0e`, with the
+verified OneCode shell at `224e73e8`. The final publication is intentionally a
+fast-forward update of the existing feature branch; unrelated `origin/main`
+history is not merged or rewritten.
+
+The detailed July 15-16 records are:
 
 - `docs/ONECODE_LIBRECHAT_V087_HARDENING_CLOSURE_2026-07-15.md`
+- `docs/ONECODE_VNEXT_MAINTENANCE_GOVERNANCE_V087_CLOSURE_2026-07-16.md`
+- `docs/ONECODE_VNEXT_RELEASE_LINE_AUDIT_2026-07-16.md`
 
 This record covers the versioned LibreChat migration, bounded model timeouts,
 zero outer retries, persistent private shell state, restart verification, and
-desktop/mobile browser acceptance. The upgraded shell remains isolated and has
-not replaced the operator's current checkout.
+desktop/mobile browser acceptance. The LibreChat source and rollback checkpoint
+remain in their separate local repository; publishing the OneCode feature
+branch does not merge `origin/main`, publish a GitHub Release, or perform a
+production shell cutover.
 
 The July 10, 2026 v0.8.0 closure is documented in:
 
