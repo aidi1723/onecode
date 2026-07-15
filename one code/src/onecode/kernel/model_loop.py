@@ -584,6 +584,7 @@ def traced_provider_plan(
         failure = {
             "provider": provider_config.provider_kind,
             "model": resolved_model,
+            "task_sha256": hashlib.sha256(task.encode("utf-8")).hexdigest(),
             "failure_kind": reason,
             "elapsed_ms": elapsed_ms,
             "retryable": False,

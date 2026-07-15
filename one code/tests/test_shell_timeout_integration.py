@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import tempfile
@@ -28,6 +29,7 @@ def running_server(server: ThreadingHTTPServer):
 
 class ShellTimeoutIntegrationTests(unittest.TestCase):
     def test_one_http_request_returns_504_with_terminal_evidence(self):
+        task = "Inspect the current project structure"
         delayed_model = DelayedModelServer(
             ("127.0.0.1", 0), delay_seconds=0.3
         )
@@ -57,7 +59,7 @@ class ShellTimeoutIntegrationTests(unittest.TestCase):
                         "messages": [
                             {
                                 "role": "user",
-                                "content": "Inspect the current project structure",
+                                "content": task,
                             }
                         ],
                         "stream": False,
@@ -92,6 +94,11 @@ class ShellTimeoutIntegrationTests(unittest.TestCase):
                 for event in events
                 if event["span_id"] == "model-call"
             ]
+            failed_event = next(
+                event
+                for event in events
+                if event["event_type"] == "model_call_failed"
+            )
 
             self.assertEqual(response.code, 504)
             self.assertEqual(
@@ -101,6 +108,10 @@ class ShellTimeoutIntegrationTests(unittest.TestCase):
             self.assertEqual(
                 model_event_types,
                 ["model_call_started", "model_call_failed"],
+            )
+            self.assertEqual(
+                failed_event["payload"]["task_sha256"],
+                hashlib.sha256(task.encode("utf-8")).hexdigest(),
             )
             self.assertTrue(Path(result["ledger_path"]).is_file())
             self.assertTrue(Path(result["manifest_path"]).is_file())
