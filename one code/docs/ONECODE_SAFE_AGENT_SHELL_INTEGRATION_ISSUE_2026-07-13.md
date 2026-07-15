@@ -1,7 +1,7 @@
 # OneCode Safe-Agent Shell Integration Issue
 
 Date: 2026-07-13
-Status: Resolved
+Status: Resolved; LibreChat v0.8.7 hardening verified
 Severity: High
 Affected surface: LibreChat shell, OneCode Web API, model planning, skill routing
 
@@ -174,3 +174,25 @@ evidence.
 - The local LibreChat process logs optional Meilisearch and RAG availability
   warnings. Chat, model routing, and OneCode task execution remain healthy, but
   search indexing and file-upload RAG require those separate services.
+
+## LibreChat v0.8.7 hardening follow-up
+
+The July 15 upgrade closed the remaining shell-level timeout and restart
+failure modes without changing the Safe-Agent authority decision above:
+
+- LibreChat now runs from the exact community `v0.8.7` baseline and applies
+  `maxRetries: 0` only to the OneCode custom endpoint.
+- Provider timeouts become a typed `model_provider_timeout`, return HTTP 504,
+  and write one `model_call_failed` terminal event with a redacted task digest,
+  ledger, manifest, and checkpoint evidence.
+- Shell authentication secrets and Mongo data persist in a private state root;
+  controlled restarts reuse both without `invalid signature` log entries.
+- A live browser read completed with full evidence. A live write request
+  stopped at `approval_required`, displayed the bounded action summary, and did
+  not create its target file.
+- A delayed-model browser request produced one new OneCode run, a visible 504,
+  and started-to-failed trace evidence in about 0.51 seconds. The run's
+  `task_sha256` matched the locally calculated request digest.
+
+The exact verification record and the 54-row migration reconciliation are in
+`ONECODE_LIBRECHAT_V087_HARDENING_CLOSURE_2026-07-15.md`.

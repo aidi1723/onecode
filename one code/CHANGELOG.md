@@ -1,5 +1,37 @@
 # Changelog
 
+## Unreleased - 2026-07-15 - LibreChat v0.8.7 Shell Hardening
+
+### Changed
+
+- Migrated the OneCode Web shell onto the exact LibreChat `v0.8.7` community
+  baseline while preserving a checkpoint of the previous customization.
+- Added typed provider timeouts, structured HTTP 504/502 mappings, one terminal
+  model-call event, and SHA-256 task correlation for failed planning evidence.
+- Forced the OneCode LibreChat endpoint to `maxRetries: 0` so a durable OneCode
+  task is not duplicated by LangChain's outer retry policy.
+- Replaced temporary authentication and Mongo state with a private persistent
+  shell state directory, atomic secret initialization, bounded redacted logs,
+  startup preflight, and version provenance.
+- Ported the local OneCode API, project selection, Console, workspace metadata,
+  model configuration, evidence, verifier, and diagnostics surfaces to current
+  LibreChat extension points.
+- Aligned static and runtime branding on `OneCode` while preserving community
+  PWA assets and recovery behavior.
+
+### Verification
+
+- OneCode focused suite: 163 tests passed.
+- Final OneCode full verification: 903 tests passed, 1 environment-only skip;
+  source-quality and doctor gates passed.
+- LibreChat focused suites: 90 tests passed; data-provider, API, and client
+  production builds passed.
+- Live desktop/mobile browser checks covered login, project state, Console
+  tabs, read execution, approval-required writes, keyboard focus, restart
+  persistence, and a visible bounded 504 with complete evidence.
+- Full closure details are recorded in
+  `docs/ONECODE_LIBRECHAT_V087_HARDENING_CLOSURE_2026-07-15.md`.
+
 ## 0.8.0 - 2026-07-10 - Canonical I Ching Runtime and Evidence Cutover
 
 ### Licensing

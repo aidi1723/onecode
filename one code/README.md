@@ -65,6 +65,16 @@ This runs:
 
 ## Current Closure Records
 
+The July 15, 2026 LibreChat v0.8.7 shell upgrade and runtime hardening is
+documented in:
+
+- `docs/ONECODE_LIBRECHAT_V087_HARDENING_CLOSURE_2026-07-15.md`
+
+This record covers the versioned LibreChat migration, bounded model timeouts,
+zero outer retries, persistent private shell state, restart verification, and
+desktop/mobile browser acceptance. The upgraded shell remains isolated and has
+not replaced the operator's current checkout.
+
 The July 10, 2026 v0.8.0 closure is documented in:
 
 - `docs/ONECODE_V0_8_FINAL_CLOSURE_2026-07-10.md`
