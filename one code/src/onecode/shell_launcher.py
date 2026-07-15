@@ -80,8 +80,8 @@ def build_librechat_env(config: ShellLaunchConfig, base_env: Mapping[str, str] |
         stored_secrets = load_or_create_shell_secrets(shell_state_root(config))
     env.update(
         {
-            "APP_TITLE": "one code",
-            "CUSTOM_FOOTER": "one code",
+            "APP_TITLE": "OneCode",
+            "CUSTOM_FOOTER": "OneCode",
             "ENDPOINTS": "custom",
             "HOST": config.librechat_host,
             "PORT": str(config.librechat_port),

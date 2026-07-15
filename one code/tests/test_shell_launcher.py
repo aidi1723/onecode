@@ -278,8 +278,8 @@ class ShellLauncherConfigTests(unittest.TestCase):
 
             env = build_librechat_env(config, os.environ | {"ONEWORD_API_BASE_URL": "http://bad"})
 
-            self.assertEqual(env["APP_TITLE"], "one code")
-            self.assertEqual(env["CUSTOM_FOOTER"], "one code")
+            self.assertEqual(env["APP_TITLE"], "OneCode")
+            self.assertEqual(env["CUSTOM_FOOTER"], "OneCode")
             self.assertEqual(env["ENDPOINTS"], "custom")
             self.assertEqual(env["ONECODE_API_BASE_URL"], "http://127.0.0.1:18080/v1")
             self.assertEqual(env["ONECODE_API_TOKEN"], "test-token")
