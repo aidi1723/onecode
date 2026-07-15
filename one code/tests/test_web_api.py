@@ -66,6 +66,12 @@ class OneCodeWebApiTests(unittest.TestCase):
 
         self.assertTrue(request_authorized({}, None, allow_unauthenticated=True, host="127.0.0.1"))
 
+    def test_auth_module_allows_loopback_without_token_when_explicit(self):
+        from onecode.web.auth import request_authorized
+
+        self.assertTrue(request_authorized({}, None, allow_unauthenticated=True, host="::1"))
+        self.assertFalse(request_authorized({}, None, allow_unauthenticated=True, host="0.0.0.0"))
+
     def test_bearer_auth_rejects_explicit_unauthenticated_non_loopback(self):
         from onecode.web.api import request_authorized
 
@@ -79,7 +85,7 @@ class OneCodeWebApiTests(unittest.TestCase):
     def test_bearer_auth_uses_constant_time_compare(self):
         from onecode.web.api import request_authorized
 
-        with patch("onecode.web.api.secrets.compare_digest", return_value=True) as compare_digest:
+        with patch("onecode.web.auth.secrets.compare_digest", return_value=True) as compare_digest:
             authorized = request_authorized({"authorization": "Bearer secret-token"}, "secret-token")
 
         self.assertTrue(authorized)

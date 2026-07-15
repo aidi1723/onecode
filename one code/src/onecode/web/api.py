@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import secrets
 import subprocess
 import urllib.error
 import urllib.request
@@ -13,6 +12,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from onecode.web.auth import LOOPBACK_HOSTS, request_authorized
 from onecode.web.request_body import JsonRequestBody, max_request_bytes, read_json_request_body
 from onecode.web.responses import encode_json_payload, error_payload
 
@@ -79,7 +79,6 @@ TASK_MARKERS = (
     "commit",
 )
 PATH_MARKERS = ("src/", "tests/", ".py", ".js", ".ts", ".tsx", ".md", ".json", ".yaml", ".yml")
-LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
 DEFAULT_MODEL_TIMEOUT_SECONDS = 60.0
 MAX_MODEL_TIMEOUT_SECONDS = 600.0
 APPROVAL_MESSAGE_PATTERN = re.compile(r"^(批准|确认|拒绝)计划\s+([a-f0-9]{32})\s*$")
@@ -112,19 +111,6 @@ def build_models_payload() -> dict[str, Any]:
             }
         ],
     }
-
-
-def request_authorized(
-    headers: dict[str, str],
-    token: str | None,
-    *,
-    allow_unauthenticated: bool = False,
-    host: str = "127.0.0.1",
-) -> bool:
-    if token is None or token.strip() == "":
-        return allow_unauthenticated and host in LOOPBACK_HOSTS
-    authorization = headers.get("authorization") or headers.get("Authorization") or ""
-    return secrets.compare_digest(authorization, f"Bearer {token}")
 
 
 def latest_user_message(messages: Any) -> str:
