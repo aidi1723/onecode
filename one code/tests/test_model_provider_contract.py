@@ -1,7 +1,9 @@
 import json
 import unittest
+from unittest.mock import patch
 
 from onecode.kernel.model_provider import (
+    ModelProviderTimeout,
     OpenAIChatCompletionsProvider,
     OpenAIResponsesProvider,
     validate_model_plan,
@@ -57,6 +59,22 @@ class ModelProviderContractTests(unittest.TestCase):
         )
 
         json.dumps(payload)
+
+
+class ModelProviderTimeoutTests(unittest.TestCase):
+    def test_responses_timeout_is_typed(self):
+        provider = OpenAIResponsesProvider("key", endpoint="http://model.test/responses")
+        with patch("urllib.request.urlopen", side_effect=TimeoutError("timed out")):
+            with self.assertRaisesRegex(ModelProviderTimeout, "model request timed out"):
+                provider.create_plan("check", model="m", http_timeout_seconds=1)
+
+    def test_chat_timeout_is_typed(self):
+        provider = OpenAIChatCompletionsProvider(
+            "key", endpoint="http://model.test/chat/completions"
+        )
+        with patch("urllib.request.urlopen", side_effect=TimeoutError("timed out")):
+            with self.assertRaisesRegex(ModelProviderTimeout, "model request timed out"):
+                provider.create_plan("check", model="m", http_timeout_seconds=1)
 
 
 if __name__ == "__main__":

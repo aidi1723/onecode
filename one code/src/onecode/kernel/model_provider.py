@@ -63,6 +63,10 @@ class ModelProviderError(RuntimeError):
     pass
 
 
+class ModelProviderTimeout(ModelProviderError):
+    pass
+
+
 @dataclass(frozen=True)
 class ModelPlanAsset:
     path: str
@@ -482,7 +486,7 @@ class OpenAIResponsesProvider:
             with urllib.request.urlopen(request, timeout=http_timeout_seconds) as response:
                 response_payload = json.loads(response.read().decode("utf-8"))
         except TimeoutError as exc:
-            raise TimeoutError("model request timed out") from exc
+            raise ModelProviderTimeout("model request timed out") from exc
         except urllib.error.URLError as exc:
             raise ModelProviderError(f"model request failed: {exc.reason}") from exc
         except json.JSONDecodeError as exc:
@@ -555,7 +559,7 @@ class OpenAIChatCompletionsProvider:
             with urllib.request.urlopen(request, timeout=http_timeout_seconds) as response:
                 response_payload = json.loads(response.read().decode("utf-8"))
         except TimeoutError as exc:
-            raise TimeoutError("model request timed out") from exc
+            raise ModelProviderTimeout("model request timed out") from exc
         except urllib.error.URLError as exc:
             raise ModelProviderError(f"model request failed: {exc.reason}") from exc
         except json.JSONDecodeError as exc:
