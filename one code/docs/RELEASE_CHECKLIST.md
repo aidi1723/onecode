@@ -140,7 +140,9 @@ Not applicable for this pass:
 - [x] `PYTHONPATH=src .venv/bin/python -m unittest tests.test_web_api -v`
       passes.
 - [x] `git diff --check` and final staged-path review pass.
-- [ ] Local and remote feature-branch refs match after a non-force push.
+- [x] Local and remote feature-branch refs matched at `a4e77ee` after the first
+      non-force push; the final documentation-only evidence update uses the
+      same ancestry and ref-equality gate.
 
 Not applicable for this pass:
 

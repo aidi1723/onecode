@@ -1,7 +1,7 @@
 # OneCode v0.8.7 And vNext GitHub Closure
 
 Date: 2026-07-16
-Status: Final release gates passed; non-force feature publication authorized
+Status: Published to the owner-approved feature branch; refs verified equal
 Owner-approved target: `origin/feature/gateway-iching-rule-sync`
 
 ## Closure Scope
@@ -34,6 +34,7 @@ Excluded:
 | OneCode branch | `feature/gateway-iching-rule-sync` |
 | Remote feature baseline | `cca465af177e0d2c81d24aaa00900a9fc65c9f0d` |
 | Integrated implementation head | `1f3d691b175754f5bd8c3677eaf0e3d72cdeb973` |
+| Initial closure publication commit | `a4e77eeee6cd88daace1a6029dedc87d215ff2ca` |
 | Pre-publication distance | 20 commits ahead, 0 behind |
 | OneCode package version | `0.8.0` |
 | LibreChat community tag | `v0.8.7` |
@@ -84,7 +85,9 @@ Final publication gates:
 - [x] `PYTHONPATH=src .venv/bin/python -m unittest tests.test_web_api -v`:
   75 tests passed.
 - [x] whitespace and explicit staged-path scope checks passed.
-- [ ] remote fast-forward ancestry and post-push ref equality
+- [x] remote fast-forward ancestry and post-push ref equality: the first push
+  advanced `cca465a..a4e77ee`; a fresh fetch returned local and remote commit
+  `a4e77eeee6cd88daace1a6029dedc87d215ff2ca`.
 
 No frontend source changed during this final documentation pass, so rebuilding
 or rerunning the prior browser acceptance would not add coverage to the
@@ -97,6 +100,11 @@ only permitted operation is a normal, non-force push after all final gates
 pass. The push must stop if the remote feature ref is no longer an ancestor of
 local HEAD. Publication is complete only when local HEAD and the refreshed
 remote feature ref are identical.
+
+The authorized publication completed as a normal fast-forward from `cca465a`
+through closure commit `a4e77ee`. The final documentation-only evidence update
+that contains this post-push record is subject to the same non-force ancestry
+and ref-equality checks.
 
 The absence of a merge base between `origin/main` and this branch is an
 explicit repository-history risk, not a reason to rewrite either line. A future
