@@ -8,11 +8,12 @@ import subprocess
 import urllib.error
 import urllib.request
 import time
-from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, BinaryIO, Mapping
+from typing import Any
 from urllib.parse import parse_qs, urlparse
+
+from onecode.web.request_body import JsonRequestBody, max_request_bytes, read_json_request_body
 
 from onecode.kernel.diagnostics import run_doctor
 from onecode.kernel.effective_model_config import resolve_effective_model_config
@@ -78,18 +79,9 @@ TASK_MARKERS = (
 )
 PATH_MARKERS = ("src/", "tests/", ".py", ".js", ".ts", ".tsx", ".md", ".json", ".yaml", ".yml")
 LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
-DEFAULT_MAX_REQUEST_BYTES = 1_000_000
 DEFAULT_MODEL_TIMEOUT_SECONDS = 60.0
 MAX_MODEL_TIMEOUT_SECONDS = 600.0
 APPROVAL_MESSAGE_PATTERN = re.compile(r"^(批准|确认|拒绝)计划\s+([a-f0-9]{32})\s*$")
-
-
-@dataclass(frozen=True)
-class JsonRequestBody:
-    payload: dict[str, Any] | None
-    status_code: int = 200
-    error_type: str | None = None
-    error_message: str | None = None
 
 
 def model_timeout_seconds_from_env() -> float:
@@ -132,60 +124,6 @@ def request_authorized(
         return allow_unauthenticated and host in LOOPBACK_HOSTS
     authorization = headers.get("authorization") or headers.get("Authorization") or ""
     return secrets.compare_digest(authorization, f"Bearer {token}")
-
-
-def max_request_bytes() -> int:
-    try:
-        value = int(os.getenv("ONECODE_MAX_REQUEST_BYTES", str(DEFAULT_MAX_REQUEST_BYTES)))
-    except ValueError:
-        return DEFAULT_MAX_REQUEST_BYTES
-    return value if value > 0 else DEFAULT_MAX_REQUEST_BYTES
-
-
-def read_json_request_body(headers: Mapping[str, str], rfile: BinaryIO) -> JsonRequestBody:
-    raw_length = headers.get("content-length") or headers.get("Content-Length") or "0"
-    try:
-        length = int(raw_length or "0")
-    except ValueError:
-        return JsonRequestBody(
-            payload=None,
-            status_code=400,
-            error_type="invalid_request_body",
-            error_message="content-length must be an integer",
-        )
-    if length < 0:
-        return JsonRequestBody(
-            payload=None,
-            status_code=400,
-            error_type="invalid_request_body",
-            error_message="content-length must not be negative",
-        )
-    limit = max_request_bytes()
-    if length > limit:
-        return JsonRequestBody(
-            payload=None,
-            status_code=413,
-            error_type="request_too_large",
-            error_message=f"request body exceeds maximum size of {limit} bytes",
-        )
-    raw = rfile.read(length)
-    try:
-        value = json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        return JsonRequestBody(
-            payload=None,
-            status_code=400,
-            error_type="invalid_json",
-            error_message="request body must be valid JSON",
-        )
-    if not isinstance(value, dict):
-        return JsonRequestBody(
-            payload=None,
-            status_code=400,
-            error_type="invalid_json",
-            error_message="request body must be a JSON object",
-        )
-    return JsonRequestBody(payload=value)
 
 
 def latest_user_message(messages: Any) -> str:

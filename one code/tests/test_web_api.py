@@ -120,6 +120,17 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(result.error_type, "invalid_request_body")
         self.assertIn("content-length", result.error_message)
 
+    def test_request_body_module_reports_invalid_content_length(self):
+        from io import BytesIO
+        from onecode.web.request_body import read_json_request_body
+
+        result = read_json_request_body({"content-length": "not-a-number"}, BytesIO(b"{}"))
+
+        self.assertIsNone(result.payload)
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.error_type, "invalid_request_body")
+        self.assertIn("content-length", result.error_message)
+
     def test_latest_user_message_extracts_last_user_content(self):
         from onecode.web.api import latest_user_message
 
