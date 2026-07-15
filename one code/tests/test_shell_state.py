@@ -26,6 +26,17 @@ class ShellStateTests(unittest.TestCase):
                 stat.S_IMODE((root / "auth-secrets.json").stat().st_mode), 0o600
             )
 
+    def test_existing_secret_file_permissions_are_repaired(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "state"
+            load_or_create_shell_secrets(root)
+            path = root / "auth-secrets.json"
+            path.chmod(0o644)
+
+            load_or_create_shell_secrets(root)
+
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+
     def test_corrupt_secret_file_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "state"

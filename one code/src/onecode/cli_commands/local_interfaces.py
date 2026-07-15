@@ -21,6 +21,8 @@ def register_local_interface_commands(subparsers: argparse._SubParsersAction) ->
     shell_parser.add_argument("--onecode-root", default=str(Path.cwd()))
     shell_parser.add_argument("--librechat-dir", default=None)
     shell_parser.add_argument("--workspace", default=None)
+    shell_parser.add_argument("--state-dir", default=None)
+    shell_parser.add_argument("--model-timeout-seconds", type=float, default=60.0)
     shell_parser.add_argument("--onecode-host", default="127.0.0.1")
     shell_parser.add_argument("--onecode-port", type=int, default=19080)
     shell_parser.add_argument("--librechat-host", default="127.0.0.1")
@@ -38,6 +40,10 @@ def register_local_interface_commands(subparsers: argparse._SubParsersAction) ->
     shell_status_parser.add_argument("--onecode-root", default=str(Path.cwd()))
     shell_status_parser.add_argument("--librechat-dir", default=None)
     shell_status_parser.add_argument("--workspace", default=None)
+    shell_status_parser.add_argument("--state-dir", default=None)
+    shell_status_parser.add_argument(
+        "--model-timeout-seconds", type=float, default=60.0
+    )
     shell_status_parser.add_argument("--onecode-host", default="127.0.0.1")
     shell_status_parser.add_argument("--onecode-port", type=int, default=19080)
     shell_status_parser.add_argument("--librechat-host", default="127.0.0.1")

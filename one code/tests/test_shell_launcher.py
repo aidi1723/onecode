@@ -1,7 +1,10 @@
+import json
 import os
 import tempfile
 import unittest
 from pathlib import Path
+from subprocess import CompletedProcess
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from onecode.shell_launcher import (
@@ -10,19 +13,208 @@ from onecode.shell_launcher import (
     DEFAULT_LOCAL_PASSWORD,
     DEFAULT_MONGO_PORT,
     DEFAULT_ONECODE_PORT,
+    EXPECTED_LIBRECHAT_COMMIT,
+    ManagedProcess,
     ShellLaunchConfig,
+    append_bounded_log,
     build_librechat_env,
+    build_onecode_env,
     build_runtime_config,
     check_tcp,
     check_url,
     config_from_args,
     default_librechat_dir,
+    librechat_provenance,
+    mongo_command,
+    preflight_shell,
     process_is_running,
     shell_status,
 )
+from onecode.shell_state import write_runtime_status
+
+
+def shell_args(**overrides):
+    values = {
+        "onecode_root": "/tmp/example-onecode",
+        "librechat_dir": "/tmp/example-librechat",
+        "workspace": None,
+        "onecode_host": "127.0.0.1",
+        "onecode_port": DEFAULT_ONECODE_PORT,
+        "librechat_host": "127.0.0.1",
+        "librechat_port": DEFAULT_LIBRECHAT_PORT,
+        "mongo_port": DEFAULT_MONGO_PORT,
+        "api_token": "token",
+        "email": DEFAULT_LOCAL_EMAIL,
+        "password": DEFAULT_LOCAL_PASSWORD,
+        "state_dir": None,
+        "model_timeout_seconds": 60.0,
+        "open_browser": False,
+        "show_credentials": False,
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
+def shell_config(**overrides):
+    values = {
+        "onecode_root": Path("/tmp/example-onecode"),
+        "librechat_dir": Path("/tmp/example-librechat"),
+        "onecode_host": "127.0.0.1",
+        "onecode_port": DEFAULT_ONECODE_PORT,
+        "librechat_host": "127.0.0.1",
+        "librechat_port": DEFAULT_LIBRECHAT_PORT,
+        "mongo_port": DEFAULT_MONGO_PORT,
+        "api_token": "token",
+        "workspace_root": Path("/tmp/example-workspace"),
+        "runtime_state_root": Path("/tmp/example-state"),
+        "open_browser": False,
+    }
+    values.update(overrides)
+    return ShellLaunchConfig(**values)
 
 
 class ShellLauncherConfigTests(unittest.TestCase):
+    def test_state_dir_defaults_under_onecode_home(self):
+        with patch.dict(
+            "os.environ", {"ONECODE_HOME": "/tmp/onecode-home"}, clear=False
+        ):
+            config = config_from_args(shell_args())
+
+        self.assertEqual(
+            config.runtime_state_root, Path("/tmp/onecode-home/shell")
+        )
+
+    def test_mongo_command_uses_persistent_db_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = shell_config(runtime_state_root=Path(tmp) / "state")
+            command = mongo_command(config)
+
+        self.assertIn(str(Path(tmp) / "state" / "mongo"), " ".join(command))
+
+    def test_shell_status_never_returns_password(self):
+        with patch("onecode.shell_launcher.check_url", return_value={"ok": False}), patch(
+            "onecode.shell_launcher.check_tcp", return_value={"ok": False}
+        ), patch(
+            "onecode.shell_launcher.librechat_provenance",
+            return_value={"version": "v0.8.7"},
+        ), patch(
+            "onecode.shell_launcher.read_model_config",
+            return_value={"configured": False},
+        ):
+            result = shell_status(shell_config())
+
+        self.assertNotIn("password", json.dumps(result).lower())
+
+    def test_runtime_config_sets_onecode_retry_limit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = build_runtime_config(
+                shell_config(runtime_state_root=Path(tmp) / "state")
+            )
+
+            self.assertIn("maxRetries: 0", path.read_text(encoding="utf-8"))
+
+    def test_model_timeout_cli_reaches_onecode_environment(self):
+        config = shell_config(model_timeout_seconds=12.5)
+
+        self.assertEqual(
+            build_onecode_env(config, {})["ONECODE_MODEL_TIMEOUT_SECONDS"], "12.5"
+        )
+
+    def test_provenance_requires_v087_as_an_ancestor(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            librechat_dir = Path(tmp) / "librechat"
+            librechat_dir.mkdir()
+            (librechat_dir / "package.json").write_text(
+                json.dumps({"version": "v0.8.7"}), encoding="utf-8"
+            )
+            config = shell_config(librechat_dir=librechat_dir)
+            with patch("onecode.shell_launcher.subprocess.run") as run:
+                run.side_effect = [
+                    CompletedProcess([], 0, "abc123\n", ""),
+                    CompletedProcess([], 0, "", ""),
+                ]
+                result = librechat_provenance(config)
+
+        self.assertEqual(result["community_base_commit"], EXPECTED_LIBRECHAT_COMMIT)
+        self.assertEqual(result["head_commit"], "abc123")
+        self.assertTrue(result["community_base_is_ancestor"])
+
+    def test_preflight_rejects_an_occupied_port(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "onecode" / "src" / "onecode").mkdir(parents=True)
+            librechat_dir = root / "librechat"
+            librechat_dir.mkdir()
+            (librechat_dir / "package.json").write_text(
+                json.dumps({"version": "v0.8.7"}), encoding="utf-8"
+            )
+            config = shell_config(
+                onecode_root=root / "onecode",
+                librechat_dir=librechat_dir,
+                runtime_state_root=root / "state",
+            )
+            with patch(
+                "onecode.shell_launcher.shutil.which",
+                side_effect=lambda name: f"/usr/bin/{name}",
+            ), patch(
+                "onecode.shell_launcher.subprocess.run"
+            ) as run, patch(
+                "onecode.shell_launcher.librechat_provenance",
+                return_value={"version": "v0.8.7"},
+            ), patch(
+                "onecode.shell_launcher.read_model_config",
+                return_value={"configured": False},
+            ), patch(
+                "onecode.shell_launcher.port_is_available", return_value=False
+            ):
+                run.side_effect = [
+                    CompletedProcess([], 0, "v24.14.1\n", ""),
+                    CompletedProcess([], 0, "11.13.0\n", ""),
+                ]
+                with self.assertRaisesRegex(
+                    RuntimeError, "port .* is already in use"
+                ):
+                    preflight_shell(config)
+
+    def test_bounded_service_log_redacts_and_caps_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "service.log"
+            append_bounded_log(
+                path,
+                "Authorization: Bearer secret-token\n" + "x" * 5000,
+                max_bytes=1024,
+            )
+            text = path.read_text(encoding="utf-8")
+
+        self.assertLessEqual(len(text.encode("utf-8")), 1024)
+        self.assertNotIn("secret-token", text)
+
+    def test_shell_failure_redaction_removes_configured_secrets(self):
+        from onecode.shell_launcher import redact_shell_failure
+
+        config = shell_config(
+            api_token="opaque-runtime-token", password="opaque-runtime-password"
+        )
+
+        redacted = redact_shell_failure(
+            config, "failed opaque-runtime-token opaque-runtime-password"
+        )
+
+        self.assertNotIn("opaque-runtime-token", redacted)
+        self.assertNotIn("opaque-runtime-password", redacted)
+
+    def test_runtime_status_contains_only_service_names_and_pids(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_runtime_status(
+                Path(tmp), status="running", services={"mongo": 123}
+            )
+            payload = json.loads(
+                (Path(tmp) / "runtime-status.json").read_text(encoding="utf-8")
+            )
+
+        self.assertEqual(payload["services"], {"mongo": 123})
+        self.assertNotIn("token", json.dumps(payload).lower())
+
     def test_shell_defaults_workspace_to_onecode_root_and_separates_runtime_state(self):
         class Args:
             onecode_root = "/tmp/example-onecode"
@@ -34,11 +226,14 @@ class ShellLauncherConfigTests(unittest.TestCase):
             open_browser = False
             show_credentials = False
 
-        config = config_from_args(Args())
+        with patch.dict(
+            "os.environ", {"ONECODE_HOME": "/tmp/onecode-home"}, clear=False
+        ):
+            config = config_from_args(Args())
 
         self.assertEqual(config.workspace_root, Path("/tmp/example-onecode").resolve())
         self.assertNotEqual(config.runtime_state_root, config.workspace_root)
-        self.assertEqual(config.runtime_state_root, Path(tempfile.gettempdir()) / "onecode-librechat-live")
+        self.assertEqual(config.runtime_state_root, Path("/tmp/onecode-home/shell"))
 
     def test_runtime_config_uses_explicit_state_root(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -307,14 +502,20 @@ class ProcessRunningTests(unittest.TestCase):
             def poll(self):
                 return 1
 
-        self.assertFalse(process_is_running(ExitedProcess()))
+        managed = ManagedProcess(
+            "test", ExitedProcess(), Path("/tmp/test.log"), None
+        )
+
+        self.assertFalse(process_is_running(managed))
 
     def test_process_is_running_accepts_live_process(self):
         class LiveProcess:
             def poll(self):
                 return None
 
-        self.assertTrue(process_is_running(LiveProcess()))
+        managed = ManagedProcess("test", LiveProcess(), Path("/tmp/test.log"), None)
+
+        self.assertTrue(process_is_running(managed))
 
 
 class ShellLauncherCliTests(unittest.TestCase):
@@ -346,6 +547,24 @@ class ShellLauncherCliTests(unittest.TestCase):
         self.assertEqual(args.onecode_port, 19080)
         self.assertEqual(args.librechat_port, 14080)
         self.assertEqual(args.mongo_port, 39017)
+
+    def test_shell_subcommand_accepts_state_dir_and_model_timeout(self):
+        from onecode.cli import build_parser
+
+        parser = build_parser()
+        args = parser.parse_args(
+            [
+                "shell",
+                "--state-dir",
+                "/tmp/onecode-state",
+                "--model-timeout-seconds",
+                "12.5",
+                "--no-browser",
+            ]
+        )
+
+        self.assertEqual(args.state_dir, "/tmp/onecode-state")
+        self.assertEqual(args.model_timeout_seconds, 12.5)
 
     def test_serve_subcommand_defaults_to_shell_api_port(self):
         from onecode.cli import build_parser
