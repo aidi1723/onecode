@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import secrets
 import subprocess
 import sys
 import tempfile
@@ -12,6 +11,8 @@ from pathlib import Path
 from typing import Mapping
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+from onecode.shell_state import load_or_create_shell_secrets
 
 
 DEFAULT_LOCAL_EMAIL = "onecode@local.test"
@@ -48,6 +49,11 @@ def build_librechat_env(config: ShellLaunchConfig, base_env: Mapping[str, str] |
     for key in list(env):
         if key.startswith("ONEWORD_") or key.startswith("OPENAI_"):
             env.pop(key)
+    secret_keys = ("JWT_SECRET", "JWT_REFRESH_SECRET", "CREDS_KEY", "CREDS_IV")
+    stored_secrets = None
+    if any(not env.get(key) for key in secret_keys):
+        state_root = config.runtime_state_root or config.workspace_root
+        stored_secrets = load_or_create_shell_secrets(state_root)
     env.update(
         {
             "APP_TITLE": "one code",
@@ -66,10 +72,12 @@ def build_librechat_env(config: ShellLaunchConfig, base_env: Mapping[str, str] |
             "ALLOW_UNVERIFIED_EMAIL_LOGIN": "true",
             "LOGIN_WINDOW": "1",
             "LOGIN_MAX": "100",
-            "JWT_SECRET": env.get("JWT_SECRET") or secrets.token_hex(32),
-            "JWT_REFRESH_SECRET": env.get("JWT_REFRESH_SECRET") or secrets.token_hex(32),
-            "CREDS_KEY": env.get("CREDS_KEY") or secrets.token_hex(32),
-            "CREDS_IV": env.get("CREDS_IV") or secrets.token_hex(16),
+            "JWT_SECRET": env.get("JWT_SECRET")
+            or stored_secrets.jwt_secret,
+            "JWT_REFRESH_SECRET": env.get("JWT_REFRESH_SECRET")
+            or stored_secrets.jwt_refresh_secret,
+            "CREDS_KEY": env.get("CREDS_KEY") or stored_secrets.creds_key,
+            "CREDS_IV": env.get("CREDS_IV") or stored_secrets.creds_iv,
             "MEILI_NO_SYNC": "true",
             "CONFIG_PATH": str(runtime_config_path(config)),
         }

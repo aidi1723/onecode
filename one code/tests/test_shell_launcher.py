@@ -118,7 +118,7 @@ class ShellLauncherConfigTests(unittest.TestCase):
         self.assertRegex(env["CREDS_IV"], r"^[0-9a-f]{32}$")
         self.assertEqual(env["MEILI_NO_SYNC"], "true")
 
-    def test_build_librechat_env_generates_fresh_auth_secrets_for_preview(self):
+    def test_build_librechat_env_reuses_auth_secrets_for_same_state_root(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = ShellLaunchConfig(
                 onecode_root=Path(tmp) / "one code",
@@ -130,15 +130,16 @@ class ShellLauncherConfigTests(unittest.TestCase):
                 mongo_port=37017,
                 api_token="test-token",
                 workspace_root=Path(tmp) / "workspace",
+                runtime_state_root=Path(tmp) / "state",
             )
 
             first = build_librechat_env(config, {})
             second = build_librechat_env(config, {})
 
-        self.assertNotEqual(first["JWT_SECRET"], second["JWT_SECRET"])
-        self.assertNotEqual(first["JWT_REFRESH_SECRET"], second["JWT_REFRESH_SECRET"])
-        self.assertNotEqual(first["CREDS_KEY"], second["CREDS_KEY"])
-        self.assertNotEqual(first["CREDS_IV"], second["CREDS_IV"])
+        self.assertEqual(first["JWT_SECRET"], second["JWT_SECRET"])
+        self.assertEqual(first["JWT_REFRESH_SECRET"], second["JWT_REFRESH_SECRET"])
+        self.assertEqual(first["CREDS_KEY"], second["CREDS_KEY"])
+        self.assertEqual(first["CREDS_IV"], second["CREDS_IV"])
 
     def test_build_librechat_env_does_not_inherit_openai_credentials(self):
         with tempfile.TemporaryDirectory() as tmp:
