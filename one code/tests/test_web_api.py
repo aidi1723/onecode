@@ -652,6 +652,22 @@ class OneCodeWebApiTests(unittest.TestCase):
 
         self.assertIn("outside allowed workspace roots", str(raised.exception))
 
+    def test_workspace_module_rejects_path_outside_allowed_roots(self):
+        from onecode.web.workspace import workspace_from_request
+
+        with tempfile.TemporaryDirectory() as allowed, tempfile.TemporaryDirectory() as outside, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": allowed,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": allowed,
+            },
+            clear=True,
+        ):
+            with self.assertRaises(ValueError) as raised:
+                workspace_from_request({"metadata": {"workspace": outside}})
+
+        self.assertIn("outside allowed workspace roots", str(raised.exception))
+
     def test_workspace_from_request_accepts_workspace_inside_allowed_root(self):
         from onecode.web.api import workspace_from_request
 
