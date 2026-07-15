@@ -6,7 +6,7 @@
 
 **Architecture:** Keep OneCode and LibreChat in separate isolated worktrees. Normalize model failures inside OneCode, return structured Web errors, configure the OneCode LibreChat endpoint with zero outer retries, and port existing shell features onto the `v0.8.7` extension points in bounded backend, data, and UI slices.
 
-**Tech Stack:** Python 3.11 stdlib HTTP/unittest, OneCode evidence kernel, LibreChat v0.8.7, Node 24.16.0, npm 11.13.0, TypeScript/React, Jest, Vite, Playwright.
+**Tech Stack:** Python 3.11 stdlib HTTP/unittest, OneCode evidence kernel, LibreChat v0.8.7, Node >=20.19 (verified with 24.14.1), npm 11.13.0 through Corepack, TypeScript/React, Jest, Vite, Playwright.
 
 ---
 
@@ -148,7 +148,7 @@ the closure report instead of silently normalizing them.
 - [ ] **Step 6: Create the customization migration inventory**
 
 ```bash
-git diff --name-status v0.8.7..checkpoint/onecode-shell-pre-v087-20260715 > \
+git diff --name-status a16f08a42..checkpoint/onecode-shell-pre-v087-20260715 > \
   /private/tmp/onecode-v087-migration-inventory.txt
 wc -l /private/tmp/onecode-v087-migration-inventory.txt
 sed -n '1,240p' /private/tmp/onecode-v087-migration-inventory.txt
@@ -162,13 +162,13 @@ Task 12 must classify each row as `ported`, `superseded-by-v0.8.7`, or
 
 ```bash
 node --version
-npm --version
-npm ci
+corepack npm --version
+corepack npm ci
 npm run build:data-provider
 npm run build:client
 ```
 
-Expected: Node `v24.16.0`, npm `11.13.0`, clean dependency install, data-provider build, and client build all pass before OneCode files are ported.
+Expected: supported Node >=20.19, Corepack-selected npm `11.13.0`, clean dependency install, data-provider build, and client build all pass before OneCode files are ported.
 
 - [ ] **Step 8: Record the baseline evidence outside source control**
 
