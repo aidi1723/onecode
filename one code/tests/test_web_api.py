@@ -230,6 +230,101 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(payload["error"]["type"], "model_provider_error")
         self.assertIn("Unauthorized", payload["error"]["message"])
 
+    def test_chat_completion_returns_504_for_timeout_result(self):
+        from onecode.web.api import handle_chat_completion
+
+        timeout_result = {
+            "run_id": "timeout-run",
+            "status": "halted",
+            "reason": "model_provider_timeout",
+            "trace_path": "/tmp/trace.jsonl",
+            "ledger_path": "/tmp/ledger.json",
+            "manifest_path": "/tmp/manifest.json",
+        }
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ", {"ONECODE_HOME": str(Path(tmp) / "home")}, clear=True
+        ), patch("onecode.web.api.run_model_task", return_value=timeout_result):
+            payload, status_code = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "检查项目"}],
+                }
+            )
+
+        self.assertEqual(status_code, 504)
+        self.assertEqual(payload["error"]["type"], "model_provider_timeout")
+        self.assertEqual(payload["onecode"]["result"]["run_id"], "timeout-run")
+
+    def test_chat_completion_returns_502_for_provider_failure_result(self):
+        from onecode.web.api import handle_chat_completion
+
+        provider_result = {
+            "run_id": "failed-run",
+            "status": "halted",
+            "reason": "model_provider_error",
+        }
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ", {"ONECODE_HOME": str(Path(tmp) / "home")}, clear=True
+        ), patch("onecode.web.api.run_model_task", return_value=provider_result):
+            payload, status_code = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "检查项目"}],
+                }
+            )
+
+        self.assertEqual(
+            (status_code, payload["error"]["type"]),
+            (502, "model_provider_error"),
+        )
+
+    def test_chat_completion_passes_configured_model_timeout(self):
+        from onecode.web.api import handle_chat_completion
+
+        completed = {"run_id": "run", "status": "completed", "reason": "completed"}
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+                "ONECODE_MODEL_TIMEOUT_SECONDS": "0.25",
+            },
+            clear=True,
+        ), patch(
+            "onecode.web.api.run_model_task", return_value=completed
+        ) as run_model:
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "检查项目"}],
+                }
+            )
+
+        self.assertEqual(run_model.call_args.kwargs["http_timeout_seconds"], 0.25)
+
+    def test_invalid_timeout_setting_is_rejected_without_a_model_call(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+                "ONECODE_MODEL_TIMEOUT_SECONDS": "0",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task") as run_model:
+            payload, status_code = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "检查项目"}],
+                }
+            )
+
+        self.assertEqual(
+            (status_code, payload["error"]["type"]),
+            (503, "invalid_model_timeout"),
+        )
+        run_model.assert_not_called()
+
     def test_chat_completion_handles_empty_model_plan_as_visible_reply(self):
         from onecode.web.api import handle_chat_completion
 

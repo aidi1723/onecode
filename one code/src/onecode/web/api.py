@@ -79,6 +79,8 @@ TASK_MARKERS = (
 PATH_MARKERS = ("src/", "tests/", ".py", ".js", ".ts", ".tsx", ".md", ".json", ".yaml", ".yml")
 LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
 DEFAULT_MAX_REQUEST_BYTES = 1_000_000
+DEFAULT_MODEL_TIMEOUT_SECONDS = 60.0
+MAX_MODEL_TIMEOUT_SECONDS = 600.0
 APPROVAL_MESSAGE_PATTERN = re.compile(r"^(批准|确认|拒绝)计划\s+([a-f0-9]{32})\s*$")
 
 
@@ -88,6 +90,21 @@ class JsonRequestBody:
     status_code: int = 200
     error_type: str | None = None
     error_message: str | None = None
+
+
+def model_timeout_seconds_from_env() -> float:
+    raw = os.getenv(
+        "ONECODE_MODEL_TIMEOUT_SECONDS", str(DEFAULT_MODEL_TIMEOUT_SECONDS)
+    )
+    try:
+        value = float(raw)
+    except ValueError:
+        raise ValueError("ONECODE_MODEL_TIMEOUT_SECONDS must be a number") from None
+    if not 0 < value <= MAX_MODEL_TIMEOUT_SECONDS:
+        raise ValueError(
+            "ONECODE_MODEL_TIMEOUT_SECONDS must be greater than zero and at most 600"
+        )
+    return value
 
 
 def build_models_payload() -> dict[str, Any]:
@@ -792,6 +809,11 @@ def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
         return chat_completion_payload(content, model, {"status": "completed", "run_id": run_id}, "chat"), 200
 
     try:
+        model_timeout_seconds = model_timeout_seconds_from_env()
+    except ValueError as exc:
+        return error_payload("invalid_model_timeout", str(exc)), 503
+
+    try:
         result = run_model_task(
             user_message,
             workspace=workspace,
@@ -802,8 +824,26 @@ def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
             endpoint=endpoint,
             task_mode=task_mode,
             require_explicit_approval=True,
+            http_timeout_seconds=model_timeout_seconds,
         )
-        mode = "approval_required" if result.get("reason") == "approval_required" else "model"
+        failure_statuses = {
+            "model_provider_timeout": 504,
+            "model_provider_error": 502,
+            "invalid_model_plan": 502,
+        }
+        failure_reason = result.get("reason")
+        if failure_reason in failure_statuses:
+            payload = error_payload(
+                str(failure_reason), "model planning failed before execution"
+            )
+            payload["onecode"] = {"mode": "model", "result": result}
+            return payload, failure_statuses[failure_reason]
+        if failure_reason == "no_actionable_plan":
+            mode = "no_action"
+        elif failure_reason == "approval_required":
+            mode = "approval_required"
+        else:
+            mode = "model"
     except MissingModelApiKey as exc:
         return error_payload("model_configuration_missing", str(exc)), 503
     except ValueError as exc:
