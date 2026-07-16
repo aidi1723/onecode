@@ -168,8 +168,8 @@ Not applicable for this pass:
 - [x] Source-quality and `git diff --check` pass on the clean publish worktree.
 - [x] LibreChat reliability work is recorded as local-only (no owner GitHub
       remote for the shell fork).
-- [ ] Post-push: local tip equals refreshed
-      `origin/feature/gateway-iching-rule-sync` (completed during publication).
+- [x] Post-push: local tip equals refreshed
+      `origin/feature/gateway-iching-rule-sync` at `cfd1242`.
 
 Not applicable for this pass:
 

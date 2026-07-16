@@ -1,7 +1,7 @@
 # OneCode Execution Reliability GitHub Publication
 
 Date: 2026-07-16
-Status: Prepared for owner-authorized non-force push to the existing feature branch
+Status: Published to the owner-approved feature branch; refs verified equal
 Owner-approved target: `origin/feature/gateway-iching-rule-sync`
 Remote repository: `https://github.com/aidi1723/onecode`
 
@@ -90,8 +90,9 @@ reliability tip):
 - [x] `git diff --check` on the publication worktree
 - [x] Privacy scan of publication delta (paths and secrets) — clean after redaction
 - [x] Staged paths limited to `one code/` documentation and intentional reliability sources already on the tip
-- [ ] Post-push: local tip equals refreshed
-  `origin/feature/gateway-iching-rule-sync` (filled after push)
+- [x] Post-push: local tip equals refreshed
+  `origin/feature/gateway-iching-rule-sync` at
+  `cfd12429425f32cf1c0c8c3d669166f00b8a7ca5`
 
 Also recorded from implementation sessions:
 
@@ -121,6 +122,17 @@ range after reviewing `3f3d1ca..HEAD` on the feature branch. Do not force the
 remote feature branch backward.
 
 LibreChat local rollback is independent and uses the LibreChat repository only.
+
+
+## Publication Evidence
+
+| Step | Result |
+| --- | --- |
+| Pre-push remote tip | `3f3d1caedfd3891bdba37d7282c126de8a7bbdca` |
+| Push | normal fast-forward `3f3d1ca..cfd1242` to `feature/gateway-iching-rule-sync` |
+| Post-push local HEAD | `cfd12429425f32cf1c0c8c3d669166f00b8a7ca5` |
+| Post-push remote tip | `cfd12429425f32cf1c0c8c3d669166f00b8a7ca5` |
+| Ref equality | identical after fresh fetch |
 
 ## Related Records
 
