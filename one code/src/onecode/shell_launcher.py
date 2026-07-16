@@ -179,6 +179,7 @@ def build_onecode_env(config: ShellLaunchConfig, base_env: Mapping[str, str] | N
     env["ONECODE_WORKSPACE_ROOT"] = str(config.workspace_root)
     env["ONECODE_ALLOWED_WORKSPACE_ROOTS"] = str(config.workspace_root)
     env["ONECODE_MODEL_TIMEOUT_SECONDS"] = str(config.model_timeout_seconds)
+    env["ONECODE_REQUIRE_EXPLICIT_TASK_WORKSPACE"] = "true"
     if env.get("OPENAI_BASE_URL") and not env.get("ONECODE_MODEL_ENDPOINT"):
         env["ONECODE_MODEL_ENDPOINT"] = env["OPENAI_BASE_URL"]
         env["ONECODE_MODEL_PROVIDER"] = "chat"

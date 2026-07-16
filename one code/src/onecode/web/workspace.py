@@ -40,7 +40,27 @@ def workspace_from_value(value: str | None) -> Path:
     return require_allowed_workspace(workspace)
 
 
-def workspace_from_request(body: dict[str, Any]) -> Path:
+def explicit_task_workspace_required() -> bool:
+    return os.getenv("ONECODE_REQUIRE_EXPLICIT_TASK_WORKSPACE", "").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def request_workspace_value(body: dict[str, Any]) -> str | None:
     metadata = body.get("metadata")
     workspace_value = metadata.get("workspace") if isinstance(metadata, dict) else None
-    return workspace_from_value(workspace_value if isinstance(workspace_value, str) else None)
+    if not isinstance(workspace_value, str) or not workspace_value.strip():
+        return None
+    return workspace_value.strip()
+
+
+def workspace_from_request(
+    body: dict[str, Any], *, require_explicit: bool = False
+) -> Path:
+    workspace_value = request_workspace_value(body)
+    if require_explicit and workspace_value is None:
+        raise ValueError("workspace_required")
+    return workspace_from_value(workspace_value)

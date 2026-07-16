@@ -116,9 +116,10 @@ class ShellLauncherConfigTests(unittest.TestCase):
     def test_model_timeout_cli_reaches_onecode_environment(self):
         config = shell_config(model_timeout_seconds=12.5)
 
-        self.assertEqual(
-            build_onecode_env(config, {})["ONECODE_MODEL_TIMEOUT_SECONDS"], "12.5"
-        )
+        env = build_onecode_env(config, {})
+
+        self.assertEqual(env["ONECODE_MODEL_TIMEOUT_SECONDS"], "12.5")
+        self.assertEqual(env["ONECODE_REQUIRE_EXPLICIT_TASK_WORKSPACE"], "true")
 
     def test_provenance_requires_v087_as_an_ancestor(self):
         with tempfile.TemporaryDirectory() as tmp:
