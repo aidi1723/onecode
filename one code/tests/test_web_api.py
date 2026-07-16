@@ -12,7 +12,7 @@ from urllib.error import HTTPError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
-from onecode.contracts import load_shell_projection_v4_schema
+from onecode.contracts import load_shell_projection_v5_schema
 
 
 @contextmanager
@@ -50,7 +50,7 @@ class OneCodeWebApiTests(unittest.TestCase):
         payload, status = handle_onecode_shell_schema()
 
         self.assertEqual(status, 200)
-        self.assertEqual(payload, load_shell_projection_v4_schema())
+        self.assertEqual(payload, load_shell_projection_v5_schema())
 
     def test_bearer_auth_rejects_missing_token_when_configured(self):
         from onecode.web.api import request_authorized
@@ -1598,7 +1598,7 @@ class OneCodeWebApiTests(unittest.TestCase):
                 with urlopen(request, timeout=5) as response:
                     payload = json.loads(response.read().decode("utf-8"))
 
-        self.assertEqual(payload, load_shell_projection_v4_schema())
+        self.assertEqual(payload, load_shell_projection_v5_schema())
 
     def test_http_server_serves_browser_gateway_console(self):
         from onecode.web.api import OneCodeRequestHandler

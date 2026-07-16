@@ -17,7 +17,18 @@ def load_shell_projection_v4_schema() -> dict[str, Any]:
 
 
 def load_shell_projection_v4_cases() -> list[dict[str, Any]]:
-    name = "shell_projection_v4_cases.json"
+    return _load_json_cases("shell_projection_v4_cases.json")
+
+
+def load_shell_projection_v5_schema() -> dict[str, Any]:
+    return _load_json_object("shell_projection_v5_schema.json")
+
+
+def load_shell_projection_v5_cases() -> list[dict[str, Any]]:
+    return _load_json_cases("shell_projection_v5_cases.json")
+
+
+def _load_json_cases(name: str) -> list[dict[str, Any]]:
     value = json.loads(files(__package__).joinpath(name).read_text(encoding="utf-8"))
     if not isinstance(value, list):
         raise ValueError(f"invalid_contract_asset:{name}")

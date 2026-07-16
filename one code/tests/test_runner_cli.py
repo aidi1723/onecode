@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from onecode.cli import main
-from onecode.contracts import load_shell_projection_v4_schema
+from onecode.contracts import load_shell_projection_v5_schema
 from onecode.kernel.iching_encoding import RULE_SCHEMA_V2
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.runner import run_deadline_breach, run_task, trace_budget_breach, validate_resource_budget
@@ -410,7 +410,7 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(completed.returncode, 0, completed.stderr)
         payload = json.loads(completed.stdout)
-        self.assertEqual(payload, load_shell_projection_v4_schema())
+        self.assertEqual(payload, load_shell_projection_v5_schema())
 
     def test_cli_run_prints_json_result(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -16,6 +16,7 @@ EXPECTED_CASE_NAMES = [
     "completed_wal_only",
     "legacy_missing_fields",
 ]
+EXPECTED_V5_CASE_NAMES = [*EXPECTED_CASE_NAMES, "pending_approval"]
 
 
 class ShellContractTests(unittest.TestCase):
@@ -37,6 +38,12 @@ class ShellContractTests(unittest.TestCase):
         self.assertTrue(contract_root.joinpath("shell_projection_v4_schema.json").is_file())
         self.assertTrue(contract_root.joinpath("shell_projection_v4_cases.json").is_file())
 
+    def test_shell_v5_contract_assets_are_package_resources(self):
+        contract_root = files("onecode.contracts")
+
+        self.assertTrue(contract_root.joinpath("shell_projection_v5_schema.json").is_file())
+        self.assertTrue(contract_root.joinpath("shell_projection_v5_cases.json").is_file())
+
     def test_shell_v4_contract_assets_are_versioned_and_fresh(self):
         from onecode.contracts import (
             load_shell_projection_v4_cases,
@@ -54,15 +61,17 @@ class ShellContractTests(unittest.TestCase):
         self.assertEqual(load_shell_projection_v4_schema()["version"], 4)
         self.assertEqual(load_shell_projection_v4_cases()[0]["name"], "completed_full")
 
-    def test_shell_v4_schema_matches_public_fixture(self):
-        from onecode.contracts import load_shell_projection_v4_schema
+    def test_current_shell_schema_matches_v5_public_fixture(self):
+        from onecode.contracts import load_shell_projection_v5_schema
 
-        self.assertEqual(shell_projection_schema(), load_shell_projection_v4_schema())
+        self.assertEqual(shell_projection_schema(), load_shell_projection_v5_schema())
 
-    def test_shell_v4_projection_cases_match_public_fixtures(self):
-        from onecode.contracts import load_shell_projection_v4_cases
+    def test_shell_v5_projection_cases_match_public_fixtures(self):
+        from onecode.contracts import load_shell_projection_v5_cases
 
-        for case in load_shell_projection_v4_cases():
+        cases = load_shell_projection_v5_cases()
+        self.assertEqual([case["name"] for case in cases], EXPECTED_V5_CASE_NAMES)
+        for case in cases:
             with self.subTest(case=case["name"]):
                 self.assertEqual(project_run_to_shell(case["input"]), case["expected"])
                 self.assertEqual(list(case["expected"]), list(SHELL_PROJECTION_FIELDS))
