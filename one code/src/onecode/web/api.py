@@ -17,6 +17,7 @@ from onecode.web.request_body import JsonRequestBody, max_request_bytes, read_js
 from onecode.web.responses import encode_json_payload, error_payload
 from onecode.web.workspace import (
     configured_allowed_workspace_roots,
+    explicit_task_workspace_required,
     path_inside_root,
     require_allowed_workspace,
     workspace_allowed,
@@ -269,6 +270,7 @@ def handle_onecode_run_resume(run_id: str, body: dict[str, Any]) -> tuple[dict[s
             api_key=effective_model.api_key,
             provider_kind=effective_model.provider,
             endpoint=effective_model.endpoint,
+            require_explicit_approval=True,
         )
     except MissingModelApiKey as exc:
         return error_payload("model_configuration_missing", str(exc)), 503
@@ -560,6 +562,12 @@ def parse_approval_message(user_message: str) -> tuple[str, bool] | None:
     return match.group(2), match.group(1) != "拒绝"
 
 
+def _workspace_error(exc: ValueError) -> tuple[dict[str, Any], int]:
+    if str(exc) == "workspace_required":
+        return error_payload("workspace_required", "请先选择项目"), 400
+    return error_payload("invalid_workspace", str(exc)), 400
+
+
 def direct_chat_completion(
     messages: list[dict[str, Any]],
     *,
@@ -649,13 +657,15 @@ def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
     if user_message.strip() == "":
         return error_payload("invalid_request", "messages must include a user message"), 400
 
-    try:
-        workspace = workspace_from_request(body)
-    except ValueError as exc:
-        return error_payload("invalid_workspace", str(exc)), 400
     model = str(body.get("model") or DEFAULT_MODEL_ID)
     approval_message = parse_approval_message(user_message)
     if approval_message is not None:
+        try:
+            workspace = workspace_from_request(
+                body, require_explicit=explicit_task_workspace_required()
+            )
+        except ValueError as exc:
+            return _workspace_error(exc)
         plan_id, approved = approval_message
         result, status_code = handle_onecode_plan_approval(
             plan_id,
@@ -670,6 +680,15 @@ def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
         task_mode = classify_task(user_message, explicit_mode=explicit_mode)
     except ValueError as exc:
         return error_payload("invalid_task_mode", str(exc)), 400
+    try:
+        workspace = workspace_from_request(
+            body,
+            require_explicit=(
+                task_mode != "chat" and explicit_task_workspace_required()
+            ),
+        )
+    except ValueError as exc:
+        return _workspace_error(exc)
     stored_config = read_model_config(include_secret=True)
     effective_model = resolve_effective_model_config(os.environ, stored_config)
     execution_model = effective_model.model if model == DEFAULT_MODEL_ID else model

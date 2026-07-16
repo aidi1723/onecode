@@ -192,6 +192,57 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertIn("OPENAI_API_KEY", payload["error"]["message"])
         self.assertFalse(evidence_exists)
 
+    def test_strict_shell_task_requires_explicit_workspace_before_model_call(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_REQUIRE_EXPLICIT_TASK_WORKSPACE": "true",
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task") as run_model:
+            payload, status = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "写一个 hello.txt"}],
+                }
+            )
+            evidence_exists = (Path(tmp) / ".onecode").exists()
+
+        self.assertEqual((status, payload["error"]["type"]), (400, "workspace_required"))
+        run_model.assert_not_called()
+        self.assertFalse(evidence_exists)
+
+    def test_strict_shell_direct_chat_does_not_require_workspace(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_REQUIRE_EXPLICIT_TASK_WORKSPACE": "true",
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+            },
+            clear=True,
+        ), patch(
+            "onecode.web.api.direct_chat_completion", return_value="4"
+        ) as direct_chat:
+            payload, status = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "2+2"}],
+                }
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["choices"][0]["message"]["content"], "4")
+        direct_chat.assert_called_once()
+
     def test_error_payload_uses_openai_style_error(self):
         from onecode.web.api import error_payload
 
@@ -920,6 +971,7 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(payload["run_id"], "resumed-api")
         self.assertEqual(run_model.call_args.kwargs["resume_from_run_id"], "source-api")
         self.assertEqual(run_model.call_args.kwargs["workspace"], Path(tmp).resolve())
+        self.assertTrue(run_model.call_args.kwargs["require_explicit_approval"])
 
     def test_onecode_resume_without_model_key_returns_configuration_failure(self):
         from onecode.web.api import handle_onecode_run_resume
