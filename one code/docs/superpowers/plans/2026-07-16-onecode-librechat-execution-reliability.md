@@ -12,12 +12,15 @@
 
 ## Repository Map
 
-- OneCode code root: `/Users/aidi/大字典/one code`
-- OneCode Git root: `/Users/aidi/大字典`
-- LibreChat Git root: `/Users/aidi/大字典/onecode-librechat`
+- OneCode code root: `one code/` (package root inside the monorepo)
+- OneCode Git root: monorepo parent that contains `one code/`
+- LibreChat Git root: separate local shell repository (not published by this plan)
 - Approved design: `one code/docs/superpowers/specs/2026-07-16-onecode-librechat-execution-reliability-design.md`
 
-Run OneCode Python commands from `/Users/aidi/大字典/one code`. Run LibreChat commands from the workspace named in each task. Commit OneCode paths in the parent repository and LibreChat paths in the LibreChat repository. Do not combine paths from both repositories in one Git commit.
+Run OneCode Python commands from `one code/`. Run LibreChat commands from the
+LibreChat checkout named in each task. Commit OneCode paths only in the
+OneCode monorepo and LibreChat paths only in the LibreChat repository. Do not
+combine paths from both repositories in one Git commit.
 
 ## File Structure
 

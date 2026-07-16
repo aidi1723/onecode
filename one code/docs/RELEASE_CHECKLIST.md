@@ -151,3 +151,28 @@ Not applicable for this pass:
   UI evidence; no new frontend build or browser run is required.
 - No SEO content, social announcement, production deployment, GitHub Release,
   package registry publication, tag, pull request, or `main` merge is included.
+
+## 2026-07-16 LibreChat Execution Reliability GitHub Publication Pass
+
+- [x] Reliability implementation commits are present on the publication tip
+      (`4a7181c`…`59973e5` plus design/plan/closure docs).
+- [x] Shell projection v5 contract files and tests are included.
+- [x] Local monorepo `main` already contains the reliability tip via fast-forward.
+- [x] Publication target is `origin/feature/gateway-iching-rule-sync` only;
+      unrelated `origin/main` is excluded.
+- [x] Absolute local paths were redacted from the reliability plan and closure
+      documents in the publication delta.
+- [x] Privacy/secret scan of the publication delta found no real API keys or
+      PEM material; unit-test fixture tokens remain fixtures only.
+- [x] Targeted reliability unit tests: 119 passed.
+- [x] Source-quality and `git diff --check` pass on the clean publish worktree.
+- [x] LibreChat reliability work is recorded as local-only (no owner GitHub
+      remote for the shell fork).
+- [ ] Post-push: local tip equals refreshed
+      `origin/feature/gateway-iching-rule-sync` (completed during publication).
+
+Not applicable for this pass:
+
+- No production deployment, tag, GitHub Release, or package publication.
+- No merge into `origin/main`.
+- Live Playwright and dual-process smoke remain operator-deferred.
