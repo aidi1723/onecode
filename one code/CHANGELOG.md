@@ -1,5 +1,37 @@
 # Changelog
 
+## Unreleased - 2026-07-16 - LibreChat Execution Reliability
+
+### Changed
+
+- Hardened deterministic task classification with stable reason codes for common
+  natural-language project phrases.
+- Enforced strict workspace selection for non-chat shell tasks and required
+  explicit approval before mutating resume paths.
+- Added redacted pending-plan listing and approval decision surfaces on the Web
+  API without exposing sensitive plan bodies.
+- Published shell projection **v5** with nested `approval_state` (`required`,
+  `plan_id`, `status`) while preserving prior control-state fields.
+- Aligned shell status semantics and launcher exports for Console consumption.
+- Documented the reliability design, implementation plan, closure, and GitHub
+  publication record under `docs/`.
+
+### Verification
+
+- Targeted reliability unit tests: 119 passed
+  (`task_classification`, `approval_plans`, `web_api`, `shell_projection`).
+- Publication-prep source-quality and whitespace checks on a clean worktree.
+- Privacy scan of the publication delta: local absolute paths redacted; no real
+  secrets found.
+- LibreChat Console and proxy work remains in a separate local repository and
+  is not part of this GitHub update.
+
+### Publication
+
+- Fast-forward only to `origin/feature/gateway-iching-rule-sync`.
+- Does not update unrelated `origin/main`, create a tag, or publish packages.
+- See `docs/ONECODE_EXECUTION_RELIABILITY_GITHUB_PUBLICATION_2026-07-16.md`.
+
 ## Unreleased - 2026-07-16 - vNext Maintenance Governance
 
 ### Changed
