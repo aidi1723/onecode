@@ -2,6 +2,38 @@ import unittest
 
 
 class TaskClassificationTests(unittest.TestCase):
+    def test_common_project_requests_are_classified_with_reasons(self):
+        from onecode.kernel.task_classification import classify_task_with_reason
+
+        cases = {
+            "写一个 hello.txt": ("change_task", "mutation_action_with_path"),
+            "写文件 hello.txt 内容是 hi": ("change_task", "mutation_action_with_path"),
+            "在项目根目录写个文件": ("change_task", "mutation_action_with_project_object"),
+            "fix bug in main.py": ("change_task", "mutation_action_with_path"),
+            "把这个 bug 修一下": ("change_task", "mutation_action_with_project_object"),
+            "运行一下测试": ("change_task", "mutation_action_with_project_object"),
+            "帮我看看这个仓库": ("read_task", "read_action_with_project_object"),
+            "看看 src": ("read_task", "read_action_with_project_object"),
+            "分析一下代码": ("read_task", "read_action_with_project_object"),
+        }
+
+        for text, expected in cases.items():
+            with self.subTest(text=text):
+                result = classify_task_with_reason(text)
+                self.assertEqual((result.mode, result.reason), expected)
+
+    def test_ambiguous_explanations_remain_chat(self):
+        from onecode.kernel.task_classification import classify_task_with_reason
+
+        for text in (
+            "什么是文件系统",
+            "解释一下 fix 这个词",
+            "Write a brief explanation of tests",
+        ):
+            with self.subTest(text=text):
+                result = classify_task_with_reason(text)
+                self.assertEqual((result.mode, result.reason), ("chat", "default_chat"))
+
     def test_natural_project_check_is_read_task(self):
         from onecode.kernel.task_classification import classify_task
 
