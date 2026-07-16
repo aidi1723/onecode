@@ -77,6 +77,36 @@ def load_approval_plan(
     return _load_approval_plan_path(root, plan_id, path, max_age_seconds=max_age_seconds)
 
 
+def list_pending_approval_plans(
+    workspace: Path, *, limit: int = 100
+) -> tuple[list[StoredApprovalPlan], int]:
+    if (
+        isinstance(limit, bool)
+        or not isinstance(limit, int)
+        or not 1 <= limit <= 100
+    ):
+        raise ValueError("limit must be between 1 and 100")
+    root = Path(workspace).resolve()
+    directory = root / ".onecode" / "pending-plans"
+    if not directory.is_dir():
+        return [], 0
+    paths = sorted(
+        directory.glob("*.json"),
+        key=lambda item: item.stat().st_mtime,
+        reverse=True,
+    )
+    plans: list[StoredApprovalPlan] = []
+    skipped = 0
+    for path in paths:
+        if len(plans) >= limit:
+            break
+        try:
+            plans.append(load_approval_plan(root, path.stem))
+        except ValueError:
+            skipped += 1
+    return plans, skipped
+
+
 def claim_approval_plan(
     workspace: Path,
     plan_id: str,

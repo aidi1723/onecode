@@ -16,8 +16,8 @@ from onecode.kernel.model_provider import (
 )
 from onecode.kernel.execution_contracts import ExecutionPlan, ExecutionStep, ToolCallSpec
 from onecode.kernel.execution_engine import execute_plan
-from onecode.kernel.execution_tools import redact_sensitive_text
 from onecode.kernel.execution_plan_loader import execution_trace_to_dict
+from onecode.kernel.approval_summary import approval_action_summaries
 from onecode.kernel.checkpoint import write_checkpoint, write_ledger
 from onecode.kernel.context import create_context
 from onecode.kernel.hexagram import COMPLETE
@@ -391,72 +391,6 @@ def pending_approval_result(
         "model_provider": model_provider,
         "model": resolved_model,
         "safe_agent": safe_agent_context,
-    }
-
-
-def approval_action_summaries(plan: ModelPlan) -> list[dict[str, Any]]:
-    actions: list[dict[str, Any]] = []
-    for step in execution_plan_from_model_plan(plan).steps:
-        for tool_call in step.tool_calls:
-            params = tool_call.params
-            if tool_call.tool_name == "write_text":
-                actions.append(
-                    _write_approval_summary(
-                        "write_text",
-                        params.get("path"),
-                        params.get("content"),
-                    )
-                )
-            elif tool_call.tool_name == "patch_text":
-                actions.append(
-                    _patch_approval_summary(
-                        params.get("path"),
-                        params.get("search_block"),
-                        params.get("replace_block"),
-                    )
-                )
-            elif tool_call.tool_name == "run_command":
-                argv = params.get("argv")
-                actions.append(
-                    {
-                        "tool": "run_command",
-                        "argv": [redact_sensitive_text(item) for item in argv] if isinstance(argv, list) else [],
-                        "timeout_seconds": params.get("timeout_seconds", 60),
-                    }
-                )
-            else:
-                summary: dict[str, Any] = {"tool": tool_call.tool_name}
-                for key in ("path", "query", "max_entries", "max_matches"):
-                    value = params.get(key)
-                    if isinstance(value, (str, int)) and not isinstance(value, bool):
-                        summary[key] = redact_sensitive_text(value) if isinstance(value, str) else value
-                actions.append(summary)
-    return actions
-
-
-def _write_approval_summary(tool: str, path: Any, content: Any) -> dict[str, Any]:
-    text = content if isinstance(content, str) else ""
-    return {
-        "tool": tool,
-        "path": path if isinstance(path, str) else "",
-        "content_bytes": len(text.encode("utf-8")),
-        "content_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
-        "content_preview": redact_sensitive_text(text[:500]),
-        "content_truncated": len(text) > 500,
-    }
-
-
-def _patch_approval_summary(path: Any, search_block: Any, replace_block: Any) -> dict[str, Any]:
-    search = search_block if isinstance(search_block, str) else ""
-    replace = replace_block if isinstance(replace_block, str) else ""
-    return {
-        "tool": "patch_text",
-        "path": path if isinstance(path, str) else "",
-        "search_preview": redact_sensitive_text(search[:500]),
-        "replace_preview": redact_sensitive_text(replace[:500]),
-        "search_sha256": hashlib.sha256(search.encode("utf-8")).hexdigest(),
-        "replace_sha256": hashlib.sha256(replace.encode("utf-8")).hexdigest(),
-        "truncated": len(search) > 500 or len(replace) > 500,
     }
 
 
