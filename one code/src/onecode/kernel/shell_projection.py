@@ -8,7 +8,7 @@ from onecode.kernel.wal import decode_balance_mutation_tuple
 
 BLOCKED_STATUSES = {"denied", "halted", "blocked", "rejected"}
 WARNING_STATUSES = {"partial", "skipped"}
-SHELL_PROJECTION_VERSION = 4
+SHELL_PROJECTION_VERSION = 5
 SHELL_PROJECTION_FIELDS = (
     "version",
     "run_id",
@@ -22,6 +22,7 @@ SHELL_PROJECTION_FIELDS = (
     "delivery_state",
     "evidence_ref",
     "resume_state",
+    "approval_state",
 )
 RULE_STATE_FIELDS = (
     "rule_schema",
@@ -67,6 +68,11 @@ RESUME_STATE_FIELDS = (
     "resumed",
     "resumed_from",
 )
+APPROVAL_STATE_FIELDS = (
+    "required",
+    "plan_id",
+    "status",
+)
 SEVERITY_VALUES = ("blocked", "corrupt", "missing", "ok", "warning")
 
 
@@ -91,6 +97,7 @@ def shell_projection_schema() -> dict[str, Any]:
             "delivery_state": {"type": "object", "fields": list(DELIVERY_STATE_FIELDS)},
             "evidence_ref": {"type": "object", "fields": list(EVIDENCE_REF_FIELDS)},
             "resume_state": {"type": "object", "fields": list(RESUME_STATE_FIELDS)},
+            "approval_state": {"type": "object", "fields": list(APPROVAL_STATE_FIELDS)},
         },
         "nested_fields": {
             "rule_state": list(RULE_STATE_FIELDS),
@@ -99,6 +106,7 @@ def shell_projection_schema() -> dict[str, Any]:
             "delivery_state": list(DELIVERY_STATE_FIELDS),
             "evidence_ref": list(EVIDENCE_REF_FIELDS),
             "resume_state": list(RESUME_STATE_FIELDS),
+            "approval_state": list(APPROVAL_STATE_FIELDS),
         },
     }
 
@@ -116,6 +124,7 @@ def project_run_to_shell(run: dict[str, Any]) -> dict[str, Any]:
         "resumed": run.get("resumed") if isinstance(run.get("resumed"), bool) else None,
         "resumed_from": _string(run.get("resumed_from")),
     }
+    approval_state = _approval_state(run)
 
     projection = {
         "version": SHELL_PROJECTION_VERSION,
@@ -130,6 +139,7 @@ def project_run_to_shell(run: dict[str, Any]) -> dict[str, Any]:
         "delivery_state": delivery_state,
         "evidence_ref": evidence_ref,
         "resume_state": resume_state,
+        "approval_state": approval_state,
     }
     return projection
 
@@ -188,11 +198,22 @@ def _next_action(run: dict[str, Any], severity: str) -> str:
     explicit = _string(run.get("next_action"))
     if explicit is not None:
         return explicit
+    if run.get("reason") == "approval_required" and _string(run.get("plan_id")) is not None:
+        return "approve"
     if severity in {"corrupt", "missing", "blocked"}:
         return "inspect"
     if severity == "warning":
         return "verify"
     return "idle"
+
+
+def _approval_state(run: dict[str, Any]) -> dict[str, Any]:
+    required = run.get("reason") == "approval_required"
+    return {
+        "required": required,
+        "plan_id": _string(run.get("plan_id")) if required else None,
+        "status": "pending" if required else None,
+    }
 
 
 def _rule_state(run: dict[str, Any]) -> dict[str, Any]:

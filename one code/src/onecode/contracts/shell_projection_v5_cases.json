@@ -1,0 +1,534 @@
+[
+  {
+    "name": "completed_full",
+    "input": {
+      "run_id": "completed-full",
+      "status": "completed",
+      "rule_schema": "onecode-iching-v2",
+      "iching_status_code": 63,
+      "iching_transition_action": "allow",
+      "task_dispatch_decision": "allow",
+      "delivery_status": "deliverable",
+      "next_action": "idle",
+      "requested_count": 1,
+      "completed_count": 1,
+      "skipped_count": 0,
+      "failed_count": 0,
+      "balance_mutation_summary": {
+        "changed_asset_count": 1,
+        "total_changed_line_count": 1,
+        "changed_bands": [
+          "heaven"
+        ],
+        "latest_before_status_code": 63,
+        "latest_after_status_code": 31
+      },
+      "ledger_path": ".onecode/runs/completed-full/ledger.json",
+      "manifest_path": ".onecode/runs/completed-full/manifest.json",
+      "trace_path": ".onecode/runs/completed-full/trace.jsonl",
+      "profile_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "expected": {
+      "version": 5,
+      "run_id": "completed-full",
+      "status_label": "completed",
+      "severity": "ok",
+      "next_action": "idle",
+      "compact_message": "OneCode run completed-full: completed; severity=ok; action=allow; next=idle; evidence=full",
+      "rule_state": {
+        "rule_schema": "onecode-iching-v2",
+        "status_code": 63,
+        "transition_action": "allow",
+        "transition_reason": null,
+        "dispatch_decision": "allow"
+      },
+      "control_state": {
+        "project_context_status": null,
+        "runtime_config_status": null,
+        "skill_context_status": null,
+        "skill_selection_reason": null,
+        "selected_skill_count": null,
+        "skill_selection_sha256": null,
+        "recovery_action": null
+      },
+      "balance_state": {
+        "changed_asset_count": 1,
+        "changed_line_count": 1,
+        "changed_bands": [
+          "heaven"
+        ],
+        "before_status_code": 63,
+        "after_status_code": 31
+      },
+      "delivery_state": {
+        "status": "deliverable",
+        "next_action": "idle",
+        "requested_count": 1,
+        "completed_count": 1,
+        "skipped_count": 0,
+        "failed_count": 0
+      },
+      "evidence_ref": {
+        "mode": "full",
+        "ledger_path": ".onecode/runs/completed-full/ledger.json",
+        "manifest_path": ".onecode/runs/completed-full/manifest.json",
+        "trace_path": ".onecode/runs/completed-full/trace.jsonl",
+        "wal_path": null,
+        "corrupt_path": null,
+        "profile_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "resume_state": {
+        "resumed": null,
+        "resumed_from": null
+      },
+      "approval_state": {
+        "required": false,
+        "plan_id": null,
+        "status": null
+      }
+    }
+  },
+  {
+    "name": "denied_full",
+    "input": {
+      "run_id": "denied-full",
+      "status": "denied",
+      "reason": "permission_denied",
+      "rule_schema": "onecode-iching-v2",
+      "iching_status_code": 40,
+      "iching_transition_action": "halt",
+      "iching_transition_reason": "sovereignty_fire_boundary_halt",
+      "task_dispatch_decision": "deny",
+      "delivery_status": "blocked",
+      "requested_count": 1,
+      "completed_count": 0,
+      "skipped_count": 0,
+      "failed_count": 1,
+      "ledger_path": ".onecode/runs/denied-full/ledger.json",
+      "manifest_path": ".onecode/runs/denied-full/manifest.json",
+      "trace_path": ".onecode/runs/denied-full/trace.jsonl"
+    },
+    "expected": {
+      "version": 5,
+      "run_id": "denied-full",
+      "status_label": "denied",
+      "severity": "blocked",
+      "next_action": "inspect",
+      "compact_message": "OneCode run denied-full: denied; severity=blocked; action=halt; reason=permission_denied; next=inspect; evidence=full",
+      "rule_state": {
+        "rule_schema": "onecode-iching-v2",
+        "status_code": 40,
+        "transition_action": "halt",
+        "transition_reason": "sovereignty_fire_boundary_halt",
+        "dispatch_decision": "deny"
+      },
+      "control_state": {
+        "project_context_status": null,
+        "runtime_config_status": null,
+        "skill_context_status": null,
+        "skill_selection_reason": null,
+        "selected_skill_count": null,
+        "skill_selection_sha256": null,
+        "recovery_action": null
+      },
+      "balance_state": {
+        "changed_asset_count": null,
+        "changed_line_count": null,
+        "changed_bands": [],
+        "before_status_code": null,
+        "after_status_code": null
+      },
+      "delivery_state": {
+        "status": "blocked",
+        "next_action": null,
+        "requested_count": 1,
+        "completed_count": 0,
+        "skipped_count": 0,
+        "failed_count": 1
+      },
+      "evidence_ref": {
+        "mode": "full",
+        "ledger_path": ".onecode/runs/denied-full/ledger.json",
+        "manifest_path": ".onecode/runs/denied-full/manifest.json",
+        "trace_path": ".onecode/runs/denied-full/trace.jsonl",
+        "wal_path": null,
+        "corrupt_path": null,
+        "profile_sha256": null
+      },
+      "resume_state": {
+        "resumed": null,
+        "resumed_from": null
+      },
+      "approval_state": {
+        "required": false,
+        "plan_id": null,
+        "status": null
+      }
+    }
+  },
+  {
+    "name": "halted_resumable",
+    "input": {
+      "run_id": "halted-resumable",
+      "status": "halted",
+      "reason": "http_timeout",
+      "rule_schema": "onecode-iching-v2",
+      "iching_status_code": 17,
+      "iching_transition_action": "checkpoint",
+      "iching_transition_reason": "network_water_preserves_resume_seed",
+      "task_dispatch_decision": "stop",
+      "delivery_status": "blocked",
+      "next_action": "resume",
+      "requested_count": 2,
+      "completed_count": 1,
+      "skipped_count": 0,
+      "failed_count": 1,
+      "resumed": false,
+      "resumed_from": "prior-run",
+      "ledger_path": ".onecode/runs/halted-resumable/ledger.json",
+      "manifest_path": ".onecode/runs/halted-resumable/manifest.json",
+      "trace_path": ".onecode/runs/halted-resumable/trace.jsonl"
+    },
+    "expected": {
+      "version": 5,
+      "run_id": "halted-resumable",
+      "status_label": "halted",
+      "severity": "blocked",
+      "next_action": "resume",
+      "compact_message": "OneCode run halted-resumable: halted; severity=blocked; action=checkpoint; reason=http_timeout; next=resume; evidence=full",
+      "rule_state": {
+        "rule_schema": "onecode-iching-v2",
+        "status_code": 17,
+        "transition_action": "checkpoint",
+        "transition_reason": "network_water_preserves_resume_seed",
+        "dispatch_decision": "stop"
+      },
+      "control_state": {
+        "project_context_status": null,
+        "runtime_config_status": null,
+        "skill_context_status": null,
+        "skill_selection_reason": null,
+        "selected_skill_count": null,
+        "skill_selection_sha256": null,
+        "recovery_action": null
+      },
+      "balance_state": {
+        "changed_asset_count": null,
+        "changed_line_count": null,
+        "changed_bands": [],
+        "before_status_code": null,
+        "after_status_code": null
+      },
+      "delivery_state": {
+        "status": "blocked",
+        "next_action": "resume",
+        "requested_count": 2,
+        "completed_count": 1,
+        "skipped_count": 0,
+        "failed_count": 1
+      },
+      "evidence_ref": {
+        "mode": "full",
+        "ledger_path": ".onecode/runs/halted-resumable/ledger.json",
+        "manifest_path": ".onecode/runs/halted-resumable/manifest.json",
+        "trace_path": ".onecode/runs/halted-resumable/trace.jsonl",
+        "wal_path": null,
+        "corrupt_path": null,
+        "profile_sha256": null
+      },
+      "resume_state": {
+        "resumed": false,
+        "resumed_from": "prior-run"
+      },
+      "approval_state": {
+        "required": false,
+        "plan_id": null,
+        "status": null
+      }
+    }
+  },
+  {
+    "name": "corrupt_evidence",
+    "input": {
+      "run_id": "corrupt-evidence",
+      "status": "corrupt",
+      "corrupt_reason": "invalid_balance_mutation_evidence",
+      "corrupt_path": ".onecode/runs/corrupt-evidence/ledger.json",
+      "manifest_path": ".onecode/runs/corrupt-evidence/manifest.json",
+      "ledger_path": ".onecode/runs/corrupt-evidence/ledger.json"
+    },
+    "expected": {
+      "version": 5,
+      "run_id": "corrupt-evidence",
+      "status_label": "corrupt",
+      "severity": "corrupt",
+      "next_action": "inspect",
+      "compact_message": "OneCode run corrupt-evidence: corrupt; severity=corrupt; reason=invalid_balance_mutation_evidence; next=inspect; evidence=full",
+      "rule_state": {
+        "rule_schema": "onecode-iching-v1",
+        "status_code": null,
+        "transition_action": null,
+        "transition_reason": null,
+        "dispatch_decision": null
+      },
+      "control_state": {
+        "project_context_status": null,
+        "runtime_config_status": null,
+        "skill_context_status": null,
+        "skill_selection_reason": null,
+        "selected_skill_count": null,
+        "skill_selection_sha256": null,
+        "recovery_action": null
+      },
+      "balance_state": {
+        "changed_asset_count": null,
+        "changed_line_count": null,
+        "changed_bands": [],
+        "before_status_code": null,
+        "after_status_code": null
+      },
+      "delivery_state": {
+        "status": null,
+        "next_action": null,
+        "requested_count": null,
+        "completed_count": null,
+        "skipped_count": null,
+        "failed_count": null
+      },
+      "evidence_ref": {
+        "mode": "full",
+        "ledger_path": ".onecode/runs/corrupt-evidence/ledger.json",
+        "manifest_path": ".onecode/runs/corrupt-evidence/manifest.json",
+        "trace_path": null,
+        "wal_path": null,
+        "corrupt_path": ".onecode/runs/corrupt-evidence/ledger.json",
+        "profile_sha256": null
+      },
+      "resume_state": {
+        "resumed": null,
+        "resumed_from": null
+      },
+      "approval_state": {
+        "required": false,
+        "plan_id": null,
+        "status": null
+      }
+    }
+  },
+  {
+    "name": "completed_wal_only",
+    "input": {
+      "run_id": "completed-wal-only",
+      "status": "completed",
+      "evidence_mode": "wal",
+      "rsv": "onecode-iching-v2",
+      "iching_status_code": 63,
+      "iching_transition_action": "allow",
+      "task_dispatch_decision": "allow",
+      "bm": [
+        1,
+        1,
+        63,
+        31
+      ],
+      "ssr": "capability_match",
+      "ssc": 1,
+      "ssh": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "delivery_status": "deliverable",
+      "next_action": "idle",
+      "requested_count": 1,
+      "completed_count": 1,
+      "skipped_count": 0,
+      "failed_count": 0,
+      "wal_path": ".onecode/global-ledger.jsonl"
+    },
+    "expected": {
+      "version": 5,
+      "run_id": "completed-wal-only",
+      "status_label": "completed",
+      "severity": "ok",
+      "next_action": "idle",
+      "compact_message": "OneCode run completed-wal-only: completed; severity=ok; action=allow; next=idle; evidence=wal",
+      "rule_state": {
+        "rule_schema": "onecode-iching-v2",
+        "status_code": 63,
+        "transition_action": "allow",
+        "transition_reason": null,
+        "dispatch_decision": "allow"
+      },
+      "control_state": {
+        "project_context_status": null,
+        "runtime_config_status": null,
+        "skill_context_status": null,
+        "skill_selection_reason": "capability_match",
+        "selected_skill_count": 1,
+        "skill_selection_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "recovery_action": null
+      },
+      "balance_state": {
+        "changed_asset_count": 1,
+        "changed_line_count": 1,
+        "changed_bands": [],
+        "before_status_code": 63,
+        "after_status_code": 31
+      },
+      "delivery_state": {
+        "status": "deliverable",
+        "next_action": "idle",
+        "requested_count": 1,
+        "completed_count": 1,
+        "skipped_count": 0,
+        "failed_count": 0
+      },
+      "evidence_ref": {
+        "mode": "wal",
+        "ledger_path": null,
+        "manifest_path": null,
+        "trace_path": null,
+        "wal_path": ".onecode/global-ledger.jsonl",
+        "corrupt_path": null,
+        "profile_sha256": null
+      },
+      "resume_state": {
+        "resumed": null,
+        "resumed_from": null
+      },
+      "approval_state": {
+        "required": false,
+        "plan_id": null,
+        "status": null
+      }
+    }
+  },
+  {
+    "name": "legacy_missing_fields",
+    "input": {
+      "run_id": "legacy-missing-fields",
+      "status": "completed",
+      "iching_status_code": 49
+    },
+    "expected": {
+      "version": 5,
+      "run_id": "legacy-missing-fields",
+      "status_label": "completed",
+      "severity": "ok",
+      "next_action": "idle",
+      "compact_message": "OneCode run legacy-missing-fields: completed; severity=ok; next=idle; evidence=unknown",
+      "rule_state": {
+        "rule_schema": "onecode-iching-v1",
+        "status_code": 49,
+        "transition_action": null,
+        "transition_reason": null,
+        "dispatch_decision": null
+      },
+      "control_state": {
+        "project_context_status": null,
+        "runtime_config_status": null,
+        "skill_context_status": null,
+        "skill_selection_reason": null,
+        "selected_skill_count": null,
+        "skill_selection_sha256": null,
+        "recovery_action": null
+      },
+      "balance_state": {
+        "changed_asset_count": null,
+        "changed_line_count": null,
+        "changed_bands": [],
+        "before_status_code": null,
+        "after_status_code": null
+      },
+      "delivery_state": {
+        "status": null,
+        "next_action": null,
+        "requested_count": null,
+        "completed_count": null,
+        "skipped_count": null,
+        "failed_count": null
+      },
+      "evidence_ref": {
+        "mode": "unknown",
+        "ledger_path": null,
+        "manifest_path": null,
+        "trace_path": null,
+        "wal_path": null,
+        "corrupt_path": null,
+        "profile_sha256": null
+      },
+      "resume_state": {
+        "resumed": null,
+        "resumed_from": null
+      },
+      "approval_state": {
+        "required": false,
+        "plan_id": null,
+        "status": null
+      }
+    }
+  },
+  {
+    "name": "pending_approval",
+    "input": {
+      "run_id": "pending-run",
+      "status": "halted",
+      "reason": "approval_required",
+      "plan_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "expected": {
+      "version": 5,
+      "run_id": "pending-run",
+      "status_label": "halted",
+      "severity": "blocked",
+      "next_action": "approve",
+      "compact_message": "OneCode run pending-run: halted; severity=blocked; reason=approval_required; next=approve; evidence=unknown",
+      "rule_state": {
+        "rule_schema": "onecode-iching-v1",
+        "status_code": null,
+        "transition_action": null,
+        "transition_reason": null,
+        "dispatch_decision": null
+      },
+      "control_state": {
+        "project_context_status": null,
+        "runtime_config_status": null,
+        "skill_context_status": null,
+        "skill_selection_reason": null,
+        "selected_skill_count": null,
+        "skill_selection_sha256": null,
+        "recovery_action": null
+      },
+      "balance_state": {
+        "changed_asset_count": null,
+        "changed_line_count": null,
+        "changed_bands": [],
+        "before_status_code": null,
+        "after_status_code": null
+      },
+      "delivery_state": {
+        "status": null,
+        "next_action": null,
+        "requested_count": null,
+        "completed_count": null,
+        "skipped_count": null,
+        "failed_count": null
+      },
+      "evidence_ref": {
+        "mode": "unknown",
+        "ledger_path": null,
+        "manifest_path": null,
+        "trace_path": null,
+        "wal_path": null,
+        "corrupt_path": null,
+        "profile_sha256": null
+      },
+      "resume_state": {
+        "resumed": null,
+        "resumed_from": null
+      },
+      "approval_state": {
+        "required": true,
+        "plan_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "status": "pending"
+      }
+    }
+  }
+]

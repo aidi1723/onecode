@@ -5,6 +5,7 @@ class ShellProjectionTests(unittest.TestCase):
     def test_shell_projection_schema_is_explicit_and_stable(self):
         from onecode.kernel.iching_encoding import RULE_SCHEMA_V1
         from onecode.kernel.shell_projection import (
+            APPROVAL_STATE_FIELDS,
             CONTROL_STATE_FIELDS,
             BALANCE_STATE_FIELDS,
             DELIVERY_STATE_FIELDS,
@@ -18,7 +19,7 @@ class ShellProjectionTests(unittest.TestCase):
 
         projection = project_run_to_shell({"run_id": "schema-run", "status": "completed"})
 
-        self.assertEqual(SHELL_PROJECTION_VERSION, 4)
+        self.assertEqual(SHELL_PROJECTION_VERSION, 5)
         self.assertEqual(tuple(projection.keys()), SHELL_PROJECTION_FIELDS)
         self.assertEqual(tuple(projection["rule_state"].keys()), RULE_STATE_FIELDS)
         self.assertEqual(tuple(projection["control_state"].keys()), CONTROL_STATE_FIELDS)
@@ -26,6 +27,7 @@ class ShellProjectionTests(unittest.TestCase):
         self.assertEqual(tuple(projection["delivery_state"].keys()), DELIVERY_STATE_FIELDS)
         self.assertEqual(tuple(projection["evidence_ref"].keys()), EVIDENCE_REF_FIELDS)
         self.assertEqual(tuple(projection["resume_state"].keys()), RESUME_STATE_FIELDS)
+        self.assertEqual(tuple(projection["approval_state"].keys()), APPROVAL_STATE_FIELDS)
         self.assertEqual(projection["version"], SHELL_PROJECTION_VERSION)
         self.assertEqual(projection["rule_state"]["rule_schema"], RULE_SCHEMA_V1)
 
@@ -35,12 +37,13 @@ class ShellProjectionTests(unittest.TestCase):
         schema = shell_projection_schema()
 
         self.assertEqual(schema["name"], "onecode.shell_projection")
-        self.assertEqual(schema["version"], 4)
+        self.assertEqual(schema["version"], 5)
         self.assertEqual(schema["fields"]["severity"]["values"], ["blocked", "corrupt", "missing", "ok", "warning"])
         self.assertIn("rule_state", schema["fields"])
         self.assertIn("control_state", schema["fields"])
         self.assertIn("balance_state", schema["fields"])
         self.assertIn("evidence_ref", schema["fields"])
+        self.assertIn("approval_state", schema["fields"])
         self.assertEqual(
             schema["nested_fields"]["control_state"],
             [
@@ -54,6 +57,43 @@ class ShellProjectionTests(unittest.TestCase):
             ],
         )
         self.assertEqual(schema["nested_fields"]["resume_state"], ["resumed", "resumed_from"])
+        self.assertEqual(
+            schema["nested_fields"]["approval_state"],
+            ["required", "plan_id", "status"],
+        )
+
+    def test_pending_approval_projects_structured_approval_action(self):
+        from onecode.kernel.shell_projection import project_run_to_shell
+
+        plan_id = "a" * 32
+        projection = project_run_to_shell(
+            {
+                "run_id": "pending-run",
+                "status": "halted",
+                "reason": "approval_required",
+                "plan_id": plan_id,
+            }
+        )
+
+        self.assertEqual(projection["version"], 5)
+        self.assertEqual(projection["severity"], "blocked")
+        self.assertEqual(projection["next_action"], "approve")
+        self.assertEqual(
+            projection["approval_state"],
+            {"required": True, "plan_id": plan_id, "status": "pending"},
+        )
+
+    def test_completed_result_projects_empty_approval_state(self):
+        from onecode.kernel.shell_projection import project_run_to_shell
+
+        projection = project_run_to_shell(
+            {"run_id": "completed-run", "status": "completed"}
+        )
+
+        self.assertEqual(
+            projection["approval_state"],
+            {"required": False, "plan_id": None, "status": None},
+        )
 
     def test_completed_result_projects_control_state_without_changing_severity(self):
         from onecode.kernel.shell_projection import project_run_to_shell
@@ -171,7 +211,7 @@ class ShellProjectionTests(unittest.TestCase):
             }
         )
 
-        self.assertEqual(projection["version"], 4)
+        self.assertEqual(projection["version"], 5)
         self.assertEqual(projection["run_id"], "wal-run")
         self.assertEqual(projection["status_label"], "completed")
         self.assertEqual(projection["severity"], "ok")

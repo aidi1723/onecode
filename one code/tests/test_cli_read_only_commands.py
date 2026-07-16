@@ -8,7 +8,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 from onecode.cli import build_parser
-from onecode.contracts import load_shell_projection_v4_schema
+from onecode.contracts import load_shell_projection_v5_schema
 from onecode.cli_commands.read_only import (
     READ_ONLY_COMMANDS,
     dispatch_read_only_command,
@@ -99,7 +99,7 @@ class CliReadOnlyCommandTests(unittest.TestCase):
             exit_code = dispatch_read_only_command(argparse.Namespace(subcommand="shell-schema"))
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(json.loads(stdout.getvalue()), load_shell_projection_v4_schema())
+        self.assertEqual(json.loads(stdout.getvalue()), load_shell_projection_v5_schema())
 
     def test_read_only_adapter_has_no_execution_or_reverse_dependencies(self):
         source = Path("src/onecode/cli_commands/read_only.py").read_text(encoding="utf-8")

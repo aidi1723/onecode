@@ -600,7 +600,7 @@ class InspectCliTests(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
             self.assertEqual(summary["balance_mutation_summary"], result["balance_mutation_summary"])
-            self.assertEqual(shell_projection["version"], 4)
+            self.assertEqual(shell_projection["version"], 5)
             self.assertEqual(shell_projection["balance_state"]["changed_line_count"], 1)
 
     def test_cli_inspect_rejects_manifest_checkpoint_mutation_summary_drift(self):
