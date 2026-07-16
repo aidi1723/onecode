@@ -144,23 +144,48 @@ def query_workspace_param(query: str) -> str | None:
     return values[0] if values else None
 
 
+def git_status(workspace: Path) -> dict[str, Any]:
+    resolved = Path(workspace).resolve()
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(resolved), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return {"present": False, "relation": "none", "root": None}
+    root_text = completed.stdout.strip() if completed.returncode == 0 else ""
+    if not root_text:
+        return {"present": False, "relation": "none", "root": None}
+    root = Path(root_text).resolve()
+    relation = "workspace" if root == resolved else "parent"
+    return {"present": True, "relation": relation, "root": str(root)}
+
+
 def project_status_payload(workspace: Path) -> dict[str, Any]:
     resolved = require_allowed_workspace(workspace)
     policy_path = resolved / DEFAULT_VERIFIER_POLICY_PATH
     runs = list_runs(resolved)["runs"]
     latest_run = attach_shell_projection(runs[-1]) if runs else None
     effective_model = resolve_effective_model_config(os.environ, read_model_config(include_secret=True))
+    skill_context = public_skill_context(discover_skill_context(resolved))
     return {
         "workspace": str(resolved),
         "exists": resolved.exists() and resolved.is_dir(),
         "allowed": workspace_allowed(resolved),
         "allowed_roots": [str(root) for root in configured_allowed_workspace_roots()],
-        "git": {"present": (resolved / ".git").exists()},
+        "git": git_status(resolved),
         "verifier_policy": {"present": policy_path.exists(), "path": str(policy_path)},
         "latest_run": latest_run,
         "project_context": discover_project_context(resolved),
         "runtime_config": inspect_runtime_config(resolved),
-        "skill_context": public_skill_context(discover_skill_context(resolved)),
+        "skill_context": skill_context,
+        "skill_sources": {
+            "project_manifest_status": skill_context.get("status"),
+            "runtime_router_status": "per_run",
+        },
         "effective_model_config": effective_model.public,
     }
 
@@ -728,6 +753,10 @@ def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
         run_id = validate_optional_run_id(str(run_id) if run_id else None)
     except ValueError as exc:
         return error_payload("invalid_run_id", str(exc)), 400
+    try:
+        model_timeout_seconds = model_timeout_seconds_from_env()
+    except ValueError as exc:
+        return error_payload("invalid_model_timeout", str(exc)), 503
     if task_mode == "chat":
         try:
             content = direct_chat_completion(
@@ -736,17 +765,15 @@ def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
                 provider_kind=provider_kind,
                 endpoint=endpoint,
                 api_key=stored_api_key,
+                timeout_seconds=model_timeout_seconds,
             )
+        except TimeoutError as exc:
+            return error_payload("model_provider_timeout", str(exc)), 504
         except MissingModelApiKey as exc:
             return error_payload("model_configuration_missing", str(exc)), 503
         except ModelProviderError as exc:
             return error_payload("model_provider_error", str(exc)), 502
         return chat_completion_payload(content, model, {"status": "completed", "run_id": run_id}, "chat"), 200
-
-    try:
-        model_timeout_seconds = model_timeout_seconds_from_env()
-    except ValueError as exc:
-        return error_payload("invalid_model_timeout", str(exc)), 503
 
     try:
         result = run_model_task(
@@ -823,11 +850,6 @@ def format_run_result(result: dict[str, Any], mode: str) -> str:
         return message
     if result.get("reason") == "no_actionable_plan":
         return "模型没有生成可执行计划，本次任务未执行。请补充明确目标或检查模型配置。"
-    if mode == "chat_fallback":
-        return (
-            "我收到了这条消息，但模型没有生成文件变更或执行计划。"
-            "这次已记录为普通 OneCode 对话运行；如果你要我改代码或写文件，请明确说明目标文件和期望内容。"
-        )
     projection = project_run_to_shell(result)
     evidence_ref = projection["evidence_ref"]
     lines = [

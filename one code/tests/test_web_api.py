@@ -1,12 +1,14 @@
 import json
 import os
 import socket
+import subprocess
 import tempfile
 import threading
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
 from http.server import ThreadingHTTPServer
+from subprocess import CompletedProcess
 from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.parse import quote
@@ -378,6 +380,68 @@ class OneCodeWebApiTests(unittest.TestCase):
             )
 
         self.assertEqual(run_model.call_args.kwargs["http_timeout_seconds"], 0.25)
+
+    def test_direct_chat_uses_configured_timeout(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_TIMEOUT_SECONDS": "0.25",
+            },
+            clear=True,
+        ), patch(
+            "onecode.web.api.direct_chat_completion", return_value="4"
+        ) as direct_chat, patch(
+            "onecode.web.api.read_model_config",
+            return_value={
+                "provider": "chat",
+                "model": "m",
+                "endpoint": "http://model/v1",
+                "api_key": "key",
+            },
+        ):
+            payload, status = handle_chat_completion(
+                {"messages": [{"role": "user", "content": "2+2"}]}
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["choices"][0]["message"]["content"], "4")
+        self.assertEqual(direct_chat.call_args.kwargs["timeout_seconds"], 0.25)
+
+    def test_direct_chat_timeout_returns_504(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_TIMEOUT_SECONDS": "0.1",
+            },
+            clear=True,
+        ), patch(
+            "onecode.web.api.direct_chat_completion",
+            side_effect=TimeoutError("direct chat request timed out"),
+        ), patch(
+            "onecode.web.api.read_model_config",
+            return_value={
+                "provider": "chat",
+                "model": "m",
+                "endpoint": "http://model/v1",
+                "api_key": "key",
+            },
+        ):
+            payload, status = handle_chat_completion(
+                {"messages": [{"role": "user", "content": "2+2"}]}
+            )
+
+        self.assertEqual(
+            (status, payload["error"]["type"]),
+            (504, "model_provider_timeout"),
+        )
 
     def test_invalid_timeout_setting_is_rejected_without_a_model_call(self):
         from onecode.web.api import handle_chat_completion
@@ -845,7 +909,13 @@ class OneCodeWebApiTests(unittest.TestCase):
             clear=True,
         ):
             workspace = Path(tmp)
-            (workspace / ".git").mkdir()
+            subprocess.run(
+                ["git", "init"],
+                cwd=str(workspace),
+                check=True,
+                capture_output=True,
+                text=True,
+            )
             (workspace / ".onecode").mkdir()
             (workspace / ".onecode" / "verifier-policy.json").write_text(
                 json.dumps({"verifiers": []}),
@@ -858,7 +928,26 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertTrue(payload["allowed"])
         self.assertTrue(payload["exists"])
         self.assertTrue(payload["git"]["present"])
+        self.assertEqual(payload["git"]["relation"], "workspace")
         self.assertTrue(payload["verifier_policy"]["present"])
+
+    def test_git_status_distinguishes_parent_repository(self):
+        from onecode.web.api import git_status
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = Path(tmp).resolve()
+            workspace = repository / "project"
+            workspace.mkdir()
+            completed = CompletedProcess(
+                ["git"], 0, stdout=f"{repository}\n", stderr=""
+            )
+            with patch("onecode.web.api.subprocess.run", return_value=completed):
+                status = git_status(workspace)
+
+        self.assertEqual(
+            status,
+            {"present": True, "relation": "parent", "root": str(repository)},
+        )
 
     def test_project_status_includes_context_and_config_summaries_without_raw_rule_content(self):
         from onecode.web.api import project_status_payload
@@ -902,6 +991,13 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertNotIn("skills", payload["skill_context"])
         self.assertNotIn("invalid_skills", payload["skill_context"])
         self.assertIn("content_sha256", payload["project_context"]["memory_files"][0])
+        self.assertEqual(
+            payload["skill_sources"],
+            {
+                "project_manifest_status": payload["skill_context"]["status"],
+                "runtime_router_status": "per_run",
+            },
+        )
 
     def test_project_status_exposes_effective_model_sources_without_secret(self):
         from onecode.web.api import project_status_payload

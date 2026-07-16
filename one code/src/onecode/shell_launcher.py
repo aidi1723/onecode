@@ -156,8 +156,7 @@ def build_runtime_config(config: ShellLaunchConfig) -> Path:
                 "      models:",
                 "        default: ['onecode-agent']",
                 "        fetch: false",
-                "      titleConvo: true",
-                "      titleModel: 'onecode-agent'",
+                "      titleConvo: false",
                 "      summarize: false",
                 "      modelDisplayLabel: 'OneCode'",
                 "      dropParams: ['stop', 'user', 'frequency_penalty', 'presence_penalty']",
@@ -342,7 +341,13 @@ def preflight_shell(config: ShellLaunchConfig) -> dict[str, object]:
     if sys.version_info < (3, 11):
         raise RuntimeError("Python 3.11 or newer is required")
     require_path(config.onecode_root / "src" / "onecode", "OneCode source package")
-    require_path(config.librechat_dir / "package.json", "LibreChat shell package")
+    librechat_package = config.librechat_dir / "package.json"
+    if not librechat_package.exists():
+        resolved = config.librechat_dir.resolve()
+        raise FileNotFoundError(
+            f"LibreChat shell package not found: {resolved}. "
+            "Pass --librechat-dir '<path>' to point at a valid LibreChat checkout."
+        )
     node_path, node_version = _resolved_command_version("node")
     npm_path, npm_version = _resolved_command_version("npm")
     if _version_tuple(node_version) < (20, 19, 0):
