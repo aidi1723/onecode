@@ -29,7 +29,12 @@ from onecode.kernel.diagnostics import run_doctor
 from onecode.kernel.effective_model_config import resolve_effective_model_config
 from onecode.kernel.run_inspection import inspect_run, list_runs
 from onecode.kernel.model_loop import execute_model_plan, run_model_task
-from onecode.kernel.approval_plans import claim_approval_plan, finalize_approval_plan
+from onecode.kernel.approval_plans import (
+    claim_approval_plan,
+    finalize_approval_plan,
+    list_pending_approval_plans,
+)
+from onecode.kernel.approval_summary import pending_plan_summary
 from onecode.kernel.model_config import (
     DEFAULT_ONECODE_MODEL,
     discover_models,
@@ -90,7 +95,9 @@ TASK_MARKERS = (
 PATH_MARKERS = ("src/", "tests/", ".py", ".js", ".ts", ".tsx", ".md", ".json", ".yaml", ".yml")
 DEFAULT_MODEL_TIMEOUT_SECONDS = 60.0
 MAX_MODEL_TIMEOUT_SECONDS = 600.0
-APPROVAL_MESSAGE_PATTERN = re.compile(r"^(批准|确认|拒绝)计划\s+([a-f0-9]{32})\s*$")
+APPROVAL_MESSAGE_PATTERN = re.compile(
+    r"^(?:请\s*)?(批准|确认|拒绝)\s*计划\s+`?([A-Fa-f0-9]{32})`?\s*$"
+)
 
 
 def model_timeout_seconds_from_env() -> float:
@@ -210,6 +217,27 @@ def handle_onecode_runs_list(params: dict[str, Any]) -> tuple[dict[str, Any], in
     payload = list_runs(workspace)
     payload["runs"] = payload["runs"][-parse_limit(params.get("limit")) :]
     return attach_shell_projection_to_runs_payload(payload), 200
+
+
+def handle_onecode_plans_list(params: dict[str, Any]) -> tuple[dict[str, Any], int]:
+    workspace_value = params.get("workspace")
+    if not isinstance(workspace_value, str) or not workspace_value.strip():
+        return error_payload("workspace_required", "请先选择项目"), 400
+    status = params.get("status")
+    if status not in {None, "", "pending"}:
+        return error_payload("invalid_plan_status", "status must be pending"), 400
+    try:
+        workspace = workspace_from_value(workspace_value)
+        plans, skipped = list_pending_approval_plans(
+            workspace, limit=parse_limit(params.get("limit"), default=100)
+        )
+    except ValueError as exc:
+        return error_payload("invalid_workspace", str(exc)), 400
+    return {
+        "workspace": str(workspace),
+        "plans": [pending_plan_summary(plan) for plan in plans],
+        "skipped_count": skipped,
+    }, 200
 
 
 def handle_onecode_metrics(params: dict[str, Any]) -> tuple[dict[str, Any], int]:
@@ -559,7 +587,7 @@ def parse_approval_message(user_message: str) -> tuple[str, bool] | None:
     match = APPROVAL_MESSAGE_PATTERN.fullmatch(user_message.strip())
     if match is None:
         return None
-    return match.group(2), match.group(1) != "拒绝"
+    return match.group(2).lower(), match.group(1) != "拒绝"
 
 
 def _workspace_error(exc: ValueError) -> tuple[dict[str, Any], int]:
@@ -783,9 +811,10 @@ def format_run_result(result: dict[str, Any], mode: str) -> str:
     if mode == "approval" and result.get("status") == "completed":
         return "计划已批准并执行完成，结果已写入 OneCode 证据链。"
     if result.get("reason") == "approval_required":
+        plan_id = result.get("plan_id")
         message = (
             "计划已生成，但包含写入或命令操作，尚未执行。"
-            f"审批计划 ID：`{result.get('plan_id')}`。确认后再执行。"
+            f"审批计划 ID：`{plan_id}`。\n请回复：批准计划 {plan_id}"
         )
         summary = result.get("plan_summary")
         actions = summary.get("actions") if isinstance(summary, dict) else None
@@ -1020,6 +1049,21 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
             payload, status_code = handle_onecode_runs_list(
                 {
                     "workspace": query.get("workspace", [None])[0],
+                    "limit": query.get("limit", [None])[0],
+                }
+            )
+            self._send_json(payload, status_code=status_code)
+            return
+        if path == "/v1/onecode/plans":
+            if not self._authorized():
+                self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
+                return
+            parsed = urlparse(self.path)
+            query = parse_qs(parsed.query)
+            payload, status_code = handle_onecode_plans_list(
+                {
+                    "workspace": query.get("workspace", [None])[0],
+                    "status": query.get("status", [None])[0],
                     "limit": query.get("limit", [None])[0],
                 }
             )

@@ -9,6 +9,7 @@ from pathlib import Path
 from http.server import ThreadingHTTPServer
 from unittest.mock import patch
 from urllib.error import HTTPError
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from onecode.contracts import load_shell_projection_v4_schema
@@ -465,6 +466,104 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(payload["onecode"]["result"]["reason"], "approval_required")
         self.assertEqual(run_model.call_args.kwargs["task_mode"], "change_task")
         self.assertTrue(run_model.call_args.kwargs["require_explicit_approval"])
+
+    def test_approval_parser_accepts_safe_variants_and_rejects_surrounding_prose(self):
+        from onecode.web.api import parse_approval_message
+
+        plan_id = "abcdef0123456789abcdef0123456789"
+        accepted = (
+            (f"批准计划 {plan_id}", (plan_id, True)),
+            (f"请批准计划 `{plan_id.upper()}`", (plan_id, True)),
+            (f"确认 计划 {plan_id}", (plan_id, True)),
+            (f"拒绝计划 {plan_id}", (plan_id, False)),
+        )
+        for message, expected in accepted:
+            with self.subTest(message=message):
+                self.assertEqual(parse_approval_message(message), expected)
+        self.assertIsNone(parse_approval_message(f"我想批准计划 {plan_id} 但先等等"))
+
+    def test_pending_plan_list_returns_redacted_bounded_actions(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.web.api import handle_onecode_plans_list
+
+        secret_content = "sk-secret-should-not-leak\n"
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            stored = persist_approval_plan(
+                Path(tmp),
+                ModelPlan(
+                    task="write result",
+                    assets=[
+                        ModelPlanAsset(
+                            path="docs/result.md", content=secret_content
+                        )
+                    ],
+                ),
+                model_metadata={"model": "m"},
+            )
+            payload, status = handle_onecode_plans_list({"workspace": tmp})
+
+        encoded = json.dumps(payload, ensure_ascii=False)
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["plans"][0]["plan_id"], stored.plan_id)
+        self.assertEqual(payload["plans"][0]["actions"][0]["path"], "docs/result.md")
+        self.assertNotIn(secret_content.strip(), encoded)
+        self.assertEqual(payload["skipped_count"], 0)
+
+    def test_pending_plan_list_requires_workspace(self):
+        from onecode.web.api import handle_onecode_plans_list
+
+        payload, status = handle_onecode_plans_list({})
+
+        self.assertEqual((status, payload["error"]["type"]), (400, "workspace_required"))
+
+    def test_http_server_serves_pending_plan_list(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.web.api import OneCodeRequestHandler
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_API_TOKEN": "test-token",
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+            },
+            clear=True,
+        ):
+            stored = persist_approval_plan(
+                Path(tmp),
+                ModelPlan(
+                    task="write result",
+                    assets=[ModelPlanAsset(path="result.txt", content="secret")],
+                ),
+                model_metadata={},
+            )
+            with local_test_server(OneCodeRequestHandler) as (_server, base_url):
+                request = Request(
+                    f"{base_url}/v1/onecode/plans?workspace={quote(tmp, safe='')}&status=pending",
+                    headers={"Authorization": "Bearer test-token"},
+                )
+                with urlopen(request, timeout=5) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+
+        self.assertEqual(payload["plans"][0]["plan_id"], stored.plan_id)
+        self.assertNotIn("secret", json.dumps(payload))
+
+    def test_approval_message_includes_copyable_command(self):
+        from onecode.web.api import format_run_result
+
+        plan_id = "abcdef0123456789abcdef0123456789"
+        message = format_run_result(
+            {"status": "halted", "reason": "approval_required", "plan_id": plan_id},
+            "approval_required",
+        )
+
+        self.assertIn(f"请回复：批准计划 {plan_id}", message)
 
     def test_approval_handler_executes_revalidated_plan(self):
         from onecode.kernel.approval_plans import persist_approval_plan

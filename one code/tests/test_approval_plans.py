@@ -101,6 +101,40 @@ class ApprovalPlanTests(unittest.TestCase):
         self.assertEqual(results.count("executing-plans"), 1)
         self.assertEqual(results.count("approval_plan_in_progress"), 1)
 
+    def test_pending_plan_list_is_workspace_scoped_and_skips_invalid_files(self):
+        from onecode.kernel.approval_plans import (
+            list_pending_approval_plans,
+            persist_approval_plan,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first_workspace = root / "first"
+            second_workspace = root / "second"
+            first_workspace.mkdir()
+            second_workspace.mkdir()
+            first = persist_approval_plan(
+                first_workspace, guarded_plan(), model_metadata={}
+            )
+            persist_approval_plan(second_workspace, guarded_plan(), model_metadata={})
+            invalid = first.path.parent / ("f" * 32 + ".json")
+            invalid.write_text("not-json", encoding="utf-8")
+
+            plans, skipped = list_pending_approval_plans(first_workspace)
+
+        self.assertEqual([plan.plan_id for plan in plans], [first.plan_id])
+        self.assertEqual(skipped, 1)
+
+    def test_pending_plan_list_rejects_invalid_limit(self):
+        from onecode.kernel.approval_plans import list_pending_approval_plans
+
+        with tempfile.TemporaryDirectory() as tmp:
+            for limit in (True, 0, 101):
+                with self.subTest(limit=limit), self.assertRaisesRegex(
+                    ValueError, "limit must be between 1 and 100"
+                ):
+                    list_pending_approval_plans(Path(tmp), limit=limit)
+
 
 if __name__ == "__main__":
     unittest.main()
