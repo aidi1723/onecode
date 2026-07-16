@@ -113,6 +113,16 @@ class ShellLauncherConfigTests(unittest.TestCase):
 
             self.assertIn("maxRetries: 0", path.read_text(encoding="utf-8"))
 
+    def test_runtime_config_disables_onecode_title_generation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = build_runtime_config(
+                shell_config(runtime_state_root=Path(tmp) / "state")
+            )
+            text = path.read_text(encoding="utf-8")
+
+        self.assertIn("titleConvo: false", text)
+        self.assertNotIn("titleModel:", text)
+
     def test_model_timeout_cli_reaches_onecode_environment(self):
         config = shell_config(model_timeout_seconds=12.5)
 
@@ -176,6 +186,23 @@ class ShellLauncherConfigTests(unittest.TestCase):
                     RuntimeError, "port .* is already in use"
                 ):
                     preflight_shell(config)
+
+    def test_preflight_missing_librechat_package_explains_resolved_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            onecode_root = Path(tmp) / "one code"
+            (onecode_root / "src" / "onecode").mkdir(parents=True)
+            librechat_dir = Path(tmp) / "missing-librechat"
+            config = shell_config(
+                onecode_root=onecode_root,
+                librechat_dir=librechat_dir,
+            )
+
+            with self.assertRaises(FileNotFoundError) as raised:
+                preflight_shell(config)
+
+        message = str(raised.exception)
+        self.assertIn(str(librechat_dir.resolve()), message)
+        self.assertIn("--librechat-dir '<path>'", message)
 
     def test_bounded_service_log_redacts_and_caps_output(self):
         with tempfile.TemporaryDirectory() as tmp:
