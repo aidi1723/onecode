@@ -3,7 +3,7 @@
 ## Unreleased - 2026-09-01 - Comprehensive Audit Remediation
 
 Closes all six high- and medium-priority items from
-`ONECODE_COMPREHENSIVE_AUDIT_2026-09-01.md`. No runtime behavior changed;
+`docs/closure/ONECODE_COMPREHENSIVE_AUDIT_2026-09-01.md`. No runtime behavior changed;
 every item is either a security guard, a structural move, or documentation.
 
 ### Added

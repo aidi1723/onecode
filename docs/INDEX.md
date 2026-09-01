@@ -94,12 +94,14 @@ OneCode uses an I Ching (易经) based state system for deterministic control fl
 - [Release Checklist](RELEASE_CHECKLIST.md) - Release verification process
 
 ### Closure Reports
-All development closure and verification records have been moved to the [closure/](closure/) directory (37 documents).
+All development closure and verification records live in the [closure/](closure/) directory (40 documents).
 
 Key closure documents:
 - [v0.8 Final Closure](closure/ONECODE_V0_8_FINAL_CLOSURE_2026-07-10.md)
 - [I Ching v2 Canonicalization](closure/ONECODE_ICHING_V2_CANONICALIZATION_CLOSURE_2026-07-10.md)
 - [LibreChat v0.8.7 Integration](closure/ONECODE_LIBRECHAT_V087_HARDENING_CLOSURE_2026-07-15.md)
+- [Comprehensive Audit Remediation](closure/ONECODE_COMPREHENSIVE_AUDIT_REMEDIATION_CLOSURE_2026-09-01.md) - all six audit items closed, training package split
+- [Comprehensive Audit](closure/ONECODE_COMPREHENSIVE_AUDIT_2026-09-01.md) - the source audit it answers
 
 See the `closure/` directory for complete development history.
 
