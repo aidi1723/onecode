@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from onecode.kernel.training_data import validate_yizijue_lm_state_sample
+from onecode.kernel.training import validate_yizijue_lm_state_sample
 from onecode.kernel.yizijue_logits import YiZiJueLogitsProcessor, is_strict_int, token_id_policy_for_basis
 
 

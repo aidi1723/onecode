@@ -8,6 +8,7 @@ This module provides the fundamental components for the training data system:
 """
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -88,6 +89,15 @@ class TrainingSample:
                 },
             ],
         }
+
+
+def sanitize_reason(value: str | None) -> str:
+    if value is None or value == "":
+        return "unspecified_reason"
+    normalized = re.sub(r"[^a-zA-Z0-9]+", "_", value).strip("_").lower()
+    if normalized == "" or normalized[0].isdigit():
+        return "reason_" + normalized if normalized else "unspecified_reason"
+    return normalized
 
 
 def build_adjudicated_feedback_samples(

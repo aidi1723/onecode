@@ -1,5 +1,81 @@
 # Changelog
 
+## Unreleased - 2026-09-01 - Comprehensive Audit Remediation
+
+Closes all six high- and medium-priority items from
+`ONECODE_COMPREHENSIVE_AUDIT_2026-09-01.md`. No runtime behavior changed;
+every item is either a security guard, a structural move, or documentation.
+
+### Added
+
+- Startup binding guard in `src/onecode/web/api.py`: `run_server` now refuses to
+  bind a non-loopback host when `allow_unauthenticated` is set and no token is
+  supplied, instead of silently exposing an unauthenticated API. Covered by five
+  new tests in `tests/test_web_api_binding_security.py`.
+- `docs/ARCHITECTURE.md` with 11 Mermaid diagrams covering the kernel layers,
+  gateway state machine, execution and resumption flows.
+- `docs/ICHING_QUICKREF.md` mapping all 64 hexagrams to status codes, trigrams,
+  five-element relations, and the gateway actions they authorize.
+- `docs/GIT_HISTORY_NOTE.md` recording the historical commit and branch
+  references cited across the closure reports, since the working tree was
+  re-initialized as a fresh repository.
+
+### Changed
+
+- Split `src/onecode/kernel/training_data.py` (2,441 lines) into the
+  `src/onecode/kernel/training/` package and removed the original file:
+  `core.py` (360) holds `TrainingSample`, constants and validation;
+  `samples.py` (959) holds sample generation; `corpus.py` (516) holds corpus
+  building, export and I/O; `evaluation.py` (713) holds prediction evaluation,
+  quality gates and benchmarks; `__init__.py` (178) re-exports the 74 public
+  names. No module exceeds 1,000 lines.
+- Kept the training module dependency graph acyclic in one direction
+  (`core` ← `samples`, `core` ← `evaluation`, and all three ← `corpus`). The
+  anticipated `corpus`/`evaluation` cycle did not exist, so
+  `evaluate_training_quality` stayed in `evaluation.py`.
+- Moved `sanitize_reason` into `training/core.py` because both `samples.py` and
+  `evaluation.py` depend on it.
+- Renamed the shadowed locals in `generate_pretraining_readiness_report` to
+  `llamafactory_config_path` / `axolotl_config_path`, since the module-level
+  functions of the former names now live in the same module.
+- Migrated `onecode.kernel.training_data` imports to `onecode.kernel.training`
+  in `src/onecode/cli.py`, `src/onecode/kernel/deepseek_distillation.py`,
+  `src/onecode/kernel/yizijue_transformers.py`, `tests/test_training_data.py`,
+  the forbidden-import prefix list in `tests/test_cli_read_only_commands.py`,
+  and the long-function allowlist in `scripts/check_source_quality.py`.
+- Pointed the two call sites that reached `assistant_payload` and
+  `adjudicate_gateway_prediction` through the old module's namespace at their
+  defining module, `onecode.kernel.gateway_engine`
+  (`tests/test_training_data.py`, `tests/test_web_api.py`).
+- Relocated 37 closure reports from `docs/` into `docs/closure/` so the primary
+  documents remain visible, and updated `docs/INDEX.md` accordingly.
+
+### Fixed
+
+- `tests/test_rule_closure.py` asserted on `docs/V0_6_MATH_CLOSURE_REPORT.md`,
+  stale since the closure reports moved into `docs/closure/`. Path corrected.
+
+### Verification
+
+- Full project suite: 912 tests passed, 1 environment-only skip.
+- `compileall`, `scripts/check_source_quality.py src`, and `onecode doctor`
+  gates all passed.
+- Behavior parity of the training split was checked per module against the
+  original implementation by sorted-key JSON comparison of sample generators,
+  the coverage report, `deterministic_eval_ids`, both trainer configs, corpus
+  counts and the readiness report; generated `train.jsonl` and `eval.jsonl` are
+  byte-identical to the pre-refactor output.
+- CLI smoke checks passed for `generate-training-data`,
+  `validate-training-data`, `build-training-corpus`, `training-coverage`,
+  `pretraining-readiness`, and `run-yizijue-lm-eval`.
+
+### Known Environment Issue
+
+- The `.venv` editable install resolves `onecode` to a separate copy of the
+  project at `/Users/aidi/大字典/one code`, so `scripts/verify.sh` exercises that
+  tree rather than this one. Verification above was run with `PYTHONPATH=src`;
+  re-running `pip install -e .` from this directory would realign the install.
+
 ## Unreleased - 2026-07-16 - vNext Maintenance Governance
 
 ### Changed

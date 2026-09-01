@@ -1,156 +1,134 @@
 # Training Data Refactoring Progress
 
-## Status: Partial Complete (Core Module + Package Structure)
+## Status: Complete
 
-Date: 2026-09-01  
-Task: Split `src/onecode/kernel/training_data.py` (2,441 lines) into modular package
+Date: 2026-09-01
+Task: Split `src/onecode/kernel/training_data.py` (2,441 lines) into a modular package
 
-## What Was Completed
-
-### ✅ Package Structure Created
-```
-src/onecode/kernel/training/
-├── __init__.py              # Backward-compatible re-exports
-└── core.py                  # Core definitions and validation (~350 lines)
-```
-
-### ✅ core.py Module (Lines 1-345 extracted)
-**Contains:**
-- `TrainingSample` dataclass
-- All constants: MODEL_BASE, SYSTEM_PROMPT, YIZIJUE_LM_*, REQUIRED_*
-- `validate_training_sample()`
-- `validate_yizijue_lm_sample()`
-- `validate_yizijue_lm_state_sample()`
-- `write_jsonl()`
-- `build_adjudicated_feedback_samples()`
-- `enrich_basis_with_kernel_profile()`
-- `state_basis_for_lm_row()`
-- `yizijue_lm_state_rows_from_lm_rows()`
-
-### ✅ Backward Compatibility
-- `__init__.py` re-exports all core functions
-- Existing imports continue to work: `from onecode.kernel.training.core import TrainingSample`
-- Legacy path compatible once full migration complete
-
-## What Remains
-
-### ⏳ samples.py (~900 lines)
-**Lines to extract: 346-400, 401-828, 1997-2441**
-- `seed_training_samples()`
-- `expanded_training_samples()`
-- `schema_correction_training_samples()`
-- `yizijue_lm_base_samples()`
-- `natural_language_rule_lm_samples()`
-- `yizijue_lm_eval_samples()`
-- `iching_rule_lm_samples()`
-- `yizijue_lm_action_row()`
-- Action payload functions
-- Helper functions: `_samples_from_spec`, `_sample_from_prompt`, `_dedupe_samples`
-
-### ⏳ corpus.py (~700 lines)
-**Lines to extract: 700-708, 830-1050, 1442-1681**
-- `build_training_corpus()`
-- `build_yizijue_lm_corpus()`
-- `build_yizijue_lm_state_corpus()`
-- `build_yizijue_lm_evalset()`
-- `export_llamafactory_bundle()`
-- `export_axolotl_jsonl()`
-- `write_training_configs()`
-- `generate_pretraining_readiness_report()`
-- `generate_coverage_report()`
-- `read_jsonl()`, `validate_jsonl()`
-- Config templates and helpers
-
-### ⏳ evaluation.py (~500 lines)
-**Lines to extract: 1053-1440, 1544-1994**
-- `evaluate_training_predictions()`
-- `evaluate_yizijue_lm_predictions()`
-- `evaluate_yizijue_lm_state_predictions()`
-- `evaluate_training_quality()`
-- Normalization functions
-- Prediction reading functions
-- `run_yizijue_lm_eval_predictions()`
-- Benchmark functions
-- Helper functions for facts/actions/sanitization
-
-## Why Partial?
-
-The full refactoring requires:
-1. **Careful extraction** of 2,096 remaining lines (2,441 - 345 done)
-2. **Dependency analysis** between modules to avoid circular imports
-3. **Function-by-function verification** to ensure no logic changes
-4. **Import updates** in 4+ dependent files
-5. **Full test suite run** (907 tests) to verify behavior unchanged
-
-**Time estimate**: 2-3 hours for complete refactoring + testing
-
-**Completed today**: 5 audit improvements including:
-- Git history fixes
-- Documentation reorganization (37 closure reports moved)
-- Architecture diagrams (ARCHITECTURE.md)
-- I Ching quick reference (ICHING_QUICKREF.md)
-- Web API security validation
-
-## Next Steps (For Future Session)
-
-1. **Create samples.py**: Extract all sample generation functions
-2. **Create corpus.py**: Extract corpus building and export functions
-3. **Create evaluation.py**: Extract evaluation and benchmark functions
-4. **Update __init__.py**: Add all new exports
-5. **Update imports**: Modify cli.py and other dependent files
-6. **Run tests**: Verify all 907 tests pass
-7. **Remove old file**: Delete training_data.py after verification
-8. **Commit**: Final commit with refactored structure
-
-## Current State
-
-**Training package is functional** but incomplete:
-- ✅ Core module works independently
-- ✅ Can import: `from onecode.kernel.training.core import TrainingSample`
-- ❌ Legacy `training_data.py` still exists and is used by CLI
-- ❌ Sample/corpus/evaluation functions not yet extracted
-
-**No breaking changes** - all existing code continues to work with original `training_data.py`
-
-## Files Modified Today
+## Result
 
 ```
 src/onecode/kernel/training/
-├── __init__.py              (new, 60 lines)
-└── core.py                  (new, 350 lines)
-
-src/onecode/web/api.py       (modified, +13 lines security check)
-tests/test_web_api_binding_security.py  (new, 80 lines)
-docs/ARCHITECTURE.md          (new, 450 lines)
-docs/ICHING_QUICKREF.md       (new, 530 lines)
-docs/INDEX.md                 (modified)
-docs/closure/                 (37 files moved from docs/)
-docs/GIT_HISTORY_NOTE.md      (new)
-README.md                     (modified, git history note)
+├── __init__.py      178 lines  # public API re-exports (74 names)
+├── core.py          360 lines  # TrainingSample, constants, validation
+├── samples.py       959 lines  # sample generation
+├── corpus.py        516 lines  # corpus building, export, I/O
+└── evaluation.py    713 lines  # prediction evaluation, quality gates, benchmarks
 ```
+
+`src/onecode/kernel/training_data.py` has been removed. No module exceeds 1,000 lines.
+
+## Module Contents
+
+### core.py
+`TrainingSample`, constants (`MODEL_BASE`, `MODEL_REPOSITORY`, `SYSTEM_PROMPT`,
+`YIZIJUE_LM_*`, `REQUIRED_ACTION_COVERAGE`, `REQUIRED_DIMENSION_COVERAGE`),
+`validate_training_sample`, `validate_yizijue_lm_sample`,
+`validate_yizijue_lm_state_sample`, `write_jsonl`, `sanitize_reason`,
+`build_adjudicated_feedback_samples`, `enrich_basis_with_kernel_profile`,
+`state_basis_for_lm_row`, `yizijue_lm_state_rows_from_lm_rows`.
+
+### samples.py
+`seed_training_samples`, `expanded_training_samples`,
+`schema_correction_training_samples`, `yizijue_lm_base_samples`,
+`natural_language_rule_lm_samples`, `yizijue_lm_eval_samples`,
+`iching_rule_lm_samples`, `yizijue_lm_action_row`, action payload helpers,
+and the private helpers `_samples_from_spec`, `_sample_from_prompt`, `_dedupe_samples`.
+
+### corpus.py
+`build_training_corpus`, `build_yizijue_lm_corpus`, `build_yizijue_lm_state_corpus`,
+`build_yizijue_lm_evalset`, `export_llamafactory_bundle`, `export_axolotl_jsonl`,
+`write_training_configs`, `generate_pretraining_readiness_report`,
+`generate_coverage_report`, `read_jsonl`, `validate_jsonl`, `deterministic_eval_ids`,
+`llamafactory_config`, `axolotl_config`, and dimension/ranking helpers.
+
+### evaluation.py
+`evaluate_training_predictions`, `evaluate_yizijue_lm_predictions`,
+`evaluate_yizijue_lm_state_predictions`, `evaluate_training_quality`,
+normalization and prediction-reading functions, `run_yizijue_lm_eval_predictions`,
+and the benchmark functions (`generate_training_benchmark_tasks`,
+`training_benchmark_task_payloads`, `benchmark_task_to_training_sample`,
+`replay_benchmark_training_samples`, and their helpers).
+
+## Dependency Graph
+
+Acyclic, one direction only:
+
+```
+core  ←  samples
+core  ←  evaluation
+{core, samples, evaluation}  ←  corpus
+```
+
+The plan anticipated a cycle (corpus needs `evaluate_training_quality`) and suggested
+moving that function into core. It turned out evaluation.py needs nothing from
+corpus.py, so the cycle never existed and `evaluate_training_quality` stayed in
+evaluation.py where it belongs.
+
+## Deliberate Changes
+
+Two, both behavior-preserving:
+
+1. `sanitize_reason` moved into core.py because both samples.py and evaluation.py use it.
+2. In `generate_pretraining_readiness_report`, the local variables `llamafactory_config`
+   and `axolotl_config` shadowed the module-level functions of the same name once those
+   functions lived in the same module; the locals were renamed to
+   `llamafactory_config_path` / `axolotl_config_path`.
+
+Everything else is a verbatim move.
+
+## Import Migration
+
+`onecode.kernel.training_data` → `onecode.kernel.training`:
+
+- `src/onecode/cli.py`
+- `src/onecode/kernel/deepseek_distillation.py`
+- `src/onecode/kernel/yizijue_transformers.py`
+- `tests/test_training_data.py`
+- `tests/test_cli_read_only_commands.py` (forbidden-import prefix list)
+- `scripts/check_source_quality.py` (long-function allowlist entry)
+
+Two call sites imported `assistant_payload` / `adjudicate_gateway_prediction` through
+`training_data`'s namespace rather than from their defining module; they now import from
+`onecode.kernel.gateway_engine` directly (`tests/test_training_data.py`,
+`tests/test_web_api.py`).
+
+## Verification
+
+- 912 tests pass (`unittest discover -s tests`), 1 skipped, 0 failures
+- `compileall` clean, `scripts/check_source_quality.py src` clean
+- `onecode doctor` status `ok`
+- Behavior parity checked per module against the original by JSON round-trip comparison
+  (sorted keys): sample generators, coverage report, `deterministic_eval_ids`, both
+  trainer configs, corpus counts, readiness report, and byte-identical `train.jsonl` /
+  `eval.jsonl` output
+- CLI smoke tested: `generate-training-data`, `validate-training-data`,
+  `build-training-corpus`, `training-coverage`, `pretraining-readiness`,
+  `run-yizijue-lm-eval`
+
+Two unrelated pre-existing failures surfaced during the run:
+
+- `tests/test_rule_closure.py` referenced `docs/V0_6_MATH_CLOSURE_REPORT.md`, stale since
+  commit 6566c11 moved closure reports into `docs/closure/`. Path corrected.
+- `.venv` holds an editable install pointing at a different copy of the project
+  (`/Users/aidi/大字典/one code`), so `scripts/verify.sh` tests that tree instead of this
+  one. Worked around with `PYTHONPATH=src`; the install itself was left alone.
 
 ## Verification Commands
 
 ```bash
-# Verify core module works
 cd "/Volumes/MacSSD/项目开发/one code"
-PYTHONPATH=src python3 -c "from onecode.kernel.training.core import TrainingSample; print('OK')"
-
-# Verify original still works
-PYTHONPATH=src python3 -c "from onecode.kernel.training_data import TrainingSample; print('OK')"
-
-# Run tests
-bash scripts/verify-core.sh
+PYTHONPATH=src python3 -m unittest discover -s tests
+PYTHONPATH=src python3 -m onecode doctor
 ```
 
-## Conclusion
+## Audit Items
 
-**Today's accomplishments**: 5 out of 6 high/medium priority audit items completed:
-1. ✅ Git history fixes (High Priority #1)
-2. ✅ Web API binding validation (High Priority #2)  
-3. ✅ Documentation reorganization (High Priority #3)
-4. ⏳ **training_data.py split** (Medium Priority #4) - **Partial (core module done)**
-5. ✅ Architecture diagrams (Medium Priority #5)
-6. ✅ I Ching quick reference (Medium Priority #6)
+All 6 high/medium priority items from the 2026-09-01 audit are now complete:
 
-The training_data refactoring foundation is laid with core.py complete. The remaining work (samples/corpus/evaluation modules) can be completed in a dedicated session when time permits.
+1. Git history fixes (High #1)
+2. Web API binding validation (High #2)
+3. Documentation reorganization (High #3)
+4. training_data.py split (Medium #4)
+5. Architecture diagrams (Medium #5)
+6. I Ching quick reference (Medium #6)

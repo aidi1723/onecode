@@ -14,7 +14,7 @@ ALLOWED_LONG_FUNCTIONS = {
     "src/onecode/cli.py:build_parser",
     "src/onecode/cli.py:main",
     "src/onecode/kernel/runner.py:_run_task_with_context",
-    "src/onecode/kernel/training_data.py:expanded_training_samples",
+    "src/onecode/kernel/training/samples.py:expanded_training_samples",
     "src/onecode/web/api.py:gateway_console_html",
 }
 

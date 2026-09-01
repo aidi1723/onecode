@@ -27,7 +27,7 @@ class RuleClosureTests(unittest.TestCase):
         self.assertIn("discover", text)
 
     def test_v06_math_closure_report_matches_verified_rule_surface(self):
-        report = Path("docs/V0_6_MATH_CLOSURE_REPORT.md")
+        report = Path("docs/closure/V0_6_MATH_CLOSURE_REPORT.md")
 
         self.assertTrue(report.exists())
         text = report.read_text(encoding="utf-8")

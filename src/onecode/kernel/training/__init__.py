@@ -3,12 +3,16 @@
 This package provides training data generation, corpus building, and evaluation
 functionality for the YiZiJue safety gateway model.
 
-Re-exports all public APIs from submodules for backward compatibility.
-Legacy imports like `from onecode.kernel.training_data import X` continue to work
-by importing from `onecode.kernel.training` instead.
+The implementation is split across four submodules:
+- `core`: TrainingSample, constants, and validation
+- `samples`: sample generation (seed, expanded, LM, I Ching rule)
+- `corpus`: corpus building, export formats, and coverage reports
+- `evaluation`: prediction evaluation, quality gates, and benchmark tasks
+
+All public names are re-exported here so `from onecode.kernel.training import X`
+resolves regardless of which submodule defines X.
 """
 
-# Core exports
 from onecode.kernel.training.core import (
     ACTIVE_RULE_SCHEMA,
     MODEL_BASE,
@@ -24,6 +28,7 @@ from onecode.kernel.training.core import (
     TrainingSample,
     build_adjudicated_feedback_samples,
     enrich_basis_with_kernel_profile,
+    sanitize_reason,
     state_basis_for_lm_row,
     validate_training_sample,
     validate_yizijue_lm_sample,
@@ -31,9 +36,69 @@ from onecode.kernel.training.core import (
     write_jsonl,
     yizijue_lm_state_rows_from_lm_rows,
 )
+from onecode.kernel.training.corpus import (
+    axolotl_config,
+    build_training_corpus,
+    build_yizijue_lm_corpus,
+    build_yizijue_lm_evalset,
+    build_yizijue_lm_state_corpus,
+    deterministic_eval_ids,
+    distilled_state_rows_to_qwen_messages,
+    eval_ids_cover_dimension,
+    export_axolotl_jsonl,
+    export_llamafactory_bundle,
+    first_sample_covering_dimension,
+    generate_coverage_report,
+    generate_pretraining_readiness_report,
+    increment_dimension,
+    llamafactory_config,
+    rank_samples,
+    read_jsonl,
+    sample_dicts,
+    sample_dimension_value,
+    validate_jsonl,
+    write_training_configs,
+    yizijue_lm_rows_from_training_samples,
+)
+from onecode.kernel.training.evaluation import (
+    action_state_reason_from_result,
+    benchmark_task_to_training_sample,
+    evaluate_training_predictions,
+    evaluate_training_quality,
+    evaluate_yizijue_lm_predictions,
+    evaluate_yizijue_lm_state_predictions,
+    facts_from_benchmark_task,
+    generate_training_benchmark_tasks,
+    normalize_yizijue_lm_prediction,
+    normalize_yizijue_lm_state_prediction,
+    parse_yizijue_lm_response,
+    path_scope_for_value,
+    read_prediction_jsonl,
+    read_yizijue_lm_prediction_jsonl,
+    read_yizijue_lm_state_prediction_jsonl,
+    replay_benchmark_training_samples,
+    run_yizijue_lm_eval_predictions,
+    safe_task_id,
+    training_benchmark_task_payloads,
+    training_samples_from_rows,
+    yizijue_lm_eval_prompt,
+)
+from onecode.kernel.training.samples import (
+    action_name_for_iching_transition,
+    action_payload_for_status,
+    action_payload_for_totality_sample,
+    expanded_training_samples,
+    facts_for_iching_transition,
+    iching_rule_lm_samples,
+    natural_language_rule_lm_samples,
+    schema_correction_training_samples,
+    seed_training_samples,
+    yizijue_lm_action_row,
+    yizijue_lm_base_samples,
+    yizijue_lm_eval_samples,
+)
 
 __all__ = [
-    # Constants
     "ACTIVE_RULE_SCHEMA",
     "MODEL_BASE",
     "MODEL_REPOSITORY",
@@ -45,18 +110,69 @@ __all__ = [
     "YIZIJUE_LM_OUTPUT_TYPES",
     "YIZIJUE_LM_REQUIRED_BASIS_FIELDS",
     "YIZIJUE_LM_SYSTEM_PROMPT",
-    # Core classes and functions
     "TrainingSample",
+    "action_name_for_iching_transition",
+    "action_payload_for_status",
+    "action_payload_for_totality_sample",
+    "action_state_reason_from_result",
+    "axolotl_config",
+    "benchmark_task_to_training_sample",
     "build_adjudicated_feedback_samples",
+    "build_training_corpus",
+    "build_yizijue_lm_corpus",
+    "build_yizijue_lm_evalset",
+    "build_yizijue_lm_state_corpus",
+    "deterministic_eval_ids",
+    "distilled_state_rows_to_qwen_messages",
     "enrich_basis_with_kernel_profile",
+    "eval_ids_cover_dimension",
+    "evaluate_training_predictions",
+    "evaluate_training_quality",
+    "evaluate_yizijue_lm_predictions",
+    "evaluate_yizijue_lm_state_predictions",
+    "expanded_training_samples",
+    "export_axolotl_jsonl",
+    "export_llamafactory_bundle",
+    "facts_for_iching_transition",
+    "facts_from_benchmark_task",
+    "first_sample_covering_dimension",
+    "generate_coverage_report",
+    "generate_pretraining_readiness_report",
+    "generate_training_benchmark_tasks",
+    "iching_rule_lm_samples",
+    "increment_dimension",
+    "llamafactory_config",
+    "natural_language_rule_lm_samples",
+    "normalize_yizijue_lm_prediction",
+    "normalize_yizijue_lm_state_prediction",
+    "parse_yizijue_lm_response",
+    "path_scope_for_value",
+    "rank_samples",
+    "read_jsonl",
+    "read_prediction_jsonl",
+    "read_yizijue_lm_prediction_jsonl",
+    "read_yizijue_lm_state_prediction_jsonl",
+    "replay_benchmark_training_samples",
+    "run_yizijue_lm_eval_predictions",
+    "safe_task_id",
+    "sample_dicts",
+    "sample_dimension_value",
+    "sanitize_reason",
+    "schema_correction_training_samples",
+    "seed_training_samples",
     "state_basis_for_lm_row",
+    "training_benchmark_task_payloads",
+    "training_samples_from_rows",
+    "validate_jsonl",
     "validate_training_sample",
     "validate_yizijue_lm_sample",
     "validate_yizijue_lm_state_sample",
     "write_jsonl",
+    "write_training_configs",
+    "yizijue_lm_action_row",
+    "yizijue_lm_base_samples",
+    "yizijue_lm_eval_prompt",
+    "yizijue_lm_eval_samples",
+    "yizijue_lm_rows_from_training_samples",
     "yizijue_lm_state_rows_from_lm_rows",
 ]
-
-# Note: Additional exports will be added as samples.py, corpus.py, and evaluation.py are created
-# For now, functions not yet refactored will be imported from the legacy training_data.py
-# This allows incremental migration

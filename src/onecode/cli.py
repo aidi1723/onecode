@@ -55,7 +55,7 @@ from onecode.kernel.verifier import (
     validate_selected_verifiers,
 )
 from onecode.kernel.gateway_engine import adjudicate_gateway_prediction, validate_assistant_content
-from onecode.kernel.training_data import (
+from onecode.kernel.training import (
     build_adjudicated_feedback_samples,
     build_training_corpus,
     build_yizijue_lm_corpus,

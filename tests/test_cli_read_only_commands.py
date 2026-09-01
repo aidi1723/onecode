@@ -111,7 +111,7 @@ class CliReadOnlyCommandTests(unittest.TestCase):
             "onecode.benchmark",
             "onecode.kernel.runner",
             "onecode.kernel.model_",
-            "onecode.kernel.training_data",
+            "onecode.kernel.training",
             "onecode.kernel.sandbox",
             "onecode.kernel.verifier",
         )

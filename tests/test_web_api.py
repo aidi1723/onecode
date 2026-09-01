@@ -1471,7 +1471,7 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertIn("/v1/onecode/gateway/adjudicate?demo=1", html)
 
     def test_http_server_adjudicates_gateway_candidate(self):
-        from onecode.kernel.training_data import assistant_payload
+        from onecode.kernel.gateway_engine import assistant_payload
         from onecode.web.api import OneCodeRequestHandler
 
         prediction = assistant_payload(

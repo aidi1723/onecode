@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from onecode.kernel.gateway_engine import adjudicate_gateway_prediction, validate_assistant_content
-from onecode.kernel.training_data import state_basis_for_lm_row, validate_yizijue_lm_state_sample
+from onecode.kernel.training import state_basis_for_lm_row, validate_yizijue_lm_state_sample
 
 
 DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"

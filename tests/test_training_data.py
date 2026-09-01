@@ -6,10 +6,9 @@ from unittest.mock import patch
 
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.iching_encoding import RULE_SCHEMA_V1, RULE_SCHEMA_V2
-from onecode.kernel.training_data import (
+from onecode.kernel.gateway_engine import adjudicate_gateway_prediction, assistant_payload
+from onecode.kernel.training import (
     TrainingSample,
-    adjudicate_gateway_prediction,
-    assistant_payload,
     benchmark_task_to_training_sample,
     build_adjudicated_feedback_samples,
     build_training_corpus,
@@ -972,7 +971,7 @@ class YiZiJueLmDataTests(unittest.TestCase):
 
 class SeedTrainingDataTests(unittest.TestCase):
     def test_seed_samples_cover_core_gateway_actions(self):
-        from onecode.kernel.training_data import seed_training_samples
+        from onecode.kernel.training import seed_training_samples
 
         samples = seed_training_samples()
         actions = {json.loads(sample.to_dict()["messages"][2]["content"])["action"] for sample in samples}
@@ -991,14 +990,14 @@ class SeedTrainingDataTests(unittest.TestCase):
         self.assertGreaterEqual(len(samples), 8)
 
     def test_seed_samples_are_all_valid(self):
-        from onecode.kernel.training_data import seed_training_samples
+        from onecode.kernel.training import seed_training_samples
 
         for sample in seed_training_samples():
             with self.subTest(sample=sample.id):
                 validate_training_sample(sample.to_dict())
 
     def test_expanded_samples_are_deterministic_and_large_enough_for_cleaning(self):
-        from onecode.kernel.training_data import expanded_training_samples
+        from onecode.kernel.training import expanded_training_samples
 
         first = expanded_training_samples()
         second = expanded_training_samples()
@@ -1011,7 +1010,7 @@ class SeedTrainingDataTests(unittest.TestCase):
                 validate_training_sample(sample.to_dict())
 
     def test_expanded_samples_cover_each_action_with_multiple_prompts(self):
-        from onecode.kernel.training_data import expanded_training_samples
+        from onecode.kernel.training import expanded_training_samples
 
         counts: dict[str, int] = {}
         for sample in expanded_training_samples():
@@ -1029,7 +1028,7 @@ class SeedTrainingDataTests(unittest.TestCase):
                 self.assertGreaterEqual(counts.get(action, 0), 12)
 
     def test_validate_jsonl_reports_line_count_and_actions(self):
-        from onecode.kernel.training_data import expanded_training_samples
+        from onecode.kernel.training import expanded_training_samples
 
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "expanded.jsonl"
@@ -1102,7 +1101,7 @@ class TrainingDataCliTests(unittest.TestCase):
 
     def test_cli_validate_training_data_reports_ok(self):
         from onecode.cli import main
-        from onecode.kernel.training_data import expanded_training_samples
+        from onecode.kernel.training import expanded_training_samples
 
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "expanded.jsonl"
@@ -1118,7 +1117,7 @@ class TrainingDataCliTests(unittest.TestCase):
 
 class TrainingDataExportTests(unittest.TestCase):
     def test_export_llamafactory_bundle_writes_dataset_and_info(self):
-        from onecode.kernel.training_data import expanded_training_samples
+        from onecode.kernel.training import expanded_training_samples
 
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp) / "llamafactory"
@@ -1135,7 +1134,7 @@ class TrainingDataExportTests(unittest.TestCase):
         self.assertEqual(dataset[0]["conversations"][2]["from"], "gpt")
 
     def test_export_axolotl_jsonl_writes_messages_and_config(self):
-        from onecode.kernel.training_data import expanded_training_samples
+        from onecode.kernel.training import expanded_training_samples
 
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp) / "axolotl"
@@ -1152,7 +1151,7 @@ class TrainingDataExportTests(unittest.TestCase):
         self.assertIn("chat_template: qwen_25", config)
 
     def test_distilled_state_rows_to_qwen_messages_preserves_action_and_basis(self):
-        from onecode.kernel.training_data import distilled_state_rows_to_qwen_messages
+        from onecode.kernel.training import distilled_state_rows_to_qwen_messages
 
         action = json.loads(
             assistant_payload(
@@ -1380,7 +1379,7 @@ class ReplayTrainingDataTests(unittest.TestCase):
 
 class TrainingCorpusQualityTests(unittest.TestCase):
     def test_evaluate_training_quality_accepts_balanced_corpus(self):
-        from onecode.kernel.training_data import expanded_training_samples
+        from onecode.kernel.training import expanded_training_samples
 
         result = evaluate_training_quality(expanded_training_samples())
 
@@ -1415,7 +1414,7 @@ class TrainingCorpusQualityTests(unittest.TestCase):
         self.assertIn("missing action coverage", result["failures"][0])
 
     def test_build_training_corpus_writes_train_eval_and_report(self):
-        from onecode.kernel.training_data import expanded_training_samples, seed_training_samples
+        from onecode.kernel.training import expanded_training_samples, seed_training_samples
 
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp) / "corpus"
@@ -1435,7 +1434,7 @@ class TrainingCorpusQualityTests(unittest.TestCase):
         self.assertEqual(result["train_count"] + result["eval_count"], report["sample_count"])
 
     def test_build_training_corpus_eval_split_covers_actions(self):
-        from onecode.kernel.training_data import expanded_training_samples
+        from onecode.kernel.training import expanded_training_samples
 
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp) / "corpus"
@@ -1461,7 +1460,7 @@ class TrainingCorpusQualityTests(unittest.TestCase):
         )
 
     def test_build_training_corpus_eval_split_covers_required_dimensions(self):
-        from onecode.kernel.training_data import expanded_training_samples
+        from onecode.kernel.training import expanded_training_samples
 
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp) / "corpus"
@@ -2049,7 +2048,7 @@ class SchemaCorrectionSampleTests(unittest.TestCase):
 
 class TrainingCoverageReportTests(unittest.TestCase):
     def test_generate_coverage_report_summarizes_training_surface(self):
-        from onecode.kernel.training_data import expanded_training_samples
+        from onecode.kernel.training import expanded_training_samples
 
         report = generate_coverage_report(expanded_training_samples())
 
