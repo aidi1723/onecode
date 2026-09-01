@@ -1,0 +1,13 @@
+{
+  "id": "resume-completed-asset",
+  "prompt": "恢复已完成文件，不重复写入",
+  "expected_status": "completed",
+  "mode": "rule",
+  "input": {
+    "write_path": "src/resume_asset.py",
+    "write_content": "ready = True\n"
+  },
+  "assertions": [
+    { "type": "file_exists", "path": "src/resume_asset.py" }
+  ]
+}

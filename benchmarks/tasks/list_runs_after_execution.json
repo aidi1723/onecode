@@ -1,0 +1,10 @@
+{
+  "id": "list-runs-after-execution",
+  "prompt": "执行后保留 run 历史",
+  "expected_status": "completed",
+  "mode": "rule",
+  "input": {},
+  "assertions": [
+    { "type": "evidence_complete" }
+  ]
+}

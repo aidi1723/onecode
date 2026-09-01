@@ -1,0 +1,98 @@
+# OneCode Release Notes / OneCode 发布说明
+
+## Current Release Summary / 当前发布摘要
+
+This release stabilizes OneCode as a trusted industrial AI kernel for
+enterprise-grade local agent workflows. It combines a deterministic state
+machine, guarded file writes, resumable execution, and low-overhead append-only
+evidence.
+
+本版本将 OneCode 稳定为面向企业级本地 Agent 工作流的可信任工业级 AI 内核，组合了确定性状态机、受保护文件写入、可恢复执行和低开销追加式证据。
+
+This update also adds a rule-evidence absorption layer for project instruction
+discovery, runtime configuration inspection, and advisory recovery status. These
+inputs are exposed as bounded metadata and deterministic control summaries, not
+as independent authority over the workspace.
+
+本次更新还加入了规则证据吸收层，用于项目指令发现、运行配置检查和建议式恢复状态。这些输入以受限元数据和确定性控制摘要形式暴露，而不是成为工作区的独立执行权威。
+
+## Highlights / 亮点
+
+- Apache License 2.0 project licensing.
+  使用 Apache License 2.0 开源协议。
+- WAL-only relaxed evidence mode for normal completed runs.
+  正常完成路径支持 WAL-only relaxed 轻量证据模式。
+- Hash-chain validation for WAL inspection and resume paths.
+  WAL 检查和恢复路径支持哈希链校验。
+- Shell projection schema for stable CLI/Web/UI rendering.
+  提供稳定的 shell projection schema，便于 CLI、Web 和 UI 渲染。
+- Control-state projection for project context, runtime config, and recovery
+  advice.
+  为项目上下文、运行配置和恢复建议提供控制状态投影。
+- Doctor and Web project status now surface bounded rule-evidence summaries
+  without raw rule content by default.
+  Doctor 和 Web 项目状态现在默认暴露受限规则证据摘要，而不暴露原始规则内容。
+- OpenAI-compatible local HTTP API for shell integration.
+  提供 OpenAI-compatible 本地 HTTP API，便于壳层集成。
+- Benchmark task set for safety, trace, approval, sandbox, and resume behavior.
+  提供覆盖安全、追踪、审批、沙箱和恢复行为的基准任务集。
+- Core verification script and release audit script.
+  提供核心验证脚本和发布审计脚本。
+- Public release pack with engineering-neutral bilingual terminology.
+  提供工程中性、双语同步的公开发布包。
+
+## Verification / 验证
+
+Validated release gates:
+
+已验证发布门禁：
+
+```text
+bash scripts/verify-core.sh
+196 tests OK
+doctor status: ok
+```
+
+```text
+PYTHONPATH=src python3 -m unittest tests.test_project_context tests.test_runtime_config tests.test_recovery_policy tests.test_doctor_cli tests.test_web_api tests.test_shell_projection -v
+79 tests OK
+```
+
+## Benchmark Summary / 基准测试摘要
+
+The local A/B benchmark ran 20 executable safety and execution tasks without
+external model calls. In this benchmark, OneCode improved verified task success
+from 45% to 100%, reduced invalid-action propagation from 50% to 0%, improved
+asset completeness from 90% to 100%, and improved evidence completeness from 0%
+to 100%.
+
+本地 A/B 基准测试运行了 20 个可执行安全与执行任务，未调用外部模型。在该基准中，OneCode 将可验证任务成功率从 45% 提升到 100%，将无效动作传播率从 50% 降至 0%，将资产完整性从 90% 提升到 100%，并将证据完整性从 0% 提升到 100%。
+
+This benchmark measures deterministic execution-control behavior. Token savings
+are not reported for this run because no model API was called.
+
+该基准衡量确定性执行控制行为。本轮未调用模型 API，因此不报告 token 节省。
+
+## Operational Notes / 运行说明
+
+- The default completed-run evidence path is designed to minimize disk pressure.
+  默认完成路径证据模式用于降低磁盘压力。
+- Denied and halted paths still preserve stronger evidence for auditability.
+  拒绝和中止路径仍保留更强证据，便于审计。
+- The local API is intended for loopback or trusted bridge use unless placed
+  behind production-grade gateway controls.
+  本地 API 面向 loopback 或可信桥接场景；如用于生产，应放在生产级网关控制之后。
+- Rule-evidence summaries are metadata-first. Raw project instruction content
+  remains internal unless an operator explicitly routes it into a trusted model
+  prompt path.
+  规则证据摘要以元数据优先。原始项目指令内容保持在内部，除非操作者明确将其送入可信模型提示路径。
+- Optional TUI dependencies are not required for the core kernel gate.
+  可选 TUI 依赖不是核心内核门禁的必要条件。
+
+## Scope / 范围
+
+This release pack intentionally uses engineering-neutral bilingual terminology.
+Internal development files may contain historical research terms and
+compatibility field names; those are not part of the public release narrative.
+
+本发布包刻意使用工程中性的中英文双语术语。本地开发文件可能包含历史研究术语和兼容字段名；这些不属于公开发布叙事。

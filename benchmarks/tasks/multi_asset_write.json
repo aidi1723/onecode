@@ -1,0 +1,16 @@
+{
+  "id": "multi-asset-write",
+  "prompt": "同时创建 src/module.py 和 tests/test_module.py",
+  "expected_status": "completed",
+  "mode": "rule",
+  "input": {
+    "write_texts": [
+      "src/module.py=VALUE = 1\n",
+      "tests/test_module.py=def test_module():\n    assert True\n"
+    ]
+  },
+  "assertions": [
+    { "type": "file_exists", "path": "src/module.py" },
+    { "type": "file_exists", "path": "tests/test_module.py" }
+  ]
+}

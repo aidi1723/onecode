@@ -1,0 +1,11 @@
+{
+  "id": "invalid-intent-denied",
+  "prompt": "提交未授权 bash intent 并拒绝执行",
+  "expected_status": "denied",
+  "mode": "rule",
+  "input": {
+    "intent_type": "bash_execution",
+    "command": "echo blocked"
+  },
+  "assertions": []
+}
