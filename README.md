@@ -11,6 +11,8 @@ OneCode is licensed under the GNU General Public License, Version 3 only
 (`GPL-3.0-only`). Modified and redistributed versions must remain under GPL v3
 and provide the corresponding source as required by the license.
 
+**Git History Note**: This repository was re-initialized on 2026-09-01. Historical closure documents reference commit hashes from a previous repository that are preserved for record but cannot be verified here. See [docs/GIT_HISTORY_NOTE.md](docs/GIT_HISTORY_NOTE.md) for details.
+
 The short module entrypoint is `python3 -m onecode`. The older explicit CLI module form, such as `python3 -m onecode.cli doctor`, remains supported.
 
 ## Documentation

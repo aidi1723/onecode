@@ -1290,6 +1290,16 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
 
 
 def run_server(host: str = "127.0.0.1", port: int = 19080) -> None:
+    # Security check: non-loopback hosts must have a token configured
+    token = os.getenv("ONECODE_API_TOKEN")
+    allow_unauthenticated = os.getenv("ONECODE_ALLOW_UNAUTHENTICATED", "").lower() in {"1", "true", "yes", "on"}
+
+    if host not in LOOPBACK_HOSTS and allow_unauthenticated and not token:
+        raise ValueError(
+            f"Security error: Cannot bind to non-loopback host '{host}' with allow_unauthenticated=true and no ONECODE_API_TOKEN. "
+            "Either bind to a loopback address (127.0.0.1, localhost, ::1), set ONECODE_API_TOKEN, or disable allow_unauthenticated."
+        )
+
     server = ThreadingHTTPServer((host, port), OneCodeRequestHandler)
     try:
         server.serve_forever()
