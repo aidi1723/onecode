@@ -84,21 +84,21 @@ OneCode uses an I Ching (易经) based state system for deterministic control fl
 - [Path Guard](../README.md#safety-model) - Workspace containment and sensitive file protection
 - [Approval System](../README.md#local-agent-shell) - User approval for destructive operations
 
-## Release History
+## Development History
 
-### Current: v0.8.0 (2026-07-10)
-- [v0.8 Final Closure](ONECODE_V0_8_FINAL_CLOSURE_2026-07-10.md)
-- [I Ching v2 Canonicalization](ONECODE_ICHING_V2_CANONICALIZATION_CLOSURE_2026-07-10.md)
-- [Runtime Balance Mutation Evidence](ONECODE_RUNTIME_BALANCE_MUTATION_EVIDENCE_CLOSURE_2026-07-10.md)
-- [Shell v4 Contract](ONECODE_SHELL_V4_PUBLIC_CONTRACT_CLOSURE_2026-07-10.md)
+### Current Release
+- Version: v0.8.0 (2026-07-10)
+- [Release Checklist](RELEASE_CHECKLIST.md) - Release verification process
 
-### Recent Updates
-- [LibreChat v0.8.7 Integration (2026-07-16)](ONECODE_V087_VNEXT_GITHUB_CLOSURE_2026-07-16.md)
-- [v0.2 Maturity Hardening](ONECODE_V0_2_MATURITY_HARDENING_CLOSURE_CHECKLIST.md)
-- [Project Optimization (2026-07-03)](ONECODE_PROJECT_OPTIMIZATION_REPORT_2026-07-03.md)
+### Closure Reports
+All development closure and verification records have been moved to the [closure/](closure/) directory (37 documents).
 
-### All Closure Reports
-See the main `docs/` directory for complete closure and verification records.
+Key closure documents:
+- [v0.8 Final Closure](closure/ONECODE_V0_8_FINAL_CLOSURE_2026-07-10.md)
+- [I Ching v2 Canonicalization](closure/ONECODE_ICHING_V2_CANONICALIZATION_CLOSURE_2026-07-10.md)
+- [LibreChat v0.8.7 Integration](closure/ONECODE_LIBRECHAT_V087_HARDENING_CLOSURE_2026-07-15.md)
+
+See the `closure/` directory for complete development history.
 
 ## Advanced Topics
 
