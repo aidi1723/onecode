@@ -856,6 +856,41 @@ class TestIchingKernel(unittest.TestCase):
             for branch in branches:
                 self.assertIn(branch, twelve_branches)
 
+    def test_palace_attribution_for_pure_hexagrams(self):
+        """测试八纯卦的卦宫归属"""
+        # 乾卦（63 = 0b111111）
+        palace = IchingKernel.palace_attribution(63)
+        self.assertEqual(palace["palace"], 0b111)
+        self.assertEqual(palace["palace_name"], "qian")
+        self.assertEqual(palace["palace_element"], "metal")
+        self.assertEqual(palace["world_line"], 5)
+        self.assertEqual(palace["response_line"], 2)
+        self.assertEqual(palace["hexagram_type"], "pure")
+
+        # 坤卦（0 = 0b000000）
+        palace = IchingKernel.palace_attribution(0)
+        self.assertEqual(palace["palace"], 0b000)
+        self.assertEqual(palace["palace_name"], "kun")
+        self.assertEqual(palace["palace_element"], "earth")
+        self.assertEqual(palace["world_line"], 5)
+        self.assertEqual(palace["hexagram_type"], "pure")
+
+    def test_palace_attribution_for_all_64_hexagrams(self):
+        """测试所有64卦都有明确卦宫归属"""
+        for i in range(64):
+            palace = IchingKernel.palace_attribution(i)
+            # 卦宫必须是8个三卦之一
+            self.assertIn(palace["palace"], range(8))
+            # 世爻位置在0-5范围内
+            self.assertIn(palace["world_line"], range(6))
+            # 应爻位置在0-5范围内
+            self.assertIn(palace["response_line"], range(6))
+            # 世应相隔两爻（模6）
+            self.assertEqual((palace["world_line"] + 3) % 6, palace["response_line"])
+            # 卦型是三种之一
+            self.assertIn(palace["hexagram_type"], ["pure", "travel", "return"])
+
+
 
     def test_hexagram_record_contains_cross_cutting_rule_profile(self):
         status = IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)

@@ -1572,6 +1572,107 @@ class IchingKernel:
         outer_branches = TRIGRAM_BRANCHES[outer][3:]
         return inner_branches + outer_branches
 
+    @staticmethod
+    def palace_attribution(status_code: int) -> dict:
+        """
+        计算卦宫归属和世应位置（安世应算法）
+
+        传统六爻系统中，每个卦归属于八个卦宫之一，通过逐爻阴阳互变
+        找到内外卦相同的状态，该状态即为卦宫，互变过程中找到的爻位
+        即为世爻（自己）位置，应爻（对方/事）与世爻相隔两爻。
+
+        Args:
+            status_code: 6-bit 状态码 (0-63)
+
+        Returns:
+            {
+                "palace": 卦宫三卦码 (0-7),
+                "palace_name": 卦宫名称 ("qian"/"kun"等),
+                "palace_element": 卦宫五行 ("metal"/"earth"等),
+                "world_line": 世爻位置 (0-5),
+                "response_line": 应爻位置 (0-5),
+                "hexagram_type": 卦型 ("pure"/"travel"/"return")
+            }
+
+        算法（安世应法）:
+            1. 八纯卦（内外卦相同）→ 世爻在上爻（索引5）
+            2. 非八纯卦: 从初爻开始逐爻阴阳互变
+            3. 直到内外卦变成相同 → 该爻为世爻，该卦为卦宫
+            4. 变到初爻才相同 → 归魂卦，世爻在三爻（索引2）
+            5. 应爻 = (世爻 + 3) % 6
+
+        用途（参考维度，不影响决策）:
+            - 确定状态的"根"属性（卦宫归属）
+            - 识别世应位置（主客关系）
+            - 为六亲关系装配提供基准
+        """
+        inner = status_code & 0b111
+        outer = (status_code >> 3) & 0b111
+
+        # 八纯卦判断
+        if inner == outer:
+            return {
+                "palace": inner,
+                "palace_name": IchingKernel.TRIGRAM_NAMES[inner],
+                "palace_element": IchingKernel.TRIGRAM_ELEMENTS[inner],
+                "world_line": 5,  # 上爻
+                "response_line": 2,  # 三爻
+                "hexagram_type": "pure"
+            }
+
+        # 非八纯卦：尝试从每个卦宫寻找归属
+        # 算法：穷举每个卦宫，看从其本宫卦出发能否通过变爻得到目标卦
+
+        # 首先尝试单爻变化（一世到六世卦）
+        for palace in range(8):
+            palace_pure = (palace << 3) | palace
+            for world_line in range(6):
+                test_hex = palace_pure ^ (1 << world_line)
+                if test_hex == status_code:
+                    # 找到卦宫
+                    hexagram_type = "return" if world_line == 2 else "travel"
+                    return {
+                        "palace": palace,
+                        "palace_name": IchingKernel.TRIGRAM_NAMES[palace],
+                        "palace_element": IchingKernel.TRIGRAM_ELEMENTS[palace],
+                        "world_line": world_line,
+                        "response_line": (world_line + 3) % 6,
+                        "hexagram_type": hexagram_type
+                    }
+
+        # 尝试多爻变化（游魂卦、归魂卦等）
+        for palace in range(8):
+            palace_pure = (palace << 3) | palace
+            for mask in range(1, 64):
+                test_hex = palace_pure ^ mask
+                if test_hex == status_code:
+                    # 找到卦宫，根据变化模式判断类型
+                    changed_count = bin(mask).count('1')
+
+                    # 内卦三爻全变：归魂卦
+                    if changed_count == 3 and (mask & 0b111) == 0b111:
+                        return {
+                            "palace": palace,
+                            "palace_name": IchingKernel.TRIGRAM_NAMES[palace],
+                            "palace_element": IchingKernel.TRIGRAM_ELEMENTS[palace],
+                            "world_line": 2,
+                            "response_line": 5,
+                            "hexagram_type": "return"
+                        }
+                    else:
+                        # 其他多爻变化：游魂卦
+                        return {
+                            "palace": palace,
+                            "palace_name": IchingKernel.TRIGRAM_NAMES[palace],
+                            "palace_element": IchingKernel.TRIGRAM_ELEMENTS[palace],
+                            "world_line": 3,
+                            "response_line": 0,
+                            "hexagram_type": "travel"
+                        }
+
+        # 理论上不会到达这里（64卦都有归属）
+        raise ValueError(f"Cannot find palace for status {status_code}")
+
 
 
 def is_valid_hexagram_code(value: str) -> bool:
