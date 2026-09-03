@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from onecode.kernel.hexagram import IchingKernel
+from onecode.kernel.rule_constants import TransitionAction
 
 
 SCENARIO_ACTIONS = {
@@ -31,7 +32,7 @@ class RecoveryContext:
             recommended_action = "inspect"
         elif attempt_count >= MAX_ATTEMPTS:
             state = "exhausted"
-            recommended_action = "halt"
+            recommended_action = TransitionAction.HALT
         else:
             state = "failed"
             recommended_action = None
@@ -77,7 +78,7 @@ def recovery_status(
 
 
 def _iching_status_code(state: str, recommended_action: str) -> int:
-    if state == "exhausted" or recommended_action == "halt":
+    if state == "exhausted" or recommended_action == TransitionAction.HALT:
         return IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN)
     if state == "succeeded":
         return IchingKernel.compute_status(IchingKernel.LI, IchingKernel.GEN)

@@ -2,6 +2,12 @@ from dataclasses import dataclass
 import math
 
 from onecode.kernel.iching_encoding import ACTIVE_RULE_SCHEMA
+from onecode.kernel.rule_constants import (
+    ELEMENT_DYNAMICS_MODULATION_TABLE,
+    ElementModulation,
+    TransitionAction,
+    TransitionReason,
+)
 
 
 @dataclass(frozen=True)
@@ -125,11 +131,11 @@ class IchingKernel:
         ("earth", "earth"): 1.0,
     }
     RUNTIME_RELATION_POLICY = {
-        "generates": ("accelerate", "generating_relation_accelerates_execution"),
-        "same": ("continue", None),
-        "generated_by": ("recover", "generated_by_relation_recovers_execution"),
-        "controlled_by": ("checkpoint", "controlled_by_relation_requires_verifier"),
-        "neutral": ("discover", "neutral_relation_requires_discovery"),
+        "generates": (TransitionAction.ACCELERATE, TransitionReason.GENERATING_RELATION_ACCELERATES_EXECUTION),
+        "same": (TransitionAction.CONTINUE, TransitionReason.SAME_ELEMENT_BALANCED_CONTINUE),
+        "generated_by": (TransitionAction.RECOVER, TransitionReason.GENERATED_BY_RELATION_RECOVERS_EXECUTION),
+        "controlled_by": (TransitionAction.CHECKPOINT, TransitionReason.CONTROLLED_BY_RELATION_REQUIRES_VERIFIER),
+        "neutral": (TransitionAction.DISCOVER, TransitionReason.NEUTRAL_RELATION_REQUIRES_DISCOVERY),
     }
     HARMONY_RELATION_SCORES = {
         "generates": 2,
@@ -140,12 +146,12 @@ class IchingKernel:
         "controlled_by": -2,
     }
     RUNTIME_CONTROL_MODULATION_POLICY = {
-        "hard_control": ("halt", "sovereignty_fire_suppresses_asset"),
-        "quench": ("halt", "water_quenches_fire_boundary"),
-        "prune": ("prune", "metal_prunes_wood_scope"),
-        "dam": ("throttle", "earth_dams_water_flow"),
-        "break_ground": ("activate", "wood_breaks_inert_ground"),
-        "normal": ("throttle", "controlling_relation_throttles_execution"),
+        ElementModulation.HARD_CONTROL: (TransitionAction.HALT, TransitionReason.SOVEREIGNTY_FIRE_SUPPRESSES_ASSET),
+        ElementModulation.QUENCH: (TransitionAction.HALT, TransitionReason.WATER_QUENCHES_FIRE_BOUNDARY),
+        ElementModulation.PRUNE: (TransitionAction.PRUNE, TransitionReason.METAL_PRUNES_WOOD_SCOPE),
+        ElementModulation.DAM: (TransitionAction.THROTTLE, TransitionReason.EARTH_DAMS_WATER_FLOW),
+        ElementModulation.BREAK_GROUND: (TransitionAction.ACTIVATE, TransitionReason.WOOD_BREAKS_INERT_GROUND),
+        ElementModulation.NORMAL: (TransitionAction.THROTTLE, TransitionReason.CONTROLLING_RELATION_THROTTLES_EXECUTION),
     }
     RULE_LAYERS = {
         "bit_derived": [
@@ -524,9 +530,9 @@ class IchingKernel:
     @classmethod
     def balance_pressure(cls, balance: str) -> str:
         if balance in {"pure_yang", "yang_excess"}:
-            return "cooldown"
+            return TransitionAction.COOLDOWN
         if balance in {"pure_yin", "yin_excess"}:
-            return "activate"
+            return TransitionAction.ACTIVATE
         return "stable"
 
     @classmethod
@@ -623,7 +629,7 @@ class IchingKernel:
         if relation == "controls":
             return cls.RUNTIME_CONTROL_MODULATION_POLICY.get(
                 modulation,
-                cls.RUNTIME_CONTROL_MODULATION_POLICY["normal"],
+                cls.RUNTIME_CONTROL_MODULATION_POLICY[ElementModulation.NORMAL],
             )
         return cls.RUNTIME_RELATION_POLICY.get(relation, cls.RUNTIME_RELATION_POLICY["neutral"])
 
@@ -941,8 +947,8 @@ class IchingKernel:
             cls.transition(status_code).action
             for status_code in status_codes
         ]
-        halt_count = sum(1 for action in transition_actions if action == "halt")
-        checkpoint_count = sum(1 for action in transition_actions if action == "checkpoint")
+        halt_count = sum(1 for action in transition_actions if action == TransitionAction.HALT)
+        checkpoint_count = sum(1 for action in transition_actions if action == TransitionAction.CHECKPOINT)
         if sample_count == 0:
             decision = "observe"
             reason = "empty_sequence"
@@ -950,13 +956,13 @@ class IchingKernel:
             decision = "sovereignty_halt"
             reason = "low_entropy_repeated_halt"
         elif normalized_entropy <= cls.ENTROPY_THRESHOLD and checkpoint_count > 0:
-            decision = "checkpoint"
+            decision = TransitionAction.CHECKPOINT
             reason = "low_entropy_repeated_checkpoint"
         elif normalized_entropy > cls.ENTROPY_THRESHOLD:
             decision = "observe"
             reason = "high_entropy_exploration"
         else:
-            decision = "continue"
+            decision = TransitionAction.CONTINUE
             reason = "low_entropy_stable"
         return {
             "sample_count": sample_count,
@@ -1017,7 +1023,7 @@ class IchingKernel:
             "mapped_count": len(mapped) - unmapped_count,
             "unmapped_count": unmapped_count,
             "total_over_known_inputs": unmapped_count == 0,
-            "safe_domain": ["halt", "checkpoint", "discover"],
+            "safe_domain": [TransitionAction.HALT, TransitionAction.CHECKPOINT, TransitionAction.DISCOVER],
         }
 
     @classmethod
@@ -1032,7 +1038,7 @@ class IchingKernel:
             status_code = cls.classify_known_input(sample)
             transition = cls.transition(status_code)
             histogram[transition.action] = histogram.get(transition.action, 0) + 1
-            if transition.action in {"continue", "accelerate", "activate"}:
+            if transition.action in {TransitionAction.CONTINUE, TransitionAction.ACCELERATE, TransitionAction.ACTIVATE}:
                 unsafe_pass_through_samples.append(
                     {
                         "kind": sample["kind"],
@@ -1064,7 +1070,7 @@ class IchingKernel:
             has_dangerous = any(bool(sample["dangerous"]) for sample in samples)
             has_nondangerous = any(not bool(sample["dangerous"]) for sample in samples)
             transition = cls.transition(status_code)
-            if has_dangerous and has_nondangerous and transition.action in {"continue", "accelerate", "activate"}:
+            if has_dangerous and has_nondangerous and transition.action in {TransitionAction.CONTINUE, TransitionAction.ACCELERATE, TransitionAction.ACTIVATE}:
                 unsafe_collisions.append(
                     {
                         "status_code": status_code,
@@ -1090,16 +1096,16 @@ class IchingKernel:
         balance_penalty = abs(float(profile["yang_count"]) - 3.0) / 3.0
         transition = cls.transition(normalized)
         action_penalties = {
-            "continue": 0.0,
-            "recover": 0.0,
-            "accelerate": 0.1,
-            "activate": 0.2,
-            "cooldown": 0.35,
-            "throttle": 0.45,
-            "prune": 0.55,
-            "checkpoint": 0.75,
-            "discover": 0.85,
-            "halt": 1.0,
+            TransitionAction.CONTINUE: 0.0,
+            TransitionAction.RECOVER: 0.0,
+            TransitionAction.ACCELERATE: 0.1,
+            TransitionAction.ACTIVATE: 0.2,
+            TransitionAction.COOLDOWN: 0.35,
+            TransitionAction.THROTTLE: 0.45,
+            TransitionAction.PRUNE: 0.55,
+            TransitionAction.CHECKPOINT: 0.75,
+            TransitionAction.DISCOVER: 0.85,
+            TransitionAction.HALT: 1.0,
         }
         bandwidth_penalty = 1.0 - cls.execution_bandwidth(normalized)
         return balance_penalty + action_penalties.get(transition.action, 0.5) + bandwidth_penalty
@@ -1125,22 +1131,10 @@ class IchingKernel:
         relation = cls.element_relation(outer_element, inner_element)
         cross_relation = cls.element_cross_relation(outer_element, inner_element)
         pressure = cls.yin_yang_cross_profile(normalized)["pressure"]
-        if cross_relation == "controls" and outer_element == "fire" and inner_element == "metal":
-            modulation = "hard_control"
-        elif cross_relation == "generates" and outer_element == "water" and inner_element == "wood":
-            modulation = "recovery_seed"
-        elif cross_relation == "controls" and outer_element == "water" and inner_element == "fire":
-            modulation = "quench"
-        elif cross_relation == "controls" and outer_element == "metal" and inner_element == "wood":
-            modulation = "prune"
-        elif cross_relation == "generates" and outer_element == "wood" and inner_element == "fire":
-            modulation = "fuel"
-        elif cross_relation == "controls" and outer_element == "earth" and inner_element == "water":
-            modulation = "dam"
-        elif cross_relation == "controls" and outer_element == "wood" and inner_element == "earth":
-            modulation = "break_ground"
-        else:
-            modulation = "normal"
+        modulation = ELEMENT_DYNAMICS_MODULATION_TABLE.get(
+            (cross_relation, outer_element, inner_element),
+            ElementModulation.NORMAL,
+        )
         return {
             "outer_element": outer_element,
             "inner_element": inner_element,
@@ -1160,7 +1154,7 @@ class IchingKernel:
         dynamics = cls.element_dynamics(normalized)
         transition = cls.transition(normalized)
         runtime_action, runtime_reason = cls.runtime_relation_policy(dynamics["cross_relation"], dynamics["modulation"])
-        if dynamics["modulation"] == "recovery_seed" and transition.action == "checkpoint":
+        if dynamics["modulation"] == ElementModulation.RECOVERY_SEED and transition.action == TransitionAction.CHECKPOINT:
             runtime_action, runtime_reason = transition.action, transition.reason
         dispatch_decision = cls.dispatch_decision(transition)
         return {
@@ -1439,52 +1433,52 @@ class IchingKernel:
         if normalized == cls.compute_status(cls.KUN, cls.KUN):
             return IchingTransition(
                 status_code=normalized,
-                action="discover",
-                reason="rule_gap_requires_discovery",
+                action=TransitionAction.DISCOVER,
+                reason=TransitionReason.RULE_GAP_REQUIRES_DISCOVERY,
             )
-        if dynamics["modulation"] == "hard_control":
+        if dynamics["modulation"] == ElementModulation.HARD_CONTROL:
             return IchingTransition(
                 status_code=cls.compute_status(cls.LI, cls.KUN),
-                action="halt",
-                reason="sovereignty_fire_suppresses_asset",
+                action=TransitionAction.HALT,
+                reason=TransitionReason.SOVEREIGNTY_FIRE_SUPPRESSES_ASSET,
             )
         if outer == cls.LI:
             return IchingTransition(
                 status_code=normalized,
-                action="halt",
-                reason="sovereignty_fire_boundary_halt",
+                action=TransitionAction.HALT,
+                reason=TransitionReason.SOVEREIGNTY_FIRE_BOUNDARY_HALT,
             )
         if normalized == cls.compute_status(cls.GEN, cls.KUN):
             return IchingTransition(
                 status_code=normalized,
-                action="checkpoint",
-                reason="mountain_contains_local_executor_fault",
+                action=TransitionAction.CHECKPOINT,
+                reason=TransitionReason.MOUNTAIN_CONTAINS_LOCAL_EXECUTOR_FAULT,
             )
 
         profile = cls.yin_yang_profile(normalized)
         if profile["balance"] in {"pure_yang", "yang_excess"}:
             return IchingTransition(
                 status_code=cls.compute_status(cls.GEN, inner),
-                action="cooldown",
-                reason="yang_overload_cooldown",
+                action=TransitionAction.COOLDOWN,
+                reason=TransitionReason.YANG_OVERLOAD_COOLDOWN,
             )
         if profile["balance"] == "pure_yin":
             return IchingTransition(
                 status_code=normalized,
-                action="discover",
-                reason="rule_gap_requires_discovery",
+                action=TransitionAction.DISCOVER,
+                reason=TransitionReason.RULE_GAP_REQUIRES_DISCOVERY,
             )
-        if dynamics["modulation"] == "recovery_seed":
+        if dynamics["modulation"] == ElementModulation.RECOVERY_SEED:
             return IchingTransition(
                 status_code=normalized,
-                action="checkpoint",
-                reason="network_water_preserves_resume_seed",
+                action=TransitionAction.CHECKPOINT,
+                reason=TransitionReason.NETWORK_WATER_PRESERVES_RESUME_SEED,
             )
         if profile["balance"] == "yin_excess" and inner != cls.KUN:
             return IchingTransition(
                 status_code=normalized,
-                action="activate",
-                reason="yin_excess_requires_activation",
+                action=TransitionAction.ACTIVATE,
+                reason=TransitionReason.YIN_EXCESS_REQUIRES_ACTIVATION,
             )
 
         action, reason = cls.runtime_relation_policy(dynamics["cross_relation"], dynamics["modulation"])
@@ -1492,9 +1486,9 @@ class IchingKernel:
 
     @classmethod
     def dispatch_decision(cls, transition: IchingTransition) -> str:
-        if transition.action in {"halt", "checkpoint", "discover"}:
+        if transition.action in {TransitionAction.HALT, TransitionAction.CHECKPOINT, TransitionAction.DISCOVER}:
             return "stop"
-        return "continue"
+        return TransitionAction.CONTINUE
 
     @classmethod
     def delivery_decision(

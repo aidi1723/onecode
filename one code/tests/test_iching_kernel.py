@@ -217,7 +217,7 @@ class TestIchingKernel(unittest.TestCase):
     def test_runtime_relation_policy_covers_all_cross_relations(self):
         expected = {
             "generates": ("accelerate", "generating_relation_accelerates_execution"),
-            "same": ("continue", None),
+            "same": ("continue", "same_element_balanced_continue"),
             "generated_by": ("recover", "generated_by_relation_recovers_execution"),
             "controlled_by": ("checkpoint", "controlled_by_relation_requires_verifier"),
             "neutral": ("discover", "neutral_relation_requires_discovery"),
