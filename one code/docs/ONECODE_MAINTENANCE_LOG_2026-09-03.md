@@ -172,7 +172,113 @@ PYTHONPATH=src python3 -m onecode doctor
 
 ---
 
-## 六、技术决策
+## 六、规则完整性补充
+
+### ✅ 任务 6.1: 补充4个缺失的转换原因（已完成）
+
+**问题**: 64个状态中有4个（14, 27, 49, 54）的转换原因为 `None`
+
+**分析**:
+```python
+Status 14: continue, outer=kun, inner=zhen, balance=balanced
+Status 27: continue, outer=dui, inner=xun, balance=balanced  
+Status 49: continue, outer=gen, inner=li, balance=balanced
+Status 54: continue, outer=qian, inner=kan, balance=balanced
+```
+
+**共同特征**:
+- 动作: `continue`
+- 五行关系: `same` (同元素)
+- 阴阳平衡: `balanced`
+
+**解决方案**:
+1. ✅ 添加新转换原因: `SAME_ELEMENT_BALANCED_CONTINUE`
+2. ✅ 更新 `RUNTIME_RELATION_POLICY` 第135行
+3. ✅ 更新测试用例验证
+
+**验证结果**:
+```bash
+✅ 77/77 易经内核测试通过
+✅ 数学审计: Lyapunov稳定 + 0碰撞
+✅ 核心功能: 8/8 检查通过
+✅ 规则覆盖: 64/64 (100%)
+```
+
+**提交**:
+```
+commit 619c505
+feat: complete I Ching rule coverage with same-element transition reason
+```
+
+---
+
+## 七、Phase 2 深度扩展
+
+### ✅ 任务 7.1: 元素调制扩展（已完成）
+
+**时间**: 2026-09-03
+
+#### 发现的缺口
+五行相生环中有3个关系缺少语义调制：
+- 火生土（fire → earth）
+- 土生金（earth → metal）
+- 金生水（metal → water）
+
+#### 实施步骤（TDD）
+1. ✅ 编写失败测试
+   - 扩展 `test_element_dynamics_covers_control_and_generation_modulations`
+   - 添加3个新的测试用例
+   - 验证失败：`AssertionError: 'normal' != 'refine'`
+
+2. ✅ 实现3个新调制类型
+   - 添加到 `ElementModulation` 枚举：
+     ```python
+     REFINE = "refine"      # 火生土：炼化精制
+     FORGE = "forge"        # 土生金：铸造强化
+     TEMPER = "temper"      # 金生水：淬炼冷却
+     ```
+
+3. ✅ 更新元素动力学调制表
+   - 添加到 `ELEMENT_DYNAMICS_MODULATION_TABLE`：
+     ```python
+     ("generates", "fire", "earth"): ElementModulation.REFINE,
+     ("generates", "earth", "metal"): ElementModulation.FORGE,
+     ("generates", "metal", "water"): ElementModulation.TEMPER,
+     ```
+
+#### 验证结果
+```bash
+# 单元测试
+✅ test_element_dynamics_covers_control_and_generation_modulations: 7/7 cases
+
+# 易经内核测试
+✅ 74/74 tests passed
+
+# 数学审计
+✅ Lyapunov 非递增: true
+✅ 碰撞安全: 0 unsafe collisions
+✅ 状态机闭合: 64/64
+
+# 核心功能
+✅ doctor: 8/8 checks passed
+
+# 五行相生环完整性
+✅ 木生火 → fuel (燃料加速)
+✅ 火生土 → refine (炼化精制) ⭐ 新增
+✅ 土生金 → forge (铸造强化) ⭐ 新增
+✅ 金生水 → temper (淬炼冷却) ⭐ 新增
+✅ 水生木 → recovery_seed (恢复种子)
+```
+
+**提交**:
+```
+commit d5ef156
+feat: complete five elements generation cycle with refine/forge/temper modulations
+```
+
+---
+
+## 八、技术决策
 
 ### 6.1 实现原则
 - **TDD驱动**: 先写测试，再实现
