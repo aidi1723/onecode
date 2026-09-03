@@ -1,0 +1,19 @@
+{
+  "report_file": "/home/aidi/projects/codex-evals/reports/dazidian-codex-eval-unsandboxed-20260525-174420.md",
+  "chars": 10556,
+  "checks": {
+    "has_real_file_evidence": true,
+    "has_project_goal": true,
+    "has_structure": true,
+    "has_architecture": true,
+    "has_tests": true,
+    "has_security": true,
+    "has_agentos_alignment": true,
+    "has_top_10": true,
+    "has_score_table": true,
+    "has_no_secret": true
+  },
+  "score": 10,
+  "total": 10,
+  "passed": true
+}

@@ -2,9 +2,9 @@
 
 ## Qwen2.5-Coder-1.5B-Instruct HF Snapshot
 
-Archived to N100:
+Archived to remote model archive host:
 
-`n100:~/yizijue-model-archive/Qwen2.5-Coder-1.5B-Instruct-hf`
+`<archive-host>:~/yizijue-model-archive/Qwen2.5-Coder-1.5B-Instruct-hf`
 
 Remote files:
 
@@ -20,19 +20,19 @@ Model weight SHA256:
 
 `c1b9b30e907950516ba3c646bdf570d8084c25a6410a0cdca80cf04b11bc13a8  model.safetensors`
 
-Archive size on N100:
+Archive size on remote host:
 
 `2.9G`
 
-Original local cache path before cleanup:
+Original Hugging Face cache path before cleanup:
 
-`/Users/aidi/.cache/huggingface/hub/models--Qwen--Qwen2.5-Coder-1.5B-Instruct`
+`~/.cache/huggingface/hub/models--Qwen--Qwen2.5-Coder-1.5B-Instruct`
 
 Restore command when training is needed:
 
 ```bash
 mkdir -p ~/.cache/huggingface/hub/models--Qwen--Qwen2.5-Coder-1.5B-Instruct/snapshots/2e1fd397ee46e1388853d2af2c993145b0f1098a
-rsync -az n100:~/yizijue-model-archive/Qwen2.5-Coder-1.5B-Instruct-hf/ \
+rsync -az <archive-host>:~/yizijue-model-archive/Qwen2.5-Coder-1.5B-Instruct-hf/ \
   ~/.cache/huggingface/hub/models--Qwen--Qwen2.5-Coder-1.5B-Instruct/snapshots/2e1fd397ee46e1388853d2af2c993145b0f1098a/
 ```
 

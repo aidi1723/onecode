@@ -1,0 +1,33 @@
+{
+  "quality": {
+    "exit_code": 0,
+    "timed_out": false,
+    "wall_time_seconds": 12.267,
+    "fs_integrity": "pass",
+    "chars": 914,
+    "stderr_chars": 0,
+    "has_no_secret": true,
+    "report_file": "/home/aidi/projects/codex-evals/reports/dazidian-claude-kimi-shadow-injection-short-20260525-shadow-injection-settings.md",
+    "stderr_file": "/home/aidi/projects/codex-evals/reports/dazidian-claude-kimi-shadow-injection-short-20260525-shadow-injection-settings.stderr.txt"
+  },
+  "usage": {
+    "jsonl": "/home/aidi/.claude/projects/-home-aidi-projects-codex-evals-dazidian/3469e558-24f1-495f-95a6-8b02b4c38c20.jsonl",
+    "unique_assistant_messages": 1,
+    "input_tokens": 357,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 1280,
+    "output_tokens": 96,
+    "total_without_cache_read": 453,
+    "total_with_cache_read": 1733,
+    "tool_use_count": 0,
+    "unique_tools": [],
+    "bash_count": 0,
+    "read_count": 0,
+    "native_inspect_count": 0
+  },
+  "gateway": {
+    "base_url": "http://127.0.0.1:8084",
+    "mode": "shadow_tool_injection",
+    "settings_override": true
+  }
+}

@@ -1,0 +1,1384 @@
+{
+  "project": "字溯东方 Hanzi Lifecycle",
+  "version": "batch-008",
+  "description": "第八批时间、历法与昼夜变化核心字样板数据。覆盖年时、朝夕昼夜、四季、古今来去和始终。",
+  "entries": [
+    {
+      "id": "131",
+      "modern": "年",
+      "traditional_or_variants": [
+        "年"
+      ],
+      "unicode": "U+5E74",
+      "pinyin": [
+        "nian2"
+      ],
+      "radical": "干",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "多像人负禾或收获谷物之形，表示谷物成熟一周期。",
+        "small_seal": "禾与人相关构件线条化。",
+        "clerical": "结构笔画化，逐渐成今形。",
+        "regular_traditional": "年",
+        "simplified": "年",
+        "summary": "由谷物成熟、收成周期，发展为一年、年龄、岁月和年节等义。"
+      },
+      "meaning_evolution": {
+        "original": "谷物成熟或收成周期。",
+        "early": "年成、收获；一岁周期。",
+        "later": "年份、年龄、岁月、年节。",
+        "modern": [
+          "一年",
+          "年份",
+          "年龄",
+          "岁月",
+          "春节或年节"
+        ],
+        "common_words": [
+          "今年",
+          "年龄",
+          "过年",
+          "年纪",
+          "年成"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "奴颠切"
+        ],
+        "rhyme_group": "先韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“谷孰也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "年从农业收成周期到历法单位，是农耕时间观的核心字。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "一年",
+          "年份",
+          "年龄",
+          "岁月",
+          "春节或年节"
+        ],
+        "common_words": [
+          "今年",
+          "年龄",
+          "过年",
+          "年纪",
+          "年成"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "年：现代主要用于表示一年；年份；年龄；岁月；春节或年节。常见用法如：今年、年龄、过年、年纪、年成。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "132",
+      "modern": "时",
+      "traditional_or_variants": [
+        "時",
+        "时"
+      ],
+      "unicode": "U+65F6",
+      "traditional_unicode": "U+6642",
+      "pinyin": [
+        "shi2"
+      ],
+      "radical": "日",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "早期有旹、時等异体，常与日、止或寺声系统相关。",
+        "small_seal": "繁体“時”从日、寺声，表示日运行中的时序。",
+        "clerical": "日旁与寺部笔画化。",
+        "regular_traditional": "時",
+        "simplified": "时",
+        "summary": "由季节、时令和日中时刻，发展为时间、时机、时代和时常。"
+      },
+      "meaning_evolution": {
+        "original": "时令、季节或合宜时刻。",
+        "early": "四时、时令、时机。",
+        "later": "时间、时辰、时代、当时、时常。",
+        "modern": [
+          "时间",
+          "时刻",
+          "时机",
+          "时代",
+          "时常"
+        ],
+        "common_words": [
+          "时间",
+          "时候",
+          "时代",
+          "时机",
+          "小时"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "市之切"
+        ],
+        "rhyme_group": "之韵",
+        "entering_tone": false,
+        "classical_note": "传统字书多以四时、时令解释“时/時”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "时/時有多个古异体，后续应补旹、峕等形体链。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "时间",
+          "时刻",
+          "时机",
+          "时代",
+          "时常"
+        ],
+        "common_words": [
+          "时间",
+          "时候",
+          "时代",
+          "时机",
+          "小时"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "时：现代主要用于表示时间；时刻；时机；时代；时常。常见用法如：时间、时候、时代、时机、小时。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "133",
+      "modern": "朝",
+      "traditional_or_variants": [
+        "朝"
+      ],
+      "unicode": "U+671D",
+      "pinyin": [
+        "chao2",
+        "zhao1"
+      ],
+      "radical": "月",
+      "stroke_count": 12,
+      "shape_evolution": {
+        "oracle_bronze": "常从日、月、草木或水流等构件，表示太阳初升、清晨。",
+        "small_seal": "日月并见、晨光形态线条化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "朝",
+        "simplified": "朝",
+        "summary": "由早晨太阳升起，发展为朝见、朝廷、朝代和向着某方。"
+      },
+      "meaning_evolution": {
+        "original": "早晨。",
+        "early": "清晨；朝见君主。",
+        "later": "朝廷、朝代、面向、趋向。",
+        "modern": [
+          "早晨",
+          "朝见或朝廷",
+          "朝代",
+          "向着"
+        ],
+        "common_words": [
+          "朝阳",
+          "朝廷",
+          "朝代",
+          "朝向",
+          "今朝"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "陟遥切",
+          "直遥切"
+        ],
+        "rhyme_group": "宵韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“旦也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "朝 zhao1 与 chao2 音义分化明显，需单独拆义。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "早晨",
+          "朝见或朝廷",
+          "朝代",
+          "向着"
+        ],
+        "common_words": [
+          "朝阳",
+          "朝廷",
+          "朝代",
+          "朝向",
+          "今朝"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "朝：现代主要用于表示早晨；朝见或朝廷；朝代；向着。常见用法如：朝阳、朝廷、朝代、朝向、今朝。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "134",
+      "modern": "夕",
+      "traditional_or_variants": [
+        "夕"
+      ],
+      "unicode": "U+5915",
+      "pinyin": [
+        "xi1"
+      ],
+      "radical": "夕",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "象月牙或夜晚初见月形，与月字分化。",
+        "small_seal": "月形简化为夕。",
+        "clerical": "弯月形笔画化。",
+        "regular_traditional": "夕",
+        "simplified": "夕",
+        "summary": "由傍晚月出之时，发展为傍晚、夜晚和某日之前夜。"
+      },
+      "meaning_evolution": {
+        "original": "傍晚，日落月出之时。",
+        "early": "傍晚、夜间。",
+        "later": "一夜、前夕、除夕等时间节点。",
+        "modern": [
+          "傍晚",
+          "夜晚",
+          "某一日的前夜"
+        ],
+        "common_words": [
+          "夕阳",
+          "朝夕",
+          "前夕",
+          "除夕",
+          "七夕"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "祥易切"
+        ],
+        "rhyme_group": "昔韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“莫也。从月半见”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "夕和月、夜、暮关系密切；夕偏傍晚，夜偏黑夜时段。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "傍晚",
+          "夜晚",
+          "某一日的前夜"
+        ],
+        "common_words": [
+          "夕阳",
+          "朝夕",
+          "前夕",
+          "除夕",
+          "七夕"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "夕：现代主要用于表示傍晚；夜晚；某一日的前夜。常见用法如：夕阳、朝夕、前夕、除夕、七夕。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "135",
+      "modern": "夜",
+      "traditional_or_variants": [
+        "夜"
+      ],
+      "unicode": "U+591C",
+      "pinyin": [
+        "ye4"
+      ],
+      "radical": "夕",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "从夕，亦声或相关构件，表示黑夜时段。",
+        "small_seal": "夕部与声符结构规范化。",
+        "clerical": "上下左右结构笔画化。",
+        "regular_traditional": "夜",
+        "simplified": "夜",
+        "summary": "由日落后黑暗时段，发展为夜间、整夜和夜间活动。"
+      },
+      "meaning_evolution": {
+        "original": "夜晚，天黑的时间。",
+        "early": "黑夜，与昼、日相对。",
+        "later": "夜间、整夜、夜班等。",
+        "modern": [
+          "夜晚",
+          "夜间",
+          "黑暗时段",
+          "与昼相对的时间"
+        ],
+        "common_words": [
+          "夜晚",
+          "黑夜",
+          "夜间",
+          "半夜",
+          "昼夜"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "羊谢切"
+        ],
+        "rhyme_group": "祃韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“舍也。天下休舍也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "夜的说文训释偏义理，现代字段应以昼夜时段义为主。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "夜晚",
+          "夜间",
+          "黑暗时段",
+          "与昼相对的时间"
+        ],
+        "common_words": [
+          "夜晚",
+          "黑夜",
+          "夜间",
+          "半夜",
+          "昼夜"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "夜：现代主要用于表示夜晚；夜间；黑暗时段；与昼相对的时间。常见用法如：夜晚、黑夜、夜间、半夜、昼夜。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "136",
+      "modern": "春",
+      "traditional_or_variants": [
+        "春",
+        "萅"
+      ],
+      "unicode": "U+6625",
+      "pinyin": [
+        "chun1"
+      ],
+      "radical": "日",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "早期形体多含草木萌动、日光和屯声等因素。",
+        "small_seal": "艸、日、屯等结构线条化，异体有萅。",
+        "clerical": "结构笔画化为今形。",
+        "regular_traditional": "春",
+        "simplified": "春",
+        "summary": "由草木萌发、阳气生长的季节，发展为春季、青春、生机和情欲等义。"
+      },
+      "meaning_evolution": {
+        "original": "春季，草木萌发生长之时。",
+        "early": "一年第一季。",
+        "later": "青春、生命力、温暖、生育情欲等。",
+        "modern": [
+          "春季",
+          "青春",
+          "生机",
+          "男女情欲相关义"
+        ],
+        "common_words": [
+          "春天",
+          "春节",
+          "青春",
+          "春风",
+          "春色"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "昌唇切"
+        ],
+        "rhyme_group": "谆韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“推也。从艸，从日，艸春时生也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "春的季节义与生机义清晰，情感引申需单列。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "春季",
+          "青春",
+          "生机",
+          "男女情欲相关义"
+        ],
+        "common_words": [
+          "春天",
+          "春节",
+          "青春",
+          "春风",
+          "春色"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "春：现代主要用于表示春季；青春；生机；男女情欲相关义。常见用法如：春天、春节、青春、春风、春色。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "137",
+      "modern": "夏",
+      "traditional_or_variants": [
+        "夏"
+      ],
+      "unicode": "U+590F",
+      "pinyin": [
+        "xia4"
+      ],
+      "radical": "夂",
+      "stroke_count": 10,
+      "shape_evolution": {
+        "oracle_bronze": "早期形体多像盛大之人形或舞蹈形，季节义发展需复核。",
+        "small_seal": "人形与夂等构件规范化。",
+        "clerical": "复杂结构笔画化。",
+        "regular_traditional": "夏",
+        "simplified": "夏",
+        "summary": "由盛大、华夏族称等义，后稳定表示四季中的夏季。"
+      },
+      "meaning_evolution": {
+        "original": "大、华夏等传统义源，季节义需复核。",
+        "early": "华夏、夏后氏；也表大。",
+        "later": "夏季，一年第二季；朝代名。",
+        "modern": [
+          "夏季",
+          "中国古代朝代名",
+          "华夏相关"
+        ],
+        "common_words": [
+          "夏天",
+          "夏季",
+          "华夏",
+          "夏朝",
+          "盛夏"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "胡雅切",
+          "胡驾切"
+        ],
+        "rhyme_group": "马韵、祃韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“中国之人也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "夏不是单纯季节象形字，华夏族称、朝代、季节义需分层。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "夏季",
+          "中国古代朝代名",
+          "华夏相关"
+        ],
+        "common_words": [
+          "夏天",
+          "夏季",
+          "华夏",
+          "夏朝",
+          "盛夏"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "夏：现代主要用于表示夏季；中国古代朝代名；华夏相关。常见用法如：夏天、夏季、华夏、夏朝、盛夏。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "138",
+      "modern": "秋",
+      "traditional_or_variants": [
+        "秋",
+        "秌"
+      ],
+      "unicode": "U+79CB",
+      "pinyin": [
+        "qiu1"
+      ],
+      "radical": "禾",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "早期形体与禾、火或虫类形象等说法相关，表示禾谷成熟季节。",
+        "small_seal": "禾火结构规范化，异体有秌。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "秋",
+        "simplified": "秋",
+        "summary": "由禾谷成熟收获之季，发展为秋季、岁月、肃杀和收成。"
+      },
+      "meaning_evolution": {
+        "original": "禾谷成熟、收获季节。",
+        "early": "秋季、收成。",
+        "later": "一年、岁月、肃杀之气、关键时刻。",
+        "modern": [
+          "秋季",
+          "收获季节",
+          "一年或岁月",
+          "某种关键时刻"
+        ],
+        "common_words": [
+          "秋天",
+          "秋季",
+          "中秋",
+          "春秋",
+          "千秋"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "七由切"
+        ],
+        "rhyme_group": "尤韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“禾谷孰也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "秋的早期构形存在不同解释，收获季节义较稳定。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "秋季",
+          "收获季节",
+          "一年或岁月",
+          "某种关键时刻"
+        ],
+        "common_words": [
+          "秋天",
+          "秋季",
+          "中秋",
+          "春秋",
+          "千秋"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "秋：现代主要用于表示秋季；收获季节；一年或岁月；某种关键时刻。常见用法如：秋天、秋季、中秋、春秋、千秋。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "139",
+      "modern": "冬",
+      "traditional_or_variants": [
+        "冬"
+      ],
+      "unicode": "U+51AC",
+      "pinyin": [
+        "dong1"
+      ],
+      "radical": "夂",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "早期形体有绳结终端、时序终结等传统解释，后借表冬季。",
+        "small_seal": "终结符号与冰寒点画等结构规范化。",
+        "clerical": "夂下两点结构定型。",
+        "regular_traditional": "冬",
+        "simplified": "冬",
+        "summary": "由终结、岁末或寒冷季节，发展为冬季和终藏之时。"
+      },
+      "meaning_evolution": {
+        "original": "一年终结时段或冬季，具体字源需复核。",
+        "early": "冬季，四季之末。",
+        "later": "寒冷、岁末、冬藏。",
+        "modern": [
+          "冬季",
+          "寒冷时节",
+          "一年末季"
+        ],
+        "common_words": [
+          "冬天",
+          "冬季",
+          "寒冬",
+          "冬眠",
+          "冬至"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "都宗切"
+        ],
+        "rhyme_group": "冬韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“四时尽也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "冬与终在语义上有关联，但构形关系需谨慎。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "冬季",
+          "寒冷时节",
+          "一年末季"
+        ],
+        "common_words": [
+          "冬天",
+          "冬季",
+          "寒冬",
+          "冬眠",
+          "冬至"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "冬：现代主要用于表示冬季；寒冷时节；一年末季。常见用法如：冬天、冬季、寒冬、冬眠、冬至。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "140",
+      "modern": "早",
+      "traditional_or_variants": [
+        "早"
+      ],
+      "unicode": "U+65E9",
+      "pinyin": [
+        "zao3"
+      ],
+      "radical": "日",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "从日、十或甲类构件，传统解释为太阳初出或早晨。",
+        "small_seal": "日与下部构件规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "早",
+        "simplified": "早",
+        "summary": "由早晨，发展为时间在前、提前、很久以前和问候语。"
+      },
+      "meaning_evolution": {
+        "original": "早晨。",
+        "early": "清晨、日初出时。",
+        "later": "时间靠前、提前、早已。",
+        "modern": [
+          "早晨",
+          "时间在前",
+          "提前",
+          "早已"
+        ],
+        "common_words": [
+          "早上",
+          "早晨",
+          "早饭",
+          "早已",
+          "提早"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "子皓切"
+        ],
+        "rhyme_group": "皓韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“晨也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "早与朝、旦、晨后续应并入清晨语义组。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "早晨",
+          "时间在前",
+          "提前",
+          "早已"
+        ],
+        "common_words": [
+          "早上",
+          "早晨",
+          "早饭",
+          "早已",
+          "提早"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "早：现代主要用于表示早晨；时间在前；提前；早已。常见用法如：早上、早晨、早饭、早已、提早。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "141",
+      "modern": "晚",
+      "traditional_or_variants": [
+        "晚",
+        "晩"
+      ],
+      "unicode": "U+665A",
+      "pinyin": [
+        "wan3"
+      ],
+      "radical": "日",
+      "stroke_count": 11,
+      "shape_evolution": {
+        "oracle_bronze": "后起形声字，从日、免声，表示日暮或时间靠后。",
+        "small_seal": "日旁与免部结构规范化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "晚",
+        "simplified": "晚",
+        "summary": "由日暮、时间靠后，发展为晚上、晚年、迟和后一阶段。"
+      },
+      "meaning_evolution": {
+        "original": "日暮、傍晚。",
+        "early": "天色将黑时。",
+        "later": "晚上、时间迟、晚年、后辈。",
+        "modern": [
+          "晚上",
+          "时间迟",
+          "后来的",
+          "晚年"
+        ],
+        "common_words": [
+          "晚上",
+          "晚饭",
+          "晚年",
+          "迟晚",
+          "晚辈"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "无远切"
+        ],
+        "rhyme_group": "阮韵",
+        "entering_tone": false,
+        "classical_note": "晚为从日、免声的形声字，现代义以日暮和迟为核心。",
+        "source_level": "广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "晚是后起常用时间字，甲骨层不宜强行上推。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "晚上",
+          "时间迟",
+          "后来的",
+          "晚年"
+        ],
+        "common_words": [
+          "晚上",
+          "晚饭",
+          "晚年",
+          "迟晚",
+          "晚辈"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "晚：现代主要用于表示晚上；时间迟；后来的；晚年。常见用法如：晚上、晚饭、晚年、迟晚、晚辈。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "142",
+      "modern": "昼",
+      "traditional_or_variants": [
+        "晝"
+      ],
+      "unicode": "U+663C",
+      "traditional_unicode": "U+665D",
+      "pinyin": [
+        "zhou4"
+      ],
+      "radical": "日",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“晝”从日、畫省或画界相关构件，表示白昼分明。",
+        "small_seal": "晝形结构规范化。",
+        "clerical": "复杂结构笔画化。",
+        "regular_traditional": "晝",
+        "simplified": "昼",
+        "summary": "由白天、日光照明时段，发展为昼夜相对的时间单位。"
+      },
+      "meaning_evolution": {
+        "original": "白天。",
+        "early": "日出至日落的明亮时段。",
+        "later": "昼夜、白昼、整日。",
+        "modern": [
+          "白天",
+          "与夜相对的时段"
+        ],
+        "common_words": [
+          "白昼",
+          "昼夜",
+          "昼伏夜出",
+          "昼间"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "陟救切"
+        ],
+        "rhyme_group": "宥韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“晝”为“日之出入，与夜为界”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "昼/晝与夜成对，繁简差异需图示。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "白天",
+          "与夜相对的时段"
+        ],
+        "common_words": [
+          "白昼",
+          "昼夜",
+          "昼伏夜出",
+          "昼间"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "昼：现代主要用于表示白天；与夜相对的时段。常见用法如：白昼、昼夜、昼伏夜出、昼间。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "143",
+      "modern": "今",
+      "traditional_or_variants": [
+        "今"
+      ],
+      "unicode": "U+4ECA",
+      "pinyin": [
+        "jin1"
+      ],
+      "radical": "人",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "早期形体解释不一，常作现在、当下时间指示。",
+        "small_seal": "今形线条化。",
+        "clerical": "上合下钩结构定型。",
+        "regular_traditional": "今",
+        "simplified": "今",
+        "summary": "由当下、现在，发展为今日、现代、今后等时间指示。"
+      },
+      "meaning_evolution": {
+        "original": "现在、当下。",
+        "early": "今日、现在。",
+        "later": "现代、如今、今后。",
+        "modern": [
+          "现在",
+          "今天",
+          "现代",
+          "此后"
+        ],
+        "common_words": [
+          "今天",
+          "如今",
+          "今年",
+          "今后",
+          "古今"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "居吟切"
+        ],
+        "rhyme_group": "侵韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“是时也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "今与古是时间指示对，构形解释需后续补强。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "现在",
+          "今天",
+          "现代",
+          "此后"
+        ],
+        "common_words": [
+          "今天",
+          "如今",
+          "今年",
+          "今后",
+          "古今"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "今：现代主要用于表示现在；今天；现代；此后。常见用法如：今天、如今、今年、今后、古今。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "144",
+      "modern": "古",
+      "traditional_or_variants": [
+        "古"
+      ],
+      "unicode": "U+53E4",
+      "pinyin": [
+        "gu3"
+      ],
+      "radical": "口",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "从十、口一类结构，传统解释为久远相传之言。",
+        "small_seal": "十与口结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "古",
+        "simplified": "古",
+        "summary": "由久远、往昔，发展为古代、古老、古朴和古怪。"
+      },
+      "meaning_evolution": {
+        "original": "久远的过去。",
+        "early": "古代、往昔。",
+        "later": "古老、古朴、古怪。",
+        "modern": [
+          "古代",
+          "古老",
+          "古朴",
+          "古怪"
+        ],
+        "common_words": [
+          "古代",
+          "古人",
+          "古今",
+          "古老",
+          "古怪"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "公户切"
+        ],
+        "rhyme_group": "姥韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“故也。从十口。识前言者也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "古的‘前言相传’解释有传统色彩，时间义稳定。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "古代",
+          "古老",
+          "古朴",
+          "古怪"
+        ],
+        "common_words": [
+          "古代",
+          "古人",
+          "古今",
+          "古老",
+          "古怪"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "古：现代主要用于表示古代；古老；古朴；古怪。常见用法如：古代、古人、古今、古老、古怪。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "145",
+      "modern": "来",
+      "traditional_or_variants": [
+        "來"
+      ],
+      "unicode": "U+6765",
+      "traditional_unicode": "U+4F86",
+      "pinyin": [
+        "lai2"
+      ],
+      "radical": "木",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“來”本像麦类植物之形，后借为来去之来。",
+        "small_seal": "麦形线条化为“來”。",
+        "clerical": "结构笔画化。",
+        "regular_traditional": "來",
+        "simplified": "来",
+        "summary": "本义与麦类相关，后假借为到来、未来和趋向说话者。"
+      },
+      "meaning_evolution": {
+        "original": "麦类植物，后假借为到来。",
+        "early": "来到、归来。",
+        "later": "未来、以来、用在动词后表示趋向或尝试。",
+        "modern": [
+          "来到",
+          "未来",
+          "以来",
+          "趋向说话者",
+          "用作助词"
+        ],
+        "common_words": [
+          "回来",
+          "未来",
+          "以来",
+          "来往",
+          "看来"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "落哀切"
+        ],
+        "rhyme_group": "咍韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“來”为“周所受瑞麦来麰也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "来/來是假借义占主导的关键样板。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "来到",
+          "未来",
+          "以来",
+          "趋向说话者",
+          "用作助词"
+        ],
+        "common_words": [
+          "回来",
+          "未来",
+          "以来",
+          "来往",
+          "看来"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "来：现代主要用于表示来到；未来；以来；趋向说话者；用作助词。常见用法如：回来、未来、以来、来往、看来。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "146",
+      "modern": "去",
+      "traditional_or_variants": [
+        "去"
+      ],
+      "unicode": "U+53BB",
+      "pinyin": [
+        "qu4"
+      ],
+      "radical": "厶",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "早期构形解释不一，传统多与离开、藏去或去除相关。",
+        "small_seal": "上大下厶结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "去",
+        "simplified": "去",
+        "summary": "由离开、去除，发展为前往、过去、除掉和距离。"
+      },
+      "meaning_evolution": {
+        "original": "离开或除去，具体形源需复核。",
+        "early": "离去、去掉。",
+        "later": "前往、过去、距离、去声。",
+        "modern": [
+          "离开",
+          "前往",
+          "除掉",
+          "过去",
+          "距离"
+        ],
+        "common_words": [
+          "出去",
+          "去年",
+          "去掉",
+          "过去",
+          "去处"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "丘倨切"
+        ],
+        "rhyme_group": "御韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“人相违也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "去与来构成趋向对，另有声调名‘去声’需单列。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "离开",
+          "前往",
+          "除掉",
+          "过去",
+          "距离"
+        ],
+        "common_words": [
+          "出去",
+          "去年",
+          "去掉",
+          "过去",
+          "去处"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "去：现代主要用于表示离开；前往；除掉；过去；距离。常见用法如：出去、去年、去掉、过去、去处。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "147",
+      "modern": "始",
+      "traditional_or_variants": [
+        "始"
+      ],
+      "unicode": "U+59CB",
+      "pinyin": [
+        "shi3"
+      ],
+      "radical": "女",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "后起形声字，从女、台声一类，表示开始。",
+        "small_seal": "女旁与台部结构规范化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "始",
+        "simplified": "始",
+        "summary": "由开端、开始，发展为始祖、初始、才、方才等义。"
+      },
+      "meaning_evolution": {
+        "original": "开始。",
+        "early": "开端、起始。",
+        "later": "初、始祖、才开始。",
+        "modern": [
+          "开始",
+          "最初",
+          "才",
+          "始祖或源头"
+        ],
+        "common_words": [
+          "开始",
+          "始终",
+          "原始",
+          "始祖",
+          "初始"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "诗止切"
+        ],
+        "rhyme_group": "止韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“女之初也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "始的说文训释需与现代起始义分层，不宜过度性别化解释。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "开始",
+          "最初",
+          "才",
+          "始祖或源头"
+        ],
+        "common_words": [
+          "开始",
+          "始终",
+          "原始",
+          "始祖",
+          "初始"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "始：现代主要用于表示开始；最初；才；始祖或源头。常见用法如：开始、始终、原始、始祖、初始。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "148",
+      "modern": "终",
+      "traditional_or_variants": [
+        "終"
+      ],
+      "unicode": "U+7EC8",
+      "traditional_unicode": "U+7D42",
+      "pinyin": [
+        "zhong1"
+      ],
+      "radical": "纟",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“終”从糸、冬声，传统与丝线末端、终结相关。",
+        "small_seal": "糸旁与冬部结构规范化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "終",
+        "simplified": "终",
+        "summary": "由线端、终结，发展为结束、终身、始终和最终。"
+      },
+      "meaning_evolution": {
+        "original": "丝线末端或终结。",
+        "early": "结束、终了。",
+        "later": "最终、终身、始终、到底。",
+        "modern": [
+          "结束",
+          "最后",
+          "始终",
+          "终身",
+          "到底"
+        ],
+        "common_words": [
+          "终于",
+          "始终",
+          "终点",
+          "最终",
+          "终身"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "职戎切"
+        ],
+        "rhyme_group": "东韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“終”为“絿丝也”。终结义与线端相关。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "终与冬在声义上相关，需与始、冬建立关联。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "结束",
+          "最后",
+          "始终",
+          "终身",
+          "到底"
+        ],
+        "common_words": [
+          "终于",
+          "始终",
+          "终点",
+          "最终",
+          "终身"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "终：现代主要用于表示结束；最后；始终；终身；到底。常见用法如：终于、始终、终点、最终、终身。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    }
+  ]
+}

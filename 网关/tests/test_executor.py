@@ -109,6 +109,33 @@ class ExecutorTest(unittest.TestCase):
             self.assertEqual(result["sandbox_fallback"], "docker_unavailable")
             self.assertEqual(result["stdout"], "local-ok\n")
 
+    def test_execute_command_falls_back_to_local_when_optional_docker_run_fails(self):
+        with TemporaryDirectory() as tmpdir:
+            completed = SimpleNamespace(
+                returncode=1,
+                stdout="",
+                stderr="permission denied while trying to connect to the docker API",
+            )
+
+            with patch("agent_skill_dictionary.executor.shutil.which", return_value="/usr/bin/docker"), patch(
+                "agent_skill_dictionary.executor.subprocess.run",
+                side_effect=[
+                    completed,
+                    SimpleNamespace(returncode=0, stdout="local-ok\n", stderr=""),
+                ],
+            ):
+                result = execute_command(
+                    ["python3", "-c", "print('local-ok')"],
+                    cwd=tmpdir,
+                    use_docker=True,
+                    require_docker=False,
+                )
+
+        self.assertEqual(result["sandbox"], "local")
+        self.assertEqual(result["sandbox_fallback"], "docker_failed")
+        self.assertEqual(result["exit_code"], 0)
+        self.assertEqual(result["stdout"], "local-ok\n")
+
     def test_execute_command_can_require_docker_sandbox(self):
         with TemporaryDirectory() as tmpdir:
             with patch("agent_skill_dictionary.executor.shutil.which", return_value=None):

@@ -1,0 +1,34 @@
+{
+  "status": "updated",
+  "consecutive_failures": 1,
+  "last_exit_code": 126,
+  "results": [
+    {
+      "status": "ok",
+      "hexagram": "111",
+      "next_hexagram": "001",
+      "shadow_action": "scoped_writer",
+      "changed_files": [
+        "core/__init__.py"
+      ],
+      "pytest_status": null,
+      "exit_code": null,
+      "fallback_tools": null,
+      "reason": null
+    },
+    {
+      "status": "ok",
+      "hexagram": "111",
+      "next_hexagram": "001",
+      "shadow_action": "scoped_writer",
+      "changed_files": [
+        "api/__init__.py"
+      ],
+      "pytest_status": null,
+      "exit_code": null,
+      "fallback_tools": null,
+      "reason": null
+    }
+  ],
+  "repo_card": "[State]: 101-INSPECT | [Target]: *\n[Files]: .yizijue/build-mode-state.json, api/__init__.py, core/__init__.py\n[Imports]: api/__init__.py:1:from server import MessageEnvelope, SecureMeshServer, app, receive_encrypted_message | +1 more\n[Risks]: none"
+}

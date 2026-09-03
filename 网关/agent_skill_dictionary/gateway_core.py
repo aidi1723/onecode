@@ -6,7 +6,7 @@ from typing import Any
 
 from .gateway_rule_adapter import build_gateway_rule
 from .kernel_contract import HexagramRouter, assert_preflight_contract
-from .kernel_policy import filter_allowed_tools, format_kernel_rule, get_kernel_policy, kernel_policy_metadata
+from .kernel_policy import ROOT_KERNEL_CODES, filter_allowed_tools, format_kernel_rule, get_kernel_policy, kernel_policy_metadata
 from .loader import lookup_entry
 from .inspect_executor import build_native_inspect_card
 from .skill_mount_loader import load_skill_mount_excerpt
@@ -112,6 +112,10 @@ def normalize_intent(user_message: str, dictionary: dict[str, Any]) -> IntentRes
         return IntentResult(codes=[halt_code], confidence=0.92, reason="high_priority_control")
 
     codes = _keyword_codes(lower_message, known_codes)
+    prompt_code = _prompt_control_code(lower_message, known_codes)
+    if prompt_code:
+        return IntentResult(codes=[prompt_code], confidence=0.92, reason="high_priority_control")
+
     if _has_action_code(codes):
         return IntentResult(codes=_action_sequence_codes(codes), confidence=0.88, reason="sequential_action_keywords")
 
@@ -154,10 +158,18 @@ def _halt_control_code(message: str, known_codes: set[str]) -> str | None:
     return None
 
 
+def _prompt_control_code(message: str, known_codes: set[str]) -> str | None:
+    if "问" not in known_codes:
+        return None
+    if any(keyword in message for keyword in ("问清楚", "确认一下", "需求不明确", "澄清")):
+        return "问"
+    return None
+
+
 def _high_priority_control_code(message: str, known_codes: set[str]) -> str | None:
     priority_rules: tuple[tuple[str, tuple[str, ...]], ...] = (
         ("停", ("停一下", "不要继续", "熔断")),
-        ("问", ("问清楚", "需求不明确", "澄清")),
+        ("问", ("问清楚", "确认一下", "需求不明确", "澄清")),
         ("记", ("记一下", "记录这个决策", "写进规则", "adr")),
         ("评", ("评估", "二次检查", "反面审", "靠谱吗")),
         ("总", ("总结", "压缩上下文", "交接摘要", "当前进度")),
@@ -326,7 +338,11 @@ def annotate_chat_completion_response(
         return annotated
     active_entry = lookup_entry(dictionary, metadata["active_code"])
     tool_calls = extract_tool_calls(payload)
-    decision = inspect_tool_calls(active_entry, tool_calls)
+    decision = inspect_tool_calls(
+        active_entry,
+        tool_calls,
+        _kernel_allowed_tools_for_response(metadata, active_entry),
+    )
     annotated = deepcopy(payload)
     annotated["yizijue_gateway"] = {
         **metadata,
@@ -468,7 +484,11 @@ def annotate_anthropic_messages_response(
 ) -> dict[str, Any]:
     active_entry = lookup_entry(dictionary, metadata["active_code"])
     tool_calls = extract_anthropic_tool_uses(payload)
-    decision = inspect_tool_calls(active_entry, tool_calls)
+    decision = inspect_tool_calls(
+        active_entry,
+        tool_calls,
+        _kernel_allowed_tools_for_response(metadata, active_entry),
+    )
     annotated = deepcopy(payload)
     annotated["yizijue_gateway"] = {
         **metadata,
@@ -486,6 +506,16 @@ def annotate_anthropic_messages_response(
 def should_halt_model_forwarding(metadata: dict[str, Any]) -> bool:
     kernel_policy = metadata.get("kernel_policy", {})
     return bool(kernel_policy.get("halt_model_forwarding"))
+
+
+def _kernel_allowed_tools_for_response(
+    metadata: dict[str, Any],
+    active_entry: Any,
+) -> set[str]:
+    root_code = str(metadata.get("root_opcode") or active_entry.raw.get("root_opcode") or active_entry.code)
+    if root_code not in ROOT_KERNEL_CODES:
+        root_code = str(active_entry.raw.get("root_opcode") or root_code)
+    return set(get_kernel_policy(root_code).allowed_tools)
 
 
 def stream_not_supported_response(metadata: dict[str, Any]) -> tuple[dict[str, Any], int]:

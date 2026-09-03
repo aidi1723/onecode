@@ -1,0 +1,1319 @@
+{
+  "project": "字溯东方 Hanzi Lifecycle",
+  "version": "batch-003",
+  "description": "第三批人类与身体核心字样板数据。以现代字为入口，整理字形演变、字义演变、音韵出处和复核备注。",
+  "entries": [
+    {
+      "id": "038",
+      "modern": "女",
+      "traditional_or_variants": [
+        "女"
+      ],
+      "unicode": "U+5973",
+      "pinyin": [
+        "nv3"
+      ],
+      "radical": "女",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "多像屈膝跪坐、双手交叠的人形，传统解释为女性形象。",
+        "small_seal": "人体轮廓线条化，保留跪坐姿态。",
+        "clerical": "曲线笔画化，形成撇点、撇、横的基本结构。",
+        "regular_traditional": "女",
+        "simplified": "女",
+        "summary": "由女性人体姿态象形，发展为女性、女儿、女性身份和女部构字基础。"
+      },
+      "meaning_evolution": {
+        "original": "女性。",
+        "early": "女子、女儿、妇女。",
+        "later": "女性身份、女方、女部构字义符。",
+        "modern": [
+          "女性",
+          "女儿",
+          "女方或女性身份",
+          "女部字义部件"
+        ],
+        "common_words": [
+          "女人",
+          "女子",
+          "女儿",
+          "女性",
+          "女工"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "尼吕切"
+        ],
+        "rhyme_group": "语韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“妇人也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "古文字姿态解释需避免现代性别刻板化叙述，后续应补字形图。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "女性",
+          "女儿",
+          "女方或女性身份",
+          "女部字义部件"
+        ],
+        "common_words": [
+          "女人",
+          "女子",
+          "女儿",
+          "女性",
+          "女工"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "女：现代主要用于表示女性；女儿；女方或女性身份；女部字义部件。常见用法如：女人、女子、女儿、女性、女工。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "039",
+      "modern": "男",
+      "traditional_or_variants": [
+        "男"
+      ],
+      "unicode": "U+7537",
+      "pinyin": [
+        "nan2"
+      ],
+      "radical": "田",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "多从田、从力，表示人在田间出力劳作。",
+        "small_seal": "田在上、力在下，结构规范。",
+        "clerical": "田、力笔画化，形成今形。",
+        "regular_traditional": "男",
+        "simplified": "男",
+        "summary": "由田间劳力与社会性别分工的结合，发展为男性、人丁和男部身份概念。"
+      },
+      "meaning_evolution": {
+        "original": "田间出力劳作的人，传统上指男子。",
+        "early": "男子、男性、人丁。",
+        "later": "儿子、丈夫、男性身份。",
+        "modern": [
+          "男性",
+          "男子",
+          "儿子",
+          "男性身份"
+        ],
+        "common_words": [
+          "男人",
+          "男子",
+          "男孩",
+          "男性",
+          "男女"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "那含切"
+        ],
+        "rhyme_group": "覃韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“丈夫也。从田从力”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“田+力”的解释反映古代生产分工，应与现代性别概念区分。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "男性",
+          "男子",
+          "儿子",
+          "男性身份"
+        ],
+        "common_words": [
+          "男人",
+          "男子",
+          "男孩",
+          "男性",
+          "男女"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "男：现代主要用于表示男性；男子；儿子；男性身份。常见用法如：男人、男子、男孩、男性、男女。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "040",
+      "modern": "子",
+      "traditional_or_variants": [
+        "子"
+      ],
+      "unicode": "U+5B50",
+      "pinyin": [
+        "zi3",
+        "zi"
+      ],
+      "radical": "子",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "象婴儿形，有头、身、臂膀。",
+        "small_seal": "婴儿形线条化。",
+        "clerical": "曲线转为横、竖钩等笔画。",
+        "regular_traditional": "子",
+        "simplified": "子",
+        "summary": "由婴儿象形，发展为子女、后代、尊称、地支和词尾等多层意义。"
+      },
+      "meaning_evolution": {
+        "original": "婴儿、小孩。",
+        "early": "子女、儿子、后代。",
+        "later": "男子尊称、老师或学者称号、地支第一位、词缀。",
+        "modern": [
+          "孩子或儿子",
+          "人或事物的称名后缀",
+          "种子或小而硬的东西",
+          "地支第一位"
+        ],
+        "common_words": [
+          "孩子",
+          "儿子",
+          "子女",
+          "孔子",
+          "种子"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "即里切"
+        ],
+        "rhyme_group": "止韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“十一月，阳气动，万物滋，人以为偁。象形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "说文以地支义解释较重，现代数据中应把婴儿象形与地支义分开。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "孩子或儿子",
+          "人或事物的称名后缀",
+          "种子或小而硬的东西",
+          "地支第一位"
+        ],
+        "common_words": [
+          "孩子",
+          "儿子",
+          "子女",
+          "孔子",
+          "种子"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "子：现代主要用于表示孩子或儿子；人或事物的称名后缀；种子或小而硬的东西；地支第一位。常见用法如：孩子、儿子、子女、孔子、种子。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "041",
+      "modern": "老",
+      "traditional_or_variants": [
+        "老"
+      ],
+      "unicode": "U+8001",
+      "pinyin": [
+        "lao3"
+      ],
+      "radical": "老",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "多像长发或弯背、手持拐杖的老人形。",
+        "small_seal": "老人形线条化，上部表发，下部表人形或匕形构件。",
+        "clerical": "结构笔画化，形成今形。",
+        "regular_traditional": "老",
+        "simplified": "老",
+        "summary": "由年老者形象，发展为年长、陈旧、熟练、经常、排行或尊称等义。"
+      },
+      "meaning_evolution": {
+        "original": "年老的人。",
+        "early": "老人、年长、衰老。",
+        "later": "时间久、经验多、熟练；尊称；排行称呼。",
+        "modern": [
+          "年纪大",
+          "时间久",
+          "经验丰富或熟练",
+          "经常",
+          "排行或尊称前缀"
+        ],
+        "common_words": [
+          "老人",
+          "老师",
+          "老家",
+          "老练",
+          "老是"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "卢皓切"
+        ],
+        "rhyme_group": "皓韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“考也。七十曰老”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“老”“考”古义关系密切，后续应和“孝、考”并读。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "年纪大",
+          "时间久",
+          "经验丰富或熟练",
+          "经常",
+          "排行或尊称前缀"
+        ],
+        "common_words": [
+          "老人",
+          "老师",
+          "老家",
+          "老练",
+          "老是"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "老：现代主要用于表示年纪大；时间久；经验丰富或熟练；经常；排行或尊称前缀。常见用法如：老人、老师、老家、老练、老是。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "042",
+      "modern": "幼",
+      "traditional_or_variants": [
+        "幼"
+      ],
+      "unicode": "U+5E7C",
+      "pinyin": [
+        "you4"
+      ],
+      "radical": "幺",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "从幺、从力一类结构，传统解释与弱小、细微、年幼有关。",
+        "small_seal": "幺与力结构规范化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "幼",
+        "simplified": "幼",
+        "summary": "由细小、弱小之义，发展为年幼、幼小、初生阶段等义。"
+      },
+      "meaning_evolution": {
+        "original": "弱小、年幼。",
+        "early": "幼小的儿童或年少状态。",
+        "later": "初生、初级、未成熟。",
+        "modern": [
+          "年纪小",
+          "幼小",
+          "初级或未成熟"
+        ],
+        "common_words": [
+          "幼儿",
+          "幼小",
+          "幼年",
+          "幼稚",
+          "幼苗"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "伊谬切"
+        ],
+        "rhyme_group": "宥韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“小也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“幺”的细小义是理解幼字的关键，后续可并入年龄状态字组。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "年纪小",
+          "幼小",
+          "初级或未成熟"
+        ],
+        "common_words": [
+          "幼儿",
+          "幼小",
+          "幼年",
+          "幼稚",
+          "幼苗"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "幼：现代主要用于表示年纪小；幼小；初级或未成熟。常见用法如：幼儿、幼小、幼年、幼稚、幼苗。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "043",
+      "modern": "首",
+      "traditional_or_variants": [
+        "首"
+      ],
+      "unicode": "U+9996",
+      "pinyin": [
+        "shou3"
+      ],
+      "radical": "首",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "象人头形，有头发、面部或眼目特征。",
+        "small_seal": "头部轮廓和面目线条化。",
+        "clerical": "头发、面目结构笔画化。",
+        "regular_traditional": "首",
+        "simplified": "首",
+        "summary": "由头部象形，发展为头、首领、第一、开端和量词等义。"
+      },
+      "meaning_evolution": {
+        "original": "头。",
+        "early": "人的头部；首级。",
+        "later": "首领、第一、开端；诗文歌曲量词。",
+        "modern": [
+          "头",
+          "最先或第一",
+          "首领",
+          "开端",
+          "诗歌等量词"
+        ],
+        "common_words": [
+          "首都",
+          "首先",
+          "首领",
+          "首饰",
+          "一首诗"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "书九切"
+        ],
+        "rhyme_group": "有韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“头也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“首”与“页”的头部义系统需后续建立关联。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "头",
+          "最先或第一",
+          "首领",
+          "开端",
+          "诗歌等量词"
+        ],
+        "common_words": [
+          "首都",
+          "首先",
+          "首领",
+          "首饰",
+          "一首诗"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "首：现代主要用于表示头；最先或第一；首领；开端；诗歌等量词。常见用法如：首都、首先、首领、首饰、一首诗。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "044",
+      "modern": "目",
+      "traditional_or_variants": [
+        "目"
+      ],
+      "unicode": "U+76EE",
+      "pinyin": [
+        "mu4"
+      ],
+      "radical": "目",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "象眼睛形，横置时可见眼眶与瞳孔。",
+        "small_seal": "眼形转为竖长框，内部有横画。",
+        "clerical": "方框与内部横画定型。",
+        "regular_traditional": "目",
+        "simplified": "目",
+        "summary": "由眼睛象形，发展为眼目、观看、条目、目标等义。"
+      },
+      "meaning_evolution": {
+        "original": "眼睛。",
+        "early": "眼目、视觉器官。",
+        "later": "看、目录条目、项目、目标。",
+        "modern": [
+          "眼睛",
+          "看",
+          "条目或目录",
+          "目标",
+          "名称类别"
+        ],
+        "common_words": [
+          "目光",
+          "目的",
+          "目录",
+          "项目",
+          "耳目"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "莫六切"
+        ],
+        "rhyme_group": "屋韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“人眼。象形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "目是视觉和认知隐喻的核心字，后续应关联见、视、看。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "眼睛",
+          "看",
+          "条目或目录",
+          "目标",
+          "名称类别"
+        ],
+        "common_words": [
+          "目光",
+          "目的",
+          "目录",
+          "项目",
+          "耳目"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "目：现代主要用于表示眼睛；看；条目或目录；目标；名称类别。常见用法如：目光、目的、目录、项目、耳目。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "045",
+      "modern": "耳",
+      "traditional_or_variants": [
+        "耳"
+      ],
+      "unicode": "U+8033",
+      "pinyin": [
+        "er3"
+      ],
+      "radical": "耳",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "象耳朵侧面轮廓。",
+        "small_seal": "耳形线条化。",
+        "clerical": "弯曲轮廓转为横竖笔画。",
+        "regular_traditional": "耳",
+        "simplified": "耳",
+        "summary": "由耳朵象形，发展为听觉、器物旁附部分、语气词等义。"
+      },
+      "meaning_evolution": {
+        "original": "耳朵。",
+        "early": "听觉器官。",
+        "later": "听闻；器物两侧附着部分；文言语气词。",
+        "modern": [
+          "耳朵",
+          "听闻",
+          "器物两侧的把手状部分",
+          "文言语气词"
+        ],
+        "common_words": [
+          "耳朵",
+          "耳目",
+          "耳机",
+          "木耳",
+          "悦耳"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "而止切"
+        ],
+        "rhyme_group": "止韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“主听也。象形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“耳”作语气词的文言功能需和实体器官义分层。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "耳朵",
+          "听闻",
+          "器物两侧的把手状部分",
+          "文言语气词"
+        ],
+        "common_words": [
+          "耳朵",
+          "耳目",
+          "耳机",
+          "木耳",
+          "悦耳"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "耳：现代主要用于表示耳朵；听闻；器物两侧的把手状部分；文言语气词。常见用法如：耳朵、耳目、耳机、木耳、悦耳。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "046",
+      "modern": "口",
+      "traditional_or_variants": [
+        "口"
+      ],
+      "unicode": "U+53E3",
+      "pinyin": [
+        "kou3"
+      ],
+      "radical": "口",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "象人口或开口之形。",
+        "small_seal": "口形方框化。",
+        "clerical": "方框笔画定型。",
+        "regular_traditional": "口",
+        "simplified": "口",
+        "summary": "由口腔开口象形，发展为言说、人口、出入口、容器口等义。"
+      },
+      "meaning_evolution": {
+        "original": "嘴，口腔开口。",
+        "early": "口、说话、进食器官。",
+        "later": "人口、口头、出入口、器物开口、量词。",
+        "modern": [
+          "嘴",
+          "出入口",
+          "人口",
+          "口头表达",
+          "器物开口"
+        ],
+        "common_words": [
+          "口语",
+          "入口",
+          "人口",
+          "口才",
+          "开口"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "苦后切"
+        ],
+        "rhyme_group": "厚韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“人所以言食也。象形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "口既是身体器官，也是言语系统和空间开口的核心部件。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "嘴",
+          "出入口",
+          "人口",
+          "口头表达",
+          "器物开口"
+        ],
+        "common_words": [
+          "口语",
+          "入口",
+          "人口",
+          "口才",
+          "开口"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "口：现代主要用于表示嘴；出入口；人口；口头表达；器物开口。常见用法如：口语、入口、人口、口才、开口。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "047",
+      "modern": "鼻",
+      "traditional_or_variants": [
+        "鼻"
+      ],
+      "unicode": "U+9F3B",
+      "pinyin": [
+        "bi2"
+      ],
+      "radical": "鼻",
+      "stroke_count": 14,
+      "shape_evolution": {
+        "oracle_bronze": "古代常以“自”表示鼻形，后另造“鼻”以专表鼻子。",
+        "small_seal": "从自、畀声一类结构，形成鼻字。",
+        "clerical": "上自下畀结构笔画化。",
+        "regular_traditional": "鼻",
+        "simplified": "鼻",
+        "summary": "由“自”本象鼻形转入专字“鼻”，发展为嗅觉器官和起始义关联。"
+      },
+      "meaning_evolution": {
+        "original": "鼻子。",
+        "early": "嗅觉和呼吸器官；“自”有鼻形源头。",
+        "later": "鼻状突起；事物开端有时称鼻祖。",
+        "modern": [
+          "鼻子",
+          "像鼻子的部分",
+          "嗅觉相关",
+          "鼻祖等起始义"
+        ],
+        "common_words": [
+          "鼻子",
+          "鼻孔",
+          "鼻音",
+          "鼻祖",
+          "鼻梁"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "毗至切"
+        ],
+        "rhyme_group": "至韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“鼻”为“引气自畀也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“自”与“鼻”的关系是重要字源知识点，后续需单列。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "鼻子",
+          "像鼻子的部分",
+          "嗅觉相关",
+          "鼻祖等起始义"
+        ],
+        "common_words": [
+          "鼻子",
+          "鼻孔",
+          "鼻音",
+          "鼻祖",
+          "鼻梁"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "鼻：现代主要用于表示鼻子；像鼻子的部分；嗅觉相关；鼻祖等起始义。常见用法如：鼻子、鼻孔、鼻音、鼻祖、鼻梁。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "048",
+      "modern": "手",
+      "traditional_or_variants": [
+        "手"
+      ],
+      "unicode": "U+624B",
+      "pinyin": [
+        "shou3"
+      ],
+      "radical": "手",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "象手掌和手指之形。",
+        "small_seal": "掌指结构线条化。",
+        "clerical": "手指与掌部笔画化。",
+        "regular_traditional": "手",
+        "simplified": "手",
+        "summary": "由手部象形，发展为拿取、操作、技能、从事某事的人和手部部件。"
+      },
+      "meaning_evolution": {
+        "original": "手。",
+        "early": "手掌、手臂末端器官。",
+        "later": "亲手、手段、技能、人员、擅长者。",
+        "modern": [
+          "手",
+          "亲自",
+          "技能或本领",
+          "从事某种工作的人",
+          "手段"
+        ],
+        "common_words": [
+          "手掌",
+          "双手",
+          "手机",
+          "高手",
+          "动手"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "书九切"
+        ],
+        "rhyme_group": "有韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“拳也。象形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "手、扌、又、寸、爪等动作部件需后续建立部件谱系。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "手",
+          "亲自",
+          "技能或本领",
+          "从事某种工作的人",
+          "手段"
+        ],
+        "common_words": [
+          "手掌",
+          "双手",
+          "手机",
+          "高手",
+          "动手"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "手：现代主要用于表示手；亲自；技能或本领；从事某种工作的人；手段。常见用法如：手掌、双手、手机、高手、动手。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "049",
+      "modern": "才",
+      "traditional_or_variants": [
+        "才",
+        "纔"
+      ],
+      "unicode": "U+624D",
+      "pinyin": [
+        "cai2"
+      ],
+      "radical": "扌",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "早期形体解释不一，常见说法与草木初生或初始状态有关。",
+        "small_seal": "形体线条化，结构简化。",
+        "clerical": "三笔结构定型。",
+        "regular_traditional": "才",
+        "simplified": "才",
+        "summary": "由初始、方才等时间状态，扩展为才能、材料和刚刚发生等义。"
+      },
+      "meaning_evolution": {
+        "original": "初生、初始之义存在传统解释，具体字源需复核。",
+        "early": "始、方、仅。",
+        "later": "才能、人才、材料；副词“刚刚、方才”。",
+        "modern": [
+          "才能",
+          "有才能的人",
+          "刚刚",
+          "只有或仅仅",
+          "表示条件才成立"
+        ],
+        "common_words": [
+          "才能",
+          "人才",
+          "刚才",
+          "才华",
+          "才干"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "昨哉切"
+        ],
+        "rhyme_group": "咍韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》传统释为“艸木之初也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "才不完全属于身体字，更适合归入能力/抽象功能字；暂按原路线保留。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "才能",
+          "有才能的人",
+          "刚刚",
+          "只有或仅仅",
+          "表示条件才成立"
+        ],
+        "common_words": [
+          "才能",
+          "人才",
+          "刚才",
+          "才华",
+          "才干"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "才：现代主要用于表示才能；有才能的人；刚刚；只有或仅仅；表示条件才成立。常见用法如：才能、人才、刚才、才华、才干。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "050",
+      "modern": "足",
+      "traditional_or_variants": [
+        "足"
+      ],
+      "unicode": "U+8DB3",
+      "pinyin": [
+        "zu2"
+      ],
+      "radical": "足",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "象小腿和脚掌之形。",
+        "small_seal": "腿足结构线条化。",
+        "clerical": "上口下止式结构笔画化。",
+        "regular_traditional": "足",
+        "simplified": "足",
+        "summary": "由脚足象形，发展为行走器官、充足、值得和足部构字基础。"
+      },
+      "meaning_evolution": {
+        "original": "脚。",
+        "early": "足、脚，行走器官。",
+        "later": "足够、满足、值得；足部动作或部件。",
+        "modern": [
+          "脚",
+          "足够",
+          "值得",
+          "满足",
+          "足部构字部件"
+        ],
+        "common_words": [
+          "手足",
+          "足球",
+          "足够",
+          "满足",
+          "不足"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "即玉切"
+        ],
+        "rhyme_group": "烛韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“人之足也。在下。从止、口”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "足与止、走、辵等行动部件关系密切。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "脚",
+          "足够",
+          "值得",
+          "满足",
+          "足部构字部件"
+        ],
+        "common_words": [
+          "手足",
+          "足球",
+          "足够",
+          "满足",
+          "不足"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "足：现代主要用于表示脚；足够；值得；满足；足部构字部件。常见用法如：手足、足球、足够、满足、不足。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "051",
+      "modern": "心",
+      "traditional_or_variants": [
+        "心"
+      ],
+      "unicode": "U+5FC3",
+      "pinyin": [
+        "xin1"
+      ],
+      "radical": "心",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "象心脏形，内部可有纹理或血脉示意。",
+        "small_seal": "心脏轮廓线条化。",
+        "clerical": "变为点、卧钩等笔画。",
+        "regular_traditional": "心",
+        "simplified": "心",
+        "summary": "由心脏象形，发展为情感、思想、中心、意志和心理活动的核心字。"
+      },
+      "meaning_evolution": {
+        "original": "心脏。",
+        "early": "心脏；古人常以心为思维和情感中心。",
+        "later": "思想、意志、感情、中心、要点。",
+        "modern": [
+          "心脏",
+          "思想感情",
+          "中心",
+          "心意",
+          "要点"
+        ],
+        "common_words": [
+          "心脏",
+          "心情",
+          "中心",
+          "用心",
+          "心理"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "息林切"
+        ],
+        "rhyme_group": "侵韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“人心，土藏，在身之中。象形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "心、忄、恭下心等形态需后续统一到心理语义部件。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "心脏",
+          "思想感情",
+          "中心",
+          "心意",
+          "要点"
+        ],
+        "common_words": [
+          "心脏",
+          "心情",
+          "中心",
+          "用心",
+          "心理"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "心：现代主要用于表示心脏；思想感情；中心；心意；要点。常见用法如：心脏、心情、中心、用心、心理。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "052",
+      "modern": "身",
+      "traditional_or_variants": [
+        "身"
+      ],
+      "unicode": "U+8EAB",
+      "pinyin": [
+        "shen1"
+      ],
+      "radical": "身",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "多像人身侧形，腹部突出，传统常与孕身或身体形象相关。",
+        "small_seal": "身体轮廓线条化。",
+        "clerical": "人体曲线笔画化。",
+        "regular_traditional": "身",
+        "simplified": "身",
+        "summary": "由身体形象，发展为自身、亲自、身份、生命和身体部件系统。"
+      },
+      "meaning_evolution": {
+        "original": "身体。",
+        "early": "人身、躯体。",
+        "later": "自身、亲自、身份、身孕、生命。",
+        "modern": [
+          "身体",
+          "自己",
+          "亲自",
+          "身份",
+          "人的一生或生命"
+        ],
+        "common_words": [
+          "身体",
+          "身上",
+          "身份",
+          "自身",
+          "亲身"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "失人切"
+        ],
+        "rhyme_group": "真韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“躬也。象人之身”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“身”是否源于孕身形象存在解释差异，需用字源专书复核。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "身体",
+          "自己",
+          "亲自",
+          "身份",
+          "人的一生或生命"
+        ],
+        "common_words": [
+          "身体",
+          "身上",
+          "身份",
+          "自身",
+          "亲身"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "身：现代主要用于表示身体；自己；亲自；身份；人的一生或生命。常见用法如：身体、身上、身份、自身、亲身。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "053",
+      "modern": "骨",
+      "traditional_or_variants": [
+        "骨"
+      ],
+      "unicode": "U+9AA8",
+      "pinyin": [
+        "gu3",
+        "gu1"
+      ],
+      "radical": "骨",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "象骨节相连或骨骼形态。",
+        "small_seal": "骨节、肉体相关结构线条化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "骨",
+        "simplified": "骨",
+        "summary": "由骨骼形象，发展为骨头、骨架、气概、亲缘和核心结构等义。"
+      },
+      "meaning_evolution": {
+        "original": "骨头、骨骼。",
+        "early": "人或动物体内支撑身体的硬组织。",
+        "later": "骨架、气节、血统、内在结构。",
+        "modern": [
+          "骨头",
+          "骨架",
+          "人的气概或品质",
+          "核心结构"
+        ],
+        "common_words": [
+          "骨头",
+          "骨骼",
+          "骨气",
+          "骨干",
+          "筋骨"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "古忽切"
+        ],
+        "rhyme_group": "没韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“肉之覈也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "口语轻声或 gu1 读法需在现代音义字段中细分。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "骨头",
+          "骨架",
+          "人的气概或品质",
+          "核心结构"
+        ],
+        "common_words": [
+          "骨头",
+          "骨骼",
+          "骨气",
+          "骨干",
+          "筋骨"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "骨：现代主要用于表示骨头；骨架；人的气概或品质；核心结构。常见用法如：骨头、骨骼、骨气、骨干、筋骨。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "054",
+      "modern": "血",
+      "traditional_or_variants": [
+        "血"
+      ],
+      "unicode": "U+8840",
+      "pinyin": [
+        "xue4",
+        "xie3"
+      ],
+      "radical": "血",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "多像器皿中盛血之形。",
+        "small_seal": "皿中有血的结构线条化。",
+        "clerical": "器皿与内部指示笔画化。",
+        "regular_traditional": "血",
+        "simplified": "血",
+        "summary": "由祭祀或身体中的血液，发展为血缘、气血、牺牲和强烈情感等义。"
+      },
+      "meaning_evolution": {
+        "original": "血液。",
+        "early": "人或动物体内的血；祭祀用血。",
+        "later": "血统、血缘、生命力、牺牲伤亡。",
+        "modern": [
+          "血液",
+          "血统或血缘",
+          "牺牲伤亡",
+          "刚强热烈的气质"
+        ],
+        "common_words": [
+          "血液",
+          "流血",
+          "血缘",
+          "热血",
+          "血统"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "呼决切"
+        ],
+        "rhyme_group": "屑韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“祭所荐牲血也。从皿，一象血形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "现代 xue4/xie3 读音分布和口语用法需后续分义标注。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "血液",
+          "血统或血缘",
+          "牺牲伤亡",
+          "刚强热烈的气质"
+        ],
+        "common_words": [
+          "血液",
+          "流血",
+          "血缘",
+          "热血",
+          "血统"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "血：现代主要用于表示血液；血统或血缘；牺牲伤亡；刚强热烈的气质。常见用法如：血液、流血、血缘、热血、血统。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    }
+  ]
+}

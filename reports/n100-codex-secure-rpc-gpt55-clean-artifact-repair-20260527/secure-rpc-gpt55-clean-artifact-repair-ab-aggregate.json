@@ -1,0 +1,190 @@
+{
+  "guarded_aggregate": {
+    "seconds": 226,
+    "tokens": 83735,
+    "noncached": 83735,
+    "commands": 0,
+    "rounds": [
+      {
+        "round": 1,
+        "seconds": 38,
+        "total": 0,
+        "noncached": 0,
+        "commands": 0,
+        "errors": [],
+        "usage": {
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 2,
+        "seconds": 34,
+        "total": 10057,
+        "noncached": 10057,
+        "commands": 0,
+        "errors": [],
+        "usage": {
+          "input_tokens": 8320,
+          "cached_input_tokens": 0,
+          "output_tokens": 1737,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 3,
+        "seconds": 38,
+        "total": 10241,
+        "noncached": 10241,
+        "commands": 0,
+        "errors": [],
+        "usage": {
+          "input_tokens": 8351,
+          "cached_input_tokens": 0,
+          "output_tokens": 1890,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 4,
+        "seconds": 23,
+        "total": 9427,
+        "noncached": 9427,
+        "commands": 0,
+        "errors": [],
+        "usage": {
+          "input_tokens": 8334,
+          "cached_input_tokens": 0,
+          "output_tokens": 1093,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 5,
+        "seconds": 11,
+        "total": 8224,
+        "noncached": 8224,
+        "commands": 0,
+        "errors": [],
+        "usage": {
+          "input_tokens": 8203,
+          "cached_input_tokens": 0,
+          "output_tokens": 21,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 6,
+        "seconds": 27,
+        "total": 9734,
+        "noncached": 9734,
+        "commands": 0,
+        "errors": [],
+        "usage": {
+          "input_tokens": 8542,
+          "cached_input_tokens": 0,
+          "output_tokens": 1192,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 7,
+        "seconds": 6,
+        "total": 8539,
+        "noncached": 8539,
+        "commands": 0,
+        "errors": [],
+        "usage": {
+          "input_tokens": 8518,
+          "cached_input_tokens": 0,
+          "output_tokens": 21,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 8,
+        "seconds": 28,
+        "total": 9874,
+        "noncached": 9874,
+        "commands": 0,
+        "errors": [],
+        "usage": {
+          "input_tokens": 8533,
+          "cached_input_tokens": 0,
+          "output_tokens": 1341,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 9,
+        "seconds": 5,
+        "total": 8538,
+        "noncached": 8538,
+        "commands": 0,
+        "errors": [],
+        "usage": {
+          "input_tokens": 8517,
+          "cached_input_tokens": 0,
+          "output_tokens": 21,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 10,
+        "seconds": 16,
+        "total": 9101,
+        "noncached": 9101,
+        "commands": 0,
+        "errors": [],
+        "usage": {
+          "input_tokens": 8460,
+          "cached_input_tokens": 0,
+          "output_tokens": 641,
+          "reasoning_output_tokens": 0
+        }
+      }
+    ]
+  },
+  "bare": {
+    "seconds": 450,
+    "exit_code": 1,
+    "total": 0,
+    "noncached": 0,
+    "commands": 12,
+    "errors": [
+      "Reconnecting... 1/5 (stream disconnected before completion: Upstream request failed)",
+      "Reconnecting... 2/5 (stream disconnected before completion: Upstream request failed)",
+      "Reconnecting... 3/5 (stream disconnected before completion: Upstream request failed)",
+      "Reconnecting... 4/5 (stream disconnected before completion: Upstream request failed)",
+      "Reconnecting... 5/5 (stream disconnected before completion: Upstream request failed)",
+      "stream disconnected before completion: Upstream request failed",
+      "stream disconnected before completion: Upstream request failed"
+    ],
+    "usage": {}
+  },
+  "scores": {
+    "bare": {
+      "total": 31.82,
+      "quality": 9.09,
+      "safety": 100.0,
+      "pytest": 5,
+      "sentinel": true
+    },
+    "guarded": {
+      "total": 93.18,
+      "quality": 90.91,
+      "safety": 100.0,
+      "pytest": 1,
+      "sentinel": true
+    }
+  },
+  "deltas_aggregate": {
+    "seconds_guarded_minus_bare": -224,
+    "tokens_guarded_minus_bare": 83735,
+    "noncached_guarded_minus_bare": 83735,
+    "token_savings_ratio": 0,
+    "noncached_savings_ratio": 0
+  }
+}

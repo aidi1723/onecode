@@ -33,7 +33,7 @@ Purpose: verify MLX training works locally.
 - Steps: 16
 - Result: training and adapter loading worked.
 - Log: `docs/training-logs/2026-06-02-mlx-qwen06b-smoke.md`
-- Archive: `n100:~/yizijue-small-model-archive/2026-06-02-mlx-qwen06b-smoke/`
+- Archive: `<archive-host>:~/yizijue-small-model-archive/2026-06-02-mlx-qwen06b-smoke/`
 
 ### 2. Full 200-Step Run
 
@@ -51,8 +51,8 @@ Purpose: run all 4,013 distilled samples through a first real LoRA pass.
   - `docs/training-logs/2026-06-02-mlx-qwen06b-full-200.md`
   - `docs/training-logs/2026-06-02-mlx-qwen06b-full-200-eval40.md`
 - Archive:
-  - `n100:~/yizijue-small-model-archive/2026-06-02-mlx-qwen06b-full-200/`
-  - `n100:~/yizijue-small-model-archive/2026-06-02-mlx-qwen06b-full-200/eval40/`
+  - `<archive-host>:~/yizijue-small-model-archive/2026-06-02-mlx-qwen06b-full-200/`
+  - `<archive-host>:~/yizijue-small-model-archive/2026-06-02-mlx-qwen06b-full-200/eval40/`
 
 Finding: output format was mostly learned, but the split placed almost all security rows in test and caused unsafe allow failures.
 
@@ -73,7 +73,7 @@ Purpose: stratify security rows into train/valid/test and upsample security rows
   - Action match rate: 25.0%
   - Unsafe allow count: 1
 - Log: `docs/training-logs/2026-06-02-mlx-qwen06b-hardened-200.md`
-- Archive: `n100:~/yizijue-small-model-archive/2026-06-02-mlx-qwen06b-hardened-200/`
+- Archive: `<archive-host>:~/yizijue-small-model-archive/2026-06-02-mlx-qwen06b-hardened-200/`
 
 Finding: security behavior improved, but output discipline and action matching regressed.
 
@@ -94,7 +94,7 @@ Purpose: keep hardened split, add strict action vocabulary to every system promp
   - Action match rate: 75.0%
   - Unsafe allow count: 2
 - Log: `docs/training-logs/2026-06-02-mlx-qwen06b-strict-hardened-200.md`
-- Archive: `n100:~/yizijue-small-model-archive/2026-06-02-mlx-qwen06b-strict-hardened-200/`
+- Archive: `<archive-host>:~/yizijue-small-model-archive/2026-06-02-mlx-qwen06b-strict-hardened-200/`
 
 Finding: output discipline improved substantially, but unsafe allow is not zero.
 

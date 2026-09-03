@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hanzi-spectrum.local/schemas/agent-skill-dictionary.schema.json",
+  "title": "Agent Skill Dictionary",
+  "type": "object",
+  "required": ["name", "version", "domain", "updated_at", "entries"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "pattern": "^0\\.\\d+\\.\\d+$" },
+    "domain": { "type": "string", "minLength": 1 },
+    "updated_at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "required": [
+        "code",
+        "name",
+        "definition",
+        "intent_examples",
+        "reference_workflow_patterns",
+        "professional_protocol",
+        "root_opcode",
+        "opcode_vector",
+        "inheritance_policy",
+        "bound_skill_patterns",
+        "allowed_actions",
+        "forbidden_actions",
+        "tool_policy",
+        "runtime_environment",
+        "routing_target",
+        "model_policy",
+        "required_steps",
+        "six_phase_workflow",
+        "verification",
+        "transition_policy",
+        "fallback"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "type": "string", "minLength": 1, "maxLength": 2 },
+        "name": { "type": "string", "pattern": "^[a-z_]+$" },
+        "definition": { "type": "string", "minLength": 1 },
+        "intent_examples": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "reference_workflow_patterns": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^[A-Za-z0-9:_\\-]+$" }
+        },
+        "professional_protocol": {
+          "type": "object",
+          "required": ["source_projects", "operating_logic", "hard_gates"],
+          "additionalProperties": false,
+          "properties": {
+            "source_projects": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "operating_logic": {
+              "type": "array",
+              "minItems": 3,
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "hard_gates": {
+              "type": "array",
+              "minItems": 2,
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "root_opcode": { "enum": ["查", "修", "测", "卫", "停", "问", "记", "总"] },
+        "opcode_vector": {
+          "type": "object",
+          "required": ["permission", "context", "evidence"],
+          "additionalProperties": false,
+          "properties": {
+            "permission": {
+              "enum": [
+                "read_only",
+                "write_scoped",
+                "execute_only",
+                "kernel_filter",
+                "halted",
+                "human_prompt_only",
+                "storage_write",
+                "context_compress"
+              ]
+            },
+            "context": {
+              "enum": [
+                "minimal_read_context",
+                "clean_on_switch",
+                "clean_code_input",
+                "security_pinned",
+                "frozen_state",
+                "dispute_focus",
+                "archival_context",
+                "compacted_handoff"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "pattern": "^[a-z0-9_\\-]+$" }
+            }
+          }
+        },
+        "inheritance_policy": {
+          "type": "object",
+          "required": ["can_relax_permission", "can_add_evidence", "context_must_not_expand"],
+          "additionalProperties": false,
+          "properties": {
+            "can_relax_permission": { "type": "boolean" },
+            "can_add_evidence": { "type": "boolean" },
+            "context_must_not_expand": { "type": "boolean" }
+          }
+        },
+        "bound_skill_patterns": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^[a-z0-9_\\-]+$" }
+        },
+        "allowed_actions": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_\\-]+$" }
+        },
+        "forbidden_actions": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_\\-]+$" }
+        },
+        "tool_policy": {
+          "type": "object",
+          "required": ["read", "write", "network", "dependency_install"],
+          "additionalProperties": false,
+          "properties": {
+            "read": { "enum": ["allowed", "forbidden"] },
+            "write": { "enum": ["allowed", "scoped", "scoped_to_impact_files", "forbidden"] },
+            "network": { "enum": ["allowed", "approval_required", "forbidden"] },
+            "dependency_install": { "enum": ["allowed", "approval_required", "forbidden"] }
+          }
+        },
+        "runtime_environment": {
+          "type": "object",
+          "required": ["auto_inject_local_env", "context_breaker_on_switch", "evidence_capture", "audit_log_write_access"],
+          "additionalProperties": false,
+          "properties": {
+            "auto_inject_local_env": { "type": "boolean" },
+            "context_breaker_on_switch": { "type": "boolean" },
+            "evidence_capture": { "enum": ["none", "system_sandbox"] },
+            "audit_log_write_access": { "enum": ["system_only", "agent_allowed"] }
+          }
+        },
+        "routing_target": { "type": "string", "pattern": "^[a-z0-9_\\-]+$" },
+        "model_policy": {
+          "type": "object",
+          "required": ["temperature", "max_retry_limit", "load_minimal_context", "prefer_deterministic_steps"],
+          "additionalProperties": false,
+          "properties": {
+            "temperature": { "type": "number", "minimum": 0, "maximum": 1 },
+            "max_retry_limit": { "type": "integer", "minimum": 0, "maximum": 10 },
+            "load_minimal_context": { "type": "boolean" },
+            "prefer_deterministic_steps": { "type": "boolean" }
+          }
+        },
+        "required_steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "six_phase_workflow": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "verification": {
+          "type": "object",
+          "required": ["required", "evidence_source", "acceptable_evidence", "audit_fields"],
+          "additionalProperties": false,
+          "properties": {
+            "required": { "type": "boolean" },
+            "evidence_source": { "enum": ["none", "system_sandbox_stdout_stderr", "manual_human_review"] },
+            "acceptable_evidence": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[a-z0-9_\\-]+$" }
+            },
+            "audit_fields": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[a-z0-9_\\-]+$" }
+            }
+          }
+        },
+        "transition_policy": {
+          "type": "object",
+          "required": ["on_success", "on_failure", "on_risk"],
+          "additionalProperties": false,
+          "properties": {
+            "on_success": {
+              "type": "array",
+              "items": { "enum": ["查", "修", "测", "卫", "停", "问", "记", "总"] }
+            },
+            "on_failure": {
+              "type": "array",
+              "items": { "enum": ["查", "修", "测", "卫", "停", "问", "记", "总"] }
+            },
+            "on_risk": {
+              "type": "array",
+              "items": { "enum": ["查", "修", "测", "卫", "停", "问", "记", "总"] }
+            }
+          }
+        },
+        "fallback": {
+          "type": "object",
+          "required": ["when_confidence_below", "action", "on_max_retry_exceeded", "on_meltdown"],
+          "additionalProperties": false,
+          "properties": {
+            "when_confidence_below": { "type": "number", "minimum": 0, "maximum": 1 },
+            "action": { "type": "string", "minLength": 1 },
+            "on_max_retry_exceeded": { "type": "string", "minLength": 1 },
+            "on_meltdown": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  }
+}

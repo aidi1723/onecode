@@ -25,6 +25,7 @@ def execute_command(
 
     sandbox = "local"
     sandbox_fallback = None
+    requested_command = list(command)
     physical_command = list(command)
     if use_docker:
         if shutil.which("docker"):
@@ -76,27 +77,26 @@ def execute_command(
                 }
 
     command_text = " ".join(physical_command)
-    try:
-        completed = subprocess.run(
+    exit_code, stdout, stderr = _run_physical_command(
+        physical_command,
+        working_dir,
+        timeout_seconds,
+    )
+    if (
+        use_docker
+        and sandbox == "docker"
+        and not require_docker
+        and _is_docker_infrastructure_failure(stderr)
+    ):
+        sandbox = "local"
+        sandbox_fallback = "docker_failed"
+        physical_command = requested_command
+        command_text = " ".join(physical_command)
+        exit_code, stdout, stderr = _run_physical_command(
             physical_command,
-            cwd=working_dir,
-            capture_output=True,
-            text=True,
-            timeout=timeout_seconds,
-            check=False,
+            working_dir,
+            timeout_seconds,
         )
-        exit_code = completed.returncode
-        stdout = completed.stdout
-        stderr = completed.stderr
-    except subprocess.TimeoutExpired as exc:
-        exit_code = 124
-        stdout = _decode_timeout_output(exc.stdout)
-        stderr = (_decode_timeout_output(exc.stderr) + f"\nTIMEOUT: command exceeded {timeout_seconds} seconds").strip()
-    except FileNotFoundError as exc:
-        exit_code = 127
-        stdout = ""
-        missing = physical_command[0] if physical_command else str(exc)
-        stderr = f"Command not found: {missing}"
     evidence = build_evidence_record(
         command=command_text,
         exit_code=exit_code,
@@ -116,6 +116,41 @@ def execute_command(
         "stderr": stderr,
         "evidence": evidence,
     }
+
+
+def _run_physical_command(
+    physical_command: list[str],
+    working_dir: Path,
+    timeout_seconds: int,
+) -> tuple[int, str, str]:
+    try:
+        completed = subprocess.run(
+            physical_command,
+            cwd=working_dir,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+            check=False,
+        )
+        return completed.returncode, completed.stdout, completed.stderr
+    except subprocess.TimeoutExpired as exc:
+        stdout = _decode_timeout_output(exc.stdout)
+        stderr = (_decode_timeout_output(exc.stderr) + f"\nTIMEOUT: command exceeded {timeout_seconds} seconds").strip()
+        return 124, stdout, stderr
+    except FileNotFoundError as exc:
+        missing = physical_command[0] if physical_command else str(exc)
+        return 127, "", f"Command not found: {missing}"
+
+
+def _is_docker_infrastructure_failure(stderr: str) -> bool:
+    normalized = stderr.lower()
+    markers = (
+        "permission denied while trying to connect to the docker api",
+        "cannot connect to the docker daemon",
+        "is the docker daemon running",
+        "error during connect",
+    )
+    return any(marker in normalized for marker in markers)
 
 
 def _decode_timeout_output(value: Any) -> str:

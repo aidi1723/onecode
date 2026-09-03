@@ -31,6 +31,12 @@ class GatewayCoreTest(unittest.TestCase):
         self.assertEqual(result.codes, ["修", "测"])
         self.assertGreaterEqual(result.confidence, 0.75)
 
+    def test_confirm_clarification_request_routes_to_prompt_not_verify(self):
+        result = normalize_intent("需求不明确，确认一下再继续", self.dictionary)
+
+        self.assertEqual(result.codes, ["问"])
+        self.assertEqual(result.reason, "high_priority_control")
+
     def test_normalize_build_test_summary_request_starts_with_creation(self):
         result = normalize_intent(
             "实现 ephemeral-mesh-kv 三节点 TTL Mesh 缓存环，跑测试并输出总结。",
@@ -185,6 +191,39 @@ class GatewayCoreTest(unittest.TestCase):
         self.assertEqual(
             [tool["function"]["name"] for tool in rewritten["tools"]],
             ["read_file", "edit_scoped_file"],
+        )
+
+    def test_response_tool_guard_blocks_tools_outside_kernel_allowlist(self):
+        body = {
+            "model": "gpt-test",
+            "messages": [{"role": "user", "content": "这个 bug 修一下"}],
+            "tools": [
+                {"type": "function", "function": {"name": "read_file"}},
+                {"type": "function", "function": {"name": "run_pytest"}},
+            ],
+        }
+        _, metadata = rewrite_chat_completion_request(body, self.dictionary)
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "tool_calls": [
+                            {
+                                "type": "function",
+                                "function": {"name": "run_pytest", "arguments": "{}"},
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+
+        annotated = annotate_chat_completion_response(payload, metadata, self.dictionary)
+
+        self.assertTrue(annotated["yizijue_gateway"]["blocked"])
+        self.assertIn(
+            {"tool": "run_pytest", "reason": "tool_not_allowed_by_kernel_policy"},
+            annotated["yizijue_gateway"]["tool_guard"]["violations"],
         )
 
     def test_rewrite_anthropic_messages_filters_tools_and_injects_system(self):

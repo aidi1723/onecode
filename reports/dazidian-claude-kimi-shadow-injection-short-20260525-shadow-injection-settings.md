@@ -1,0 +1,5 @@
+[State]: 101-INSPECT | [Target]: *
+[Files]: README.md, agent_skill_dictionary/__init__.py, agent_skill_dictionary/agent_protocol.py, agent_skill_dictionary/audit.py, agent_skill_dictionary/cli.py, agent_skill_dictionary/context_breaker.py, +24 more
+[Symbols]: agent_skill_dictionary/agent_protocol.py:113:def _root_opcode_contracts | agent_skill_dictionary/agent_protocol.py:135:def _root_sort_key | agent_skill_dictionary/agent_protocol.py:9:def build_agent_protocol_manifest | +21 more
+[Imports]: agent_skill_dictionary/__init__.py:10:from patch_executor import apply_controlled_patch | agent_skill_dictionary/__init__.py:11:from prompt_executor import create_confirmation_ticket | +14 more
+[Risks]: agent_skill_dictionary/executor.py:5:import subprocess | agent_skill_dictionary/executor.py:80:completed = subprocess.run( | agent_skill_dictionary/executor.py:91:except subprocess.TimeoutExpired as exc | +9 more

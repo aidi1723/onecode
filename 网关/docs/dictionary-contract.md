@@ -158,6 +158,13 @@ Evidence
 - `数 / 文` 可以受限写入结果文件或文档，但不能覆盖源数据或编造未验证行为。
 - `记` 只能受限写入项目记忆、ADR 或文档，不允许修改业务源代码。
 
+执行边界：
+
+- 请求进入上游模型前，网关按根字 `KernelPolicy.allowed_tools` 过滤 `tools`。
+- 响应返回后，响应侧 tool-call 守卫必须再次检查执行字 `tool_policy` 和根字 `KernelPolicy.allowed_tools`。
+- 手工 metadata 或派生字路径必须先回落到真实根字，再读取 kernel policy；不能直接把 `造 / 改 / 解` 等派生字当作根字查询。
+- `/v1/yizijue/preflight-tool` 与响应侧标注应使用同一套工具归类和 kernel allowlist 语义。
+
 ## 运行环境策略
 
 ```json
@@ -175,6 +182,12 @@ Evidence
 - `context_breaker_on_switch`：执行字切换时触发上下文预算断路器。
 - `evidence_capture`：证据捕获来源，当前目标是系统沙盒。
 - `audit_log_write_access`：审计日志写权限，必须是 `system_only`。
+
+Docker 验证策略：
+
+- `use_docker=true` 表示优先使用 Docker 沙盒。
+- Docker 二进制缺失、守护进程不可用或 socket 权限失败时，非 `require_docker` 模式可以降级到本地执行，并记录 `sandbox_fallback`。
+- `require_docker=true` 表示 Docker 是硬依赖，不允许降级到宿主机。
 
 ## 验证字段
 

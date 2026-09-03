@@ -10,7 +10,7 @@ workspace and public release package.
 This closure covers the source workspace under:
 
 ```text
-/Users/aidi/大字典/小模型
+.
 ```
 
 The release copy is:

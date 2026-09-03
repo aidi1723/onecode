@@ -1,7 +1,7 @@
 # YiZiJue-LM Small Model Training Roadmap
 
 Date: 2026-06-02
-Workspace: `/Users/aidi/大字典/小模型`
+Workspace: `.`
 
 ## Core Principle
 
@@ -207,7 +207,7 @@ After strict SFT and hard negatives, add runtime decoding control.
 Use OneCode-side rule documentation:
 
 ```text
-/Users/aidi/大字典/one code/docs/YIZIJUE_CONTROLLED_DECODING_PROBABILITY_RULES.md
+<onecode-repo>/docs/YIZIJUE_CONTROLLED_DECODING_PROBABILITY_RULES.md
 ```
 
 Target formula:
@@ -302,7 +302,7 @@ HF_HOME=/private/tmp/hf-cache-yizijue-...
 
 Clean temporary caches after each run.
 
-### n100
+### Remote Archive Host
 
 Use for:
 
@@ -314,7 +314,7 @@ Use for:
 Archive format:
 
 ```text
-n100:~/yizijue-small-model-archive/<date>-<run-name>/
+<archive-host>:~/yizijue-small-model-archive/<date>-<run-name>/
 ```
 
 ### Cloud GPU
@@ -398,4 +398,3 @@ clean distilled SFT
 ```
 
 Do not skip to full fine-tuning or GRPO before the hard-negative and controlled-decoding loop is stable.
-

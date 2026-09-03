@@ -56,7 +56,7 @@ docs/private-beta-distribution.md
 - 支持闭环 Macro Chain 编译：复杂需求可被解析为 `查 -> 造 -> 测 -> 修 -> 记 -> 总` 或 `卫 -> 停 -> 问 -> 查 -> 总` 等确定性根字链。
 - 支持 OneWord-Agent FSM 框架原型：把任务运行成 8 个根字之间的可审计状态轨迹。
 - 明确现有 Agent 接入路线：先规训 OpenAI-compatible Agent，再通过 Anthropic-compatible adapter 接入 Claude Code，最后再演进自研 AgentOS。
-- 支持响应侧 tool-call 守卫标注，识别写文件、安装依赖和高风险 shell 命令。
+- 支持响应侧 tool-call 守卫标注，识别写文件、安装依赖、高风险 shell 命令，并按根字 `KernelPolicy.allowed_tools` 二次拦截越权工具。
 - 支持 `/v1/yizijue/preflight-tool` 执行前工具检查接口。
 - 支持系统证据摘要工具，为后续审计日志落盘打底。
 - 支持 `/v1/chat/completions` 与 Anthropic Messages 的 `stream=true` 流式转发，并在流式 chunk 中检查/拦截工具调用；命中 Build Mode 工具调用时会返回结构化 SSE 证据通知。
@@ -76,7 +76,7 @@ docs/private-beta-distribution.md
 - 每个执行字都有 `professional_protocol`，包含参考来源、专业步骤和硬门规则。
 - 网关会把执行字的参考工作流、专业运行逻辑和根字 workflow 摘要注入 system rule。
 - 网关会把根字 Kernel Runtime Policy 注入 system rule，并在请求转发前过滤不属于当前根字的工具。
-- 工具守卫支持响应侧标注和 `/v1/yizijue/preflight-tool` 执行前检查。
+- 工具守卫支持响应侧标注和 `/v1/yizijue/preflight-tool` 执行前检查，两条路径都必须满足执行字 `tool_policy` 和根字工具白名单。
 - 本地测试、词典 validator 和 Python 编译检查作为当前验证基线。
 
 8 个根字的专业协议已拆成可加载 workflow 文件，并接入 workflow loader 与网关注入。当前仍需要继续完善上下文预算加载策略、workflow 热加载、真实客户端端到端验证和具体 Agent 工具执行层的强制接入。
@@ -300,6 +300,6 @@ python3 -m agent_skill_dictionary.cli audit --path .oneword/audit.jsonl
 
 ## 当前边界
 
-当前版本已经达到私测 MVP：8 个根字都有可测试的内核策略，OneWord-Agent 具备真实执行、审计证据、交付产物、端到端运行入口和通用 Agent 接入协议。Build Mode V2 本地网关闭环也已经通过 live-smoke，三路协议均能完成写入、验证、失败修复、上下文检查和归档证据链。`测` 已支持可选 Docker 沙盒执行，默认加 `--network none --memory 1g --cpus 2`，并支持 `require_docker` 防止误降级到宿主机；`卫` 已支持可选 Semgrep / OSV-Scanner 外部扫描器接入；缺少本地二进制时会稳定降级。
+当前版本已经达到私测 MVP：8 个根字都有可测试的内核策略，OneWord-Agent 具备真实执行、审计证据、交付产物、端到端运行入口和通用 Agent 接入协议。Build Mode V2 本地网关闭环也已经通过 live-smoke，三路协议均能完成写入、验证、失败修复、上下文检查和归档证据链。`测` 已支持可选 Docker 沙盒执行，默认加 `--network none --memory 1g --cpus 2`；`use_docker=true` 会优先使用 Docker，Docker 二进制缺失、守护进程不可用或 socket 权限失败时会在非强制模式下降级到本地执行并记录 `sandbox_fallback`；`require_docker=true` 会防止误降级到宿主机。`卫` 已支持可选 Semgrep / OSV-Scanner 外部扫描器接入；缺少本地二进制时会稳定降级。
 
 仍未覆盖的生产增强项是真实 Codex Desktop / Claude Code 客户端端到端验证、真实上游模型长任务 A/B、WebSocket 兼容、多节点调度和词典热加载。真正完整的物理阻断仍需要具体 Agent 在执行工具前调用 `/v1/yizijue/preflight-tool`，或统一接入本项目网关。

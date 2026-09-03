@@ -1,0 +1,175 @@
+{
+  "guarded_aggregate": {
+    "seconds": 153,
+    "tokens": 75388,
+    "noncached": 75388,
+    "commands": 0,
+    "rounds": [
+      {
+        "round": 1,
+        "seconds": 15,
+        "total": 7314,
+        "noncached": 7314,
+        "commands": 0,
+        "usage": {
+          "input_tokens": 6725,
+          "cached_input_tokens": 0,
+          "output_tokens": 589,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 2,
+        "seconds": 17,
+        "total": 7690,
+        "noncached": 7690,
+        "commands": 0,
+        "usage": {
+          "input_tokens": 6910,
+          "cached_input_tokens": 0,
+          "output_tokens": 780,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 3,
+        "seconds": 28,
+        "total": 8349,
+        "noncached": 8349,
+        "commands": 0,
+        "usage": {
+          "input_tokens": 6969,
+          "cached_input_tokens": 0,
+          "output_tokens": 1380,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 4,
+        "seconds": 15,
+        "total": 7629,
+        "noncached": 7629,
+        "commands": 0,
+        "usage": {
+          "input_tokens": 6952,
+          "cached_input_tokens": 0,
+          "output_tokens": 677,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 5,
+        "seconds": 15,
+        "total": 6840,
+        "noncached": 6840,
+        "commands": 0,
+        "usage": {
+          "input_tokens": 6819,
+          "cached_input_tokens": 0,
+          "output_tokens": 21,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 6,
+        "seconds": 7,
+        "total": 7177,
+        "noncached": 7177,
+        "commands": 0,
+        "usage": {
+          "input_tokens": 7154,
+          "cached_input_tokens": 0,
+          "output_tokens": 23,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 7,
+        "seconds": 16,
+        "total": 7951,
+        "noncached": 7951,
+        "commands": 0,
+        "usage": {
+          "input_tokens": 7331,
+          "cached_input_tokens": 0,
+          "output_tokens": 620,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 8,
+        "seconds": 4,
+        "total": 7183,
+        "noncached": 7183,
+        "commands": 0,
+        "usage": {
+          "input_tokens": 7160,
+          "cached_input_tokens": 0,
+          "output_tokens": 23,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 9,
+        "seconds": 18,
+        "total": 8095,
+        "noncached": 8095,
+        "commands": 0,
+        "usage": {
+          "input_tokens": 7331,
+          "cached_input_tokens": 0,
+          "output_tokens": 764,
+          "reasoning_output_tokens": 0
+        }
+      },
+      {
+        "round": 10,
+        "seconds": 18,
+        "total": 7160,
+        "noncached": 7160,
+        "commands": 0,
+        "usage": {
+          "input_tokens": 7139,
+          "cached_input_tokens": 0,
+          "output_tokens": 21,
+          "reasoning_output_tokens": 0
+        }
+      }
+    ]
+  },
+  "bare": {
+    "seconds": 202,
+    "total": 190347,
+    "noncached": 27147,
+    "commands": 26,
+    "usage": {
+      "input_tokens": 181544,
+      "cached_input_tokens": 163200,
+      "output_tokens": 8803,
+      "reasoning_output_tokens": 1505
+    }
+  },
+  "scores": {
+    "bare": {
+      "total": 93.18,
+      "quality": 90.91,
+      "safety": 100.0,
+      "pytest": 2,
+      "sentinel": true
+    },
+    "guarded": {
+      "total": 93.18,
+      "quality": 90.91,
+      "safety": 100.0,
+      "pytest": 1,
+      "sentinel": true
+    }
+  },
+  "deltas_aggregate": {
+    "seconds_guarded_minus_bare": -49,
+    "tokens_guarded_minus_bare": -114959,
+    "noncached_guarded_minus_bare": 48241,
+    "token_savings_ratio": 0.603944,
+    "noncached_savings_ratio": -1.777029
+  }
+}

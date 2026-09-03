@@ -1,0 +1,1789 @@
+{
+  "project": "字溯东方 Hanzi Lifecycle",
+  "version": "batch-007",
+  "description": "第七批数字、抽象逻辑与方位功能字样板数据。覆盖数量、大小、长短高低、阴阳、自至和上下前后左右。",
+  "entries": [
+    {
+      "id": "108",
+      "modern": "一",
+      "traditional_or_variants": [
+        "一"
+      ],
+      "unicode": "U+4E00",
+      "pinyin": [
+        "yi1"
+      ],
+      "radical": "一",
+      "stroke_count": 1,
+      "shape_evolution": {
+        "oracle_bronze": "以一横表示数目一。",
+        "small_seal": "横画规范化。",
+        "clerical": "横画笔法定型。",
+        "regular_traditional": "一",
+        "simplified": "一",
+        "summary": "由单横记数，发展为数目、统一、同一、全体和开始等抽象义。"
+      },
+      "meaning_evolution": {
+        "original": "数字一。",
+        "early": "一、单一、开始。",
+        "later": "统一、全部、同一、专一、稍微。",
+        "modern": [
+          "数字一",
+          "同一",
+          "统一",
+          "全或满",
+          "表示动作短暂"
+        ],
+        "common_words": [
+          "一个",
+          "一起",
+          "统一",
+          "一定",
+          "一会儿"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "於悉切"
+        ],
+        "rhyme_group": "质韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“惟初太始，道立于一”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "一的现代变调需后续在现代音系层单列。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "数字一",
+          "同一",
+          "统一",
+          "全或满",
+          "表示动作短暂"
+        ],
+        "common_words": [
+          "一个",
+          "一起",
+          "统一",
+          "一定",
+          "一会儿"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "一：现代主要用于表示数字一；同一；统一；全或满；表示动作短暂。常见用法如：一个、一起、统一、一定、一会儿。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "109",
+      "modern": "二",
+      "traditional_or_variants": [
+        "二"
+      ],
+      "unicode": "U+4E8C",
+      "pinyin": [
+        "er4"
+      ],
+      "radical": "二",
+      "stroke_count": 2,
+      "shape_evolution": {
+        "oracle_bronze": "以两横表示数目二。",
+        "small_seal": "两横规范化。",
+        "clerical": "横画笔法定型。",
+        "regular_traditional": "二",
+        "simplified": "二",
+        "summary": "由两横记数，发展为次第、两端、不同和不专一等义。"
+      },
+      "meaning_evolution": {
+        "original": "数字二。",
+        "early": "二、两个。",
+        "later": "次第第二；两样、不同；不专一。",
+        "modern": [
+          "数字二",
+          "第二",
+          "两样或不一致",
+          "不专一"
+        ],
+        "common_words": [
+          "二人",
+          "第二",
+          "二月",
+          "二心",
+          "二手"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "而至切"
+        ],
+        "rhyme_group": "至韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“地之数也。从偶一”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "二与两的分工是现代数量表达的重要问题，后续应单列。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "数字二",
+          "第二",
+          "两样或不一致",
+          "不专一"
+        ],
+        "common_words": [
+          "二人",
+          "第二",
+          "二月",
+          "二心",
+          "二手"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "二：现代主要用于表示数字二；第二；两样或不一致；不专一。常见用法如：二人、第二、二月、二心、二手。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "110",
+      "modern": "三",
+      "traditional_or_variants": [
+        "三"
+      ],
+      "unicode": "U+4E09",
+      "pinyin": [
+        "san1"
+      ],
+      "radical": "一",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "以三横表示数目三。",
+        "small_seal": "三横规范化。",
+        "clerical": "横画笔法定型。",
+        "regular_traditional": "三",
+        "simplified": "三",
+        "summary": "由三横记数，发展为三数、再三、多次和多数虚指。"
+      },
+      "meaning_evolution": {
+        "original": "数字三。",
+        "early": "三、第三。",
+        "later": "多次、再三、成组的多数。",
+        "modern": [
+          "数字三",
+          "第三",
+          "多次或多数虚指"
+        ],
+        "common_words": [
+          "三个",
+          "三月",
+          "第三",
+          "再三",
+          "三思"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "苏甘切"
+        ],
+        "rhyme_group": "谈韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“天地人之道也。从三数”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "三常作虚数表示多，后续应记录数字的虚指功能。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "数字三",
+          "第三",
+          "多次或多数虚指"
+        ],
+        "common_words": [
+          "三个",
+          "三月",
+          "第三",
+          "再三",
+          "三思"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "三：现代主要用于表示数字三；第三；多次或多数虚指。常见用法如：三个、三月、第三、再三、三思。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "111",
+      "modern": "十",
+      "traditional_or_variants": [
+        "十"
+      ],
+      "unicode": "U+5341",
+      "pinyin": [
+        "shi2"
+      ],
+      "radical": "十",
+      "stroke_count": 2,
+      "shape_evolution": {
+        "oracle_bronze": "早期常以一竖或交叉形表示十数，后定为横竖相交。",
+        "small_seal": "横竖交叉结构规范化。",
+        "clerical": "两笔结构定型。",
+        "regular_traditional": "十",
+        "simplified": "十",
+        "summary": "由十进位基本数，发展为完整、全部、十分等程度义。"
+      },
+      "meaning_evolution": {
+        "original": "数字十。",
+        "early": "十、十数。",
+        "later": "完备、全部、程度很高。",
+        "modern": [
+          "数字十",
+          "十分或很",
+          "完整或全"
+        ],
+        "common_words": [
+          "十个",
+          "十分",
+          "十足",
+          "十全十美",
+          "十月"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "是执切"
+        ],
+        "rhyme_group": "缉韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“数之具也。一为东西，丨为南北，则四方中央备矣”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "十的完整义由十进制完备感引申，适合作数量系统核心字。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "数字十",
+          "十分或很",
+          "完整或全"
+        ],
+        "common_words": [
+          "十个",
+          "十分",
+          "十足",
+          "十全十美",
+          "十月"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "十：现代主要用于表示数字十；十分或很；完整或全。常见用法如：十个、十分、十足、十全十美、十月。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "112",
+      "modern": "百",
+      "traditional_or_variants": [
+        "百"
+      ],
+      "unicode": "U+767E",
+      "pinyin": [
+        "bai3"
+      ],
+      "radical": "白",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "早期数字系统中表示十个十，形体与白相关，构形需复核。",
+        "small_seal": "从一、白一类结构规范化。",
+        "clerical": "上横与白部笔画定型。",
+        "regular_traditional": "百",
+        "simplified": "百",
+        "summary": "由数目一百，发展为众多、各种、百分比和百姓等义。"
+      },
+      "meaning_evolution": {
+        "original": "一百，十个十。",
+        "early": "百数。",
+        "later": "很多、各种、全部之多。",
+        "modern": [
+          "数字一百",
+          "许多",
+          "百分比",
+          "各种"
+        ],
+        "common_words": [
+          "一百",
+          "百姓",
+          "百分",
+          "百货",
+          "百年"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "博陌切"
+        ],
+        "rhyme_group": "陌韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“十十也。从一白”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "百的构形与白关系需谨慎，第一版先保留传统说法。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "数字一百",
+          "许多",
+          "百分比",
+          "各种"
+        ],
+        "common_words": [
+          "一百",
+          "百姓",
+          "百分",
+          "百货",
+          "百年"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "百：现代主要用于表示数字一百；许多；百分比；各种。常见用法如：一百、百姓、百分、百货、百年。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "113",
+      "modern": "千",
+      "traditional_or_variants": [
+        "千"
+      ],
+      "unicode": "U+5343",
+      "pinyin": [
+        "qian1"
+      ],
+      "radical": "十",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "数字系统中表示十个百，形体与十及声符关系需复核。",
+        "small_seal": "结构线条化。",
+        "clerical": "撇横竖三笔定型。",
+        "regular_traditional": "千",
+        "simplified": "千",
+        "summary": "由数目一千，发展为众多、极多和千变万化等虚指义。"
+      },
+      "meaning_evolution": {
+        "original": "一千，十个百。",
+        "early": "千数。",
+        "later": "极多、众多、久远。",
+        "modern": [
+          "数字一千",
+          "很多",
+          "极多或反复"
+        ],
+        "common_words": [
+          "一千",
+          "千万",
+          "千古",
+          "千里",
+          "千方百计"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "苍先切"
+        ],
+        "rhyme_group": "先韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“十百也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "千的数量义稳定，但构形细节需后续校验。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "数字一千",
+          "很多",
+          "极多或反复"
+        ],
+        "common_words": [
+          "一千",
+          "千万",
+          "千古",
+          "千里",
+          "千方百计"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "千：现代主要用于表示数字一千；很多；极多或反复。常见用法如：一千、千万、千古、千里、千方百计。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "114",
+      "modern": "万",
+      "traditional_or_variants": [
+        "万",
+        "萬"
+      ],
+      "unicode": "U+4E07",
+      "traditional_unicode": "U+842C",
+      "pinyin": [
+        "wan4",
+        "mo4"
+      ],
+      "radical": "一",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“萬”早期常解释为蝎类或虫形，后借作大数万。",
+        "small_seal": "萬形复杂，保留虫形系统；简体“万”为另字借用。",
+        "clerical": "萬笔画化，万形也通行。",
+        "regular_traditional": "萬",
+        "simplified": "万",
+        "summary": "由“萬”借表大数，现代简化为“万”，表示一万及极多。"
+      },
+      "meaning_evolution": {
+        "original": "“萬”本义常说为虫类，后借为数目一万。",
+        "early": "万数，极大之数。",
+        "later": "众多、全部、绝对程度。",
+        "modern": [
+          "数字一万",
+          "极多",
+          "完全或绝对",
+          "姓氏"
+        ],
+        "common_words": [
+          "一万",
+          "万物",
+          "万一",
+          "千万",
+          "万能"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "无贩切"
+        ],
+        "rhyme_group": "愿韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》收“萬”，释为“虫也”，数义属假借系统。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "万/萬是简化、假借、本义分离的重要样板。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "数字一万",
+          "极多",
+          "完全或绝对",
+          "姓氏"
+        ],
+        "common_words": [
+          "一万",
+          "万物",
+          "万一",
+          "千万",
+          "万能"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "万：现代主要用于表示数字一万；极多；完全或绝对；姓氏。常见用法如：一万、万物、万一、千万、万能。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "115",
+      "modern": "大",
+      "traditional_or_variants": [
+        "大"
+      ],
+      "unicode": "U+5927",
+      "pinyin": [
+        "da4",
+        "dai4"
+      ],
+      "radical": "大",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "象正面张开四肢的人形。",
+        "small_seal": "人形线条化为“大”。",
+        "clerical": "横撇捺三笔定型。",
+        "regular_traditional": "大",
+        "simplified": "大",
+        "summary": "由人伸展显大之形，发展为大小、尊大、程度高和年长等义。"
+      },
+      "meaning_evolution": {
+        "original": "人形张大，引申为大。",
+        "early": "大、小之大；尊大。",
+        "later": "规模大、程度高、年长、重要。",
+        "modern": [
+          "大",
+          "程度深",
+          "年长",
+          "重要",
+          "排行第一"
+        ],
+        "common_words": [
+          "大小",
+          "大人",
+          "大学",
+          "大约",
+          "大哥"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "徒盖切",
+          "唐佐切"
+        ],
+        "rhyme_group": "泰韵、箇韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“天大，地大，人亦大，故大象人形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "大与人、天的构形关系在前批已有呼应。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "大",
+          "程度深",
+          "年长",
+          "重要",
+          "排行第一"
+        ],
+        "common_words": [
+          "大小",
+          "大人",
+          "大学",
+          "大约",
+          "大哥"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "大：现代主要用于表示大；程度深；年长；重要；排行第一。常见用法如：大小、大人、大学、大约、大哥。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "116",
+      "modern": "小",
+      "traditional_or_variants": [
+        "小"
+      ],
+      "unicode": "U+5C0F",
+      "pinyin": [
+        "xiao3"
+      ],
+      "radical": "小",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "多以细小点画表示微小。",
+        "small_seal": "中心竖画两侧点画规范化。",
+        "clerical": "三笔结构定型。",
+        "regular_traditional": "小",
+        "simplified": "小",
+        "summary": "由微小点画，发展为大小之小、年幼、轻微和谦称等义。"
+      },
+      "meaning_evolution": {
+        "original": "微小。",
+        "early": "小、少、细微。",
+        "later": "年幼、地位低、轻视、谦称。",
+        "modern": [
+          "小",
+          "年幼",
+          "少或轻微",
+          "地位低",
+          "谦称或亲昵称呼"
+        ],
+        "common_words": [
+          "大小",
+          "小孩",
+          "小心",
+          "小说",
+          "小事"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "私兆切"
+        ],
+        "rhyme_group": "小韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“物之微也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "小的物理小、年龄小、地位小应分义处理。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "小",
+          "年幼",
+          "少或轻微",
+          "地位低",
+          "谦称或亲昵称呼"
+        ],
+        "common_words": [
+          "大小",
+          "小孩",
+          "小心",
+          "小说",
+          "小事"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "小：现代主要用于表示小；年幼；少或轻微；地位低；谦称或亲昵称呼。常见用法如：大小、小孩、小心、小说、小事。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "117",
+      "modern": "长",
+      "traditional_or_variants": [
+        "長"
+      ],
+      "unicode": "U+957F",
+      "traditional_unicode": "U+9577",
+      "pinyin": [
+        "chang2",
+        "zhang3"
+      ],
+      "radical": "长",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“長”早期多像长发老人或长发形。",
+        "small_seal": "长发人形线条化为“長”。",
+        "clerical": "复杂形体笔画化。",
+        "regular_traditional": "長",
+        "simplified": "长",
+        "summary": "由长发、长久或年长者形象，发展为长度、长久、擅长和长官。"
+      },
+      "meaning_evolution": {
+        "original": "长，或长发年长形象。",
+        "early": "长度长；年长。",
+        "later": "长久、擅长、增长、首领。",
+        "modern": [
+          "长度大",
+          "时间久",
+          "擅长",
+          "生长",
+          "年长或首领"
+        ],
+        "common_words": [
+          "长短",
+          "长久",
+          "成长",
+          "长官",
+          "擅长"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "直良切",
+          "知丈切"
+        ],
+        "rhyme_group": "阳韵、养韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“長”为“久远也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "长 chang2/zhang3 音义分流很重要，后续应拆义项。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "长度大",
+          "时间久",
+          "擅长",
+          "生长",
+          "年长或首领"
+        ],
+        "common_words": [
+          "长短",
+          "长久",
+          "成长",
+          "长官",
+          "擅长"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "长：现代主要用于表示长度大；时间久；擅长；生长；年长或首领。常见用法如：长短、长久、成长、长官、擅长。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "118",
+      "modern": "短",
+      "traditional_or_variants": [
+        "短"
+      ],
+      "unicode": "U+77ED",
+      "pinyin": [
+        "duan3"
+      ],
+      "radical": "矢",
+      "stroke_count": 12,
+      "shape_evolution": {
+        "oracle_bronze": "后起合体字，从矢、豆声一类，具体构形需复核。",
+        "small_seal": "矢与豆结构规范化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "短",
+        "simplified": "短",
+        "summary": "由长度不足、不长，发展为时间短、缺点、亏欠和短见等义。"
+      },
+      "meaning_evolution": {
+        "original": "不长。",
+        "early": "长度短。",
+        "later": "时间短、不足、缺点、亏欠。",
+        "modern": [
+          "长度小",
+          "时间少",
+          "缺点",
+          "亏欠或不足"
+        ],
+        "common_words": [
+          "长短",
+          "短处",
+          "短期",
+          "短缺",
+          "短见"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "都管切"
+        ],
+        "rhyme_group": "缓韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“有所长短，以矢为正”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "短的构形解释传统色彩较强，需结合字源专书复核。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "长度小",
+          "时间少",
+          "缺点",
+          "亏欠或不足"
+        ],
+        "common_words": [
+          "长短",
+          "短处",
+          "短期",
+          "短缺",
+          "短见"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "短：现代主要用于表示长度小；时间少；缺点；亏欠或不足。常见用法如：长短、短处、短期、短缺、短见。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "119",
+      "modern": "高",
+      "traditional_or_variants": [
+        "高"
+      ],
+      "unicode": "U+9AD8",
+      "pinyin": [
+        "gao1"
+      ],
+      "radical": "高",
+      "stroke_count": 10,
+      "shape_evolution": {
+        "oracle_bronze": "象高台、楼阁或高大建筑之形。",
+        "small_seal": "高台建筑结构线条化。",
+        "clerical": "上下建筑形笔画化。",
+        "regular_traditional": "高",
+        "simplified": "高",
+        "summary": "由高台建筑，发展为高度大、等级高、程度高和高明等义。"
+      },
+      "meaning_evolution": {
+        "original": "高大的建筑或高处。",
+        "early": "高处、高大。",
+        "later": "等级高、程度高、高明、贵重。",
+        "modern": [
+          "高度大",
+          "等级高",
+          "程度高",
+          "高明",
+          "敬辞"
+        ],
+        "common_words": [
+          "高山",
+          "高低",
+          "高兴",
+          "高级",
+          "高明"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "古劳切"
+        ],
+        "rhyme_group": "豪韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“崇也。象台观高之形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "高的空间义和社会等级义扩展清晰。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "高度大",
+          "等级高",
+          "程度高",
+          "高明",
+          "敬辞"
+        ],
+        "common_words": [
+          "高山",
+          "高低",
+          "高兴",
+          "高级",
+          "高明"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "高：现代主要用于表示高度大；等级高；程度高；高明；敬辞。常见用法如：高山、高低、高兴、高级、高明。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "120",
+      "modern": "低",
+      "traditional_or_variants": [
+        "低"
+      ],
+      "unicode": "U+4F4E",
+      "pinyin": [
+        "di1"
+      ],
+      "radical": "亻",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "后起合体字，从人、氐声，表示人低下或位置低。",
+        "small_seal": "人旁与氐部结构规范化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "低",
+        "simplified": "低",
+        "summary": "由低下、位置低，发展为程度小、等级低、声音低和俯下。"
+      },
+      "meaning_evolution": {
+        "original": "低下，位置在下。",
+        "early": "低、俯。",
+        "later": "等级低、程度低、声音低、情绪低落。",
+        "modern": [
+          "高度小",
+          "等级低",
+          "程度小",
+          "声音低",
+          "俯下"
+        ],
+        "common_words": [
+          "高低",
+          "低头",
+          "降低",
+          "低级",
+          "低声"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "都奚切"
+        ],
+        "rhyme_group": "齐韵",
+        "entering_tone": false,
+        "classical_note": "低为从人、氐声的形声字，现代义以高低相对为主。",
+        "source_level": "广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "低相对高属于后起形声字，字源链不宜强行上推到甲骨。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "高度小",
+          "等级低",
+          "程度小",
+          "声音低",
+          "俯下"
+        ],
+        "common_words": [
+          "高低",
+          "低头",
+          "降低",
+          "低级",
+          "低声"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "低：现代主要用于表示高度小；等级低；程度小；声音低；俯下。常见用法如：高低、低头、降低、低级、低声。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "121",
+      "modern": "阴",
+      "traditional_or_variants": [
+        "陰"
+      ],
+      "unicode": "U+9634",
+      "traditional_unicode": "U+9670",
+      "pinyin": [
+        "yin1"
+      ],
+      "radical": "阝",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“陰”从阜，侌声，表示山北水南不见日之处。",
+        "small_seal": "阜旁与侌部结构规范化。",
+        "clerical": "左阝与右部笔画化。",
+        "regular_traditional": "陰",
+        "simplified": "阴",
+        "summary": "由背日阴暗处，发展为阴影、阴雨、阴性、隐秘和阴阳系统。"
+      },
+      "meaning_evolution": {
+        "original": "山北或水南背日处，阴暗。",
+        "early": "阴暗、背阳处。",
+        "later": "阴雨、阴影、阴性、隐秘、阴间、阴阳之阴。",
+        "modern": [
+          "阴暗",
+          "云雨天气",
+          "阴性",
+          "隐秘",
+          "阴阳之阴"
+        ],
+        "common_words": [
+          "阴天",
+          "阴阳",
+          "阴影",
+          "阴性",
+          "阴谋"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "於金切"
+        ],
+        "rhyme_group": "侵韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“陰”为“闇也。水之南，山之北也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "阴/陽必须成对整理，涉及自然方位、性别、哲学多层义。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "阴暗",
+          "云雨天气",
+          "阴性",
+          "隐秘",
+          "阴阳之阴"
+        ],
+        "common_words": [
+          "阴天",
+          "阴阳",
+          "阴影",
+          "阴性",
+          "阴谋"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "阴：现代主要用于表示阴暗；云雨天气；阴性；隐秘；阴阳之阴。常见用法如：阴天、阴阳、阴影、阴性、阴谋。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "122",
+      "modern": "阳",
+      "traditional_or_variants": [
+        "陽"
+      ],
+      "unicode": "U+9633",
+      "traditional_unicode": "U+967D",
+      "pinyin": [
+        "yang2"
+      ],
+      "radical": "阝",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“陽”从阜，昜声，表示山南水北向日之处。",
+        "small_seal": "阜旁与昜部结构规范化。",
+        "clerical": "左阝与右部笔画化。",
+        "regular_traditional": "陽",
+        "simplified": "阳",
+        "summary": "由向日明亮处，发展为太阳、阳光、阳性、外露和阴阳系统。"
+      },
+      "meaning_evolution": {
+        "original": "山南或水北向日处，明亮。",
+        "early": "阳光、向阳处。",
+        "later": "太阳、阳性、外露、人世、阴阳之阳。",
+        "modern": [
+          "阳光",
+          "太阳",
+          "阳性",
+          "外露",
+          "阴阳之阳"
+        ],
+        "common_words": [
+          "太阳",
+          "阳光",
+          "阴阳",
+          "阳性",
+          "向阳"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "与章切"
+        ],
+        "rhyme_group": "阳韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“陽”为“高明也”。传统义含山南水北。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "阳的自然方位义、太阳义、哲学义需分层。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "阳光",
+          "太阳",
+          "阳性",
+          "外露",
+          "阴阳之阳"
+        ],
+        "common_words": [
+          "太阳",
+          "阳光",
+          "阴阳",
+          "阳性",
+          "向阳"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "阳：现代主要用于表示阳光；太阳；阳性；外露；阴阳之阳。常见用法如：太阳、阳光、阴阳、阳性、向阳。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "123",
+      "modern": "自",
+      "traditional_or_variants": [
+        "自"
+      ],
+      "unicode": "U+81EA",
+      "pinyin": [
+        "zi4"
+      ],
+      "radical": "自",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "象鼻子之形，古人指鼻表示自己。",
+        "small_seal": "鼻形线条化。",
+        "clerical": "框形和内部横画定型。",
+        "regular_traditional": "自",
+        "simplified": "自",
+        "summary": "由鼻子象形，借指自身、自我，后又表示从、由、自然。"
+      },
+      "meaning_evolution": {
+        "original": "鼻子。",
+        "early": "自己、自身。",
+        "later": "亲自、自然、从、由、起点。",
+        "modern": [
+          "自己",
+          "亲自",
+          "自然",
+          "从或由",
+          "起始来源"
+        ],
+        "common_words": [
+          "自己",
+          "自然",
+          "自从",
+          "自动",
+          "自信"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "疾二切"
+        ],
+        "rhyme_group": "至韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“鼻也。象鼻形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "自与鼻的关系已在鼻字中出现，应建立互链。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "自己",
+          "亲自",
+          "自然",
+          "从或由",
+          "起始来源"
+        ],
+        "common_words": [
+          "自己",
+          "自然",
+          "自从",
+          "自动",
+          "自信"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "自：现代主要用于表示自己；亲自；自然；从或由；起始来源。常见用法如：自己、自然、自从、自动、自信。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "124",
+      "modern": "至",
+      "traditional_or_variants": [
+        "至"
+      ],
+      "unicode": "U+81F3",
+      "pinyin": [
+        "zhi4"
+      ],
+      "radical": "至",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "象鸟或矢到达地面之形，传统解释为到达。",
+        "small_seal": "到达地面结构线条化。",
+        "clerical": "上部与土形笔画定型。",
+        "regular_traditional": "至",
+        "simplified": "至",
+        "summary": "由到达，发展为极点、最、甚至、至于和至诚等程度义。"
+      },
+      "meaning_evolution": {
+        "original": "到达。",
+        "early": "来到、达到。",
+        "later": "极、最、至于、甚至、诚恳到极点。",
+        "modern": [
+          "到",
+          "达到极点",
+          "最",
+          "至于",
+          "甚至"
+        ],
+        "common_words": [
+          "至今",
+          "到至",
+          "甚至",
+          "至于",
+          "至高"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "脂利切"
+        ],
+        "rhyme_group": "至韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“鸟飞从高下至地也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "至是空间到达义向程度极点义扩展的核心字。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "到",
+          "达到极点",
+          "最",
+          "至于",
+          "甚至"
+        ],
+        "common_words": [
+          "至今",
+          "到至",
+          "甚至",
+          "至于",
+          "至高"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "至：现代主要用于表示到；达到极点；最；至于；甚至。常见用法如：至今、到至、甚至、至于、至高。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "125",
+      "modern": "上",
+      "traditional_or_variants": [
+        "上"
+      ],
+      "unicode": "U+4E0A",
+      "pinyin": [
+        "shang4",
+        "shang3"
+      ],
+      "radical": "一",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "以基准线和上方指示符表示上方。",
+        "small_seal": "指事结构规范化。",
+        "clerical": "横竖结构笔画定型。",
+        "regular_traditional": "上",
+        "simplified": "上",
+        "summary": "由方位上方，发展为等级高、前一、呈递、登上和进行等义。"
+      },
+      "meaning_evolution": {
+        "original": "上方。",
+        "early": "位置在高处或前面。",
+        "later": "等级高、君上、上一阶段、登临、呈上。",
+        "modern": [
+          "上方",
+          "等级高",
+          "前一",
+          "到某处去",
+          "进行或添加"
+        ],
+        "common_words": [
+          "上面",
+          "上午",
+          "上级",
+          "上学",
+          "上一年"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "时掌切",
+          "时亮切"
+        ],
+        "rhyme_group": "养韵、漾韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“高也。此古文上，指事也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "上是指事字，空间、时间、等级义需分层。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "上方",
+          "等级高",
+          "前一",
+          "到某处去",
+          "进行或添加"
+        ],
+        "common_words": [
+          "上面",
+          "上午",
+          "上级",
+          "上学",
+          "上一年"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "上：现代主要用于表示上方；等级高；前一；到某处去；进行或添加。常见用法如：上面、上午、上级、上学、上一年。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "126",
+      "modern": "下",
+      "traditional_or_variants": [
+        "下"
+      ],
+      "unicode": "U+4E0B",
+      "pinyin": [
+        "xia4"
+      ],
+      "radical": "一",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "以基准线和下方指示符表示下方。",
+        "small_seal": "指事结构规范化。",
+        "clerical": "横竖点结构笔画定型。",
+        "regular_traditional": "下",
+        "simplified": "下",
+        "summary": "由方位下方，发展为等级低、后一、下降、给予和结束等义。"
+      },
+      "meaning_evolution": {
+        "original": "下方。",
+        "early": "位置在低处。",
+        "later": "等级低、后一个、落下、去到、发布、结束。",
+        "modern": [
+          "下方",
+          "等级低",
+          "后一个",
+          "向下移动",
+          "结束或离开"
+        ],
+        "common_words": [
+          "下面",
+          "下午",
+          "下级",
+          "下雨",
+          "下班"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "胡雅切",
+          "胡驾切"
+        ],
+        "rhyme_group": "马韵、祃韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“底也。指事”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "下与上成对，是方位、等级、时间转喻基础。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "下方",
+          "等级低",
+          "后一个",
+          "向下移动",
+          "结束或离开"
+        ],
+        "common_words": [
+          "下面",
+          "下午",
+          "下级",
+          "下雨",
+          "下班"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "下：现代主要用于表示下方；等级低；后一个；向下移动；结束或离开。常见用法如：下面、下午、下级、下雨、下班。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "127",
+      "modern": "前",
+      "traditional_or_variants": [
+        "前"
+      ],
+      "unicode": "U+524D",
+      "pinyin": [
+        "qian2"
+      ],
+      "radical": "刂",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "前身字形与足、舟、止等解释有争议，常表示前进方向。",
+        "small_seal": "结构逐步规范为前。",
+        "clerical": "上部与刂旁笔画化。",
+        "regular_traditional": "前",
+        "simplified": "前",
+        "summary": "由前进、前方，发展为空间前面、时间以前、次序在先。"
+      },
+      "meaning_evolution": {
+        "original": "前进或前方，具体字源需复核。",
+        "early": "前方、向前。",
+        "later": "以前、先前、次序靠前。",
+        "modern": [
+          "前方",
+          "以前",
+          "次序在先",
+          "向前"
+        ],
+        "common_words": [
+          "前面",
+          "以前",
+          "前进",
+          "前后",
+          "日前"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "昨先切"
+        ],
+        "rhyme_group": "先韵",
+        "entering_tone": false,
+        "classical_note": "前的字源解释较复杂，现代义以方位和时间在先为主。",
+        "source_level": "广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "前的构形需重点复核，不宜用单一说法定论。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "前方",
+          "以前",
+          "次序在先",
+          "向前"
+        ],
+        "common_words": [
+          "前面",
+          "以前",
+          "前进",
+          "前后",
+          "日前"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "前：现代主要用于表示前方；以前；次序在先；向前。常见用法如：前面、以前、前进、前后、日前。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "128",
+      "modern": "后",
+      "traditional_or_variants": [
+        "后",
+        "後"
+      ],
+      "unicode": "U+540E",
+      "traditional_unicode": "U+5F8C",
+      "pinyin": [
+        "hou4"
+      ],
+      "radical": "口",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "“后”本与君后、王后相关；时间方位的后传统多写“後”。",
+        "small_seal": "后、後分属不同构形系统，后世简化合并为“后”。",
+        "clerical": "后与後分别笔画化。",
+        "regular_traditional": "后/後",
+        "simplified": "后",
+        "summary": "现代“后”合并了君后之后和先后之后，需区分本义和简化归并义。"
+      },
+      "meaning_evolution": {
+        "original": "后：君主或王后；後：在后、后来。",
+        "early": "后为君后、王后；後为后方、后来。",
+        "later": "简化后合并为时间、空间、次序在后及王后义。",
+        "modern": [
+          "后面",
+          "以后",
+          "次序在后",
+          "王后或皇后"
+        ],
+        "common_words": [
+          "后来",
+          "后面",
+          "以后",
+          "皇后",
+          "前后"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "胡口切",
+          "胡遘切"
+        ],
+        "rhyme_group": "厚韵、候韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“后”为“继体君也”，方位义需参照“後”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "后/後是简化合并的关键样板，必须保留双源说明。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "后面",
+          "以后",
+          "次序在后",
+          "王后或皇后"
+        ],
+        "common_words": [
+          "后来",
+          "后面",
+          "以后",
+          "皇后",
+          "前后"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "后：现代主要用于表示后面；以后；次序在后；王后或皇后。常见用法如：后来、后面、以后、皇后、前后。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "129",
+      "modern": "左",
+      "traditional_or_variants": [
+        "左"
+      ],
+      "unicode": "U+5DE6",
+      "pinyin": [
+        "zuo3"
+      ],
+      "radical": "工",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "从又、从工一类结构，传统解释为左手辅佐或操作。",
+        "small_seal": "又与工结构规范化。",
+        "clerical": "上手下工结构笔画化。",
+        "regular_traditional": "左",
+        "simplified": "左",
+        "summary": "由左手或辅佐义，发展为方位左、帮助、偏差和政治左派等义。"
+      },
+      "meaning_evolution": {
+        "original": "左手或辅佐，具体构形需复核。",
+        "early": "左方、左手；辅佐。",
+        "later": "不正、偏差；政治思想左派。",
+        "modern": [
+          "左方",
+          "左手",
+          "偏差或不正",
+          "政治左派"
+        ],
+        "common_words": [
+          "左右",
+          "左手",
+          "左边",
+          "左派",
+          "左证"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "臧可切"
+        ],
+        "rhyme_group": "哿韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“手相左助也。从𠂇、工”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "左的辅佐义与方位义并存，需与右成对处理。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "左方",
+          "左手",
+          "偏差或不正",
+          "政治左派"
+        ],
+        "common_words": [
+          "左右",
+          "左手",
+          "左边",
+          "左派",
+          "左证"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "左：现代主要用于表示左方；左手；偏差或不正；政治左派。常见用法如：左右、左手、左边、左派、左证。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "130",
+      "modern": "右",
+      "traditional_or_variants": [
+        "右"
+      ],
+      "unicode": "U+53F3",
+      "pinyin": [
+        "you4"
+      ],
+      "radical": "口",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "从又、从口一类结构，传统解释为右手助口或佑助。",
+        "small_seal": "又与口结构规范化。",
+        "clerical": "上手下口结构笔画化。",
+        "regular_traditional": "右",
+        "simplified": "右",
+        "summary": "由右手或佑助义，发展为方位右、帮助、尊位和政治右派等义。"
+      },
+      "meaning_evolution": {
+        "original": "右手或佑助。",
+        "early": "右方、右手；帮助。",
+        "later": "尊贵位置、保佑；政治思想右派。",
+        "modern": [
+          "右方",
+          "右手",
+          "帮助或保佑",
+          "政治右派"
+        ],
+        "common_words": [
+          "左右",
+          "右手",
+          "右边",
+          "右派",
+          "座右铭"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "于救切"
+        ],
+        "rhyme_group": "宥韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“助也。从口从又”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "右与又、佑关系密切，后续应建立同源/近源链接。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "右方",
+          "右手",
+          "帮助或保佑",
+          "政治右派"
+        ],
+        "common_words": [
+          "左右",
+          "右手",
+          "右边",
+          "右派",
+          "座右铭"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "右：现代主要用于表示右方；右手；帮助或保佑；政治右派。常见用法如：左右、右手、右边、右派、座右铭。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    }
+  ]
+}

@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hanzi-spectrum.local/schemas/xinhua-base-entry.schema.json",
+  "title": "Xinhua Base Entry",
+  "type": "object",
+  "required": [
+    "id",
+    "modern",
+    "traditional_or_variants",
+    "unicode",
+    "pinyin",
+    "radical",
+    "stroke_count",
+    "xinhua_base",
+    "layer_status"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9]{3,}$"
+    },
+    "modern": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2
+    },
+    "traditional_or_variants": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "unicode": {
+      "type": "string",
+      "pattern": "^U\\+[0-9A-F]{4,6}$"
+    },
+    "traditional_unicode": {
+      "type": ["string", "null"],
+      "pattern": "^U\\+[0-9A-F]{4,6}$"
+    },
+    "variant_unicodes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^U\\+[0-9A-F]{4,6}$"
+      }
+    },
+    "pinyin": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-züv]+[1-5]?$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "radical": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stroke_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "xinhua_base": {
+      "type": "object",
+      "required": [
+        "source_work",
+        "source_note",
+        "reference_edition",
+        "brief_gloss",
+        "simple_annotation",
+        "common_words",
+        "quotation_status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source_work": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_note": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reference_edition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "brief_gloss": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "simple_annotation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "common_words": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "quotation_status": {
+          "type": "string",
+          "enum": ["not_verbatim", "licensed_verbatim", "user_provided"]
+        }
+      }
+    },
+    "layer_status": {
+      "type": "object",
+      "required": [
+        "xinhua_base",
+        "shape_evolution",
+        "meaning_evolution",
+        "phonology",
+        "review"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "xinhua_base": {
+          "$ref": "#/$defs/work_status"
+        },
+        "shape_evolution": {
+          "$ref": "#/$defs/work_status"
+        },
+        "meaning_evolution": {
+          "$ref": "#/$defs/work_status"
+        },
+        "phonology": {
+          "$ref": "#/$defs/work_status"
+        },
+        "review": {
+          "type": "string",
+          "enum": ["none", "needs_review", "pending", "draft", "verified"]
+        }
+      }
+    },
+    "review_notes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "review_tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "polyphonic",
+          "variant_or_traditional",
+          "simplified_merge_or_multi_variant",
+          "historical_draft_review",
+          "history_pending"
+        ]
+      },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "work_status": {
+      "type": "string",
+      "enum": ["pending", "draft", "verified", "needs_review"]
+    }
+  }
+}

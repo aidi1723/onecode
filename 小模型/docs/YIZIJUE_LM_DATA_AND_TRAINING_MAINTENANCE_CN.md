@@ -25,21 +25,21 @@
 重新合并 distilled 数据：
 
 ```bash
-PYTHONPATH="/Users/aidi/大字典/one code/src" \
+PYTHONPATH="<onecode-repo>/src" \
 python3 scripts/build_distilled_training_set.py \
-  --balanced "/Users/aidi/大字典/小模型/data/train_data_balanced.jsonl" \
-  --security "/Users/aidi/大字典/小模型/data/train_data_security.jsonl" \
-  --merged "/Users/aidi/大字典/小模型/data/train_data_distilled.jsonl" \
-  --messages "/Users/aidi/大字典/小模型/data/train_messages_distilled.jsonl"
+  --balanced "data/train_data_balanced.jsonl" \
+  --security "data/train_data_security.jsonl" \
+  --merged "data/train_data_distilled.jsonl" \
+  --messages "data/train_messages_distilled.jsonl"
 ```
 
 重新审计标签并输出推荐训练集：
 
 ```bash
 python3 scripts/audit_training_labels.py \
-  --input "/Users/aidi/大字典/小模型/data/train_messages_distilled.jsonl" \
-  --output "/Users/aidi/大字典/小模型/data/training/train_messages_distilled_label_audit.json" \
-  --clean-output "/Users/aidi/大字典/小模型/data/train_messages_distilled_clean.jsonl"
+  --input "data/train_messages_distilled.jsonl" \
+  --output "data/training/train_messages_distilled_label_audit.json" \
+  --clean-output "data/train_messages_distilled_clean.jsonl"
 ```
 
 ## 评估注意事项

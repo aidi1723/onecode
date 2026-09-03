@@ -1,0 +1,17 @@
+{
+  "status": "updated",
+  "consecutive_failures": 1,
+  "last_exit_code": 126,
+  "results": [
+    {
+      "status": "blocked",
+      "hexagram": "111",
+      "next_hexagram": "101",
+      "shadow_action": null,
+      "changed_files": null,
+      "pytest_status": null,
+      "exit_code": 126
+    }
+  ],
+  "repo_card": "[State]: 101-INSPECT | [Target]: *\n[Risks]: none"
+}

@@ -385,7 +385,7 @@ smoke ok: true
 N100 验证：
 
 ```text
-cd /home/aidi/projects/oneword-agentos-test
+cd ${HOME}/projects/oneword-agentos-test
 make verify
 230 tests OK
 validator OK
@@ -542,7 +542,7 @@ violation.type = anthropic_tool_use
 
 ## 本机真实任务
 
-本次在 `/Users/aidi/大字典` 直接调用 `run_oneword_task()`，未接入 fake upstream，也未让模型文本参与裁决。验证目标是观察一字诀内核自身的状态流、审计链、产物质量和安全熔断行为。
+本次在 `<workspace-root>` 直接调用 `run_oneword_task()`，未接入 fake upstream，也未让模型文本参与裁决。验证目标是观察一字诀内核自身的状态流、审计链、产物质量和安全熔断行为。
 
 ### 任务 A：只读审查与总结
 
@@ -642,12 +642,12 @@ total_latency_seconds = 0.0282
 
 ## N100 实机复跑
 
-修正远端目标后，使用 `ssh n100` 进入真实 N100 节点：
+修正远端目标后，使用 `ssh <archive-host>` 进入真实 N100 节点：
 
 ```text
-host = yami-n100
+host = <archive-host>
 user = aidi
-project = /home/aidi/projects/oneword-agentos-test
+project = ${HOME}/projects/oneword-agentos-test
 ```
 
 ### N100 真实内核任务
@@ -671,7 +671,7 @@ trace = ["卫", "停"]
 latency_seconds = 2.4228
 audit_valid = true
 finding_count = 1
-halt_snapshot = /home/aidi/projects/oneword-agentos-test/.oneword/halt/20260525053909-halt-halt-snapshot.json
+halt_snapshot = ${HOME}/projects/oneword-agentos-test/.oneword/halt/20260525053909-halt-halt-snapshot.json
 ```
 
 捕获高危 finding：
@@ -716,7 +716,7 @@ total_latency_seconds = 0.1097
 执行：
 
 ```text
-cd /home/aidi/projects/oneword-agentos-test
+cd ${HOME}/projects/oneword-agentos-test
 make verify
 ```
 
@@ -749,8 +749,8 @@ smoke ok: true
 本轮正式数据只采信 N100 同一环境：
 
 ```text
-host = yami-n100
-project = /home/aidi/projects/oneword-agentos-test
+host = <archive-host>
+project = ${HOME}/projects/oneword-agentos-test
 ```
 
 ## 新增靶场资产
@@ -771,7 +771,7 @@ tests/golden_cases/cyber_dice.json
 执行：
 
 ```text
-cd /home/aidi/projects/oneword-agentos-test
+cd ${HOME}/projects/oneword-agentos-test
 python3 -m unittest tests.test_golden_task_harness.GoldenTaskHarnessTest.test_cyber_dice_golden_cases_pass -v
 ```
 
@@ -804,7 +804,7 @@ total_latency_seconds = 0.3255
 执行：
 
 ```text
-cd /home/aidi/projects/oneword-agentos-test
+cd ${HOME}/projects/oneword-agentos-test
 make verify
 ```
 
@@ -853,7 +853,7 @@ reports/cyber-dice-ab.md
 执行：
 
 ```text
-cd /home/aidi/projects/oneword-agentos-test
+cd ${HOME}/projects/oneword-agentos-test
 python3 scripts/cyber_dice_ab_report.py --output-json reports/cyber-dice-ab.json --output-md reports/cyber-dice-ab.md
 ```
 
@@ -909,9 +909,9 @@ smoke ok: true
 本轮在 N100 同一环境中使用同一个真实上游模型执行 A/B：
 
 ```text
-host = yami-n100
-project = /home/aidi/projects/oneword-agentos-test
-upstream_base_url = http://10.0.0.184:6780/v1
+host = <archive-host>
+project = ${HOME}/projects/oneword-agentos-test
+upstream_base_url = http://127.0.0.1:6780/v1
 gateway_base_url = http://127.0.0.1:18084/v1
 model = gpt-5.4-mini
 ```
@@ -1002,7 +1002,7 @@ smoke ok: true
 
 本轮继续在 N100 同一环境中，对三个真实模型执行同一批 `Cyber-Dice` 单轮 HTTP 任务。每个模型都跑两组：
 
-- 裸上游：直接请求 `http://10.0.0.184:6780/v1/chat/completions`
+- 裸上游：直接请求 `http://127.0.0.1:6780/v1/chat/completions`
 - 一字诀网关：请求 `http://127.0.0.1:18084/v1/chat/completions`
 
 模型：
@@ -1201,7 +1201,7 @@ ONEWORD_BENCHMARK_MODEL or OPENAI_MODEL
 
 ```bash
 export ONEWORD_UPSTREAM_API_KEY="<redacted>"
-export ONEWORD_UPSTREAM_BASE_URL="http://10.0.0.184:6780/v1"
+export ONEWORD_UPSTREAM_BASE_URL="http://127.0.0.1:6780/v1"
 export ONEWORD_BENCHMARK_MODEL="gpt-5.4-mini"
 export ONEWORD_GATEWAY_BASE_URL="http://127.0.0.1:18084/v1"
 
@@ -1367,7 +1367,7 @@ OK
 N100 目标测试：
 
 ```text
-ssh n100 'cd /home/aidi/projects/oneword-agentos-test && python3 -m unittest tests.test_golden_task_harness.GoldenTaskHarnessTest.test_secure_b2b_ledger_epic_case_halts_on_guard -v'
+ssh <archive-host> 'cd ${HOME}/projects/oneword-agentos-test && python3 -m unittest tests.test_golden_task_harness.GoldenTaskHarnessTest.test_secure_b2b_ledger_epic_case_halts_on_guard -v'
 Ran 1 test in 0.030s
 OK
 ```
@@ -1375,7 +1375,7 @@ OK
 N100 全量回归：
 
 ```text
-ssh n100 'cd /home/aidi/projects/oneword-agentos-test && make verify'
+ssh <archive-host> 'cd ${HOME}/projects/oneword-agentos-test && make verify'
 Ran 251 tests in 5.001s
 OK (skipped=3)
 validator OK
@@ -1428,7 +1428,7 @@ OK
 N100 目标测试：
 
 ```text
-ssh n100 'cd /home/aidi/projects/oneword-agentos-test && python3 -m unittest tests.test_golden_task_harness.GoldenTaskHarnessTest.test_secure_b2b_ledger_repair_case_completes_with_physical_tests -v'
+ssh <archive-host> 'cd ${HOME}/projects/oneword-agentos-test && python3 -m unittest tests.test_golden_task_harness.GoldenTaskHarnessTest.test_secure_b2b_ledger_repair_case_completes_with_physical_tests -v'
 Ran 1 test in 0.531s
 OK
 ```
@@ -1436,7 +1436,7 @@ OK
 N100 全量回归：
 
 ```text
-ssh n100 'cd /home/aidi/projects/oneword-agentos-test && make verify'
+ssh <archive-host> 'cd ${HOME}/projects/oneword-agentos-test && make verify'
 Ran 252 tests in 5.512s
 OK (skipped=3)
 validator OK
@@ -1521,7 +1521,7 @@ OK
 N100 目标测试：
 
 ```text
-ssh n100 'cd /home/aidi/projects/oneword-agentos-test && python3 -m unittest tests.test_live_agent_benchmark -v'
+ssh <archive-host> 'cd ${HOME}/projects/oneword-agentos-test && python3 -m unittest tests.test_live_agent_benchmark -v'
 Ran 2 tests in 11.578s
 OK
 ```
@@ -1529,7 +1529,7 @@ OK
 N100 全量回归：
 
 ```text
-ssh n100 'cd /home/aidi/projects/oneword-agentos-test && make verify'
+ssh <archive-host> 'cd ${HOME}/projects/oneword-agentos-test && make verify'
 Ran 254 tests in 17.038s
 OK (skipped=3)
 validator OK
@@ -1581,7 +1581,7 @@ OK
 N100 目标测试：
 
 ```text
-ssh n100 'cd /home/aidi/projects/oneword-agentos-test && python3 -m unittest tests.test_live_agent_benchmark -v'
+ssh <archive-host> 'cd ${HOME}/projects/oneword-agentos-test && python3 -m unittest tests.test_live_agent_benchmark -v'
 Ran 3 tests in 11.684s
 OK
 ```
@@ -1589,7 +1589,7 @@ OK
 N100 全量回归：
 
 ```text
-ssh n100 'cd /home/aidi/projects/oneword-agentos-test && make verify'
+ssh <archive-host> 'cd ${HOME}/projects/oneword-agentos-test && make verify'
 Ran 255 tests in 17.152s
 OK (skipped=3)
 validator OK
@@ -1644,7 +1644,7 @@ OK
 N100 目标测试：
 
 ```text
-ssh n100 'cd /home/aidi/projects/oneword-agentos-test && python3 -m unittest tests.test_live_agent_benchmark -v'
+ssh <archive-host> 'cd ${HOME}/projects/oneword-agentos-test && python3 -m unittest tests.test_live_agent_benchmark -v'
 Ran 4 tests in 11.657s
 OK
 ```
@@ -1652,7 +1652,7 @@ OK
 N100 全量回归：
 
 ```text
-ssh n100 'cd /home/aidi/projects/oneword-agentos-test && make verify'
+ssh <archive-host> 'cd ${HOME}/projects/oneword-agentos-test && make verify'
 Ran 256 tests in 17.261s
 OK (skipped=3)
 validator OK
@@ -1702,7 +1702,7 @@ OK
 N100 目标测试：
 
 ```text
-ssh n100 'cd /home/aidi/projects/oneword-agentos-test && python3 -m unittest tests.test_live_agent_benchmark -v'
+ssh <archive-host> 'cd ${HOME}/projects/oneword-agentos-test && python3 -m unittest tests.test_live_agent_benchmark -v'
 Ran 4 tests in 11.696s
 OK
 ```
@@ -1710,7 +1710,7 @@ OK
 N100 全量回归：
 
 ```text
-ssh n100 'cd /home/aidi/projects/oneword-agentos-test && make verify'
+ssh <archive-host> 'cd ${HOME}/projects/oneword-agentos-test && make verify'
 Ran 256 tests in 17.201s
 OK (skipped=3)
 validator OK
@@ -1755,7 +1755,7 @@ smoke ok: true
 N100 目标测试：
 
 ```text
-ssh n100 'cd /home/aidi/projects/oneword-agentos-test && python3 -m unittest tests.test_live_agent_benchmark -v'
+ssh <archive-host> 'cd ${HOME}/projects/oneword-agentos-test && python3 -m unittest tests.test_live_agent_benchmark -v'
 Ran 5 tests in 12.225s
 OK
 ```
@@ -1763,7 +1763,7 @@ OK
 N100 全量回归：
 
 ```text
-ssh n100 'cd /home/aidi/projects/oneword-agentos-test && make verify'
+ssh <archive-host> 'cd ${HOME}/projects/oneword-agentos-test && make verify'
 Ran 257 tests in 17.706s
 OK (skipped=3)
 validator OK
@@ -1794,8 +1794,8 @@ Phase 3 的 `real-http` runner 已经具备真实压测所需的最小闭环：
 1. N100 到用户指定上游端点 TCP 连通：
 
 ```text
-ssh n100 'nc -vz -w 3 10.0.0.184 6780'
-Connection to 10.0.0.184 6780 port [tcp/*] succeeded!
+ssh <archive-host> 'nc -vz -w 3 127.0.0.1 6780'
+Connection to 127.0.0.1 6780 port [tcp/*] succeeded!
 ```
 
 2. 默认 Python 环境缺少 HTTP 网关依赖，但项目自带 `.venv-gateway` 可用：
@@ -1809,7 +1809,7 @@ fastapi=available
 3. 使用非敏感端点和占位 Key 执行 `real-http --dry-run-config`，配置链路可通过：
 
 ```text
-ONEWORD_UPSTREAM_BASE_URL=http://10.0.0.184:6780/v1
+ONEWORD_UPSTREAM_BASE_URL=http://127.0.0.1:6780/v1
 ONEWORD_GATEWAY_BASE_URL=http://127.0.0.1:8080/v1
 ONEWORD_UPSTREAM_API_KEY=<placeholder>
 .venv-gateway/bin/python scripts/live_agent_benchmark.py --runner-mode real-http --dry-run-config
@@ -1851,7 +1851,7 @@ ok: true
 为了避免 Key 进入命令行历史、进程表或日志，后续真实压测必须在 N100 上通过安全方式注入环境变量，再启动网关。注入后应重新执行：
 
 ```text
-ONEWORD_UPSTREAM_BASE_URL=http://10.0.0.184:6780/v1
+ONEWORD_UPSTREAM_BASE_URL=http://127.0.0.1:6780/v1
 ONEWORD_GATEWAY_BASE_URL=http://127.0.0.1:8080/v1
 ONEWORD_UPSTREAM_API_KEY=<redacted>
 .venv-gateway/bin/python scripts/live_agent_benchmark.py --runner-mode real-http --dry-run-config
@@ -1898,7 +1898,7 @@ scripts/live_agent_benchmark.py
   --runner-mode real-http
   --model gpt-5.4-mini
   --max-turns 3
-  --upstream-base-url http://10.0.0.184:6780/v1
+  --upstream-base-url http://127.0.0.1:6780/v1
   --gateway-base-url http://127.0.0.1:8080/v1
 ```
 
@@ -2120,7 +2120,7 @@ N100 上已经完成外部 Agent 客户端的基础安装和接入脚本准备�
 - Claude Code：`2.1.150`
 - Codex CLI：`0.133.0`
 - cc-switch：`@hobeeliu/cc-switch`
-- 国内端点：`http://10.0.0.184:6780`，N100 到该端点 TCP 与 HTTP 均可达。
+- 国内端点：`http://127.0.0.1:6780`，N100 到该端点 TCP 与 HTTP 均可达。
 - 端点识别：根页面返回 `Sub2API - AI API Gateway`，`/health` 返回 `{"status":"ok"}`，`/v1/models` 需要 Bearer API key。
 - 一字诀网关运行依赖：已在项目内 `.venv-gateway` 准备，避免污染 N100 系统 Python。
 
@@ -2136,7 +2136,7 @@ scripts/setup_domestic_agent_clients.sh
 - 写入 Claude Code / cc-switch 配置：`~/.claude/settings.json` 与 `~/.claude/profiles/<profile>.json`。
 - 写入 Codex 配置：`~/.codex/config.toml`。
 - 写入权限收紧的本地环境文件：`~/.codex/oneword-domestic.env`。
-- 启动一字诀网关 `127.0.0.1:8080`，上游指向 `http://10.0.0.184:6780/v1`。
+- 启动一字诀网关 `127.0.0.1:8080`，上游指向 `http://127.0.0.1:6780/v1`。
 - 可选使用指定模型跑一次 `/v1/messages` 连通性测试。
 
 ## 安全口径
@@ -2150,10 +2150,10 @@ bash -n scripts/setup_domestic_agent_clients.sh
 OK
 
 N100 endpoint:
-nc -vz -w 3 10.0.0.184 6780
+nc -vz -w 3 127.0.0.1 6780
 Connection succeeded
 
-curl http://10.0.0.184:6780/health
+curl http://127.0.0.1:6780/health
 {"status":"ok"}
 ```
 
@@ -2162,8 +2162,8 @@ curl http://10.0.0.184:6780/health
 在 N100 交互终端执行：
 
 ```text
-cd /home/aidi/projects/oneword-agentos-test
-scripts/setup_domestic_agent_clients.sh http://10.0.0.184:6780 <model-name>
+cd ${HOME}/projects/oneword-agentos-test
+scripts/setup_domestic_agent_clients.sh http://127.0.0.1:6780 <model-name>
 ```
 
 脚本会提示粘贴 API key。连通后即可分别用 Claude Code、Codex CLI 经同一国内端点和一字诀网关做真实多轮对抗测试。

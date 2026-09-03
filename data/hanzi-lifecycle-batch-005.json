@@ -1,0 +1,1348 @@
+{
+  "project": "字溯东方 Hanzi Lifecycle",
+  "version": "batch-005",
+  "description": "第五批行为、动作与状态核心字样板数据。覆盖行走、姿态、感知、言语和基础操作动词。",
+  "entries": [
+    {
+      "id": "074",
+      "modern": "行",
+      "traditional_or_variants": [
+        "行"
+      ],
+      "unicode": "U+884C",
+      "pinyin": [
+        "xing2",
+        "hang2",
+        "hang4",
+        "heng2"
+      ],
+      "radical": "行",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "象道路交叉或四通道路之形。",
+        "small_seal": "道路交叉线条规范化。",
+        "clerical": "左右道路结构笔画化。",
+        "regular_traditional": "行",
+        "simplified": "行",
+        "summary": "由道路、行走之义，发展为行动、实行、行业、行列和可行等多音多义系统。"
+      },
+      "meaning_evolution": {
+        "original": "道路。",
+        "early": "道路；行走；出行。",
+        "later": "实行、行为、行列、行业、流通、可以。",
+        "modern": [
+          "走或行动",
+          "实行",
+          "行业",
+          "行列",
+          "可以或能干"
+        ],
+        "common_words": [
+          "行动",
+          "行走",
+          "银行",
+          "行业",
+          "不行"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "户庚切",
+          "胡郎切"
+        ],
+        "rhyme_group": "庚韵、唐韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“人之步趋也”。古文字形更偏道路交叉。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "行是多音多义核心字，应后续拆成道路义、动作义、行业义、许可义。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "走或行动",
+          "实行",
+          "行业",
+          "行列",
+          "可以或能干"
+        ],
+        "common_words": [
+          "行动",
+          "行走",
+          "银行",
+          "行业",
+          "不行"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "行：现代主要用于表示走或行动；实行；行业；行列；可以或能干。常见用法如：行动、行走、银行、行业、不行。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "075",
+      "modern": "走",
+      "traditional_or_variants": [
+        "走"
+      ],
+      "unicode": "U+8D70",
+      "pinyin": [
+        "zou3"
+      ],
+      "radical": "走",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "多像人甩臂奔跑，下从足或止形。",
+        "small_seal": "从夭、从止，表示人身前倾而快速移动。",
+        "clerical": "上部人与下部止形笔画化。",
+        "regular_traditional": "走",
+        "simplified": "走",
+        "summary": "古义偏奔跑，现代普通话常指步行、离开和移动。"
+      },
+      "meaning_evolution": {
+        "original": "跑、奔走。",
+        "early": "奔跑、逃走、赶赴。",
+        "later": "行走、离开、移动、经过、趋向。",
+        "modern": [
+          "行走",
+          "离开",
+          "移动或运行",
+          "经过某路线",
+          "趋向变化"
+        ],
+        "common_words": [
+          "走路",
+          "走开",
+          "走动",
+          "行走",
+          "出走"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "子苟切"
+        ],
+        "rhyme_group": "厚韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“趋也。从夭止”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "古代“走”多为跑，现代“走”多为步行，是古今义位变化的重点样板。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "行走",
+          "离开",
+          "移动或运行",
+          "经过某路线",
+          "趋向变化"
+        ],
+        "common_words": [
+          "走路",
+          "走开",
+          "走动",
+          "行走",
+          "出走"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "走：现代主要用于表示行走；离开；移动或运行；经过某路线；趋向变化。常见用法如：走路、走开、走动、行走、出走。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "076",
+      "modern": "跑",
+      "traditional_or_variants": [
+        "跑"
+      ],
+      "unicode": "U+8DD1",
+      "pinyin": [
+        "pao3",
+        "pao2"
+      ],
+      "radical": "足",
+      "stroke_count": 12,
+      "shape_evolution": {
+        "oracle_bronze": "未见稳定早期独立字形，后起常用动词。",
+        "small_seal": "从足、包声一类结构，表示足部快速动作。",
+        "clerical": "足旁与包部笔画化。",
+        "regular_traditional": "跑",
+        "simplified": "跑",
+        "summary": "由足部动作义，现代专指快速行走、奔跑，也有逃离、奔波等义。"
+      },
+      "meaning_evolution": {
+        "original": "足部动作，后专指奔跑。",
+        "early": "走兽用足刨地、奔走等义需复核。",
+        "later": "奔跑、逃跑、为事务奔走。",
+        "modern": [
+          "奔跑",
+          "逃离",
+          "为某事奔走",
+          "物体漏出或偏离"
+        ],
+        "common_words": [
+          "跑步",
+          "奔跑",
+          "逃跑",
+          "跑腿",
+          "跑题"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "薄交切一类，待复核"
+        ],
+        "rhyme_group": "肴韵一类，待复核",
+        "entering_tone": false,
+        "classical_note": "跑为较后起的常用足部动作字，早期资料需另检。",
+        "source_level": "现代字典释义为主，古音资料待复核"
+      },
+      "review_notes": [
+        "跑的古义与现代义不完全等同，需后续用韵书和早期文献补证。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "奔跑",
+          "逃离",
+          "为某事奔走",
+          "物体漏出或偏离"
+        ],
+        "common_words": [
+          "跑步",
+          "奔跑",
+          "逃跑",
+          "跑腿",
+          "跑题"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "跑：现代主要用于表示奔跑；逃离；为某事奔走；物体漏出或偏离。常见用法如：跑步、奔跑、逃跑、跑腿、跑题。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "077",
+      "modern": "飞",
+      "traditional_or_variants": [
+        "飛"
+      ],
+      "unicode": "U+98DE",
+      "traditional_unicode": "U+98DB",
+      "pinyin": [
+        "fei1"
+      ],
+      "radical": "飞",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "象鸟张翼飞翔之形。",
+        "small_seal": "飞鸟双翼形线条化为“飛”。",
+        "clerical": "翼形和身体结构笔画化。",
+        "regular_traditional": "飛",
+        "simplified": "飞",
+        "summary": "由鸟类振翼飞翔之形，发展为飞行、快速、飘扬和意外离散等义。"
+      },
+      "meaning_evolution": {
+        "original": "鸟飞。",
+        "early": "飞翔、飞行。",
+        "later": "快速移动、飘扬、无根据传播、意外发生。",
+        "modern": [
+          "飞行",
+          "快速移动",
+          "飘扬",
+          "传播",
+          "意外或凭空"
+        ],
+        "common_words": [
+          "飞翔",
+          "飞机",
+          "飞快",
+          "飞扬",
+          "飞来横祸"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "甫微切"
+        ],
+        "rhyme_group": "微韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“飛”为“鸟翥也。象形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "飞/飛繁简差异大，应在图像层展示简化过程。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "飞行",
+          "快速移动",
+          "飘扬",
+          "传播",
+          "意外或凭空"
+        ],
+        "common_words": [
+          "飞翔",
+          "飞机",
+          "飞快",
+          "飞扬",
+          "飞来横祸"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "飞：现代主要用于表示飞行；快速移动；飘扬；传播；意外或凭空。常见用法如：飞翔、飞机、飞快、飞扬、飞来横祸。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "078",
+      "modern": "止",
+      "traditional_or_variants": [
+        "止"
+      ],
+      "unicode": "U+6B62",
+      "pinyin": [
+        "zhi3"
+      ],
+      "radical": "止",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "象脚趾或足迹之形。",
+        "small_seal": "脚掌脚趾轮廓线条化。",
+        "clerical": "足迹形转为横竖结构。",
+        "regular_traditional": "止",
+        "simplified": "止",
+        "summary": "本象脚趾或足迹，后借用为停止、止息；并作为行动类构件。"
+      },
+      "meaning_evolution": {
+        "original": "脚、足迹或脚趾。",
+        "early": "足部动作相关；停留、停止义逐渐发展。",
+        "later": "停止、阻止、仅止于此、止息。",
+        "modern": [
+          "停止",
+          "阻止",
+          "截止",
+          "仅仅或只"
+        ],
+        "common_words": [
+          "停止",
+          "禁止",
+          "止步",
+          "为止",
+          "不止"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "诸市切"
+        ],
+        "rhyme_group": "止韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“下基也。象艸木出有址，故以止为足”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "止的本形为足迹，现代停止义是关键引申，需和足、走、步连读。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "停止",
+          "阻止",
+          "截止",
+          "仅仅或只"
+        ],
+        "common_words": [
+          "停止",
+          "禁止",
+          "止步",
+          "为止",
+          "不止"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "止：现代主要用于表示停止；阻止；截止；仅仅或只。常见用法如：停止、禁止、止步、为止、不止。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "079",
+      "modern": "立",
+      "traditional_or_variants": [
+        "立"
+      ],
+      "unicode": "U+7ACB",
+      "pinyin": [
+        "li4"
+      ],
+      "radical": "立",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "象人正面站立于地面之形。",
+        "small_seal": "人形与地面指示线线条化。",
+        "clerical": "上点横、下部结构笔画化。",
+        "regular_traditional": "立",
+        "simplified": "立",
+        "summary": "由人站立之形，发展为建立、成立、立刻和立场等抽象义。"
+      },
+      "meaning_evolution": {
+        "original": "站立。",
+        "early": "站、竖立。",
+        "later": "建立、设立、成立、确定、立刻。",
+        "modern": [
+          "站立",
+          "竖起",
+          "建立",
+          "成立",
+          "立刻"
+        ],
+        "common_words": [
+          "站立",
+          "成立",
+          "立场",
+          "立即",
+          "建立"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "力入切"
+        ],
+        "rhyme_group": "缉韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“住也。从大立一之上”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "立是从身体姿态到制度建立的典型抽象化字。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "站立",
+          "竖起",
+          "建立",
+          "成立",
+          "立刻"
+        ],
+        "common_words": [
+          "站立",
+          "成立",
+          "立场",
+          "立即",
+          "建立"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "立：现代主要用于表示站立；竖起；建立；成立；立刻。常见用法如：站立、成立、立场、立即、建立。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "080",
+      "modern": "坐",
+      "traditional_or_variants": [
+        "坐"
+      ],
+      "unicode": "U+5750",
+      "pinyin": [
+        "zuo4"
+      ],
+      "radical": "土",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "像两人坐在土上或席地而坐之形。",
+        "small_seal": "两人从土的结构规范化。",
+        "clerical": "人形与土部笔画化。",
+        "regular_traditional": "坐",
+        "simplified": "坐",
+        "summary": "由席地而坐的姿态，发展为乘坐、坐落、因由、定罪等义。"
+      },
+      "meaning_evolution": {
+        "original": "席地而坐。",
+        "early": "坐下、居处。",
+        "later": "乘坐、坐落、因某事获罪、空守不动。",
+        "modern": [
+          "坐下",
+          "乘坐",
+          "建筑物位置",
+          "因某事而获罪或受牵连",
+          "不劳动而享有"
+        ],
+        "common_words": [
+          "坐下",
+          "坐车",
+          "坐落",
+          "坐牢",
+          "坐享其成"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "徂卧切",
+          "昨果切"
+        ],
+        "rhyme_group": "过韵、果韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》古文作象形，常解释为两人坐土上。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "坐的法律义“坐罪”和姿态义应分义处理。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "坐下",
+          "乘坐",
+          "建筑物位置",
+          "因某事而获罪或受牵连",
+          "不劳动而享有"
+        ],
+        "common_words": [
+          "坐下",
+          "坐车",
+          "坐落",
+          "坐牢",
+          "坐享其成"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "坐：现代主要用于表示坐下；乘坐；建筑物位置；因某事而获罪或受牵连；不劳动而享有。常见用法如：坐下、坐车、坐落、坐牢、坐享其成。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "081",
+      "modern": "卧",
+      "traditional_or_variants": [
+        "臥"
+      ],
+      "unicode": "U+5367",
+      "traditional_unicode": "U+81E5",
+      "pinyin": [
+        "wo4"
+      ],
+      "radical": "卜",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "传统字形“臥”多从臣、从人，像人侧卧之形。",
+        "small_seal": "臣与人结构规范化为“臥”。",
+        "clerical": "侧卧人形笔画化。",
+        "regular_traditional": "臥",
+        "simplified": "卧",
+        "summary": "由人侧身躺卧之形，发展为睡卧、潜伏、横置和卧室等义。"
+      },
+      "meaning_evolution": {
+        "original": "躺卧。",
+        "early": "人伏卧、睡卧。",
+        "later": "卧病、潜伏、横放、卧室。",
+        "modern": [
+          "躺下",
+          "睡觉",
+          "横放",
+          "潜伏",
+          "卧室相关"
+        ],
+        "common_words": [
+          "卧室",
+          "卧倒",
+          "卧病",
+          "卧铺",
+          "卧底"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "吾货切"
+        ],
+        "rhyme_group": "过韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“臥”为“休也。从人臣，取其伏也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "卧/臥简繁结构差异大，现代简体部首归类和字源构形需分开说明。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "躺下",
+          "睡觉",
+          "横放",
+          "潜伏",
+          "卧室相关"
+        ],
+        "common_words": [
+          "卧室",
+          "卧倒",
+          "卧病",
+          "卧铺",
+          "卧底"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "卧：现代主要用于表示躺下；睡觉；横放；潜伏；卧室相关。常见用法如：卧室、卧倒、卧病、卧铺、卧底。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "082",
+      "modern": "视",
+      "traditional_or_variants": [
+        "視"
+      ],
+      "unicode": "U+89C6",
+      "traditional_unicode": "U+8996",
+      "pinyin": [
+        "shi4"
+      ],
+      "radical": "见",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "从示、从见一类结构，表示带有观察、察看意味的看。",
+        "small_seal": "示与見结构规范化为“視”。",
+        "clerical": "示旁与见部笔画化。",
+        "regular_traditional": "視",
+        "simplified": "视",
+        "summary": "由观察、察看，发展为看待、比较、照顾和视觉相关义。"
+      },
+      "meaning_evolution": {
+        "original": "看、察看。",
+        "early": "观察、审视。",
+        "later": "看待、比照、照料、治理事务。",
+        "modern": [
+          "看",
+          "看待",
+          "考察",
+          "比照",
+          "视觉相关"
+        ],
+        "common_words": [
+          "视觉",
+          "视力",
+          "重视",
+          "视察",
+          "电视"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "承矢切",
+          "常利切"
+        ],
+        "rhyme_group": "纸韵、寘韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“視”为“瞻也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "视与见、看、目系统相关，后续应建立视觉动词组。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "看",
+          "看待",
+          "考察",
+          "比照",
+          "视觉相关"
+        ],
+        "common_words": [
+          "视觉",
+          "视力",
+          "重视",
+          "视察",
+          "电视"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "视：现代主要用于表示看；看待；考察；比照；视觉相关。常见用法如：视觉、视力、重视、视察、电视。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "083",
+      "modern": "听",
+      "traditional_or_variants": [
+        "聽"
+      ],
+      "unicode": "U+542C",
+      "traditional_unicode": "U+807D",
+      "pinyin": [
+        "ting1"
+      ],
+      "radical": "口",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“聽”含耳、德省或听受相关构件，表示用耳接受声音和听从。",
+        "small_seal": "聽形结构复杂，耳部语义突出。",
+        "clerical": "聽字复杂构件笔画化。",
+        "regular_traditional": "聽",
+        "simplified": "听",
+        "summary": "由耳闻、听取，发展为听从、听任、审理和声觉活动。简体“听”来源另需复核。"
+      },
+      "meaning_evolution": {
+        "original": "用耳接受声音。",
+        "early": "听闻、听取。",
+        "later": "听从、听任、审理、判断。",
+        "modern": [
+          "听见",
+          "听从",
+          "听任",
+          "审理或裁断",
+          "听觉活动"
+        ],
+        "common_words": [
+          "听见",
+          "听话",
+          "听从",
+          "听力",
+          "听证"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "他丁切",
+          "他定切"
+        ],
+        "rhyme_group": "青韵、径韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“聽”为“聆也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "听/聽简繁关系复杂，简体“听”的历史用法需单列复核。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "听见",
+          "听从",
+          "听任",
+          "审理或裁断",
+          "听觉活动"
+        ],
+        "common_words": [
+          "听见",
+          "听话",
+          "听从",
+          "听力",
+          "听证"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "听：现代主要用于表示听见；听从；听任；审理或裁断；听觉活动。常见用法如：听见、听话、听从、听力、听证。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "084",
+      "modern": "言",
+      "traditional_or_variants": [
+        "言"
+      ],
+      "unicode": "U+8A00",
+      "pinyin": [
+        "yan2"
+      ],
+      "radical": "言",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "多像口中出舌或口上有言语指示符号。",
+        "small_seal": "口与上部声言符号规范化。",
+        "clerical": "言部七画结构定型。",
+        "regular_traditional": "言",
+        "simplified": "言",
+        "summary": "由说话、直言之义，发展为语言、言论、字句和言部构字基础。"
+      },
+      "meaning_evolution": {
+        "original": "说话，表达。",
+        "early": "言语、说话、言辞。",
+        "later": "言论、文辞、字句、承诺。",
+        "modern": [
+          "说话",
+          "话语",
+          "字句",
+          "言论",
+          "言部构字部件"
+        ],
+        "common_words": [
+          "语言",
+          "言语",
+          "发言",
+          "名言",
+          "言论"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "语轩切"
+        ],
+        "rhyme_group": "元韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“直言曰言，论难曰语”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "言和语需要作为言语系统的两个基础层级并读。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "说话",
+          "话语",
+          "字句",
+          "言论",
+          "言部构字部件"
+        ],
+        "common_words": [
+          "语言",
+          "言语",
+          "发言",
+          "名言",
+          "言论"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "言：现代主要用于表示说话；话语；字句；言论；言部构字部件。常见用法如：语言、言语、发言、名言、言论。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "085",
+      "modern": "语",
+      "traditional_or_variants": [
+        "語"
+      ],
+      "unicode": "U+8BED",
+      "traditional_unicode": "U+8A9E",
+      "pinyin": [
+        "yu3",
+        "yu4"
+      ],
+      "radical": "讠",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "后起合体字，从言、吾声。",
+        "small_seal": "言与吾结构规范化为“語”。",
+        "clerical": "言旁与吾部笔画化。",
+        "regular_traditional": "語",
+        "simplified": "语",
+        "summary": "由言语、交谈、论辩，发展为语言系统、话语和告诉等义。"
+      },
+      "meaning_evolution": {
+        "original": "谈论、言语。",
+        "early": "交谈、论难、告诉。",
+        "later": "语言、话语、语句、语法系统。",
+        "modern": [
+          "话",
+          "语言",
+          "说",
+          "语句或语法单位"
+        ],
+        "common_words": [
+          "语言",
+          "语文",
+          "语气",
+          "外语",
+          "语法"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "鱼巨切",
+          "牛倨切"
+        ],
+        "rhyme_group": "语韵、御韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》言部有“直言曰言，论难曰语”的分辨。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "语的现代学科义和古代论难/告诉义应分层。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "话",
+          "语言",
+          "说",
+          "语句或语法单位"
+        ],
+        "common_words": [
+          "语言",
+          "语文",
+          "语气",
+          "外语",
+          "语法"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "语：现代主要用于表示话；语言；说；语句或语法单位。常见用法如：语言、语文、语气、外语、语法。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "086",
+      "modern": "作",
+      "traditional_or_variants": [
+        "作"
+      ],
+      "unicode": "U+4F5C",
+      "pinyin": [
+        "zuo4",
+        "zuo1"
+      ],
+      "radical": "亻",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "从人、乍声一类结构，表示人有所兴作。",
+        "small_seal": "人旁与乍部结构规范化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "作",
+        "simplified": "作",
+        "summary": "由兴起、制作、劳作，发展为创作、作为、发生和装作等义。"
+      },
+      "meaning_evolution": {
+        "original": "兴起、开始做事。",
+        "early": "起、兴作、制作。",
+        "later": "创作、劳作、作为、充当、发作。",
+        "modern": [
+          "做",
+          "创作",
+          "当作",
+          "发作",
+          "装作"
+        ],
+        "common_words": [
+          "工作",
+          "作文",
+          "作为",
+          "创作",
+          "作业"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "则落切",
+          "将祚切"
+        ],
+        "rhyme_group": "铎韵、暮韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“起也。从人，乍声”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "作有入声和去声层次，现代 zuo1 口语义需另列。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "做",
+          "创作",
+          "当作",
+          "发作",
+          "装作"
+        ],
+        "common_words": [
+          "工作",
+          "作文",
+          "作为",
+          "创作",
+          "作业"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "作：现代主要用于表示做；创作；当作；发作；装作。常见用法如：工作、作文、作为、创作、作业。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "087",
+      "modern": "用",
+      "traditional_or_variants": [
+        "用"
+      ],
+      "unicode": "U+7528",
+      "pinyin": [
+        "yong4"
+      ],
+      "radical": "用",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "早期形体解释不一，常见说法与器物、桶形或可施用之物有关。",
+        "small_seal": "结构线条规范化。",
+        "clerical": "外框与内横竖笔画定型。",
+        "regular_traditional": "用",
+        "simplified": "用",
+        "summary": "由使用器物或施行之义，发展为使用、功用、费用、需要和任用。"
+      },
+      "meaning_evolution": {
+        "original": "使用、施用，具体字源待复核。",
+        "early": "用、施行、任用。",
+        "later": "功用、费用、需要、凭借。",
+        "modern": [
+          "使用",
+          "功用",
+          "费用",
+          "需要",
+          "任用或采用"
+        ],
+        "common_words": [
+          "使用",
+          "作用",
+          "费用",
+          "用户",
+          "不用"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "余颂切"
+        ],
+        "rhyme_group": "用韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“可施行也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "用的形源解释分歧较大，第一版保守处理为功能/施行核心字。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "使用",
+          "功用",
+          "费用",
+          "需要",
+          "任用或采用"
+        ],
+        "common_words": [
+          "使用",
+          "作用",
+          "费用",
+          "用户",
+          "不用"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "用：现代主要用于表示使用；功用；费用；需要；任用或采用。常见用法如：使用、作用、费用、用户、不用。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "088",
+      "modern": "吃",
+      "traditional_or_variants": [
+        "吃",
+        "喫"
+      ],
+      "unicode": "U+5403",
+      "pinyin": [
+        "chi1",
+        "ji2"
+      ],
+      "radical": "口",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "未见稳定早期独立字形，现代常用吃喝义较后起。",
+        "small_seal": "从口、乞声一类结构，早期有言语结涩、口吃等义。",
+        "clerical": "口旁与乞部笔画化。",
+        "regular_traditional": "吃/喫",
+        "simplified": "吃",
+        "summary": "早期偏口吃、言语不顺，现代普通话常用为进食义。"
+      },
+      "meaning_evolution": {
+        "original": "口吃、言语结涩，进食义需结合“喫”等字考察。",
+        "early": "说话结巴、发声艰涩。",
+        "later": "吃食物；承受、消耗、依靠某物生活。",
+        "modern": [
+          "进食",
+          "吸收或消耗",
+          "承受",
+          "依靠某物生活",
+          "受骗或受损"
+        ],
+        "common_words": [
+          "吃饭",
+          "吃苦",
+          "吃亏",
+          "吃力",
+          "吃水"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "居乙切一类"
+        ],
+        "rhyme_group": "迄韵一类",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释吃为“言蹇难也”，现代进食义与“喫”关系需复核。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "吃的现代义和古义差距很大，是古今词义替换的重要样板。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "进食",
+          "吸收或消耗",
+          "承受",
+          "依靠某物生活",
+          "受骗或受损"
+        ],
+        "common_words": [
+          "吃饭",
+          "吃苦",
+          "吃亏",
+          "吃力",
+          "吃水"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "吃：现代主要用于表示进食；吸收或消耗；承受；依靠某物生活；受骗或受损。常见用法如：吃饭、吃苦、吃亏、吃力、吃水。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "089",
+      "modern": "拿",
+      "traditional_or_variants": [
+        "拿",
+        "拏"
+      ],
+      "unicode": "U+62FF",
+      "pinyin": [
+        "na2"
+      ],
+      "radical": "手",
+      "stroke_count": 10,
+      "shape_evolution": {
+        "oracle_bronze": "后起常用动词，早期可与“拏”等形关联。",
+        "small_seal": "从手、合声一类解释需复核；拏从手、奴声。",
+        "clerical": "手部构件笔画化。",
+        "regular_traditional": "拿",
+        "simplified": "拿",
+        "summary": "由用手持取，发展为抓捕、掌握、刁难和介词化用法。"
+      },
+      "meaning_evolution": {
+        "original": "用手取物，具体字源待复核。",
+        "early": "持取、抓住。",
+        "later": "捉拿、掌握、用作凭借对象、刁难。",
+        "modern": [
+          "用手取",
+          "抓捕",
+          "掌握",
+          "用某种方式对待",
+          "刁难"
+        ],
+        "common_words": [
+          "拿走",
+          "拿来",
+          "捉拿",
+          "拿手",
+          "拿主意"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "女加切一类，待复核"
+        ],
+        "rhyme_group": "麻韵一类，待复核",
+        "entering_tone": false,
+        "classical_note": "拿为较后起常用字，古字形与“拏”等需合并考察。",
+        "source_level": "现代字典释义为主，古音资料待复核"
+      },
+      "review_notes": [
+        "拿是现代高频口语动词，但历史层资料需补强。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "用手取",
+          "抓捕",
+          "掌握",
+          "用某种方式对待",
+          "刁难"
+        ],
+        "common_words": [
+          "拿走",
+          "拿来",
+          "捉拿",
+          "拿手",
+          "拿主意"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "拿：现代主要用于表示用手取；抓捕；掌握；用某种方式对待；刁难。常见用法如：拿走、拿来、捉拿、拿手、拿主意。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "090",
+      "modern": "放",
+      "traditional_or_variants": [
+        "放"
+      ],
+      "unicode": "U+653E",
+      "pinyin": [
+        "fang4"
+      ],
+      "radical": "攵",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "从方、从攴一类结构，传统解释与驱逐、放逐、使离开有关。",
+        "small_seal": "方与攴结构规范化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "放",
+        "simplified": "放",
+        "summary": "由放逐、释放、使离开，发展为放置、发出、放任和扩展。"
+      },
+      "meaning_evolution": {
+        "original": "驱逐、放逐。",
+        "early": "逐出、释放、使离开。",
+        "later": "放置、发放、开放、放任、扩散。",
+        "modern": [
+          "放置",
+          "释放",
+          "发出",
+          "开放",
+          "放任"
+        ],
+        "common_words": [
+          "放下",
+          "释放",
+          "开放",
+          "放学",
+          "放心"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "甫妄切",
+          "分网切"
+        ],
+        "rhyme_group": "漾韵、养韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“逐也。从攴，方声”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "放的“放置”义和“放逐/释放”义应分层，现代用法扩展很大。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "放置",
+          "释放",
+          "发出",
+          "开放",
+          "放任"
+        ],
+        "common_words": [
+          "放下",
+          "释放",
+          "开放",
+          "放学",
+          "放心"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "放：现代主要用于表示放置；释放；发出；开放；放任。常见用法如：放下、释放、开放、放学、放心。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    }
+  ]
+}

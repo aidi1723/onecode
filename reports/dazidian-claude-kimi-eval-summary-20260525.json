@@ -1,0 +1,36 @@
+{
+  "quality": {
+    "report_file": "/home/aidi/projects/codex-evals/reports/dazidian-claude-kimi-eval-20260525-181551.md",
+    "exit_code": 0,
+    "wall_time_seconds": 144.152,
+    "fs_integrity": "pass",
+    "chars": 8574,
+    "checks": {
+      "has_real_file_evidence": true,
+      "has_project_goal": true,
+      "has_structure": true,
+      "has_architecture": true,
+      "has_tests": true,
+      "has_security": true,
+      "has_agentos_alignment": true,
+      "has_top_10": true,
+      "has_score_table": true,
+      "has_no_secret": true
+    },
+    "score": 10,
+    "total": 10,
+    "passed": true
+  },
+  "usage": {
+    "input_tokens": 60861,
+    "cache_read_input_tokens": 224768,
+    "cache_creation_input_tokens": 0,
+    "output_tokens": 5044,
+    "total_without_cache_read": 65905,
+    "total_with_cache_read": 290673,
+    "tool_use_count": 24,
+    "tools": [
+      "Read"
+    ]
+  }
+}

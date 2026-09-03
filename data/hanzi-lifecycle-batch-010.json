@@ -1,0 +1,1557 @@
+{
+  "project": "字溯东方 Hanzi Lifecycle",
+  "version": "batch-010",
+  "description": "第十批心理、情感与认知核心字样板数据。覆盖爱恨喜怒哀乐、思维记忆、知觉意志、信疑忧惧。",
+  "entries": [
+    {
+      "id": "170",
+      "modern": "爱",
+      "traditional_or_variants": [
+        "愛"
+      ],
+      "unicode": "U+7231",
+      "traditional_unicode": "U+611B",
+      "pinyin": [
+        "ai4"
+      ],
+      "radical": "爫",
+      "stroke_count": 10,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“愛”早期从心，含行走迟疑、心有所系等传统解释。",
+        "small_seal": "愛形中心部件和上下构件规范化。",
+        "clerical": "复杂结构笔画化。",
+        "regular_traditional": "愛",
+        "simplified": "爱",
+        "summary": "由心有所系、怜惜亲爱，发展为爱护、喜爱、爱情和珍惜。"
+      },
+      "meaning_evolution": {
+        "original": "亲爱、怜惜。",
+        "early": "爱惜、仁爱、喜爱。",
+        "later": "爱情、爱好、珍惜、容易发生某事。",
+        "modern": [
+          "爱慕或爱情",
+          "喜爱",
+          "爱护",
+          "珍惜",
+          "容易发生"
+        ],
+        "common_words": [
+          "爱心",
+          "爱情",
+          "爱护",
+          "喜爱",
+          "爱好"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "乌代切"
+        ],
+        "rhyme_group": "代韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“愛”为“行皃”，传统字形含心，现代义以情感爱惜为主。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "爱/愛简化后去心，情感核心部件在形体上被弱化，需图示。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "爱慕或爱情",
+          "喜爱",
+          "爱护",
+          "珍惜",
+          "容易发生"
+        ],
+        "common_words": [
+          "爱心",
+          "爱情",
+          "爱护",
+          "喜爱",
+          "爱好"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "爱：现代主要用于表示爱慕或爱情；喜爱；爱护；珍惜；容易发生。常见用法如：爱心、爱情、爱护、喜爱、爱好。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "171",
+      "modern": "恨",
+      "traditional_or_variants": [
+        "恨"
+      ],
+      "unicode": "U+6068",
+      "pinyin": [
+        "hen4"
+      ],
+      "radical": "忄",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "后起形声字，从心、艮声，表示心中怨恨或遗憾。",
+        "small_seal": "心旁与艮部结构规范化。",
+        "clerical": "心旁隶变为忄，右部笔画化。",
+        "regular_traditional": "恨",
+        "simplified": "恨",
+        "summary": "由怨恨、遗憾，发展为强烈不满、仇恨和悔恨。"
+      },
+      "meaning_evolution": {
+        "original": "怨恨、遗憾。",
+        "early": "怨、悔、遗憾。",
+        "later": "仇恨、痛恨、悔恨。",
+        "modern": [
+          "怨恨",
+          "仇恨",
+          "遗憾",
+          "悔恨"
+        ],
+        "common_words": [
+          "仇恨",
+          "恨不得",
+          "痛恨",
+          "悔恨",
+          "遗恨"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "胡艮切"
+        ],
+        "rhyme_group": "恨韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“怨也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "恨的古义含遗憾，现代多偏强烈怨怼，应分层。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "怨恨",
+          "仇恨",
+          "遗憾",
+          "悔恨"
+        ],
+        "common_words": [
+          "仇恨",
+          "恨不得",
+          "痛恨",
+          "悔恨",
+          "遗恨"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "恨：现代主要用于表示怨恨；仇恨；遗憾；悔恨。常见用法如：仇恨、恨不得、痛恨、悔恨、遗恨。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "172",
+      "modern": "喜",
+      "traditional_or_variants": [
+        "喜"
+      ],
+      "unicode": "U+559C",
+      "pinyin": [
+        "xi3"
+      ],
+      "radical": "口",
+      "stroke_count": 12,
+      "shape_evolution": {
+        "oracle_bronze": "早期形体与鼓乐、口笑或庆贺相关构件有关，表示欢乐。",
+        "small_seal": "壴与口等结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "喜",
+        "simplified": "喜",
+        "summary": "由庆贺、欢乐，发展为喜欢、喜事、可庆之事和孕育喜讯。"
+      },
+      "meaning_evolution": {
+        "original": "欢乐、高兴。",
+        "early": "喜悦、快乐、庆贺。",
+        "later": "喜欢、喜事、吉庆、怀孕俗称有喜。",
+        "modern": [
+          "高兴",
+          "喜欢",
+          "可庆的事",
+          "吉庆"
+        ],
+        "common_words": [
+          "喜欢",
+          "喜悦",
+          "喜事",
+          "欢喜",
+          "喜庆"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "虚里切"
+        ],
+        "rhyme_group": "止韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“乐也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "喜与乐、欢、悦可组成正向情感小组。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "高兴",
+          "喜欢",
+          "可庆的事",
+          "吉庆"
+        ],
+        "common_words": [
+          "喜欢",
+          "喜悦",
+          "喜事",
+          "欢喜",
+          "喜庆"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "喜：现代主要用于表示高兴；喜欢；可庆的事；吉庆。常见用法如：喜欢、喜悦、喜事、欢喜、喜庆。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "173",
+      "modern": "怒",
+      "traditional_or_variants": [
+        "怒"
+      ],
+      "unicode": "U+6012",
+      "pinyin": [
+        "nu4"
+      ],
+      "radical": "心",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "后起形声字，从心、奴声，表示心中愤怒。",
+        "small_seal": "心与奴结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "怒",
+        "simplified": "怒",
+        "summary": "由心中愤激，发展为生气、气势猛烈、奋起。"
+      },
+      "meaning_evolution": {
+        "original": "愤怒。",
+        "early": "怒气、发怒。",
+        "later": "猛烈、奋发、气势盛。",
+        "modern": [
+          "愤怒",
+          "气势猛烈",
+          "奋起或奋发"
+        ],
+        "common_words": [
+          "愤怒",
+          "怒气",
+          "发怒",
+          "怒吼",
+          "怒放"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "奴故切"
+        ],
+        "rhyme_group": "暮韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“恚也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "怒的情绪义与强盛义之间有气势转喻。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "愤怒",
+          "气势猛烈",
+          "奋起或奋发"
+        ],
+        "common_words": [
+          "愤怒",
+          "怒气",
+          "发怒",
+          "怒吼",
+          "怒放"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "怒：现代主要用于表示愤怒；气势猛烈；奋起或奋发。常见用法如：愤怒、怒气、发怒、怒吼、怒放。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "174",
+      "modern": "哀",
+      "traditional_or_variants": [
+        "哀"
+      ],
+      "unicode": "U+54C0",
+      "pinyin": [
+        "ai1"
+      ],
+      "radical": "口",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "从口、衣或相关构件，传统解释与悲声、哀哭有关。",
+        "small_seal": "口与衣类结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "哀",
+        "simplified": "哀",
+        "summary": "由哀哭、悲伤之声，发展为悲哀、怜悯和悼念。"
+      },
+      "meaning_evolution": {
+        "original": "悲伤、哀哭。",
+        "early": "哀痛、悲伤。",
+        "later": "怜悯、悼念、哀求。",
+        "modern": [
+          "悲伤",
+          "悼念",
+          "怜悯",
+          "哀求"
+        ],
+        "common_words": [
+          "哀伤",
+          "悲哀",
+          "哀悼",
+          "哀求",
+          "哀乐"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "乌开切"
+        ],
+        "rhyme_group": "咍韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“闵也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "哀是悲伤与怜悯交叉字，应与悲、忧分层。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "悲伤",
+          "悼念",
+          "怜悯",
+          "哀求"
+        ],
+        "common_words": [
+          "哀伤",
+          "悲哀",
+          "哀悼",
+          "哀求",
+          "哀乐"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "哀：现代主要用于表示悲伤；悼念；怜悯；哀求。常见用法如：哀伤、悲哀、哀悼、哀求、哀乐。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "175",
+      "modern": "乐",
+      "traditional_or_variants": [
+        "樂"
+      ],
+      "unicode": "U+4E50",
+      "traditional_unicode": "U+6A02",
+      "pinyin": [
+        "le4",
+        "yue4"
+      ],
+      "radical": "丿",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“樂”早期多像丝弦乐器置于木架之形。",
+        "small_seal": "乐器结构线条化为“樂”。",
+        "clerical": "复杂结构笔画化。",
+        "regular_traditional": "樂",
+        "simplified": "乐",
+        "summary": "由音乐、乐器，发展为快乐、喜悦、乐于和音乐。"
+      },
+      "meaning_evolution": {
+        "original": "音乐、乐器。",
+        "early": "音乐、礼乐。",
+        "later": "快乐、喜悦、爱好、乐意。",
+        "modern": [
+          "快乐",
+          "音乐",
+          "乐于",
+          "喜好"
+        ],
+        "common_words": [
+          "快乐",
+          "音乐",
+          "乐观",
+          "娱乐",
+          "乐意"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "卢各切",
+          "五角切"
+        ],
+        "rhyme_group": "铎韵、觉韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释“樂”为“五声八音总名”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "乐 le4/yue4 分别偏快乐与音乐，是音义分化重点。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "快乐",
+          "音乐",
+          "乐于",
+          "喜好"
+        ],
+        "common_words": [
+          "快乐",
+          "音乐",
+          "乐观",
+          "娱乐",
+          "乐意"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "乐：现代主要用于表示快乐；音乐；乐于；喜好。常见用法如：快乐、音乐、乐观、娱乐、乐意。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "176",
+      "modern": "思",
+      "traditional_or_variants": [
+        "思"
+      ],
+      "unicode": "U+601D",
+      "pinyin": [
+        "si1",
+        "si4"
+      ],
+      "radical": "心",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "从心、囟或田形上部，传统解释与心脑思考相关。",
+        "small_seal": "上部囟/田与心结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "思",
+        "simplified": "思",
+        "summary": "由心中思索，发展为思考、思念、思想和情思。"
+      },
+      "meaning_evolution": {
+        "original": "思考、思虑。",
+        "early": "思考、想念。",
+        "later": "思想、情思、思路、怀念。",
+        "modern": [
+          "思考",
+          "想念",
+          "思想",
+          "思路",
+          "情思"
+        ],
+        "common_words": [
+          "思想",
+          "思考",
+          "思念",
+          "意思",
+          "沉思"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "息兹切",
+          "相吏切"
+        ],
+        "rhyme_group": "之韵、志韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“容也。从心，囟声”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "思连接心与脑，是心理认知系统核心字。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "思考",
+          "想念",
+          "思想",
+          "思路",
+          "情思"
+        ],
+        "common_words": [
+          "思想",
+          "思考",
+          "思念",
+          "意思",
+          "沉思"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "思：现代主要用于表示思考；想念；思想；思路；情思。常见用法如：思想、思考、思念、意思、沉思。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "177",
+      "modern": "想",
+      "traditional_or_variants": [
+        "想"
+      ],
+      "unicode": "U+60F3",
+      "pinyin": [
+        "xiang3"
+      ],
+      "radical": "心",
+      "stroke_count": 13,
+      "shape_evolution": {
+        "oracle_bronze": "后起形声字，从心、相声，表示心中相念或想象。",
+        "small_seal": "相与心结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "想",
+        "simplified": "想",
+        "summary": "由心中思念、想象，发展为思考、打算、希望和推测。"
+      },
+      "meaning_evolution": {
+        "original": "想念、思念。",
+        "early": "想念、想象。",
+        "later": "思考、打算、希望、推测。",
+        "modern": [
+          "思考",
+          "想念",
+          "希望",
+          "打算",
+          "推测"
+        ],
+        "common_words": [
+          "想法",
+          "想念",
+          "思想",
+          "想象",
+          "梦想"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "息两切"
+        ],
+        "rhyme_group": "养韵",
+        "entering_tone": false,
+        "classical_note": "想为从心、相声的形声字，现代义以心理活动为核心。",
+        "source_level": "广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "想是后起高频心理动词，历史层不宜硬上推甲骨。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "思考",
+          "想念",
+          "希望",
+          "打算",
+          "推测"
+        ],
+        "common_words": [
+          "想法",
+          "想念",
+          "思想",
+          "想象",
+          "梦想"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "想：现代主要用于表示思考；想念；希望；打算；推测。常见用法如：想法、想念、思想、想象、梦想。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "178",
+      "modern": "念",
+      "traditional_or_variants": [
+        "念"
+      ],
+      "unicode": "U+5FF5",
+      "pinyin": [
+        "nian4"
+      ],
+      "radical": "心",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "后起形声字，从心、今声，表示心中记挂。",
+        "small_seal": "今与心结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "念",
+        "simplified": "念",
+        "summary": "由心中挂念，发展为想念、记诵、念头和佛教念诵。"
+      },
+      "meaning_evolution": {
+        "original": "想念、挂念。",
+        "early": "思念、记挂。",
+        "later": "诵读、念头、纪念、佛教修持。",
+        "modern": [
+          "想念",
+          "诵读",
+          "念头",
+          "记住或纪念"
+        ],
+        "common_words": [
+          "思念",
+          "念书",
+          "怀念",
+          "纪念",
+          "念头"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "奴店切"
+        ],
+        "rhyme_group": "添韵去声系统",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“常思也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "念的记忆、诵读、佛教义需分层。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "想念",
+          "诵读",
+          "念头",
+          "记住或纪念"
+        ],
+        "common_words": [
+          "思念",
+          "念书",
+          "怀念",
+          "纪念",
+          "念头"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "念：现代主要用于表示想念；诵读；念头；记住或纪念。常见用法如：思念、念书、怀念、纪念、念头。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "179",
+      "modern": "知",
+      "traditional_or_variants": [
+        "知"
+      ],
+      "unicode": "U+77E5",
+      "pinyin": [
+        "zhi1",
+        "zhi4"
+      ],
+      "radical": "矢",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "从矢、从口一类结构，传统解释为说出所知或知识准确如矢。",
+        "small_seal": "矢与口结构规范化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "知",
+        "simplified": "知",
+        "summary": "由知道、识别，发展为知识、知觉、主管和交好。"
+      },
+      "meaning_evolution": {
+        "original": "知道、了解。",
+        "early": "知晓、认识。",
+        "later": "知识、觉察、主管、知己。",
+        "modern": [
+          "知道",
+          "知识",
+          "觉察",
+          "主管",
+          "交好或相知"
+        ],
+        "common_words": [
+          "知道",
+          "知识",
+          "通知",
+          "知觉",
+          "知己"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "陟离切",
+          "知义切"
+        ],
+        "rhyme_group": "支韵、寘韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“词也。从口从矢”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "知是认知核心字，需与识、觉、智建立关联。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "知道",
+          "知识",
+          "觉察",
+          "主管",
+          "交好或相知"
+        ],
+        "common_words": [
+          "知道",
+          "知识",
+          "通知",
+          "知觉",
+          "知己"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "知：现代主要用于表示知道；知识；觉察；主管；交好或相知。常见用法如：知道、知识、通知、知觉、知己。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "180",
+      "modern": "觉",
+      "traditional_or_variants": [
+        "覺"
+      ],
+      "unicode": "U+89C9",
+      "traditional_unicode": "U+89BA",
+      "pinyin": [
+        "jue2",
+        "jiao4"
+      ],
+      "radical": "见",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“覺”从見，含学习、觉察相关构件，表示察觉或醒悟。",
+        "small_seal": "覺形复杂结构规范化。",
+        "clerical": "上部与見部笔画化。",
+        "regular_traditional": "覺",
+        "simplified": "觉",
+        "summary": "由觉察、醒悟，发展为知觉、睡觉、觉悟和感觉。"
+      },
+      "meaning_evolution": {
+        "original": "觉察、醒悟。",
+        "early": "醒、悟、知觉。",
+        "later": "感觉、发觉；睡眠读 jiao4。",
+        "modern": [
+          "感觉",
+          "觉察",
+          "觉悟",
+          "睡觉"
+        ],
+        "common_words": [
+          "感觉",
+          "知觉",
+          "觉悟",
+          "睡觉",
+          "发觉"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "古岳切",
+          "古孝切"
+        ],
+        "rhyme_group": "觉韵、效韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释“覺”为“寤也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "觉 jue2/jiao4 分属知觉与睡眠义，必须拆分。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "感觉",
+          "觉察",
+          "觉悟",
+          "睡觉"
+        ],
+        "common_words": [
+          "感觉",
+          "知觉",
+          "觉悟",
+          "睡觉",
+          "发觉"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "觉：现代主要用于表示感觉；觉察；觉悟；睡觉。常见用法如：感觉、知觉、觉悟、睡觉、发觉。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "181",
+      "modern": "意",
+      "traditional_or_variants": [
+        "意"
+      ],
+      "unicode": "U+610F",
+      "pinyin": [
+        "yi4"
+      ],
+      "radical": "心",
+      "stroke_count": 13,
+      "shape_evolution": {
+        "oracle_bronze": "后起形声字，从心、音声，表示心中所想。",
+        "small_seal": "音与心结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "意",
+        "simplified": "意",
+        "summary": "由心意、意念，发展为意思、意图、意料和情趣。"
+      },
+      "meaning_evolution": {
+        "original": "心中所想。",
+        "early": "意念、心意。",
+        "later": "意思、意图、意料、情趣、愿望。",
+        "modern": [
+          "意思",
+          "心意",
+          "意图",
+          "意料",
+          "情趣"
+        ],
+        "common_words": [
+          "意思",
+          "意义",
+          "注意",
+          "意见",
+          "意外"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "於记切"
+        ],
+        "rhyme_group": "志韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“志也。从心察言而知意也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "意和志、心、言关系密切，适合建立心理意向层。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "意思",
+          "心意",
+          "意图",
+          "意料",
+          "情趣"
+        ],
+        "common_words": [
+          "意思",
+          "意义",
+          "注意",
+          "意见",
+          "意外"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "意：现代主要用于表示意思；心意；意图；意料；情趣。常见用法如：意思、意义、注意、意见、意外。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "182",
+      "modern": "志",
+      "traditional_or_variants": [
+        "志",
+        "誌"
+      ],
+      "unicode": "U+5FD7",
+      "pinyin": [
+        "zhi4"
+      ],
+      "radical": "心",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "从心、之声一类，表示心之所向。",
+        "small_seal": "之与心结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "志/誌",
+        "simplified": "志",
+        "summary": "由心之所向，发展为志向、记载、标记和意志。"
+      },
+      "meaning_evolution": {
+        "original": "心之所向，志向。",
+        "early": "志向、意志。",
+        "later": "记载、标志、记忆；誌后多表记载。",
+        "modern": [
+          "志向",
+          "意志",
+          "记载",
+          "标记",
+          "姓氏"
+        ],
+        "common_words": [
+          "志气",
+          "意志",
+          "志愿",
+          "杂志",
+          "标志"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "职吏切"
+        ],
+        "rhyme_group": "志韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“意也。从心之声”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "志/誌简化合并后，志向义和记载义需分层。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "志向",
+          "意志",
+          "记载",
+          "标记",
+          "姓氏"
+        ],
+        "common_words": [
+          "志气",
+          "意志",
+          "志愿",
+          "杂志",
+          "标志"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "志：现代主要用于表示志向；意志；记载；标记；姓氏。常见用法如：志气、意志、志愿、杂志、标志。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "183",
+      "modern": "信",
+      "traditional_or_variants": [
+        "信"
+      ],
+      "unicode": "U+4FE1",
+      "pinyin": [
+        "xin4",
+        "shen1"
+      ],
+      "radical": "亻",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "从人、从言，表示人的言语真实可信。",
+        "small_seal": "人旁与言部结构规范化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "信",
+        "simplified": "信",
+        "summary": "由人言可信，发展为相信、诚信、信息、书信和凭证。"
+      },
+      "meaning_evolution": {
+        "original": "言语真实可信。",
+        "early": "诚信、信实。",
+        "later": "相信、信用、凭证、消息、书信。",
+        "modern": [
+          "相信",
+          "诚信",
+          "消息",
+          "书信",
+          "凭证或信号"
+        ],
+        "common_words": [
+          "相信",
+          "信心",
+          "诚信",
+          "信息",
+          "书信"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "息晋切"
+        ],
+        "rhyme_group": "震韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“诚也。从人从言”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "信是语言、社会信用、信息系统之间的桥字。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "相信",
+          "诚信",
+          "消息",
+          "书信",
+          "凭证或信号"
+        ],
+        "common_words": [
+          "相信",
+          "信心",
+          "诚信",
+          "信息",
+          "书信"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "信：现代主要用于表示相信；诚信；消息；书信；凭证或信号。常见用法如：相信、信心、诚信、信息、书信。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "184",
+      "modern": "疑",
+      "traditional_or_variants": [
+        "疑"
+      ],
+      "unicode": "U+7591",
+      "pinyin": [
+        "yi2"
+      ],
+      "radical": "疋",
+      "stroke_count": 14,
+      "shape_evolution": {
+        "oracle_bronze": "早期形体复杂，传统多解释为人持杖踟蹰不前或疑惑不定。",
+        "small_seal": "复杂动作构件线条化。",
+        "clerical": "多部件结构笔画化。",
+        "regular_traditional": "疑",
+        "simplified": "疑",
+        "summary": "由迟疑不决，发展为怀疑、疑问、疑似和不确定。"
+      },
+      "meaning_evolution": {
+        "original": "迟疑、不决。",
+        "early": "疑惑、犹豫。",
+        "later": "怀疑、疑问、疑似、猜疑。",
+        "modern": [
+          "怀疑",
+          "疑问",
+          "疑似",
+          "迟疑"
+        ],
+        "common_words": [
+          "怀疑",
+          "疑问",
+          "可疑",
+          "疑惑",
+          "迟疑"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "语其切"
+        ],
+        "rhyme_group": "之韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“惑也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "疑是信的反向认知状态，构形复杂需图像复核。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "怀疑",
+          "疑问",
+          "疑似",
+          "迟疑"
+        ],
+        "common_words": [
+          "怀疑",
+          "疑问",
+          "可疑",
+          "疑惑",
+          "迟疑"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "疑：现代主要用于表示怀疑；疑问；疑似；迟疑。常见用法如：怀疑、疑问、可疑、疑惑、迟疑。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "185",
+      "modern": "怕",
+      "traditional_or_variants": [
+        "怕"
+      ],
+      "unicode": "U+6015",
+      "pinyin": [
+        "pa4"
+      ],
+      "radical": "忄",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "后起形声字，从心、白声，表示心中畏惧。",
+        "small_seal": "心旁与白部结构规范化。",
+        "clerical": "心旁隶变为忄，右部笔画化。",
+        "regular_traditional": "怕",
+        "simplified": "怕",
+        "summary": "由恐惧、害怕，发展为担心、恐怕、怕是等推测语气。"
+      },
+      "meaning_evolution": {
+        "original": "害怕、恐惧。",
+        "early": "畏惧。",
+        "later": "担心、恐怕、表示估计。",
+        "modern": [
+          "害怕",
+          "担心",
+          "恐怕",
+          "表示推测"
+        ],
+        "common_words": [
+          "害怕",
+          "恐怕",
+          "不怕",
+          "怕事",
+          "怕冷"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "普驾切一类"
+        ],
+        "rhyme_group": "祃韵一类",
+        "entering_tone": false,
+        "classical_note": "怕为从心、白声的形声字，现代义以恐惧担心为核心。",
+        "source_level": "广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "怕的推测语气‘恐怕’是情绪词语法化例子。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "害怕",
+          "担心",
+          "恐怕",
+          "表示推测"
+        ],
+        "common_words": [
+          "害怕",
+          "恐怕",
+          "不怕",
+          "怕事",
+          "怕冷"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "怕：现代主要用于表示害怕；担心；恐怕；表示推测。常见用法如：害怕、恐怕、不怕、怕事、怕冷。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "186",
+      "modern": "忧",
+      "traditional_or_variants": [
+        "憂"
+      ],
+      "unicode": "U+5FE7",
+      "traditional_unicode": "U+6182",
+      "pinyin": [
+        "you1"
+      ],
+      "radical": "忄",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“憂”早期多像人忧愁、缓行低首之形，后简化为忧。",
+        "small_seal": "憂形复杂结构规范化。",
+        "clerical": "复杂结构笔画化。",
+        "regular_traditional": "憂",
+        "simplified": "忧",
+        "summary": "由忧愁、忧患，发展为担心、忧虑、忧伤和忧患意识。"
+      },
+      "meaning_evolution": {
+        "original": "忧愁、忧患。",
+        "early": "忧愁、担心。",
+        "later": "忧虑、忧伤、患难、居丧。",
+        "modern": [
+          "忧愁",
+          "担心",
+          "忧患",
+          "忧伤"
+        ],
+        "common_words": [
+          "忧虑",
+          "担忧",
+          "忧伤",
+          "忧患",
+          "无忧"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "於求切"
+        ],
+        "rhyme_group": "尤韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“憂”为“和之行也”，后世多用忧愁义。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "忧/憂简化后形体差异大，字源解释需复核。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "忧愁",
+          "担心",
+          "忧患",
+          "忧伤"
+        ],
+        "common_words": [
+          "忧虑",
+          "担忧",
+          "忧伤",
+          "忧患",
+          "无忧"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "忧：现代主要用于表示忧愁；担心；忧患；忧伤。常见用法如：忧虑、担忧、忧伤、忧患、无忧。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "187",
+      "modern": "虑",
+      "traditional_or_variants": [
+        "慮"
+      ],
+      "unicode": "U+8651",
+      "traditional_unicode": "U+616E",
+      "pinyin": [
+        "lv4"
+      ],
+      "radical": "虍",
+      "stroke_count": 10,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“慮”从思或心系统，含虍声/虑声结构，表示思虑。",
+        "small_seal": "慮形结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "慮",
+        "simplified": "虑",
+        "summary": "由思考、谋划，发展为忧虑、考虑、顾虑和过滤中的虑。"
+      },
+      "meaning_evolution": {
+        "original": "思虑、谋划。",
+        "early": "考虑、思考。",
+        "later": "忧虑、顾虑、谋虑；过滤借用。",
+        "modern": [
+          "考虑",
+          "忧虑",
+          "顾虑",
+          "谋划",
+          "过滤"
+        ],
+        "common_words": [
+          "考虑",
+          "忧虑",
+          "顾虑",
+          "思虑",
+          "过滤"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "良倨切"
+        ],
+        "rhyme_group": "御韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“慮”为“谋思也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "虑兼具认知和忧惧色彩，应与思、忧、疑关联。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "考虑",
+          "忧虑",
+          "顾虑",
+          "谋划",
+          "过滤"
+        ],
+        "common_words": [
+          "考虑",
+          "忧虑",
+          "顾虑",
+          "思虑",
+          "过滤"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "虑：现代主要用于表示考虑；忧虑；顾虑；谋划；过滤。常见用法如：考虑、忧虑、顾虑、思虑、过滤。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "188",
+      "modern": "忘",
+      "traditional_or_variants": [
+        "忘"
+      ],
+      "unicode": "U+5FD8",
+      "pinyin": [
+        "wang4"
+      ],
+      "radical": "心",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "后起形声字，从心、亡声，表示心中失去记忆。",
+        "small_seal": "亡与心结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "忘",
+        "simplified": "忘",
+        "summary": "由心中亡失，发展为忘记、遗忘、忽略和忘我。"
+      },
+      "meaning_evolution": {
+        "original": "忘记、遗忘。",
+        "early": "不记得。",
+        "later": "忘怀、忽略、忘我、忘恩。",
+        "modern": [
+          "忘记",
+          "遗忘",
+          "忽略",
+          "忘怀"
+        ],
+        "common_words": [
+          "忘记",
+          "遗忘",
+          "难忘",
+          "忘我",
+          "忘恩"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "巫放切"
+        ],
+        "rhyme_group": "漾韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“不识也。从心，亡声”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "忘与记、念构成记忆系统对。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "忘记",
+          "遗忘",
+          "忽略",
+          "忘怀"
+        ],
+        "common_words": [
+          "忘记",
+          "遗忘",
+          "难忘",
+          "忘我",
+          "忘恩"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "忘：现代主要用于表示忘记；遗忘；忽略；忘怀。常见用法如：忘记、遗忘、难忘、忘我、忘恩。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "189",
+      "modern": "记",
+      "traditional_or_variants": [
+        "記"
+      ],
+      "unicode": "U+8BB0",
+      "traditional_unicode": "U+8A18",
+      "pinyin": [
+        "ji4"
+      ],
+      "radical": "讠",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "后起形声字，从言、己声，表示以言辞记录。",
+        "small_seal": "言旁与己部结构规范化为“記”。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "記",
+        "simplified": "记",
+        "summary": "由记录言事，发展为记住、记载、标记和文体名。"
+      },
+      "meaning_evolution": {
+        "original": "记录、记载。",
+        "early": "记述、记录。",
+        "later": "记住、标记、笔记、传记文体。",
+        "modern": [
+          "记住",
+          "记录",
+          "标记",
+          "记述文体"
+        ],
+        "common_words": [
+          "记忆",
+          "记录",
+          "日记",
+          "记者",
+          "忘记"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "居吏切"
+        ],
+        "rhyme_group": "志韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“記”为“疏也。从言，己声”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "记/記连接语言记录和心理记忆，是文字符号系统关键字。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "记住",
+          "记录",
+          "标记",
+          "记述文体"
+        ],
+        "common_words": [
+          "记忆",
+          "记录",
+          "日记",
+          "记者",
+          "忘记"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "记：现代主要用于表示记住；记录；标记；记述文体。常见用法如：记忆、记录、日记、记者、忘记。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    }
+  ]
+}

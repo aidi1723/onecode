@@ -61,6 +61,9 @@ class ElementModulation(StrEnum):
     FUEL = "fuel"
     DAM = "dam"
     BREAK_GROUND = "break_ground"
+    REFINE = "refine"      # 火生土：炼化精制
+    FORGE = "forge"        # 土生金：铸造强化
+    TEMPER = "temper"      # 金生水：淬炼冷却
     NORMAL = "normal"
 
 
@@ -75,4 +78,7 @@ ELEMENT_DYNAMICS_MODULATION_TABLE: dict[tuple[str, str, str], ElementModulation]
     ("generates", "wood", "fire"): ElementModulation.FUEL,
     ("controls", "earth", "water"): ElementModulation.DAM,
     ("controls", "wood", "earth"): ElementModulation.BREAK_GROUND,
+    ("generates", "fire", "earth"): ElementModulation.REFINE,
+    ("generates", "earth", "metal"): ElementModulation.FORGE,
+    ("generates", "metal", "water"): ElementModulation.TEMPER,
 }

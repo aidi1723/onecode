@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${1:-http://10.0.0.184:6780}"
+BASE_URL="${1:-http://127.0.0.1:6780}"
 MODEL="${2:-gpt-5.5}"
-ROOT="/home/aidi/projects/codex-evals"
+ROOT="${HOME}/projects/codex-evals"
 REPORT_DIR="$ROOT/reports"
 RUNNER="$ROOT/run_codex_dazidian_eval.sh"
 

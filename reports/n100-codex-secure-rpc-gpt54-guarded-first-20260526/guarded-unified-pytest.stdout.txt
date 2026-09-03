@@ -1,0 +1,113 @@
+..FFFF..FF                                                               [100%]
+=================================== FAILURES ===================================
+________________________________ test_duplicate ________________________________
+
+tmp_path = PosixPath('/tmp/pytest-of-aidi/pytest-10/test_duplicate0')
+
+    @pytest.mark.asyncio
+    async def test_duplicate(tmp_path: Path):
+        receiver_private_key, receiver_public_key = generate_keypair()
+        sender_private_key, sender_public_key = generate_keypair()
+>       server = SecureMeshServer(
+            receiver_private_key=receiver_private_key,
+            sender_public_key=sender_public_key,
+            ledger_path=tmp_path / "ledger.jsonl",
+        )
+E       TypeError: SecureMeshServer.__init__() got an unexpected keyword argument 'receiver_private_key'
+
+tests/test_mesh.py:64: TypeError
+_________________________________ test_ledger __________________________________
+
+tmp_path = PosixPath('/tmp/pytest-of-aidi/pytest-10/test_ledger0')
+
+    @pytest.mark.asyncio
+    async def test_ledger(tmp_path: Path):
+        receiver_private_key, receiver_public_key = generate_keypair()
+        sender_private_key, sender_public_key = generate_keypair()
+        ledger_path = tmp_path / "ledger.jsonl"
+>       server = SecureMeshServer(
+            receiver_private_key=receiver_private_key,
+            sender_public_key=sender_public_key,
+            ledger_path=ledger_path,
+        )
+E       TypeError: SecureMeshServer.__init__() got an unexpected keyword argument 'receiver_private_key'
+
+tests/test_mesh.py:83: TypeError
+_________________________________ test_fastapi _________________________________
+
+tmp_path = PosixPath('/tmp/pytest-of-aidi/pytest-10/test_fastapi0')
+
+    @pytest.mark.asyncio
+    async def test_fastapi(tmp_path: Path):
+        original_server = app.state.server if hasattr(app.state, "server") else None
+        receiver_private_key, receiver_public_key = generate_keypair()
+        sender_private_key, sender_public_key = generate_keypair()
+>       app.state.server = SecureMeshServer(
+            receiver_private_key=receiver_private_key,
+            sender_public_key=sender_public_key,
+            ledger_path=tmp_path / "fastapi.jsonl",
+        )
+E       TypeError: SecureMeshServer.__init__() got an unexpected keyword argument 'receiver_private_key'
+
+tests/test_mesh.py:104: TypeError
+_______________________________ test_concurrent ________________________________
+
+tmp_path = PosixPath('/tmp/pytest-of-aidi/pytest-10/test_concurrent0')
+
+    @pytest.mark.asyncio
+    async def test_concurrent(tmp_path: Path):
+        receiver_private_key, receiver_public_key = generate_keypair()
+        sender_private_key, sender_public_key = generate_keypair()
+        ledger_path = tmp_path / "concurrent.jsonl"
+>       server = SecureMeshServer(
+            receiver_private_key=receiver_private_key,
+            sender_public_key=sender_public_key,
+            ledger_path=ledger_path,
+        )
+E       TypeError: SecureMeshServer.__init__() got an unexpected keyword argument 'receiver_private_key'
+
+tests/test_mesh.py:127: TypeError
+_____________________________ test_stats_endpoint ______________________________
+
+tmp_path = PosixPath('/tmp/pytest-of-aidi/pytest-10/test_stats_endpoint0')
+
+    @pytest.mark.asyncio
+    async def test_stats_endpoint(tmp_path: Path):
+        original_server = app.state.server if hasattr(app.state, "server") else None
+        receiver_private_key, receiver_public_key = generate_keypair()
+        sender_private_key, sender_public_key = generate_keypair()
+>       app.state.server = SecureMeshServer(
+            receiver_private_key=receiver_private_key,
+            sender_public_key=sender_public_key,
+            ledger_path=tmp_path / "stats.jsonl",
+        )
+E       TypeError: SecureMeshServer.__init__() got an unexpected keyword argument 'receiver_private_key'
+
+tests/test_mesh.py:167: TypeError
+_________________________ test_export_public_key_shape _________________________
+
+    @pytest.mark.asyncio
+    async def test_export_public_key_shape():
+        private_key, public_key = generate_keypair()
+>       exported = export_public_key(public_key)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_mesh.py:188: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+private_key_pem = b'-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAj+Bz85maUA7+kVcMtKVP\nf2GIM/ePOLLXDhZyjr3iiw...KTFJvrc4DZiFuq\nwH2WMswFU7ip0Je8TlDheggfRHZEuPONkChLtt2TRXJthcXFiC26iypz0DhNx9mN\nTwIDAQAB\n-----END PUBLIC KEY-----\n'
+
+    def export_public_key(private_key_pem: bytes) -> bytes:
+>       private_key = serialization.load_pem_private_key(private_key_pem, password=None)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ValueError: Valid PEM but no BEGIN/END delimiters for a private key found. Are you sure this is a private key?
+
+core/crypto.py:23: ValueError
+=========================== short test summary info ============================
+FAILED tests/test_mesh.py::test_duplicate - TypeError: SecureMeshServer.__ini...
+FAILED tests/test_mesh.py::test_ledger - TypeError: SecureMeshServer.__init__...
+FAILED tests/test_mesh.py::test_fastapi - TypeError: SecureMeshServer.__init_...
+FAILED tests/test_mesh.py::test_concurrent - TypeError: SecureMeshServer.__in...
+FAILED tests/test_mesh.py::test_stats_endpoint - TypeError: SecureMeshServer....
+FAILED tests/test_mesh.py::test_export_public_key_shape - ValueError: Valid P...
+6 failed, 4 passed in 17.41s

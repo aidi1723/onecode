@@ -64,7 +64,11 @@ class ToolGuardDecision:
     violations: list[dict[str, str]]
 
 
-def inspect_tool_calls(entry: DictionaryEntry, tool_calls: list[dict[str, Any]]) -> ToolGuardDecision:
+def inspect_tool_calls(
+    entry: DictionaryEntry,
+    tool_calls: list[dict[str, Any]],
+    kernel_allowed_tools: set[str] | None = None,
+) -> ToolGuardDecision:
     violations: list[dict[str, str]] = []
     for call in tool_calls:
         tool_name = str(call.get("name", ""))
@@ -82,6 +86,9 @@ def inspect_tool_calls(entry: DictionaryEntry, tool_calls: list[dict[str, Any]])
 
         if tool_name in SHELL_TOOLS and _is_dangerous_command(arguments):
             violations.append({"tool": tool_name, "reason": "dangerous_command"})
+
+        if kernel_allowed_tools is not None and tool_name not in kernel_allowed_tools:
+            violations.append({"tool": tool_name, "reason": "tool_not_allowed_by_kernel_policy"})
 
     return ToolGuardDecision(allowed=not violations, violations=violations)
 

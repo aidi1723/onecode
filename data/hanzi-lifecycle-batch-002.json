@@ -1,0 +1,1916 @@
+{
+  "project": "字溯东方 Hanzi Lifecycle",
+  "version": "batch-002",
+  "description": "第二批自然世界核心字样板数据。以现代字为入口，整理字形演变、字义演变、音韵出处和复核备注。",
+  "entries": [
+    {
+      "id": "013",
+      "modern": "星",
+      "traditional_or_variants": [
+        "星"
+      ],
+      "unicode": "U+661F",
+      "pinyin": [
+        "xing1"
+      ],
+      "radical": "日",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "早期字形多以日光或发光天体相关构件表示星体。",
+        "small_seal": "从晶或日、生声一类结构趋于规范。",
+        "clerical": "笔画化后形成上日下生的稳定结构。",
+        "regular_traditional": "星",
+        "simplified": "星",
+        "summary": "由夜空发光天体之义，扩展为星点、星宿、明星等意义。"
+      },
+      "meaning_evolution": {
+        "original": "夜空中发光的天体。",
+        "early": "星辰、星宿，古人用以观象授时。",
+        "later": "星点状物、星象、杰出人物。",
+        "modern": [
+          "天体",
+          "细碎或零散的点",
+          "明星或杰出人物"
+        ],
+        "common_words": [
+          "星星",
+          "星辰",
+          "星空",
+          "明星",
+          "零星"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "桑经切"
+        ],
+        "rhyme_group": "青韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》有“万物之精，上为列星”一类解释。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "早期构形需结合甲金文字形图像进一步复核。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "天体",
+          "细碎或零散的点",
+          "明星或杰出人物"
+        ],
+        "common_words": [
+          "星星",
+          "星辰",
+          "星空",
+          "明星",
+          "零星"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "星：现代主要用于表示天体；细碎或零散的点；明星或杰出人物。常见用法如：星星、星辰、星空、明星、零星。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "014",
+      "modern": "云",
+      "traditional_or_variants": [
+        "云",
+        "雲"
+      ],
+      "unicode": "U+4E91",
+      "traditional_unicode": "U+96F2",
+      "pinyin": [
+        "yun2"
+      ],
+      "radical": "二",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "早期“云”象云气回旋之形。",
+        "small_seal": "云气形线条化；后加雨成“雲”专表云气。",
+        "clerical": "云、雲均笔画化，分工逐渐清晰。",
+        "regular_traditional": "雲",
+        "simplified": "云",
+        "summary": "“云”本可表云气，也借作言说义；繁体“雲”加雨旁以专表天气之云。"
+      },
+      "meaning_evolution": {
+        "original": "云气、云彩。",
+        "early": "云气；又常作动词“说”。",
+        "later": "天空中的云；文言中保留“曰、说”义。",
+        "modern": [
+          "云彩",
+          "像云一样的事物",
+          "云计算等新义"
+        ],
+        "common_words": [
+          "云彩",
+          "白云",
+          "风云",
+          "云端",
+          "云计算"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "王分切",
+          "于分切"
+        ],
+        "rhyme_group": "文韵",
+        "entering_tone": false,
+        "classical_note": "传统字书常区分“云”与“雲”的用法演变。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“云/雲”的古今分工是简繁转换的重要样板。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "云彩",
+          "像云一样的事物",
+          "云计算等新义"
+        ],
+        "common_words": [
+          "云彩",
+          "白云",
+          "风云",
+          "云端",
+          "云计算"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "云：现代主要用于表示云彩；像云一样的事物；云计算等新义。常见用法如：云彩、白云、风云、云端、云计算。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "015",
+      "modern": "雨",
+      "traditional_or_variants": [
+        "雨"
+      ],
+      "unicode": "U+96E8",
+      "pinyin": [
+        "yu3",
+        "yu4"
+      ],
+      "radical": "雨",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "象云层下有水点落下之形。",
+        "small_seal": "上部像天幕或云层，下部雨点线条化。",
+        "clerical": "方块化，雨点规整为内部点画。",
+        "regular_traditional": "雨",
+        "simplified": "雨",
+        "summary": "由降水象形发展为天气、水汽下降及相关动作义。"
+      },
+      "meaning_evolution": {
+        "original": "从云层降落的水。",
+        "early": "下雨、雨水。",
+        "later": "像雨一样落下或密集出现。",
+        "modern": [
+          "雨水",
+          "下雨",
+          "像雨一样落下的事物"
+        ],
+        "common_words": [
+          "下雨",
+          "雨水",
+          "风雨",
+          "雨季",
+          "暴雨"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "王矩切",
+          "于句切"
+        ],
+        "rhyme_group": "麌韵、遇韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“水从云下也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "现代常读 yu3，动词古读和文言读音需另作音义分流。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "雨水",
+          "下雨",
+          "像雨一样落下的事物"
+        ],
+        "common_words": [
+          "下雨",
+          "雨水",
+          "风雨",
+          "雨季",
+          "暴雨"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "雨：现代主要用于表示雨水；下雨；像雨一样落下的事物。常见用法如：下雨、雨水、风雨、雨季、暴雨。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "016",
+      "modern": "雷",
+      "traditional_or_variants": [
+        "雷"
+      ],
+      "unicode": "U+96F7",
+      "pinyin": [
+        "lei2"
+      ],
+      "radical": "雨",
+      "stroke_count": 13,
+      "shape_evolution": {
+        "oracle_bronze": "早期雷电相关字形多以回旋纹、田形或声响符号表现雷声。",
+        "small_seal": "从雨，畾声或相关声符，表示雷雨天气中的声响。",
+        "clerical": "雨头与下部构件笔画化。",
+        "regular_traditional": "雷",
+        "simplified": "雷",
+        "summary": "由雷雨中的巨大声响，引申为威力、爆炸物和军事武器名。"
+      },
+      "meaning_evolution": {
+        "original": "雷声，雷雨时的巨大声响。",
+        "early": "雷、电、天象威声。",
+        "later": "比喻声势巨大；地雷、水雷等爆炸物。",
+        "modern": [
+          "雷声",
+          "军事爆炸物",
+          "比喻突然或强烈的震动"
+        ],
+        "common_words": [
+          "雷声",
+          "打雷",
+          "雷雨",
+          "地雷",
+          "雷霆"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "鲁回切"
+        ],
+        "rhyme_group": "灰韵",
+        "entering_tone": false,
+        "classical_note": "传统字书多以从雨解释其天气属性。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "早期形体与“畾”等构件关系需后续用字源图谱复核。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "雷声",
+          "军事爆炸物",
+          "比喻突然或强烈的震动"
+        ],
+        "common_words": [
+          "雷声",
+          "打雷",
+          "雷雨",
+          "地雷",
+          "雷霆"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "雷：现代主要用于表示雷声；军事爆炸物；比喻突然或强烈的震动。常见用法如：雷声、打雷、雷雨、地雷、雷霆。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "017",
+      "modern": "风",
+      "traditional_or_variants": [
+        "風"
+      ],
+      "unicode": "U+98CE",
+      "traditional_unicode": "U+98A8",
+      "pinyin": [
+        "feng1"
+      ],
+      "radical": "风",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "古文字中“風”形与空气流动、虫鸟传感等传统解释相关。",
+        "small_seal": "繁体“風”结构规范化。",
+        "clerical": "外框和内部构件隶变。",
+        "regular_traditional": "風",
+        "simplified": "风",
+        "summary": "由空气流动之义，扩展为风俗、风格、消息、态势等抽象义。"
+      },
+      "meaning_evolution": {
+        "original": "空气流动的自然现象。",
+        "early": "风、风向、风力。",
+        "later": "风俗、教化、风格、消息、景象。",
+        "modern": [
+          "空气流动",
+          "风俗",
+          "风格",
+          "消息或传闻",
+          "景象"
+        ],
+        "common_words": [
+          "大风",
+          "风雨",
+          "风俗",
+          "风格",
+          "风景"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "方戎切"
+        ],
+        "rhyme_group": "东韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》未单收简体“风”，需参照“風”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "简体“风”与繁体“風”的字形关系需在形体链中明确展示。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "空气流动",
+          "风俗",
+          "风格",
+          "消息或传闻",
+          "景象"
+        ],
+        "common_words": [
+          "大风",
+          "风雨",
+          "风俗",
+          "风格",
+          "风景"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "风：现代主要用于表示空气流动；风俗；风格；消息或传闻；景象。常见用法如：大风、风雨、风俗、风格、风景。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "018",
+      "modern": "山",
+      "traditional_or_variants": [
+        "山"
+      ],
+      "unicode": "U+5C71",
+      "pinyin": [
+        "shan1"
+      ],
+      "radical": "山",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "象三峰并立的山形。",
+        "small_seal": "山峰轮廓线条化。",
+        "clerical": "线条转为竖画和折画。",
+        "regular_traditional": "山",
+        "simplified": "山",
+        "summary": "由山峰象形演为三笔结构，是地理高起物的基础字。"
+      },
+      "meaning_evolution": {
+        "original": "地面高耸的大型土石隆起。",
+        "early": "山岳、山地。",
+        "later": "像山一样的堆积物；比喻巨大、沉重、稳固。",
+        "modern": [
+          "山岳",
+          "形状像山的东西",
+          "姓氏或地名构件"
+        ],
+        "common_words": [
+          "高山",
+          "山水",
+          "山地",
+          "山河",
+          "山峰"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "所间切"
+        ],
+        "rhyme_group": "山韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“宣也。宣气散，生万物，有石而高”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "说文训释偏义理化，字形本身以象山峰为主。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "山岳",
+          "形状像山的东西",
+          "姓氏或地名构件"
+        ],
+        "common_words": [
+          "高山",
+          "山水",
+          "山地",
+          "山河",
+          "山峰"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "山：现代主要用于表示山岳；形状像山的东西；姓氏或地名构件。常见用法如：高山、山水、山地、山河、山峰。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "019",
+      "modern": "水",
+      "traditional_or_variants": [
+        "水"
+      ],
+      "unicode": "U+6C34",
+      "pinyin": [
+        "shui3"
+      ],
+      "radical": "水",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "象水流曲折，两侧有水滴或支流。",
+        "small_seal": "中间主流与两侧水点线条化。",
+        "clerical": "曲线变为竖钩、撇捺和点画。",
+        "regular_traditional": "水",
+        "simplified": "水",
+        "summary": "由流水象形演为今形，并作为氵、氺等水义部件的源头。"
+      },
+      "meaning_evolution": {
+        "original": "水流、液态水。",
+        "early": "河流、水体、液体。",
+        "later": "水准、水分、费用或额外收益等引申义。",
+        "modern": [
+          "水",
+          "河流湖海等水体",
+          "液体",
+          "某些费用或品质状态"
+        ],
+        "common_words": [
+          "水流",
+          "河水",
+          "水分",
+          "水平",
+          "水果"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "式轨切"
+        ],
+        "rhyme_group": "旨韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“准也。北方之行”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "五行义和自然水体义应分层处理。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "水",
+          "河流湖海等水体",
+          "液体",
+          "某些费用或品质状态"
+        ],
+        "common_words": [
+          "水流",
+          "河水",
+          "水分",
+          "水平",
+          "水果"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "水：现代主要用于表示水；河流湖海等水体；液体；某些费用或品质状态。常见用法如：水流、河水、水分、水平、水果。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "020",
+      "modern": "川",
+      "traditional_or_variants": [
+        "川"
+      ],
+      "unicode": "U+5DDD",
+      "pinyin": [
+        "chuan1"
+      ],
+      "radical": "巛",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "象水流分成多道并行之形。",
+        "small_seal": "三道水流线条化。",
+        "clerical": "三竖定型。",
+        "regular_traditional": "川",
+        "simplified": "川",
+        "summary": "由河流象形，后成为河川、平原、四川简称等意义。"
+      },
+      "meaning_evolution": {
+        "original": "河流。",
+        "early": "大河、流水通道。",
+        "later": "平地、平原；四川简称。",
+        "modern": [
+          "河流",
+          "山间或平原中的水道",
+          "四川简称"
+        ],
+        "common_words": [
+          "山川",
+          "河川",
+          "川流",
+          "四川",
+          "川菜"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "昌缘切"
+        ],
+        "rhyme_group": "仙韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“贯穿通流水也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“川”与“水”的部件分工后续应并入自然水系字段。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "河流",
+          "山间或平原中的水道",
+          "四川简称"
+        ],
+        "common_words": [
+          "山川",
+          "河川",
+          "川流",
+          "四川",
+          "川菜"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "川：现代主要用于表示河流；山间或平原中的水道；四川简称。常见用法如：山川、河川、川流、四川、川菜。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "021",
+      "modern": "石",
+      "traditional_or_variants": [
+        "石"
+      ],
+      "unicode": "U+77F3",
+      "pinyin": [
+        "shi2",
+        "dan4"
+      ],
+      "radical": "石",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "多像岩石、石块附着于山崖之形。",
+        "small_seal": "厂形与口形构件规范化。",
+        "clerical": "折画、横画和口形笔画化。",
+        "regular_traditional": "石",
+        "simplified": "石",
+        "summary": "由石块、岩石之义，扩展为石器、矿物、容量单位等。"
+      },
+      "meaning_evolution": {
+        "original": "石头、岩石。",
+        "early": "山石、石块、石器材料。",
+        "later": "坚硬如石之物；古容量单位，读 dan4。",
+        "modern": [
+          "石头",
+          "石制品",
+          "矿物相关",
+          "容量单位"
+        ],
+        "common_words": [
+          "石头",
+          "石山",
+          "石器",
+          "宝石",
+          "一石粮"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "常只切"
+        ],
+        "rhyme_group": "昔韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“山石也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "现代多音 shi2/dan4 需在后续字音字段中分义标注。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "石头",
+          "石制品",
+          "矿物相关",
+          "容量单位"
+        ],
+        "common_words": [
+          "石头",
+          "石山",
+          "石器",
+          "宝石",
+          "一石粮"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "石：现代主要用于表示石头；石制品；矿物相关；容量单位。常见用法如：石头、石山、石器、宝石、一石粮。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "022",
+      "modern": "土",
+      "traditional_or_variants": [
+        "土"
+      ],
+      "unicode": "U+571F",
+      "pinyin": [
+        "tu3"
+      ],
+      "radical": "土",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "上象土块，下象地面或土坛。",
+        "small_seal": "上下横与中竖结构规范化。",
+        "clerical": "横竖笔画定型。",
+        "regular_traditional": "土",
+        "simplified": "土",
+        "summary": "由土地、泥土之义，成为地面、乡土、五行土等基础概念。"
+      },
+      "meaning_evolution": {
+        "original": "泥土、土地。",
+        "early": "土地、土壤、社土。",
+        "later": "乡土、本地、朴拙、五行之一。",
+        "modern": [
+          "泥土",
+          "土地",
+          "本地的",
+          "不时髦或不洋气",
+          "五行之一"
+        ],
+        "common_words": [
+          "土地",
+          "土壤",
+          "乡土",
+          "土气",
+          "水土"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "他鲁切"
+        ],
+        "rhyme_group": "姥韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“地之吐生物者也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“土”与“地”语义相近，但“土”更偏材料和本土属性。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "泥土",
+          "土地",
+          "本地的",
+          "不时髦或不洋气",
+          "五行之一"
+        ],
+        "common_words": [
+          "土地",
+          "土壤",
+          "乡土",
+          "土气",
+          "水土"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "土：现代主要用于表示泥土；土地；本地的；不时髦或不洋气；五行之一。常见用法如：土地、土壤、乡土、土气、水土。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "023",
+      "modern": "金",
+      "traditional_or_variants": [
+        "金"
+      ],
+      "unicode": "U+91D1",
+      "pinyin": [
+        "jin1"
+      ],
+      "radical": "金",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "早期字形多与金属矿物、铸块或冶炼材料相关。",
+        "small_seal": "金属义构件规范化。",
+        "clerical": "点画与下部结构定型。",
+        "regular_traditional": "金",
+        "simplified": "金",
+        "summary": "由金属材料泛称，逐渐特指黄金，并引申为钱财、贵重、五行金。"
+      },
+      "meaning_evolution": {
+        "original": "金属。",
+        "early": "铜、金属器物、贵重金属。",
+        "later": "黄金、钱财、坚固贵重之物、五行之一。",
+        "modern": [
+          "金属",
+          "黄金",
+          "钱财",
+          "金色",
+          "五行之一"
+        ],
+        "common_words": [
+          "金属",
+          "黄金",
+          "金钱",
+          "现金",
+          "金色"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "居吟切"
+        ],
+        "rhyme_group": "侵韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“五色金也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "上古“金”常泛指金属，不宜直接等同现代黄金。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "金属",
+          "黄金",
+          "钱财",
+          "金色",
+          "五行之一"
+        ],
+        "common_words": [
+          "金属",
+          "黄金",
+          "金钱",
+          "现金",
+          "金色"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "金：现代主要用于表示金属；黄金；钱财；金色；五行之一。常见用法如：金属、黄金、金钱、现金、金色。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "024",
+      "modern": "木",
+      "traditional_or_variants": [
+        "木"
+      ],
+      "unicode": "U+6728",
+      "pinyin": [
+        "mu4"
+      ],
+      "radical": "木",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "象树木，上有枝，下有根。",
+        "small_seal": "枝干根部线条化。",
+        "clerical": "曲线转为横竖撇捺。",
+        "regular_traditional": "木",
+        "simplified": "木",
+        "summary": "由树木象形发展为木材、木制、五行木以及呆滞等引申义。"
+      },
+      "meaning_evolution": {
+        "original": "树木。",
+        "early": "树、木材。",
+        "later": "木制品；质朴、迟钝；五行之一。",
+        "modern": [
+          "树木",
+          "木材",
+          "木制的",
+          "感觉迟钝或呆板",
+          "五行之一"
+        ],
+        "common_words": [
+          "树木",
+          "木头",
+          "木材",
+          "木工",
+          "麻木"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "莫卜切"
+        ],
+        "rhyme_group": "屋韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“冒也。冒地而生”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "木作为部件极高频，应后续建立植物/材料双重标签。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "树木",
+          "木材",
+          "木制的",
+          "感觉迟钝或呆板",
+          "五行之一"
+        ],
+        "common_words": [
+          "树木",
+          "木头",
+          "木材",
+          "木工",
+          "麻木"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "木：现代主要用于表示树木；木材；木制的；感觉迟钝或呆板；五行之一。常见用法如：树木、木头、木材、木工、麻木。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "025",
+      "modern": "火",
+      "traditional_or_variants": [
+        "火"
+      ],
+      "unicode": "U+706B",
+      "pinyin": [
+        "huo3"
+      ],
+      "radical": "火",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "象火焰向上燃烧之形。",
+        "small_seal": "火焰线条化。",
+        "clerical": "中竖与两点、撇捺形成稳定笔画。",
+        "regular_traditional": "火",
+        "simplified": "火",
+        "summary": "由火焰象形，扩展为燃烧、热、急躁、兴旺和军事火器等义。"
+      },
+      "meaning_evolution": {
+        "original": "火焰、燃烧现象。",
+        "early": "火、光热、燃烧。",
+        "later": "怒气、急迫、兴盛、火器、五行之一。",
+        "modern": [
+          "火焰",
+          "燃烧",
+          "怒气",
+          "兴旺流行",
+          "火器或火灾"
+        ],
+        "common_words": [
+          "火焰",
+          "大火",
+          "火气",
+          "火热",
+          "火车"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "呼果切"
+        ],
+        "rhyme_group": "果韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“毁也。南方之行，炎而上”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "五行义、自然义和现代交通词“火车”等需分义处理。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "火焰",
+          "燃烧",
+          "怒气",
+          "兴旺流行",
+          "火器或火灾"
+        ],
+        "common_words": [
+          "火焰",
+          "大火",
+          "火气",
+          "火热",
+          "火车"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "火：现代主要用于表示火焰；燃烧；怒气；兴旺流行；火器或火灾。常见用法如：火焰、大火、火气、火热、火车。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "026",
+      "modern": "气",
+      "traditional_or_variants": [
+        "气",
+        "氣"
+      ],
+      "unicode": "U+6C14",
+      "traditional_unicode": "U+6C23",
+      "pinyin": [
+        "qi4"
+      ],
+      "radical": "气",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "早期“气”象云气、蒸汽上升之形。",
+        "small_seal": "气流线条规范化；繁体“氣”加米，表现气与饮食蒸熟等关联解释。",
+        "clerical": "气头结构笔画化。",
+        "regular_traditional": "氣",
+        "simplified": "气",
+        "summary": "由云气、蒸汽之形，扩展为空气、气息、精神状态和哲学之气。"
+      },
+      "meaning_evolution": {
+        "original": "云气、气体。",
+        "early": "气息、空气、蒸汽。",
+        "later": "气候、气质、精神、怒气、哲学元气。",
+        "modern": [
+          "气体",
+          "呼吸",
+          "气候",
+          "精神状态",
+          "怒气"
+        ],
+        "common_words": [
+          "空气",
+          "气体",
+          "天气",
+          "生气",
+          "气质"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "去既切"
+        ],
+        "rhyme_group": "未韵",
+        "entering_tone": false,
+        "classical_note": "传统字书多以云气上出解释“气”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“气/氣”涉及哲学义，第一版先保留自然和生理主线。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "气体",
+          "呼吸",
+          "气候",
+          "精神状态",
+          "怒气"
+        ],
+        "common_words": [
+          "空气",
+          "气体",
+          "天气",
+          "生气",
+          "气质"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "气：现代主要用于表示气体；呼吸；气候；精神状态；怒气。常见用法如：空气、气体、天气、生气、气质。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "027",
+      "modern": "草",
+      "traditional_or_variants": [
+        "草"
+      ],
+      "unicode": "U+8349",
+      "pinyin": [
+        "cao3"
+      ],
+      "radical": "艹",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "早期草木类字多以草形或植物萌生形表示。",
+        "small_seal": "从艸，早声，表示草本植物。",
+        "clerical": "艸头隶变为草字头，下部笔画化。",
+        "regular_traditional": "草",
+        "simplified": "草",
+        "summary": "由草本植物，扩展为草率、草稿、草书、野地等义。"
+      },
+      "meaning_evolution": {
+        "original": "草本植物。",
+        "early": "草、草地、野生植物。",
+        "later": "草率、粗略、草稿；草书。",
+        "modern": [
+          "草本植物",
+          "草地",
+          "草率",
+          "草稿",
+          "草书"
+        ],
+        "common_words": [
+          "青草",
+          "草地",
+          "草原",
+          "草稿",
+          "草书"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "采老切"
+        ],
+        "rhyme_group": "皓韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》以艸部统摄草木萌生类字。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "草书义属书体发展引申，需与植物义分层。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "草本植物",
+          "草地",
+          "草率",
+          "草稿",
+          "草书"
+        ],
+        "common_words": [
+          "青草",
+          "草地",
+          "草原",
+          "草稿",
+          "草书"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "草：现代主要用于表示草本植物；草地；草率；草稿；草书。常见用法如：青草、草地、草原、草稿、草书。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "028",
+      "modern": "花",
+      "traditional_or_variants": [
+        "花",
+        "華"
+      ],
+      "unicode": "U+82B1",
+      "pinyin": [
+        "hua1"
+      ],
+      "radical": "艹",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "早期花义常与“華”等字相关，表示植物开花的繁盛形态。",
+        "small_seal": "花从艸，化声，后成为花朵通用字。",
+        "clerical": "草字头和化部笔画化。",
+        "regular_traditional": "花",
+        "simplified": "花",
+        "summary": "由植物花朵，扩展为花纹、耗费、迷乱、种类繁多等义。"
+      },
+      "meaning_evolution": {
+        "original": "植物的花朵。",
+        "early": "花、开花、繁盛美丽。",
+        "later": "花纹、华美、耗费、眼花、花样。",
+        "modern": [
+          "花朵",
+          "有花纹的",
+          "耗费",
+          "模糊迷乱",
+          "样式或种类"
+        ],
+        "common_words": [
+          "花朵",
+          "开花",
+          "花纹",
+          "花钱",
+          "眼花"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "呼瓜切"
+        ],
+        "rhyme_group": "麻韵",
+        "entering_tone": false,
+        "classical_note": "“花”与“華”的古今分工需结合字书和文献用例判断。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“花/華”关系复杂，第一版先按现代常用字处理。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "花朵",
+          "有花纹的",
+          "耗费",
+          "模糊迷乱",
+          "样式或种类"
+        ],
+        "common_words": [
+          "花朵",
+          "开花",
+          "花纹",
+          "花钱",
+          "眼花"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "花：现代主要用于表示花朵；有花纹的；耗费；模糊迷乱；样式或种类。常见用法如：花朵、开花、花纹、花钱、眼花。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "029",
+      "modern": "生",
+      "traditional_or_variants": [
+        "生"
+      ],
+      "unicode": "U+751F",
+      "pinyin": [
+        "sheng1"
+      ],
+      "radical": "生",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "象草木从地面生出之形。",
+        "small_seal": "植物萌生结构线条化。",
+        "clerical": "横竖笔画定型。",
+        "regular_traditional": "生",
+        "simplified": "生",
+        "summary": "由草木萌发之形，扩展为生命、出生、发生、生计、未熟等义。"
+      },
+      "meaning_evolution": {
+        "original": "草木生长、萌发。",
+        "early": "生长、出生、生命。",
+        "later": "产生、生活、生计、学生、生疏、生的未熟。",
+        "modern": [
+          "生长",
+          "出生",
+          "生命",
+          "产生",
+          "未熟或不熟悉"
+        ],
+        "common_words": [
+          "生命",
+          "出生",
+          "学生",
+          "生活",
+          "生长"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "所庚切"
+        ],
+        "rhyme_group": "庚韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“进也。象草木生出土上”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“生”是生命和过程类核心字，后续应进入高频动词/状态字组。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "生长",
+          "出生",
+          "生命",
+          "产生",
+          "未熟或不熟悉"
+        ],
+        "common_words": [
+          "生命",
+          "出生",
+          "学生",
+          "生活",
+          "生长"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "生：现代主要用于表示生长；出生；生命；产生；未熟或不熟悉。常见用法如：生命、出生、学生、生活、生长。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "030",
+      "modern": "鸟",
+      "traditional_or_variants": [
+        "鳥"
+      ],
+      "unicode": "U+9E1F",
+      "traditional_unicode": "U+9CE5",
+      "pinyin": [
+        "niao3"
+      ],
+      "radical": "鸟",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "象鸟的头、身、尾、足之形。",
+        "small_seal": "鸟形线条化为“鳥”。",
+        "clerical": "鸟身与尾足笔画化。",
+        "regular_traditional": "鳥",
+        "simplified": "鸟",
+        "summary": "由鸟类象形发展为鸟类总称，并作为鸟部构字基础。"
+      },
+      "meaning_evolution": {
+        "original": "鸟类。",
+        "early": "飞禽、鸟。",
+        "later": "鸟类总称；也用于俗语和比喻。",
+        "modern": [
+          "鸟类",
+          "飞禽",
+          "鸟部字义部件"
+        ],
+        "common_words": [
+          "小鸟",
+          "鸟类",
+          "飞鸟",
+          "鸟鸣",
+          "候鸟"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "都了切"
+        ],
+        "rhyme_group": "筱韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“长尾禽总名也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "简体鸟部与繁体鳥部的形体映射需后续统一。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "鸟类",
+          "飞禽",
+          "鸟部字义部件"
+        ],
+        "common_words": [
+          "小鸟",
+          "鸟类",
+          "飞鸟",
+          "鸟鸣",
+          "候鸟"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "鸟：现代主要用于表示鸟类；飞禽；鸟部字义部件。常见用法如：小鸟、鸟类、飞鸟、鸟鸣、候鸟。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "031",
+      "modern": "兽",
+      "traditional_or_variants": [
+        "獸"
+      ],
+      "unicode": "U+517D",
+      "traditional_unicode": "U+7378",
+      "pinyin": [
+        "shou4"
+      ],
+      "radical": "丷",
+      "stroke_count": 11,
+      "shape_evolution": {
+        "oracle_bronze": "兽类相关古字多与狩猎、动物形体和犬旁构件相关。",
+        "small_seal": "繁体“獸”结构复杂，含动物和捕猎相关构件。",
+        "clerical": "复杂结构笔画化。",
+        "regular_traditional": "獸",
+        "simplified": "兽",
+        "summary": "由野兽、四足动物之义，扩展为兽性、禽兽等道德比喻。"
+      },
+      "meaning_evolution": {
+        "original": "野兽，四足兽类。",
+        "early": "兽类、被狩猎的动物。",
+        "later": "野蛮、残忍之性；与禽相对。",
+        "modern": [
+          "兽类",
+          "野兽",
+          "比喻野蛮残暴"
+        ],
+        "common_words": [
+          "野兽",
+          "禽兽",
+          "猛兽",
+          "兽医",
+          "兽性"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "舒救切"
+        ],
+        "rhyme_group": "宥韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》系统中兽类字常与犬、豸等部件关联。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“兽”简化后形体远离繁体，需重点展示繁简对应。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "兽类",
+          "野兽",
+          "比喻野蛮残暴"
+        ],
+        "common_words": [
+          "野兽",
+          "禽兽",
+          "猛兽",
+          "兽医",
+          "兽性"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "兽：现代主要用于表示兽类；野兽；比喻野蛮残暴。常见用法如：野兽、禽兽、猛兽、兽医、兽性。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "032",
+      "modern": "鱼",
+      "traditional_or_variants": [
+        "魚"
+      ],
+      "unicode": "U+9C7C",
+      "traditional_unicode": "U+9B5A",
+      "pinyin": [
+        "yu2"
+      ],
+      "radical": "鱼",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "象鱼头、鱼身、鱼尾之形。",
+        "small_seal": "鱼形线条化为“魚”。",
+        "clerical": "鱼身与尾部笔画化。",
+        "regular_traditional": "魚",
+        "simplified": "鱼",
+        "summary": "由鱼类象形发展为水生动物总称，并作为鱼部构字基础。"
+      },
+      "meaning_evolution": {
+        "original": "鱼类。",
+        "early": "水中鱼类。",
+        "later": "鱼肉、鱼形器物、鱼部动物名。",
+        "modern": [
+          "鱼类",
+          "鱼肉",
+          "形状像鱼的东西"
+        ],
+        "common_words": [
+          "鱼类",
+          "鱼肉",
+          "金鱼",
+          "钓鱼",
+          "鱼塘"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "语居切"
+        ],
+        "rhyme_group": "鱼韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“水虫也。象形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "古书中“虫”可泛指动物，“水虫”不等同现代昆虫。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "鱼类",
+          "鱼肉",
+          "形状像鱼的东西"
+        ],
+        "common_words": [
+          "鱼类",
+          "鱼肉",
+          "金鱼",
+          "钓鱼",
+          "鱼塘"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "鱼：现代主要用于表示鱼类；鱼肉；形状像鱼的东西。常见用法如：鱼类、鱼肉、金鱼、钓鱼、鱼塘。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "033",
+      "modern": "虫",
+      "traditional_or_variants": [
+        "虫",
+        "蟲"
+      ],
+      "unicode": "U+866B",
+      "traditional_unicode": "U+87F2",
+      "pinyin": [
+        "chong2",
+        "hui3"
+      ],
+      "radical": "虫",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "早期“虫”本多与蛇形、爬行动物形体相关。",
+        "small_seal": "虫形线条化；三虫为“蟲”，后简化归并为“虫”。",
+        "clerical": "虫形笔画化。",
+        "regular_traditional": "蟲",
+        "simplified": "虫",
+        "summary": "由蛇虫类形体，扩展为虫类、动物泛称和虫部构字基础。"
+      },
+      "meaning_evolution": {
+        "original": "虫蛇类动物，古义较宽。",
+        "early": "蛇、虫、各类小动物或动物泛称。",
+        "later": "昆虫、小动物；虫部字义部件。",
+        "modern": [
+          "昆虫",
+          "小动物",
+          "虫部构字部件"
+        ],
+        "common_words": [
+          "昆虫",
+          "虫子",
+          "害虫",
+          "毛虫",
+          "虫牙"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "直弓切"
+        ],
+        "rhyme_group": "东韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》“虫”本有蛇类解释，现代常用义多承“蟲”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "虫/蟲/虺关系复杂，是简化归并与古今义变化的重要样板。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "昆虫",
+          "小动物",
+          "虫部构字部件"
+        ],
+        "common_words": [
+          "昆虫",
+          "虫子",
+          "害虫",
+          "毛虫",
+          "虫牙"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "虫：现代主要用于表示昆虫；小动物；虫部构字部件。常见用法如：昆虫、虫子、害虫、毛虫、虫牙。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "034",
+      "modern": "牛",
+      "traditional_or_variants": [
+        "牛"
+      ],
+      "unicode": "U+725B",
+      "pinyin": [
+        "niu2"
+      ],
+      "radical": "牛",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "象牛头，有双角。",
+        "small_seal": "牛角和头部轮廓线条化。",
+        "clerical": "角、头结构笔画化。",
+        "regular_traditional": "牛",
+        "simplified": "牛",
+        "summary": "由牛头象形发展为牛类、畜力和强大之物的基础字。"
+      },
+      "meaning_evolution": {
+        "original": "牛。",
+        "early": "牛类家畜，农耕畜力。",
+        "later": "牛肉、牛皮；比喻强壮、厉害或固执。",
+        "modern": [
+          "牛类",
+          "牛肉或牛皮相关",
+          "比喻厉害或固执"
+        ],
+        "common_words": [
+          "黄牛",
+          "牛肉",
+          "牛奶",
+          "水牛",
+          "很牛"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "语求切"
+        ],
+        "rhyme_group": "尤韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“大牲也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“牛”作为农耕文明核心动物字，应与田、犁、牧等字联动。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "牛类",
+          "牛肉或牛皮相关",
+          "比喻厉害或固执"
+        ],
+        "common_words": [
+          "黄牛",
+          "牛肉",
+          "牛奶",
+          "水牛",
+          "很牛"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "牛：现代主要用于表示牛类；牛肉或牛皮相关；比喻厉害或固执。常见用法如：黄牛、牛肉、牛奶、水牛、很牛。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "035",
+      "modern": "羊",
+      "traditional_or_variants": [
+        "羊"
+      ],
+      "unicode": "U+7F8A",
+      "pinyin": [
+        "yang2"
+      ],
+      "radical": "羊",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "象羊头，有角。",
+        "small_seal": "羊角与头部结构线条化。",
+        "clerical": "横竖撇画定型。",
+        "regular_traditional": "羊",
+        "simplified": "羊",
+        "summary": "由羊头象形发展为羊类家畜，并参与美、善、祥等字义系统。"
+      },
+      "meaning_evolution": {
+        "original": "羊。",
+        "early": "羊类家畜、祭祀或食用牲畜。",
+        "later": "羊肉、羊毛；温顺等比喻义。",
+        "modern": [
+          "羊类",
+          "羊肉或羊毛相关",
+          "姓氏或部件"
+        ],
+        "common_words": [
+          "山羊",
+          "绵羊",
+          "羊肉",
+          "羊毛",
+          "牧羊"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "与章切"
+        ],
+        "rhyme_group": "阳韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“祥也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "说文“祥也”带有文化解释色彩，字形层面仍以羊头象形为主。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "羊类",
+          "羊肉或羊毛相关",
+          "姓氏或部件"
+        ],
+        "common_words": [
+          "山羊",
+          "绵羊",
+          "羊肉",
+          "羊毛",
+          "牧羊"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "羊：现代主要用于表示羊类；羊肉或羊毛相关；姓氏或部件。常见用法如：山羊、绵羊、羊肉、羊毛、牧羊。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "036",
+      "modern": "马",
+      "traditional_or_variants": [
+        "馬"
+      ],
+      "unicode": "U+9A6C",
+      "traditional_unicode": "U+99AC",
+      "pinyin": [
+        "ma3"
+      ],
+      "radical": "马",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "象马头、马身、鬃尾和足之形。",
+        "small_seal": "马形线条化为“馬”。",
+        "clerical": "马身、足尾笔画化。",
+        "regular_traditional": "馬",
+        "simplified": "马",
+        "summary": "由马类象形发展为交通、战争、畜力和速度相关基础字。"
+      },
+      "meaning_evolution": {
+        "original": "马。",
+        "early": "马匹，交通和战争用畜。",
+        "later": "与骑乘、速度、军事、棋类等相关的事物。",
+        "modern": [
+          "马类",
+          "马匹",
+          "象棋棋子",
+          "姓氏或马部部件"
+        ],
+        "common_words": [
+          "马匹",
+          "马上",
+          "骑马",
+          "马车",
+          "马力"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "莫下切"
+        ],
+        "rhyme_group": "马韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“怒也，武也。象马头髦尾四足之形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "马部繁简差异大，后续需建立马部简化映射。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "马类",
+          "马匹",
+          "象棋棋子",
+          "姓氏或马部部件"
+        ],
+        "common_words": [
+          "马匹",
+          "马上",
+          "骑马",
+          "马车",
+          "马力"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "马：现代主要用于表示马类；马匹；象棋棋子；姓氏或马部部件。常见用法如：马匹、马上、骑马、马车、马力。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "037",
+      "modern": "犬",
+      "traditional_or_variants": [
+        "犬"
+      ],
+      "unicode": "U+72AC",
+      "pinyin": [
+        "quan3"
+      ],
+      "radical": "犬",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "象狗类动物侧身形，有头、身、尾。",
+        "small_seal": "犬形线条化。",
+        "clerical": "身体轮廓转为横撇捺点。",
+        "regular_traditional": "犬",
+        "simplified": "犬",
+        "summary": "由狗类象形发展为犬类总称，并作为犭旁的源头。"
+      },
+      "meaning_evolution": {
+        "original": "狗。",
+        "early": "犬、守猎之狗。",
+        "later": "犬类动物；谦称或贬称中的犬字用法；犬旁构字。",
+        "modern": [
+          "狗",
+          "犬科动物",
+          "犬旁部件"
+        ],
+        "common_words": [
+          "犬类",
+          "警犬",
+          "猎犬",
+          "犬牙",
+          "犬子"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "苦泫切"
+        ],
+        "rhyme_group": "铣韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“狗之有县蹏者也。象形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "犬与犭旁的关系应在后续部件库中单独说明。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "狗",
+          "犬科动物",
+          "犬旁部件"
+        ],
+        "common_words": [
+          "犬类",
+          "警犬",
+          "猎犬",
+          "犬牙",
+          "犬子"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "犬：现代主要用于表示狗；犬科动物；犬旁部件。常见用法如：犬类、警犬、猎犬、犬牙、犬子。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    }
+  ]
+}

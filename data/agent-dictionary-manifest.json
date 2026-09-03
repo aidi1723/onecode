@@ -1,0 +1,65 @@
+{
+  "name": "字溯东方 Agent Dictionary",
+  "version": "0.4.2",
+  "updated_at": "2026-05-24",
+  "language": "zh-Hans",
+  "entry_count": 500,
+  "primary_layer": "xinhua_base",
+  "primary_dataset": {
+    "json": "data/xinhua-base-entries.json",
+    "csv": "data/xinhua-base-entries.csv",
+    "lookup": "data/xinhua-base-lookup.json"
+  },
+  "latest_dataset": {
+    "json": "data/xinhua-base-entries.json",
+    "csv": "data/xinhua-base-entries.csv",
+    "lookup": "data/xinhua-base-lookup.json"
+  },
+  "lookup_keys": [
+    "modern",
+    "id",
+    "unicode",
+    "traditional_or_variants",
+    "variant_unicodes",
+    "pinyin",
+    "radical",
+    "review_queue",
+    "review_groups",
+    "by_review_tag"
+  ],
+  "entry_contract": {
+    "id": "Stable project id, zero-padded string.",
+    "modern": "Modern simplified character used as the primary lookup key.",
+    "traditional_or_variants": "Traditional forms, historical forms, or notable variants.",
+    "unicode": "Unicode code point for the modern character.",
+    "pinyin": "Modern Mandarin readings with tone numbers.",
+    "radical": "Modern radical used for indexing.",
+    "stroke_count": "Modern stroke count.",
+    "shape_evolution": "Character form evolution across historical stages.",
+    "meaning_evolution": "Original, early, later, and modern meaning layers.",
+    "phonology_sources": "Middle Chinese fanqie, rhyme group, entering tone, and source note.",
+    "review_notes": "Structured reasons for review, including polyphonic readings, variants, simplified merges, and historical-layer uncertainty.",
+    "variant_unicodes": "Unicode mapping for traditional forms, variants, and notable alternate forms.",
+    "xinhua_base": "Modern Xinhua-style base layer: source note, paraphrased meanings, simple annotation, and common words.",
+    "review_tags": "Machine-readable review categories: polyphonic, variant_or_traditional, simplified_merge_or_multi_variant, historical_draft_review, history_pending."
+  },
+  "agent_usage_policy": {
+    "preferred_source": "primary_dataset.json",
+    "fallback_source": "primary_dataset.csv",
+    "extended_source": "latest_dataset.json",
+    "modern_meaning_source": "Modern meanings are project paraphrases based on the Xinhua Dictionary explanation system.",
+    "quotation_status": "not_verbatim",
+    "uncertainty_rule": "If review_queue includes the entry or review_notes are non-empty, present the result as provisional and include the category and reason. history_pending means the historical layer is not yet filled, not that the modern base entry is defective."
+  },
+  "recommended_agent_tasks": [
+    "lookup_character",
+    "compare_characters",
+    "trace_shape_evolution",
+    "trace_meaning_evolution",
+    "explain_modern_usage",
+    "find_entries_by_radical",
+    "find_entries_by_pinyin",
+    "find_entries_needing_review",
+    "find_entries_by_review_tag"
+  ]
+}

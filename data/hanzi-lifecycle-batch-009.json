@@ -1,0 +1,1665 @@
+{
+  "project": "字溯东方 Hanzi Lifecycle",
+  "version": "batch-009",
+  "description": "第九批判断、否定、能力与价值评价核心字样板数据。覆盖有无、是非、不可以、能否、善恶美丑、真假新旧、多少轻重。",
+  "entries": [
+    {
+      "id": "149",
+      "modern": "有",
+      "traditional_or_variants": [
+        "有"
+      ],
+      "unicode": "U+6709",
+      "pinyin": [
+        "you3"
+      ],
+      "radical": "月",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "早期多从又、从肉或月，表示手持肉食或拥有之物。",
+        "small_seal": "又与月肉结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "有",
+        "simplified": "有",
+        "summary": "由持有、拥有实物，发展为存在、具有、发生和某种数量。"
+      },
+      "meaning_evolution": {
+        "original": "持有、拥有。",
+        "early": "有、占有、存在。",
+        "later": "具有、发生、某种数量、表示不确定。",
+        "modern": [
+          "存在",
+          "拥有",
+          "具有",
+          "发生",
+          "表示估量或不确定"
+        ],
+        "common_words": [
+          "有无",
+          "拥有",
+          "有用",
+          "有时",
+          "有些"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "云久切"
+        ],
+        "rhyme_group": "有韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“不宜有也。从月又声”，传统解释需结合古文字复核。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "有的构形解释复杂，但存在/拥有义稳定，是语义库的存在算子核心。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "存在",
+          "拥有",
+          "具有",
+          "发生",
+          "表示估量或不确定"
+        ],
+        "common_words": [
+          "有无",
+          "拥有",
+          "有用",
+          "有时",
+          "有些"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "有：现代主要用于表示存在；拥有；具有；发生；表示估量或不确定。常见用法如：有无、拥有、有用、有时、有些。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "150",
+      "modern": "无",
+      "traditional_or_variants": [
+        "无",
+        "無"
+      ],
+      "unicode": "U+65E0",
+      "traditional_unicode": "U+7121",
+      "pinyin": [
+        "wu2",
+        "mo2"
+      ],
+      "radical": "无",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“無”早期常解释为人持羽舞蹈之形，本义与舞有关，后借为无有之无。",
+        "small_seal": "無形复杂，舞人持饰形线条化；无为简化通行形。",
+        "clerical": "無笔画化，无形简化。",
+        "regular_traditional": "無",
+        "simplified": "无",
+        "summary": "本义与舞蹈相关，后假借为没有、不存在，是有无对立的否定核心字。"
+      },
+      "meaning_evolution": {
+        "original": "舞蹈相关，本义与现代无有义分离。",
+        "early": "借作没有、无。",
+        "later": "不存在、没有、不、不要、未。",
+        "modern": [
+          "没有",
+          "不存在",
+          "不",
+          "无论",
+          "未"
+        ],
+        "common_words": [
+          "有无",
+          "无论",
+          "无法",
+          "无知",
+          "无数"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "武夫切"
+        ],
+        "rhyme_group": "虞韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“無”为“亡也”，但古文字常与舞形相关。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "无/無是假借和简化的重点样板，必须保留本义与现代义分离。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "没有",
+          "不存在",
+          "不",
+          "无论",
+          "未"
+        ],
+        "common_words": [
+          "有无",
+          "无论",
+          "无法",
+          "无知",
+          "无数"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "无：现代主要用于表示没有；不存在；不；无论；未。常见用法如：有无、无论、无法、无知、无数。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "151",
+      "modern": "是",
+      "traditional_or_variants": [
+        "是"
+      ],
+      "unicode": "U+662F",
+      "pinyin": [
+        "shi4"
+      ],
+      "radical": "日",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "早期从日、正或止类构件，传统多与正直、正确有关。",
+        "small_seal": "日与正/止系统构件规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "是",
+        "simplified": "是",
+        "summary": "由正、正确、此，发展为判断词、肯定和代词性指示。"
+      },
+      "meaning_evolution": {
+        "original": "正、正确。",
+        "early": "正确、对；此、这。",
+        "later": "判断词，相当于现代“是”；表示肯定。",
+        "modern": [
+          "判断词",
+          "正确",
+          "这或此",
+          "表示肯定"
+        ],
+        "common_words": [
+          "是非",
+          "是否",
+          "于是",
+          "正是",
+          "可是"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "承纸切"
+        ],
+        "rhyme_group": "纸韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“直也。从日正”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "是从形容判断正确到现代系词，语法化过程重要。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "判断词",
+          "正确",
+          "这或此",
+          "表示肯定"
+        ],
+        "common_words": [
+          "是非",
+          "是否",
+          "于是",
+          "正是",
+          "可是"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "是：现代主要用于表示判断词；正确；这或此；表示肯定。常见用法如：是非、是否、于是、正是、可是。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "152",
+      "modern": "非",
+      "traditional_or_variants": [
+        "非"
+      ],
+      "unicode": "U+975E",
+      "pinyin": [
+        "fei1"
+      ],
+      "radical": "非",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "多像两翼相背或相违之形，表示背离、不合。",
+        "small_seal": "左右相背结构规范化。",
+        "clerical": "左右竖画与短横笔画化。",
+        "regular_traditional": "非",
+        "simplified": "非",
+        "summary": "由相背、违背，发展为不是、错误、责难和非洲简称等义。"
+      },
+      "meaning_evolution": {
+        "original": "相背、违背。",
+        "early": "不是、不对、错误。",
+        "later": "否定、责备、非法、非常。",
+        "modern": [
+          "不是",
+          "错误",
+          "责备",
+          "不合于",
+          "非常或必须"
+        ],
+        "common_words": [
+          "是非",
+          "非常",
+          "非法",
+          "非要",
+          "非洲"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "甫微切"
+        ],
+        "rhyme_group": "微韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“违也。从飞下翅，取其相背”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "非是判断否定核心字，与不是/错误/违背三层义需分开。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "不是",
+          "错误",
+          "责备",
+          "不合于",
+          "非常或必须"
+        ],
+        "common_words": [
+          "是非",
+          "非常",
+          "非法",
+          "非要",
+          "非洲"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "非：现代主要用于表示不是；错误；责备；不合于；非常或必须。常见用法如：是非、非常、非法、非要、非洲。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "153",
+      "modern": "不",
+      "traditional_or_variants": [
+        "不"
+      ],
+      "unicode": "U+4E0D",
+      "pinyin": [
+        "bu4",
+        "fou3"
+      ],
+      "radical": "一",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "早期形体解释不一，常说像花萼、胚芽或鸟飞上翔形，后借为否定副词。",
+        "small_seal": "形体线条化。",
+        "clerical": "横撇竖点定型。",
+        "regular_traditional": "不",
+        "simplified": "不",
+        "summary": "本义不稳，后假借为否定副词，是现代汉语最核心否定字。"
+      },
+      "meaning_evolution": {
+        "original": "本义存在争议，现代否定义属假借主导。",
+        "early": "否定、不。",
+        "later": "不然、非、未；也通否。",
+        "modern": [
+          "否定副词",
+          "表示拒绝或相反",
+          "用于构成疑问或反问"
+        ],
+        "common_words": [
+          "不是",
+          "不用",
+          "不行",
+          "不但",
+          "不然"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "分勿切",
+          "方久切"
+        ],
+        "rhyme_group": "物韵、有韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“鸟飞上翔不下来也”，此说需与现代文字学分层。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "不的现代变调和否定语法功能极重要，后续应单独建语法层。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "否定副词",
+          "表示拒绝或相反",
+          "用于构成疑问或反问"
+        ],
+        "common_words": [
+          "不是",
+          "不用",
+          "不行",
+          "不但",
+          "不然"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "不：现代主要用于表示否定副词；表示拒绝或相反；用于构成疑问或反问。常见用法如：不是、不用、不行、不但、不然。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "154",
+      "modern": "可",
+      "traditional_or_variants": [
+        "可"
+      ],
+      "unicode": "U+53EF",
+      "pinyin": [
+        "ke3",
+        "ke4"
+      ],
+      "radical": "口",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "从口、从丂一类构件，传统解释与许可、应答、歌声有关。",
+        "small_seal": "口与丂结构规范化。",
+        "clerical": "横折钩与口部笔画定型。",
+        "regular_traditional": "可",
+        "simplified": "可",
+        "summary": "由认可、许可，发展为可以、值得、适合、约略和转折语气。"
+      },
+      "meaning_evolution": {
+        "original": "许可、认可，具体语源需复核。",
+        "early": "可以、许可、合宜。",
+        "later": "值得、适合、约略、可是。",
+        "modern": [
+          "可以",
+          "许可",
+          "值得",
+          "适合",
+          "表示约略或转折"
+        ],
+        "common_words": [
+          "可以",
+          "可是",
+          "可爱",
+          "可靠",
+          "可见"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "枯我切"
+        ],
+        "rhyme_group": "哿韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“肎也。从口丂，丂亦声”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "可是现代转折连词义很晚，应与许可/可能义分开。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "可以",
+          "许可",
+          "值得",
+          "适合",
+          "表示约略或转折"
+        ],
+        "common_words": [
+          "可以",
+          "可是",
+          "可爱",
+          "可靠",
+          "可见"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "可：现代主要用于表示可以；许可；值得；适合；表示约略或转折。常见用法如：可以、可是、可爱、可靠、可见。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "155",
+      "modern": "能",
+      "traditional_or_variants": [
+        "能"
+      ],
+      "unicode": "U+80FD",
+      "pinyin": [
+        "neng2",
+        "nai2"
+      ],
+      "radical": "月",
+      "stroke_count": 10,
+      "shape_evolution": {
+        "oracle_bronze": "早期“能”常解释为熊类动物形，后借为能力之能。",
+        "small_seal": "动物形线条化。",
+        "clerical": "复杂结构笔画化。",
+        "regular_traditional": "能",
+        "simplified": "能",
+        "summary": "本义可能为熊类动物，后假借为能力、能够、才能。"
+      },
+      "meaning_evolution": {
+        "original": "熊类动物一类，后假借为能力。",
+        "early": "能够、才能。",
+        "later": "能力、能量、胜任、善于。",
+        "modern": [
+          "能够",
+          "能力",
+          "能量",
+          "擅长",
+          "胜任"
+        ],
+        "common_words": [
+          "能力",
+          "能够",
+          "能量",
+          "才能",
+          "不能"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "奴登切"
+        ],
+        "rhyme_group": "登韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“熊属。足似鹿”，能力义属假借系统。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "能是本义和现代核心义分离的重点样板。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "能够",
+          "能力",
+          "能量",
+          "擅长",
+          "胜任"
+        ],
+        "common_words": [
+          "能力",
+          "能够",
+          "能量",
+          "才能",
+          "不能"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "能：现代主要用于表示能够；能力；能量；擅长；胜任。常见用法如：能力、能够、能量、才能、不能。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "156",
+      "modern": "好",
+      "traditional_or_variants": [
+        "好"
+      ],
+      "unicode": "U+597D",
+      "pinyin": [
+        "hao3",
+        "hao4"
+      ],
+      "radical": "女",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "从女、从子，传统多解释为母子相亲或女子与子之美好。",
+        "small_seal": "女与子结构规范化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "好",
+        "simplified": "好",
+        "summary": "由亲爱、美善，发展为好坏之好、喜爱、容易和完成状态。"
+      },
+      "meaning_evolution": {
+        "original": "美好、亲爱。",
+        "early": "美、善、亲爱。",
+        "later": "良好、喜爱、容易、表示完成或应允。",
+        "modern": [
+          "优良",
+          "使人满意",
+          "喜爱",
+          "容易",
+          "表示完成或应允"
+        ],
+        "common_words": [
+          "好坏",
+          "很好",
+          "爱好",
+          "好学",
+          "做好"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "呼皓切",
+          "呼到切"
+        ],
+        "rhyme_group": "皓韵、号韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“美也。从女子”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "好 hao3 与 hao4 音义分流需单列；构形解释避免过度现代化阐释。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "优良",
+          "使人满意",
+          "喜爱",
+          "容易",
+          "表示完成或应允"
+        ],
+        "common_words": [
+          "好坏",
+          "很好",
+          "爱好",
+          "好学",
+          "做好"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "好：现代主要用于表示优良；使人满意；喜爱；容易；表示完成或应允。常见用法如：好坏、很好、爱好、好学、做好。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "157",
+      "modern": "坏",
+      "traditional_or_variants": [
+        "壞",
+        "坏"
+      ],
+      "unicode": "U+574F",
+      "traditional_unicode": "U+58DE",
+      "pinyin": [
+        "huai4",
+        "pi1"
+      ],
+      "radical": "土",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“壞”从土、褱声一类，表示败坏、毁坏。简体“坏”古另有土丘等义。",
+        "small_seal": "壞形结构复杂，土旁表义。",
+        "clerical": "壞笔画化，后简化为坏。",
+        "regular_traditional": "壞",
+        "simplified": "坏",
+        "summary": "现代坏合并承载壞的毁坏、恶劣义，需区分古坏与壞。"
+      },
+      "meaning_evolution": {
+        "original": "壞：毁坏、败坏；坏另字古义需复核。",
+        "early": "毁坏、倒塌、败坏。",
+        "later": "恶劣、不好、损坏、使坏。",
+        "modern": [
+          "不好",
+          "损坏",
+          "败坏",
+          "恶劣",
+          "使坏"
+        ],
+        "common_words": [
+          "好坏",
+          "坏人",
+          "损坏",
+          "坏事",
+          "破坏"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "下怪切"
+        ],
+        "rhyme_group": "怪韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》收“壞”，释义与毁坏相关；现代简化作坏。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "坏/壞是简化合并样板，古‘坏’与繁体‘壞’不可混同。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "不好",
+          "损坏",
+          "败坏",
+          "恶劣",
+          "使坏"
+        ],
+        "common_words": [
+          "好坏",
+          "坏人",
+          "损坏",
+          "坏事",
+          "破坏"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "坏：现代主要用于表示不好；损坏；败坏；恶劣；使坏。常见用法如：好坏、坏人、损坏、坏事、破坏。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "158",
+      "modern": "善",
+      "traditional_or_variants": [
+        "善"
+      ],
+      "unicode": "U+5584",
+      "pinyin": [
+        "shan4"
+      ],
+      "radical": "口",
+      "stroke_count": 12,
+      "shape_evolution": {
+        "oracle_bronze": "从羊、从言或口系统构件，传统解释与美好、吉祥、善言有关。",
+        "small_seal": "羊与言/口结构规范化。",
+        "clerical": "复杂结构笔画化。",
+        "regular_traditional": "善",
+        "simplified": "善",
+        "summary": "由美好、吉善，发展为善良、擅长、友好、容易和妥善。"
+      },
+      "meaning_evolution": {
+        "original": "美好、吉善。",
+        "early": "善、美、好。",
+        "later": "善良、擅长、友好、容易、妥善。",
+        "modern": [
+          "善良",
+          "好",
+          "擅长",
+          "友好",
+          "妥善"
+        ],
+        "common_words": [
+          "善良",
+          "善恶",
+          "完善",
+          "善于",
+          "友善"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "常演切"
+        ],
+        "rhyme_group": "獮韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“吉也。从誩从羊”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "善与羊、美、义等文化评价字有系统关联。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "善良",
+          "好",
+          "擅长",
+          "友好",
+          "妥善"
+        ],
+        "common_words": [
+          "善良",
+          "善恶",
+          "完善",
+          "善于",
+          "友善"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "善：现代主要用于表示善良；好；擅长；友好；妥善。常见用法如：善良、善恶、完善、善于、友善。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "159",
+      "modern": "恶",
+      "traditional_or_variants": [
+        "惡",
+        "恶"
+      ],
+      "unicode": "U+6076",
+      "traditional_unicode": "U+60E1",
+      "pinyin": [
+        "e4",
+        "wu4",
+        "e3",
+        "wu1"
+      ],
+      "radical": "心",
+      "stroke_count": 10,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“惡”从心、亞声，表示不善、丑恶或厌恶情感。",
+        "small_seal": "心与亞结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "惡",
+        "simplified": "恶",
+        "summary": "由心中不善或憎恶，发展为恶劣、罪恶、厌恶和恶心等多音多义。"
+      },
+      "meaning_evolution": {
+        "original": "不善、丑恶或厌恶情感。",
+        "early": "恶、坏、不善；憎恶。",
+        "later": "凶恶、罪恶、厌恶、恶心、疑问感叹读音。",
+        "modern": [
+          "坏或凶恶",
+          "罪恶",
+          "厌恶",
+          "恶心",
+          "疑问感叹用法"
+        ],
+        "common_words": [
+          "善恶",
+          "恶人",
+          "厌恶",
+          "恶心",
+          "可恶"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "乌各切",
+          "乌路切"
+        ],
+        "rhyme_group": "铎韵、暮韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》收“惡”，释为“过也”。现代多音义需分层。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "恶 e4/wu4/e3 多音义复杂，是情感评价与道德评价交叉样板。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "坏或凶恶",
+          "罪恶",
+          "厌恶",
+          "恶心",
+          "疑问感叹用法"
+        ],
+        "common_words": [
+          "善恶",
+          "恶人",
+          "厌恶",
+          "恶心",
+          "可恶"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "恶：现代主要用于表示坏或凶恶；罪恶；厌恶；恶心；疑问感叹用法。常见用法如：善恶、恶人、厌恶、恶心、可恶。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "160",
+      "modern": "美",
+      "traditional_or_variants": [
+        "美"
+      ],
+      "unicode": "U+7F8E",
+      "pinyin": [
+        "mei3"
+      ],
+      "radical": "羊",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "从羊、从大，传统解释与羊大为美或头戴羊饰之人有关。",
+        "small_seal": "羊与大结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "美",
+        "simplified": "美",
+        "summary": "由大羊、美好或装饰形象，发展为美丽、优良、赞美和美洲简称。"
+      },
+      "meaning_evolution": {
+        "original": "美好、味美或形美，具体构形解释有多说。",
+        "early": "美、好、甘美。",
+        "later": "漂亮、优秀、赞美、令人满意。",
+        "modern": [
+          "美丽",
+          "美好",
+          "令人满意",
+          "赞美",
+          "美国或美洲简称"
+        ],
+        "common_words": [
+          "美丽",
+          "美好",
+          "审美",
+          "赞美",
+          "美国"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "无鄙切"
+        ],
+        "rhyme_group": "旨韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“甘也。从羊从大”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "美的构形有羊大、装饰人形等说，应保守处理。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "美丽",
+          "美好",
+          "令人满意",
+          "赞美",
+          "美国或美洲简称"
+        ],
+        "common_words": [
+          "美丽",
+          "美好",
+          "审美",
+          "赞美",
+          "美国"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "美：现代主要用于表示美丽；美好；令人满意；赞美；美国或美洲简称。常见用法如：美丽、美好、审美、赞美、美国。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "161",
+      "modern": "丑",
+      "traditional_or_variants": [
+        "丑",
+        "醜"
+      ],
+      "unicode": "U+4E11",
+      "traditional_unicode": "U+919C",
+      "pinyin": [
+        "chou3"
+      ],
+      "radical": "一",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "“丑”本与手形或地支第二位相关；丑陋义传统写“醜”。现代简化以丑代醜。",
+        "small_seal": "丑、醜分属不同构形系统。",
+        "clerical": "二者分别笔画化。",
+        "regular_traditional": "丑/醜",
+        "simplified": "丑",
+        "summary": "现代“丑”合并地支丑和醜陋之醜，需严格分源。"
+      },
+      "meaning_evolution": {
+        "original": "丑：地支第二位或手形相关；醜：丑陋、可恶。",
+        "early": "地支、时辰；醜为貌恶。",
+        "later": "简化后合并为丑陋、羞耻、戏曲角色和地支。",
+        "modern": [
+          "丑陋",
+          "地支第二位",
+          "羞耻",
+          "戏曲角色"
+        ],
+        "common_words": [
+          "美丑",
+          "丑陋",
+          "小丑",
+          "丑时",
+          "出丑"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "敕久切"
+        ],
+        "rhyme_group": "有韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》收“丑”为纽也；醜陋义需参照“醜”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "丑/醜是简化合并的关键样板，现代丑陋义不可直接回推到丑本字。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "丑陋",
+          "地支第二位",
+          "羞耻",
+          "戏曲角色"
+        ],
+        "common_words": [
+          "美丑",
+          "丑陋",
+          "小丑",
+          "丑时",
+          "出丑"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "丑：现代主要用于表示丑陋；地支第二位；羞耻；戏曲角色。常见用法如：美丑、丑陋、小丑、丑时、出丑。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "162",
+      "modern": "真",
+      "traditional_or_variants": [
+        "真"
+      ],
+      "unicode": "U+771F",
+      "pinyin": [
+        "zhen1"
+      ],
+      "radical": "目",
+      "stroke_count": 10,
+      "shape_evolution": {
+        "oracle_bronze": "早期形体和仙人、化生、真实等传统解释相关，构形争议较多。",
+        "small_seal": "眞/真结构规范化。",
+        "clerical": "复杂结构笔画化。",
+        "regular_traditional": "真",
+        "simplified": "真",
+        "summary": "由真实、本原、不虚假，发展为真诚、清楚、确实和本质。"
+      },
+      "meaning_evolution": {
+        "original": "真实、本真，具体字源需复核。",
+        "early": "真、实、不虚。",
+        "later": "确实、真诚、本质、清楚。",
+        "modern": [
+          "真实",
+          "确实",
+          "真诚",
+          "清楚",
+          "本质"
+        ],
+        "common_words": [
+          "真假",
+          "真实",
+          "认真",
+          "真心",
+          "真正"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "职邻切"
+        ],
+        "rhyme_group": "真韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“眞”为“仙人变形而登天也”，现代真义需另层处理。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "真字说文解释与现代真实义距离较大，需重点复核。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "真实",
+          "确实",
+          "真诚",
+          "清楚",
+          "本质"
+        ],
+        "common_words": [
+          "真假",
+          "真实",
+          "认真",
+          "真心",
+          "真正"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "真：现代主要用于表示真实；确实；真诚；清楚；本质。常见用法如：真假、真实、认真、真心、真正。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "163",
+      "modern": "假",
+      "traditional_or_variants": [
+        "假"
+      ],
+      "unicode": "U+5047",
+      "pinyin": [
+        "jia3",
+        "jia4"
+      ],
+      "radical": "亻",
+      "stroke_count": 11,
+      "shape_evolution": {
+        "oracle_bronze": "后起形声字，从人、叚声，表示借用、凭借或非真。",
+        "small_seal": "人旁与叚部结构规范化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "假",
+        "simplified": "假",
+        "summary": "由借、凭借，发展为虚假、假设、假期等多义。"
+      },
+      "meaning_evolution": {
+        "original": "借、凭借。",
+        "early": "借用、假借、给予。",
+        "later": "虚假、假设、暂时、假期。",
+        "modern": [
+          "不真实",
+          "借用",
+          "假设",
+          "暂时",
+          "休假"
+        ],
+        "common_words": [
+          "真假",
+          "假如",
+          "假期",
+          "假借",
+          "虚假"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "古雅切",
+          "古讶切"
+        ],
+        "rhyme_group": "马韵、祃韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“非真也。一曰至也”，假借义需分层。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "假 jia3/jia4 音义分流明显，假期义需独立。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "不真实",
+          "借用",
+          "假设",
+          "暂时",
+          "休假"
+        ],
+        "common_words": [
+          "真假",
+          "假如",
+          "假期",
+          "假借",
+          "虚假"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "假：现代主要用于表示不真实；借用；假设；暂时；休假。常见用法如：真假、假如、假期、假借、虚假。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "164",
+      "modern": "新",
+      "traditional_or_variants": [
+        "新"
+      ],
+      "unicode": "U+65B0",
+      "pinyin": [
+        "xin1"
+      ],
+      "radical": "斤",
+      "stroke_count": 13,
+      "shape_evolution": {
+        "oracle_bronze": "从斤、亲声或木斤系统，传统解释与以斧斤砍木取新柴有关。",
+        "small_seal": "亲与斤结构规范化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "新",
+        "simplified": "新",
+        "summary": "由新砍之木或更新，发展为新旧之新、刚出现、更新和新近。"
+      },
+      "meaning_evolution": {
+        "original": "新砍的木柴或新近之物，具体字源需复核。",
+        "early": "新、刚有。",
+        "later": "新近、更新、新鲜、初次。",
+        "modern": [
+          "新的",
+          "新近",
+          "更新",
+          "新鲜",
+          "刚出现"
+        ],
+        "common_words": [
+          "新旧",
+          "新闻",
+          "新鲜",
+          "更新",
+          "重新"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "息邻切"
+        ],
+        "rhyme_group": "真韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“取木也。从斤，亲声”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "新从具体取木到抽象更新，适合做语义抽象化样板。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "新的",
+          "新近",
+          "更新",
+          "新鲜",
+          "刚出现"
+        ],
+        "common_words": [
+          "新旧",
+          "新闻",
+          "新鲜",
+          "更新",
+          "重新"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "新：现代主要用于表示新的；新近；更新；新鲜；刚出现。常见用法如：新旧、新闻、新鲜、更新、重新。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "165",
+      "modern": "旧",
+      "traditional_or_variants": [
+        "舊"
+      ],
+      "unicode": "U+65E7",
+      "traditional_unicode": "U+820A",
+      "pinyin": [
+        "jiu4"
+      ],
+      "radical": "日",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“舊”构形复杂，传统与鸟类、臼声等解释相关，后表示旧有。",
+        "small_seal": "舊形复杂结构规范化。",
+        "clerical": "舊笔画化，现代简化为旧。",
+        "regular_traditional": "舊",
+        "simplified": "旧",
+        "summary": "由旧有、过去已有，发展为旧时、陈旧、故交和从前。"
+      },
+      "meaning_evolution": {
+        "original": "旧有、从前，构形需复核。",
+        "early": "旧、故、从前。",
+        "later": "陈旧、旧交、原来的、过去的。",
+        "modern": [
+          "旧的",
+          "从前的",
+          "原来的",
+          "旧交",
+          "陈旧"
+        ],
+        "common_words": [
+          "新旧",
+          "旧书",
+          "旧友",
+          "依旧",
+          "旧时"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "巨救切"
+        ],
+        "rhyme_group": "宥韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》收“舊”，释义与鸱旧留等传统解释相关，需复核。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "旧/舊构形复杂且简化幅度大，第一版保守处理现代义。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "旧的",
+          "从前的",
+          "原来的",
+          "旧交",
+          "陈旧"
+        ],
+        "common_words": [
+          "新旧",
+          "旧书",
+          "旧友",
+          "依旧",
+          "旧时"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "旧：现代主要用于表示旧的；从前的；原来的；旧交；陈旧。常见用法如：新旧、旧书、旧友、依旧、旧时。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "166",
+      "modern": "多",
+      "traditional_or_variants": [
+        "多"
+      ],
+      "unicode": "U+591A",
+      "pinyin": [
+        "duo1"
+      ],
+      "radical": "夕",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "从二夕或两块肉/月形，传统解释为数量重叠而多。",
+        "small_seal": "上下两个夕形规范化。",
+        "clerical": "两个夕部笔画化。",
+        "regular_traditional": "多",
+        "simplified": "多",
+        "summary": "由数量重叠，发展为多、超过、称赞和程度副词。"
+      },
+      "meaning_evolution": {
+        "original": "数量多。",
+        "early": "多、众多。",
+        "later": "超过、余、多么、赞美。",
+        "modern": [
+          "数量多",
+          "超过",
+          "过分",
+          "多么",
+          "多余"
+        ],
+        "common_words": [
+          "多少",
+          "很多",
+          "多年",
+          "多么",
+          "多余"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "得何切"
+        ],
+        "rhyme_group": "歌韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“重也。从重夕”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "多和少是数量评价核心对。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "数量多",
+          "超过",
+          "过分",
+          "多么",
+          "多余"
+        ],
+        "common_words": [
+          "多少",
+          "很多",
+          "多年",
+          "多么",
+          "多余"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "多：现代主要用于表示数量多；超过；过分；多么；多余。常见用法如：多少、很多、多年、多么、多余。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "167",
+      "modern": "少",
+      "traditional_or_variants": [
+        "少"
+      ],
+      "unicode": "U+5C11",
+      "pinyin": [
+        "shao3",
+        "shao4"
+      ],
+      "radical": "小",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "在小形基础上加丿，表示不多、数量少。",
+        "small_seal": "小与丿结构规范化。",
+        "clerical": "四笔结构定型。",
+        "regular_traditional": "少",
+        "simplified": "少",
+        "summary": "由数量少，发展为不足、稍微、年轻和少年义。"
+      },
+      "meaning_evolution": {
+        "original": "数量少。",
+        "early": "少、不多。",
+        "later": "缺少、稍微、年轻、少年。",
+        "modern": [
+          "数量少",
+          "缺少",
+          "稍微",
+          "年轻",
+          "少年"
+        ],
+        "common_words": [
+          "多少",
+          "少数",
+          "缺少",
+          "少年",
+          "少量"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "书沼切",
+          "失照切"
+        ],
+        "rhyme_group": "小韵、笑韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“不多也。从小丿声”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "少 shao3/shao4 音义分流需与幼、老、年连读。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "数量少",
+          "缺少",
+          "稍微",
+          "年轻",
+          "少年"
+        ],
+        "common_words": [
+          "多少",
+          "少数",
+          "缺少",
+          "少年",
+          "少量"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "少：现代主要用于表示数量少；缺少；稍微；年轻；少年。常见用法如：多少、少数、缺少、少年、少量。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "168",
+      "modern": "重",
+      "traditional_or_variants": [
+        "重"
+      ],
+      "unicode": "U+91CD",
+      "pinyin": [
+        "zhong4",
+        "chong2"
+      ],
+      "radical": "里",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "早期形体常与人负重或物体厚重相关，构形需复核。",
+        "small_seal": "重形结构规范化。",
+        "clerical": "上千下里式结构笔画化。",
+        "regular_traditional": "重",
+        "simplified": "重",
+        "summary": "由重量大，发展为重要、重视、重复和层叠。"
+      },
+      "meaning_evolution": {
+        "original": "重量大、沉重。",
+        "early": "重、厚、沉。",
+        "later": "重要、尊重、重新、重复、层。",
+        "modern": [
+          "重量大",
+          "程度深",
+          "重要",
+          "重视",
+          "重复"
+        ],
+        "common_words": [
+          "轻重",
+          "重要",
+          "重视",
+          "重新",
+          "重复"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "柱用切",
+          "直容切"
+        ],
+        "rhyme_group": "用韵、钟韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“厚也。从壬东声”，传统构形需复核。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "重 zhong4/chong2 分别指重量/重要与重复，应拆义。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "重量大",
+          "程度深",
+          "重要",
+          "重视",
+          "重复"
+        ],
+        "common_words": [
+          "轻重",
+          "重要",
+          "重视",
+          "重新",
+          "重复"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "重：现代主要用于表示重量大；程度深；重要；重视；重复。常见用法如：轻重、重要、重视、重新、重复。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "169",
+      "modern": "轻",
+      "traditional_or_variants": [
+        "輕"
+      ],
+      "unicode": "U+8F7B",
+      "traditional_unicode": "U+8F15",
+      "pinyin": [
+        "qing1"
+      ],
+      "radical": "车",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "繁体“輕”为后起形声字，从車、巠声，表示车行轻便或重量小。",
+        "small_seal": "車旁与巠部结构规范化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "輕",
+        "simplified": "轻",
+        "summary": "由重量小、车行轻便，发展为轻微、轻率、轻视和轻松。"
+      },
+      "meaning_evolution": {
+        "original": "重量小、轻便。",
+        "early": "轻、重量小。",
+        "later": "轻微、轻率、轻视、不庄重、轻松。",
+        "modern": [
+          "重量小",
+          "程度浅",
+          "轻松",
+          "轻率",
+          "轻视"
+        ],
+        "common_words": [
+          "轻重",
+          "轻松",
+          "轻视",
+          "年轻",
+          "轻微"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "去盈切"
+        ],
+        "rhyme_group": "清韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“輕”为“轻车也。从車，巠声”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "轻/輕与重成对，繁简差异明确。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "重量小",
+          "程度浅",
+          "轻松",
+          "轻率",
+          "轻视"
+        ],
+        "common_words": [
+          "轻重",
+          "轻松",
+          "轻视",
+          "年轻",
+          "轻微"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "轻：现代主要用于表示重量小；程度浅；轻松；轻率；轻视。常见用法如：轻重、轻松、轻视、年轻、轻微。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    }
+  ]
+}

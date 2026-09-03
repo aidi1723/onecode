@@ -19,3 +19,4 @@ env/
 *.log
 *.pid
 claude-gateway-settings.json
+/safe-agent-skills/

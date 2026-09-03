@@ -1,0 +1,48 @@
+{
+  "quality": {
+    "exit_code": 0,
+    "timed_out": false,
+    "wall_time_seconds": 134.486,
+    "fs_integrity": "pass",
+    "chars": 8592,
+    "stderr_chars": 0,
+    "checks_passed": 12,
+    "checks_total": 12,
+    "checks": {
+      "has_positioning": true,
+      "has_structure": true,
+      "has_gateway_chain": true,
+      "has_tests": true,
+      "has_security": true,
+      "has_performance": true,
+      "has_production_risk": true,
+      "has_roadmap_12": true,
+      "has_score_table": true,
+      "has_evidence": true,
+      "has_no_secret": true,
+      "no_fake_function_calls": true
+    },
+    "report_file": "/home/aidi/projects/codex-evals/reports/dazidian-claude-kimi-shadow-injection-long-20260525-shadow-injection-long-final.md",
+    "stderr_file": "/home/aidi/projects/codex-evals/reports/dazidian-claude-kimi-shadow-injection-long-20260525-shadow-injection-long-final.stderr.txt"
+  },
+  "usage": {
+    "jsonl": "/home/aidi/.claude/projects/-home-aidi-projects-codex-evals-dazidian/840edeaa-d7a4-49b3-9929-c940695aab1d.jsonl",
+    "unique_assistant_messages": 2,
+    "input_tokens": 3962,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 9116,
+    "total_without_cache_read": 13078,
+    "total_with_cache_read": 13078,
+    "tool_use_count": 0,
+    "unique_tools": [],
+    "bash_count": 0,
+    "read_count": 0,
+    "native_inspect_count": 0
+  },
+  "gateway": {
+    "base_url": "http://127.0.0.1:8084",
+    "mode": "native_context_injection_long_final",
+    "settings_override": true
+  }
+}

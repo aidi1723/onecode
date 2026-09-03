@@ -2,8 +2,8 @@
 
 日期：2026-05-25
 测试环境：N100，同一机器、同一项目副本体系
-本地同步目录：`/Users/aidi/大字典`
-远端测试目录：`/home/aidi/projects/codex-evals/dazidian*`、`/home/aidi/projects/oneword-agentos-test`
+本地同步目录：`<workspace-root>`
+远端测试目录：`${HOME}/projects/codex-evals/dazidian*`、`${HOME}/projects/oneword-agentos-test`
 
 ## 1. 总结论
 

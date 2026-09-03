@@ -1,0 +1,138 @@
+{
+  "comparison": {
+    "guarded_success_with_less_tokens": false,
+    "quality_delta": 0.0,
+    "token_savings": 0,
+    "token_savings_ratio": 0.0,
+    "turn_savings": 0,
+    "winner": "tie",
+    "winner_reason": "no_material_delta"
+  },
+  "groups": {
+    "bare": {
+      "artifact_sha256": {
+        "sync_node.py": "3eb4f5ef1fcf22a9e7ec7f3c0a54ce1bbe1ad672d2cfd8d666a39c85f7bb8ab7"
+      },
+      "context_bytes_after": 72,
+      "context_bytes_before": 72,
+      "context_compression_ratio": 0.0,
+      "final_patch_sha256": "3eb4f5ef1fcf22a9e7ec7f3c0a54ce1bbe1ad672d2cfd8d666a39c85f7bb8ab7",
+      "final_trace": [
+        "bare"
+      ],
+      "forbidden_tool_attempts": 0,
+      "gateway_actions": [],
+      "hexagram_trajectory": [
+        "100111"
+      ],
+      "http_errors": [
+        {
+          "message": "Invalid API key",
+          "status": 401,
+          "type": "INVALID_API_KEY"
+        }
+      ],
+      "http_statuses": [
+        401
+      ],
+      "invalid_patch_count": 0,
+      "label": "bare",
+      "model": "same-model",
+      "partial": false,
+      "partial_reason": "",
+      "quality_breakdown": {
+        "conformance": 0.0,
+        "convergence": 0.0,
+        "forbidden_tool_attempts": 0,
+        "has_timeout": false,
+        "penalties": [
+          "http_transport_failure"
+        ],
+        "sandbox_pass": 0.0,
+        "score": 0.0,
+        "summary_density": 0.0,
+        "vuln_count": 0
+      },
+      "quality_score": 0.0,
+      "success": false,
+      "test_exit_codes": [],
+      "tokens": {
+        "completion_tokens": 0,
+        "prompt_tokens": 0,
+        "total_tokens": 0
+      },
+      "tool_calls": [],
+      "tool_results": [],
+      "transient_http_errors": [],
+      "turns_used": 1,
+      "wall_time_seconds": 8.6e-05,
+      "workspace": "/var/folders/11/j98cv7fx021f813m6r6p8pg40000gn/T/tmpcopfyj_x/workspaces/bare"
+    },
+    "guarded": {
+      "artifact_sha256": {
+        "sync_node.py": "3eb4f5ef1fcf22a9e7ec7f3c0a54ce1bbe1ad672d2cfd8d666a39c85f7bb8ab7"
+      },
+      "context_bytes_after": 72,
+      "context_bytes_before": 72,
+      "context_compression_ratio": 0.0,
+      "final_patch_sha256": "3eb4f5ef1fcf22a9e7ec7f3c0a54ce1bbe1ad672d2cfd8d666a39c85f7bb8ab7",
+      "final_trace": [
+        "guarded"
+      ],
+      "forbidden_tool_attempts": 0,
+      "gateway_actions": [],
+      "hexagram_trajectory": [
+        "100111"
+      ],
+      "http_errors": [
+        {
+          "message": "Invalid API key",
+          "status": 401,
+          "type": "INVALID_API_KEY"
+        }
+      ],
+      "http_statuses": [
+        401
+      ],
+      "invalid_patch_count": 0,
+      "label": "guarded",
+      "model": "same-model",
+      "partial": false,
+      "partial_reason": "",
+      "quality_breakdown": {
+        "conformance": 0.0,
+        "convergence": 0.0,
+        "forbidden_tool_attempts": 0,
+        "has_timeout": false,
+        "penalties": [
+          "http_transport_failure"
+        ],
+        "sandbox_pass": 0.0,
+        "score": 0.0,
+        "summary_density": 0.0,
+        "vuln_count": 0
+      },
+      "quality_score": 0.0,
+      "success": false,
+      "test_exit_codes": [],
+      "tokens": {
+        "completion_tokens": 0,
+        "prompt_tokens": 0,
+        "total_tokens": 0
+      },
+      "tool_calls": [],
+      "tool_results": [],
+      "transient_http_errors": [],
+      "turns_used": 1,
+      "wall_time_seconds": 8e-05,
+      "workspace": "/var/folders/11/j98cv7fx021f813m6r6p8pg40000gn/T/tmpcopfyj_x/workspaces/guarded"
+    }
+  },
+  "max_turns": 1,
+  "model": "same-model",
+  "ok": false,
+  "partial": false,
+  "runner_mode": "real-http",
+  "task_id": "SECURE_B2B_LEDGER_SYNC_REPAIR",
+  "task_prompt": "修复 sync_node.py 同步死锁 Bug，跑测试，输出架构与风险总结。"
+}

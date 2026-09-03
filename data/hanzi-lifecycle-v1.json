@@ -1,0 +1,942 @@
+{
+  "project": "字溯东方 Hanzi Lifecycle",
+  "version": "v1",
+  "description": "第一批汉字全生命周期样板数据。以现代字为入口，整理字形演变、字义演变、音韵出处和复核备注。",
+  "entries": [
+    {
+      "id": "001",
+      "modern": "天",
+      "traditional_or_variants": [
+        "天"
+      ],
+      "unicode": "U+5929",
+      "pinyin": [
+        "tian1"
+      ],
+      "radical": "大",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "多像正面站立的人形，突出头顶或在人形上方加指示符号。",
+        "small_seal": "上部指示线与下部“大”形结合，形成“从一大”的结构。",
+        "clerical": "圆转线条笔画化，逐渐定为今形。",
+        "regular_traditional": "天",
+        "simplified": "天",
+        "summary": "由“人头顶最高处”的指示形，逐步抽象为上方、天空、天命等核心概念。"
+      },
+      "meaning_evolution": {
+        "original": "人的头顶，后引申为最高处。",
+        "early": "天空、上天、自然或主宰力量。",
+        "later": "天命、天理、自然界、一昼夜、时令。",
+        "modern": [
+          "天空",
+          "自然界",
+          "一天",
+          "季节或天气",
+          "某些人体部位称谓"
+        ],
+        "common_words": [
+          "天空",
+          "今天",
+          "天气",
+          "天命",
+          "天下"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "他前切",
+          "他贤切"
+        ],
+        "rhyme_group": "先韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“颠也。至高无上，从一大”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "字源主线较稳定，可作为第一批核心自然字样板。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "天空",
+          "自然界",
+          "一天",
+          "季节或天气",
+          "某些人体部位称谓"
+        ],
+        "common_words": [
+          "天空",
+          "今天",
+          "天气",
+          "天命",
+          "天下"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "天：现代主要用于表示天空；自然界；一天；季节或天气；某些人体部位称谓。常见用法如：天空、今天、天气、天命、天下。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "002",
+      "modern": "地",
+      "traditional_or_variants": [
+        "地"
+      ],
+      "unicode": "U+5730",
+      "pinyin": [
+        "di4",
+        "de"
+      ],
+      "radical": "土",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "早期“大地”义常由“土”等字承担，“地”作为独立字形出现较晚。",
+        "small_seal": "从土，也声，形成左土右也的结构。",
+        "clerical": "结构横直化，定为左形右声。",
+        "regular_traditional": "地",
+        "simplified": "地",
+        "summary": "由“土”义符指向土地、大地，“也”兼具声符功能。"
+      },
+      "meaning_evolution": {
+        "original": "土地、大地，与“天”相对。",
+        "early": "地面、土地、疆土。",
+        "later": "地方、处所、地位、境地；后发展出结构助词用法。",
+        "modern": [
+          "土地",
+          "地方",
+          "地位或处境",
+          "助词“地”"
+        ],
+        "common_words": [
+          "大地",
+          "地方",
+          "土地",
+          "地位",
+          "慢慢地"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "徒四切",
+          "大计切"
+        ],
+        "rhyme_group": "至韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》有“元气初分，轻清阳为天，重浊阴为地”一类解释。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“也”的构形解释存在不同说法，后续应补充权威字源书校验。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "土地",
+          "地方",
+          "地位或处境",
+          "助词“地”"
+        ],
+        "common_words": [
+          "大地",
+          "地方",
+          "土地",
+          "地位",
+          "慢慢地"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "地：现代主要用于表示土地；地方；地位或处境；助词“地”。常见用法如：大地、地方、土地、地位、慢慢地。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "003",
+      "modern": "日",
+      "traditional_or_variants": [
+        "日"
+      ],
+      "unicode": "U+65E5",
+      "pinyin": [
+        "ri4"
+      ],
+      "radical": "日",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "象太阳圆形，中有一点或一横表示太阳实体或光。",
+        "small_seal": "圆形趋于椭圆和方框，中部点画变横。",
+        "clerical": "方块化，成今“日”形。",
+        "regular_traditional": "日",
+        "simplified": "日",
+        "summary": "由太阳象形逐步笔画化，保留“外框 + 中画”的基本视觉记忆。"
+      },
+      "meaning_evolution": {
+        "original": "太阳。",
+        "early": "太阳、白昼。",
+        "later": "一天、一昼夜、日期、每天。",
+        "modern": [
+          "太阳",
+          "日子",
+          "白天",
+          "每天",
+          "日本简称"
+        ],
+        "common_words": [
+          "日光",
+          "今日",
+          "日子",
+          "日夜",
+          "日本"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "人质切"
+        ],
+        "rhyme_group": "质韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释日为“实也。太阳之精不亏”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "适合标记“古入声 -> 普通话去声”的音韵变化样板。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "太阳",
+          "日子",
+          "白天",
+          "每天",
+          "日本简称"
+        ],
+        "common_words": [
+          "日光",
+          "今日",
+          "日子",
+          "日夜",
+          "日本"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "日：现代主要用于表示太阳；日子；白天；每天；日本简称。常见用法如：日光、今日、日子、日夜、日本。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "004",
+      "modern": "月",
+      "traditional_or_variants": [
+        "月"
+      ],
+      "unicode": "U+6708",
+      "pinyin": [
+        "yue4"
+      ],
+      "radical": "月",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "象弯月形，中有短画或点，以区别于“日”。",
+        "small_seal": "弯月轮廓趋于竖长，内部点画演为横画。",
+        "clerical": "笔画化，定为今“月”形。",
+        "regular_traditional": "月",
+        "simplified": "月",
+        "summary": "由月牙象形演为竖长方形结构，仍保留月体亏缺的源头特征。"
+      },
+      "meaning_evolution": {
+        "original": "月亮。",
+        "early": "月亮、月光。",
+        "later": "月份、月度、按月计算的时间单位。",
+        "modern": [
+          "月亮",
+          "月份",
+          "按月发生或计算"
+        ],
+        "common_words": [
+          "月光",
+          "月份",
+          "月亮",
+          "岁月",
+          "月刊"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "鱼厥切",
+          "疑厥切"
+        ],
+        "rhyme_group": "月韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“阙也。太阴之精。象形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "独体“月”和肉月旁在后续部件整理中应分开处理。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "月亮",
+          "月份",
+          "按月发生或计算"
+        ],
+        "common_words": [
+          "月光",
+          "月份",
+          "月亮",
+          "岁月",
+          "月刊"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "月：现代主要用于表示月亮；月份；按月发生或计算。常见用法如：月光、月份、月亮、岁月、月刊。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "005",
+      "modern": "人",
+      "traditional_or_variants": [
+        "人"
+      ],
+      "unicode": "U+4EBA",
+      "pinyin": [
+        "ren2"
+      ],
+      "radical": "人",
+      "stroke_count": 2,
+      "shape_evolution": {
+        "oracle_bronze": "多像侧身站立的人形。",
+        "small_seal": "人体轮廓线条化，保留侧身俯倾之势。",
+        "clerical": "线条变为撇捺结构。",
+        "regular_traditional": "人",
+        "simplified": "人",
+        "summary": "由人体象形转为极简的两笔结构，是人类主体概念的基本字。"
+      },
+      "meaning_evolution": {
+        "original": "人，能直立行走和社会生活的主体。",
+        "early": "人类、他人、人民。",
+        "later": "人格、人品、人员、某类职业或身份者。",
+        "modern": [
+          "人类",
+          "别人",
+          "成年人",
+          "从事某种职业或具有某种身份的人"
+        ],
+        "common_words": [
+          "人民",
+          "人生",
+          "别人",
+          "工人",
+          "人才"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "如邻切"
+        ],
+        "rhyme_group": "真韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“天地之性最贵者也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“人”也作为部件参与大量合体字构形，后续应建立部件索引。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "人类",
+          "别人",
+          "成年人",
+          "从事某种职业或具有某种身份的人"
+        ],
+        "common_words": [
+          "人民",
+          "人生",
+          "别人",
+          "工人",
+          "人才"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "人：现代主要用于表示人类；别人；成年人；从事某种职业或具有某种身份的人。常见用法如：人民、人生、别人、工人、人才。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "006",
+      "modern": "文",
+      "traditional_or_variants": [
+        "文"
+      ],
+      "unicode": "U+6587",
+      "pinyin": [
+        "wen2"
+      ],
+      "radical": "文",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "多像正面人形，胸前有纹饰或交错纹路。",
+        "small_seal": "人体与纹饰结构线条化。",
+        "clerical": "笔画化后形成今形。",
+        "regular_traditional": "文",
+        "simplified": "文",
+        "summary": "由身体纹饰、纹理之形，逐步引申到符号、文字、文采与文化。"
+      },
+      "meaning_evolution": {
+        "original": "纹理、花纹、纹饰。",
+        "early": "纹饰、文采、礼乐制度中的文饰性秩序。",
+        "later": "文字、文章、文化、文教，与“武”相对。",
+        "modern": [
+          "文字",
+          "文章",
+          "文化",
+          "文科",
+          "温和不粗野"
+        ],
+        "common_words": [
+          "文字",
+          "文章",
+          "文化",
+          "文雅",
+          "文科"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "无分切"
+        ],
+        "rhyme_group": "文韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“错画也，象交文”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“文”和“字”的古义分工是本项目的重要基础概念。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "文字",
+          "文章",
+          "文化",
+          "文科",
+          "温和不粗野"
+        ],
+        "common_words": [
+          "文字",
+          "文章",
+          "文化",
+          "文雅",
+          "文科"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "文：现代主要用于表示文字；文章；文化；文科；温和不粗野。常见用法如：文字、文章、文化、文雅、文科。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "007",
+      "modern": "字",
+      "traditional_or_variants": [
+        "字"
+      ],
+      "unicode": "U+5B57",
+      "pinyin": [
+        "zi4"
+      ],
+      "radical": "子",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "上从宀，下从子，表示屋中有子。",
+        "small_seal": "宀、子结构稳定。",
+        "clerical": "笔画化后保持上下结构。",
+        "regular_traditional": "字",
+        "simplified": "字",
+        "summary": "由“生子、养育”义，引申为文字孳乳、合体繁衍。"
+      },
+      "meaning_evolution": {
+        "original": "生育、抚育子女。",
+        "early": "女子许嫁、生子；养育。",
+        "later": "文字；表字；书写形体。",
+        "modern": [
+          "文字记录单位",
+          "字音、字义、字形",
+          "字迹",
+          "表字或字号"
+        ],
+        "common_words": [
+          "汉字",
+          "写字",
+          "字典",
+          "字迹",
+          "名字"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "疾置切"
+        ],
+        "rhyme_group": "寘韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“乳也。从子在宀下”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“字”的本义和现代“文字”义差异较大，适合做语义演变示范。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "文字记录单位",
+          "字音、字义、字形",
+          "字迹",
+          "表字或字号"
+        ],
+        "common_words": [
+          "汉字",
+          "写字",
+          "字典",
+          "字迹",
+          "名字"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "字：现代主要用于表示文字记录单位；字音、字义、字形；字迹；表字或字号。常见用法如：汉字、写字、字典、字迹、名字。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "008",
+      "modern": "道",
+      "traditional_or_variants": [
+        "道"
+      ],
+      "unicode": "U+9053",
+      "pinyin": [
+        "dao4"
+      ],
+      "radical": "辶",
+      "stroke_count": 12,
+      "shape_evolution": {
+        "oracle_bronze": "多见从行、从首等构件，表现道路与行进、导向有关。",
+        "small_seal": "从辵，从首，结构趋于稳定。",
+        "clerical": "辵旁隶变为走之类形态，首部笔画化。",
+        "regular_traditional": "道",
+        "simplified": "道",
+        "summary": "由道路、行进方向，引申为方法、规律、思想体系和言说。"
+      },
+      "meaning_evolution": {
+        "original": "道路，行走之路。",
+        "early": "道路；引导；途径。",
+        "later": "道理、规律、学说、方法；说、表达；行政区划或宗教体系称谓。",
+        "modern": [
+          "道路",
+          "方向或方法",
+          "道理",
+          "说",
+          "量词",
+          "道教相关称谓"
+        ],
+        "common_words": [
+          "道路",
+          "道理",
+          "知道",
+          "说道",
+          "一道"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "徒到切"
+        ],
+        "rhyme_group": "号韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“所行道也。从辵从首”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“道”的哲学义极重，后续应单列“抽象义/思想义”来源层级。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "道路",
+          "方向或方法",
+          "道理",
+          "说",
+          "量词",
+          "道教相关称谓"
+        ],
+        "common_words": [
+          "道路",
+          "道理",
+          "知道",
+          "说道",
+          "一道"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "道：现代主要用于表示道路；方向或方法；道理；说；量词；道教相关称谓。常见用法如：道路、道理、知道、说道、一道。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "009",
+      "modern": "法",
+      "traditional_or_variants": [
+        "法",
+        "灋"
+      ],
+      "unicode": "U+6CD5",
+      "pinyin": [
+        "fa3"
+      ],
+      "radical": "氵",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "相关古字“灋”从水、廌、去的解释常见于传统字书；实际早期形体需依出土材料复核。",
+        "small_seal": "灋形保存水、廌、去等构件。",
+        "clerical": "结构趋简，复杂构件省并。",
+        "regular_traditional": "法",
+        "simplified": "法",
+        "summary": "由公平、刑法、法度等含义出发，后扩展为方法、标准、效法等。"
+      },
+      "meaning_evolution": {
+        "original": "刑法、法度、公平裁判。",
+        "early": "法律、制度、规范。",
+        "later": "方法、方式、标准；效法；佛法；术法。",
+        "modern": [
+          "法律",
+          "方法",
+          "标准或模范",
+          "效法",
+          "法国简称"
+        ],
+        "common_words": [
+          "法律",
+          "办法",
+          "方法",
+          "法官",
+          "合法"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "方乏切"
+        ],
+        "rhyme_group": "乏韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》对“灋”有“刑也。平之如水，从水”等解释传统。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“廌”神兽辨狱解释流传广，但早期字形证据和训诂细节需重点复核。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "法律",
+          "方法",
+          "标准或模范",
+          "效法",
+          "法国简称"
+        ],
+        "common_words": [
+          "法律",
+          "办法",
+          "方法",
+          "法官",
+          "合法"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "法：现代主要用于表示法律；方法；标准或模范；效法；法国简称。常见用法如：法律、办法、方法、法官、合法。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "010",
+      "modern": "国",
+      "traditional_or_variants": [
+        "國",
+        "或",
+        "囶",
+        "圀"
+      ],
+      "unicode": "U+56FD",
+      "traditional_unicode": "U+570B",
+      "pinyin": [
+        "guo2"
+      ],
+      "radical": "囗",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "早期“或”形常与城邑、戈、防守有关。",
+        "small_seal": "外加大囗，形成“國”，表示有边界的邦国、疆域。",
+        "clerical": "外框和内部构件笔画化。",
+        "regular_traditional": "國",
+        "simplified": "国",
+        "summary": "从城邑、武备、疆界等要素组合，发展为国家、国土和政权概念。"
+      },
+      "meaning_evolution": {
+        "original": "有城邑、疆界和武备守护的邦国或地域。",
+        "early": "都邑、封国、诸侯国、邦国。",
+        "later": "国家、政权、国土、国内、代表国家的属性。",
+        "modern": [
+          "国家",
+          "代表国家的",
+          "本国的",
+          "某些国家简称用字"
+        ],
+        "common_words": [
+          "国家",
+          "中国",
+          "国土",
+          "国民",
+          "国有"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "古或切",
+          "骨或切"
+        ],
+        "rhyme_group": "德韵或职部系统相关",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释“國”为“邦也。从囗从或”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "需严格区分“国” U+56FD 与“國” U+570B；现有视觉素材中应同步校正。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "国家",
+          "代表国家的",
+          "本国的",
+          "某些国家简称用字"
+        ],
+        "common_words": [
+          "国家",
+          "中国",
+          "国土",
+          "国民",
+          "国有"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "国：现代主要用于表示国家；代表国家的；本国的；某些国家简称用字。常见用法如：国家、中国、国土、国民、国有。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "011",
+      "modern": "官",
+      "traditional_or_variants": [
+        "官"
+      ],
+      "unicode": "U+5B98",
+      "pinyin": [
+        "guan1"
+      ],
+      "radical": "宀",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "多从宀，内部构件与馆舍、众人、官署等解释相关。",
+        "small_seal": "从宀，从𠂤一类构形传统。",
+        "clerical": "结构笔画化，逐渐形成今形。",
+        "regular_traditional": "官",
+        "simplified": "官",
+        "summary": "由官署、管理公共事务之处，引申为在其中任职的人及其职能。"
+      },
+      "meaning_evolution": {
+        "original": "官署或管理公共事务的人，传统解释多关联“吏事君”。",
+        "early": "官职、官吏、官署。",
+        "later": "政府的、公家的；器官、感官等承担功能的组织。",
+        "modern": [
+          "官员",
+          "官职",
+          "官方的",
+          "器官、感官",
+          "旧指任官"
+        ],
+        "common_words": [
+          "官员",
+          "法官",
+          "官方",
+          "器官",
+          "五官"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "古丸切",
+          "姑丸切"
+        ],
+        "rhyme_group": "桓韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“吏事君也。从宀从𠂤”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“𠂤”的构件解释需后续依字源专书复核。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "官员",
+          "官职",
+          "官方的",
+          "器官、感官",
+          "旧指任官"
+        ],
+        "common_words": [
+          "官员",
+          "法官",
+          "官方",
+          "器官",
+          "五官"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "官：现代主要用于表示官员；官职；官方的；器官、感官；旧指任官。常见用法如：官员、法官、官方、器官、五官。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "012",
+      "modern": "民",
+      "traditional_or_variants": [
+        "民"
+      ],
+      "unicode": "U+6C11",
+      "pinyin": [
+        "min2"
+      ],
+      "radical": "氏",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "字形来源解释较复杂，传统多与眼目受刺、被统治者等说法相关，需谨慎处理。",
+        "small_seal": "形体趋于线条化。",
+        "clerical": "笔画化后形成近今形。",
+        "regular_traditional": "民",
+        "simplified": "民",
+        "summary": "由早期社会身份或群体概念，发展为人民、百姓、国民等现代义。"
+      },
+      "meaning_evolution": {
+        "original": "古义有“众庶、百姓”等核心方向，具体字源解释存在争议。",
+        "early": "民众、百姓，与君、官、贵族相对。",
+        "later": "人民、民间、非官方、民族成员。",
+        "modern": [
+          "人民",
+          "某一民族的人",
+          "民间的",
+          "非军人、非官方的"
+        ],
+        "common_words": [
+          "人民",
+          "民众",
+          "民族",
+          "民间",
+          "居民"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "弥邻切"
+        ],
+        "rhyme_group": "真韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“民”为“众萌也”等传统说法。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“民”的字源解释争议较多，第一版不宜采用单一猎奇解释；需列为重点复核字。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "人民",
+          "某一民族的人",
+          "民间的",
+          "非军人、非官方的"
+        ],
+        "common_words": [
+          "人民",
+          "民众",
+          "民族",
+          "民间",
+          "居民"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "民：现代主要用于表示人民；某一民族的人；民间的；非军人、非官方的。常见用法如：人民、民众、民族、民间、居民。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    }
+  ]
+}

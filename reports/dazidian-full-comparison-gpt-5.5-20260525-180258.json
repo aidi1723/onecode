@@ -1,0 +1,28 @@
+{
+  "stamp": "20260525-180258",
+  "light": {
+    "bare_latency_seconds": 6.694831,
+    "bare_total_tokens": 455,
+    "guarded_latency_seconds": 34.323004,
+    "guarded_total_tokens": 621,
+    "token_delta": 166
+  },
+  "complex": {
+    "bare_latency_seconds": 11.768099,
+    "bare_total_tokens": 722,
+    "guarded_latency_seconds": 42.484544,
+    "guarded_total_tokens": 6233,
+    "token_delta": 5511
+  },
+  "codex_direct": {
+    "tokens": 75536,
+    "quality": "10/10",
+    "score": "73/100",
+    "fs_integrity": "pass",
+    "wall_time_seconds": null
+  },
+  "codex_through_yizijue": {
+    "ok": false,
+    "reason": "Codex CLI uses websocket /v1/responses; gateway lacks adapter"
+  }
+}

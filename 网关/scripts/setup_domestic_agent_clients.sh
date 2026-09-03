@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${1:-http://10.0.0.184:6780}"
+BASE_URL="${1:-http://127.0.0.1:6780}"
 MODEL="${2:-}"
 PROFILE="${3:-domestic-sub2api}"
-PROJECT_DIR="${ONEWORD_PROJECT_DIR:-/home/aidi/projects/oneword-agentos-test}"
+PROJECT_DIR="${ONEWORD_PROJECT_DIR:-${HOME}/projects/oneword-agentos-test}"
 GATEWAY_TOKEN="${ONEWORD_GATEWAY_TOKEN:-test-gateway-token}"
 
 export PATH="$HOME/.local/npm-global/bin:$PATH"

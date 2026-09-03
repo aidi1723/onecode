@@ -1,7 +1,7 @@
 # YiZiJue-LM Small Model Completion Summary
 
 Date: 2026-06-02
-Workspace: `/Users/aidi/大字典/小模型`
+Workspace: `.`
 
 ## 1. Project Goal
 
@@ -46,7 +46,7 @@ OneCode = rules, authorization, execution, ledger
 The training assets were moved into the small-model workspace:
 
 ```text
-/Users/aidi/大字典/小模型
+.
 ```
 
 Completed datasets and derived splits include:

@@ -1,0 +1,1321 @@
+{
+  "project": "字溯东方 Hanzi Lifecycle",
+  "version": "batch-006",
+  "description": "第六批工具、器物与居所核心字样板数据。覆盖建筑、门窗、交通、器具、兵器、衣食与生活设施。",
+  "entries": [
+    {
+      "id": "091",
+      "modern": "宫",
+      "traditional_or_variants": [
+        "宮"
+      ],
+      "unicode": "U+5BAB",
+      "traditional_unicode": "U+5BAE",
+      "pinyin": [
+        "gong1"
+      ],
+      "radical": "宀",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "从宀，内部多室相连，表示房屋或大型居住建筑。",
+        "small_seal": "宀下多口结构规范化为“宮”。",
+        "clerical": "屋顶与内部房室笔画化。",
+        "regular_traditional": "宮",
+        "simplified": "宫",
+        "summary": "由房屋、居室群，发展为宫殿、宗庙、宫室和身体腔室等义。"
+      },
+      "meaning_evolution": {
+        "original": "房屋、居室群。",
+        "early": "宫室、宗庙、王者居所。",
+        "later": "宫殿、宫廷；身体或器物中空处；音律五音之一。",
+        "modern": [
+          "宫殿",
+          "宫廷",
+          "庙宇或文化建筑",
+          "身体腔室",
+          "五音之一"
+        ],
+        "common_words": [
+          "宫殿",
+          "故宫",
+          "宫廷",
+          "子宫",
+          "宫商"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "居戎切"
+        ],
+        "rhyme_group": "东韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“室也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "宫本义较宽，后世才强烈宫廷化；需与室、宅、家分层。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "宫殿",
+          "宫廷",
+          "庙宇或文化建筑",
+          "身体腔室",
+          "五音之一"
+        ],
+        "common_words": [
+          "宫殿",
+          "故宫",
+          "宫廷",
+          "子宫",
+          "宫商"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "宫：现代主要用于表示宫殿；宫廷；庙宇或文化建筑；身体腔室；五音之一。常见用法如：宫殿、故宫、宫廷、子宫、宫商。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "092",
+      "modern": "室",
+      "traditional_or_variants": [
+        "室"
+      ],
+      "unicode": "U+5BA4",
+      "pinyin": [
+        "shi4"
+      ],
+      "radical": "宀",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "从宀、至声或至义，表示人到达并居住的屋内空间。",
+        "small_seal": "宀与至结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "室",
+        "simplified": "室",
+        "summary": "由屋内居住空间，发展为房间、家室、妻室和机构内部单位。"
+      },
+      "meaning_evolution": {
+        "original": "房屋内部空间。",
+        "early": "居室、房间、内室。",
+        "later": "家、妻、机构单位、墓室。",
+        "modern": [
+          "房间",
+          "机关学校等内部单位",
+          "家或妻室",
+          "墓室等封闭空间"
+        ],
+        "common_words": [
+          "教室",
+          "室内",
+          "办公室",
+          "卧室",
+          "家室"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "式质切"
+        ],
+        "rhyme_group": "质韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“实也。从宀从至”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "室的家庭义和现代机构房间义需分层。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "房间",
+          "机关学校等内部单位",
+          "家或妻室",
+          "墓室等封闭空间"
+        ],
+        "common_words": [
+          "教室",
+          "室内",
+          "办公室",
+          "卧室",
+          "家室"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "室：现代主要用于表示房间；机关学校等内部单位；家或妻室；墓室等封闭空间。常见用法如：教室、室内、办公室、卧室、家室。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "093",
+      "modern": "宅",
+      "traditional_or_variants": [
+        "宅"
+      ],
+      "unicode": "U+5B85",
+      "pinyin": [
+        "zhai2"
+      ],
+      "radical": "宀",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "从宀，乇声一类结构，表示居住处。",
+        "small_seal": "宀与乇结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "宅",
+        "simplified": "宅",
+        "summary": "由住所、安居之处，发展为住宅、宅第、居住和现代宅文化义。"
+      },
+      "meaning_evolution": {
+        "original": "住所、居处。",
+        "early": "居住、住宅。",
+        "later": "宅第、坟墓、安居；现代又有宅在家的网络义。",
+        "modern": [
+          "住宅",
+          "居住",
+          "家宅",
+          "长期待在家中的状态"
+        ],
+        "common_words": [
+          "住宅",
+          "宅院",
+          "家宅",
+          "宅基地",
+          "宅男"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "场伯切"
+        ],
+        "rhyme_group": "陌韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“所託也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "现代网络义“宅”应作为很晚近引申，不进入古义主线。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "住宅",
+          "居住",
+          "家宅",
+          "长期待在家中的状态"
+        ],
+        "common_words": [
+          "住宅",
+          "宅院",
+          "家宅",
+          "宅基地",
+          "宅男"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "宅：现代主要用于表示住宅；居住；家宅；长期待在家中的状态。常见用法如：住宅、宅院、家宅、宅基地、宅男。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "094",
+      "modern": "户",
+      "traditional_or_variants": [
+        "戶",
+        "户"
+      ],
+      "unicode": "U+6237",
+      "traditional_unicode": "U+6236",
+      "pinyin": [
+        "hu4"
+      ],
+      "radical": "户",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "象单扇门或门户之形。",
+        "small_seal": "门扇形线条化为“戶”。",
+        "clerical": "门扇结构笔画化。",
+        "regular_traditional": "戶",
+        "simplified": "户",
+        "summary": "由单扇门，发展为门户、住户、家庭单位和账户等义。"
+      },
+      "meaning_evolution": {
+        "original": "单扇门。",
+        "early": "门、门户。",
+        "later": "一家一户、人口单位、门第、账户。",
+        "modern": [
+          "门",
+          "住户",
+          "家庭单位",
+          "账户",
+          "门第"
+        ],
+        "common_words": [
+          "门户",
+          "住户",
+          "户口",
+          "账户",
+          "千家万户"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "侯古切"
+        ],
+        "rhyme_group": "姥韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“护也。半门曰户”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "户与门的单扇/双扇区分是居所字组的关键。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "门",
+          "住户",
+          "家庭单位",
+          "账户",
+          "门第"
+        ],
+        "common_words": [
+          "门户",
+          "住户",
+          "户口",
+          "账户",
+          "千家万户"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "户：现代主要用于表示门；住户；家庭单位；账户；门第。常见用法如：门户、住户、户口、账户、千家万户。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "095",
+      "modern": "门",
+      "traditional_or_variants": [
+        "門"
+      ],
+      "unicode": "U+95E8",
+      "traditional_unicode": "U+9580",
+      "pinyin": [
+        "men2"
+      ],
+      "radical": "门",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "象左右两扇门相对之形。",
+        "small_seal": "双门结构线条化为“門”。",
+        "clerical": "门框和门扇笔画化。",
+        "regular_traditional": "門",
+        "simplified": "门",
+        "summary": "由双扇门，发展为出入口、门类、门派、途径和家族。"
+      },
+      "meaning_evolution": {
+        "original": "双扇门。",
+        "early": "门、出入口。",
+        "later": "家门、门第、门类、门派、方法途径。",
+        "modern": [
+          "门",
+          "出入口",
+          "种类",
+          "门派或学派",
+          "途径"
+        ],
+        "common_words": [
+          "大门",
+          "门口",
+          "部门",
+          "门类",
+          "门路"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "莫奔切"
+        ],
+        "rhyme_group": "魂韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“闻也。从二户。象形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "门/門繁简差异明确，门部字需统一映射。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "门",
+          "出入口",
+          "种类",
+          "门派或学派",
+          "途径"
+        ],
+        "common_words": [
+          "大门",
+          "门口",
+          "部门",
+          "门类",
+          "门路"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "门：现代主要用于表示门；出入口；种类；门派或学派；途径。常见用法如：大门、门口、部门、门类、门路。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "096",
+      "modern": "车",
+      "traditional_or_variants": [
+        "車"
+      ],
+      "unicode": "U+8F66",
+      "traditional_unicode": "U+8ECA",
+      "pinyin": [
+        "che1",
+        "ju1"
+      ],
+      "radical": "车",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "象车舆、车轮和车轴俯视形。",
+        "small_seal": "车轮、轴、舆结构线条化为“車”。",
+        "clerical": "车形笔画化。",
+        "regular_traditional": "車",
+        "simplified": "车",
+        "summary": "由古代车辆象形，发展为交通工具、机械部件和棋子名称等义。"
+      },
+      "meaning_evolution": {
+        "original": "有轮的交通工具。",
+        "early": "车、战车、载具。",
+        "later": "各种车辆、车床机械、象棋棋子。",
+        "modern": [
+          "车辆",
+          "机器部件或车床",
+          "象棋棋子",
+          "用车加工"
+        ],
+        "common_words": [
+          "汽车",
+          "火车",
+          "车轮",
+          "车站",
+          "车床"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "尺遮切",
+          "举鱼切"
+        ],
+        "rhyme_group": "麻韵、鱼韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“舆轮之总名”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "车的 ju1 读音主要见棋子等，需在音义字段分流。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "车辆",
+          "机器部件或车床",
+          "象棋棋子",
+          "用车加工"
+        ],
+        "common_words": [
+          "汽车",
+          "火车",
+          "车轮",
+          "车站",
+          "车床"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "车：现代主要用于表示车辆；机器部件或车床；象棋棋子；用车加工。常见用法如：汽车、火车、车轮、车站、车床。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "097",
+      "modern": "舟",
+      "traditional_or_variants": [
+        "舟"
+      ],
+      "unicode": "U+821F",
+      "pinyin": [
+        "zhou1"
+      ],
+      "radical": "舟",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "象小船俯视形，有船身和舱位。",
+        "small_seal": "船形线条化。",
+        "clerical": "船体结构笔画化。",
+        "regular_traditional": "舟",
+        "simplified": "舟",
+        "summary": "由船只象形，发展为水上交通工具和舟部构字基础。"
+      },
+      "meaning_evolution": {
+        "original": "船。",
+        "early": "舟船、水上载具。",
+        "later": "泛指船只；舟部构字。",
+        "modern": [
+          "船",
+          "水上交通工具",
+          "舟部字义部件"
+        ],
+        "common_words": [
+          "小舟",
+          "舟船",
+          "龙舟",
+          "轻舟",
+          "刻舟求剑"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "职流切"
+        ],
+        "rhyme_group": "尤韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“船也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "舟和船、舶等后起字应作为水上交通小组整理。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "船",
+          "水上交通工具",
+          "舟部字义部件"
+        ],
+        "common_words": [
+          "小舟",
+          "舟船",
+          "龙舟",
+          "轻舟",
+          "刻舟求剑"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "舟：现代主要用于表示船；水上交通工具；舟部字义部件。常见用法如：小舟、舟船、龙舟、轻舟、刻舟求剑。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "098",
+      "modern": "器",
+      "traditional_or_variants": [
+        "器"
+      ],
+      "unicode": "U+5668",
+      "pinyin": [
+        "qi4"
+      ],
+      "radical": "口",
+      "stroke_count": 16,
+      "shape_evolution": {
+        "oracle_bronze": "早期形体含多个口和犬等构件，传统解释与器皿、器具众多有关。",
+        "small_seal": "多口与犬结构规范化。",
+        "clerical": "复杂结构笔画化。",
+        "regular_traditional": "器",
+        "simplified": "器",
+        "summary": "由器皿、用具，发展为器械、才能气量、器官和器重等义。"
+      },
+      "meaning_evolution": {
+        "original": "器皿、用具。",
+        "early": "器物、器具。",
+        "later": "器械、才能、度量、器官、重视。",
+        "modern": [
+          "器具",
+          "器械",
+          "器官",
+          "人的才能或度量",
+          "重视"
+        ],
+        "common_words": [
+          "机器",
+          "器官",
+          "武器",
+          "乐器",
+          "器重"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "去冀切"
+        ],
+        "rhyme_group": "至韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“皿也。象器之口，犬所以守之”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "器的构形解释传统色彩较强，需配合甲金文字形复核。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "器具",
+          "器械",
+          "器官",
+          "人的才能或度量",
+          "重视"
+        ],
+        "common_words": [
+          "机器",
+          "器官",
+          "武器",
+          "乐器",
+          "器重"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "器：现代主要用于表示器具；器械；器官；人的才能或度量；重视。常见用法如：机器、器官、武器、乐器、器重。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "099",
+      "modern": "皿",
+      "traditional_or_variants": [
+        "皿"
+      ],
+      "unicode": "U+76BF",
+      "pinyin": [
+        "min3"
+      ],
+      "radical": "皿",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "象器皿、盛器之形。",
+        "small_seal": "容器轮廓线条化。",
+        "clerical": "器皿形转为横竖框形。",
+        "regular_traditional": "皿",
+        "simplified": "皿",
+        "summary": "由盛器象形，发展为器皿类总称和皿部构字基础。"
+      },
+      "meaning_evolution": {
+        "original": "盛食物或液体的器具。",
+        "early": "器皿、容器。",
+        "later": "皿部构字，表示盘、盆、盂等器类。",
+        "modern": [
+          "器皿",
+          "容器",
+          "皿部字义部件"
+        ],
+        "common_words": [
+          "器皿",
+          "皿器",
+          "皿部"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "武永切"
+        ],
+        "rhyme_group": "梗韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“饭食之用器也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "皿现代单字不高频，但作为部件极重要。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "器皿",
+          "容器",
+          "皿部字义部件"
+        ],
+        "common_words": [
+          "器皿",
+          "皿器",
+          "皿部"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "皿：现代主要用于表示器皿；容器；皿部字义部件。常见用法如：器皿、皿器、皿部。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "100",
+      "modern": "刀",
+      "traditional_or_variants": [
+        "刀"
+      ],
+      "unicode": "U+5200",
+      "pinyin": [
+        "dao1"
+      ],
+      "radical": "刀",
+      "stroke_count": 2,
+      "shape_evolution": {
+        "oracle_bronze": "象刀刃和刀柄之形。",
+        "small_seal": "刀形线条化。",
+        "clerical": "弯刃形转为横折钩和撇。",
+        "regular_traditional": "刀",
+        "simplified": "刀",
+        "summary": "由切割工具象形，发展为刀具、兵器、钱币量词和刀部构字基础。"
+      },
+      "meaning_evolution": {
+        "original": "刀具。",
+        "early": "切割工具、兵器。",
+        "later": "刀形物、货币单位或纸张量词、刀部构件。",
+        "modern": [
+          "刀具",
+          "兵器",
+          "刀形工具",
+          "量词",
+          "刀部字义部件"
+        ],
+        "common_words": [
+          "小刀",
+          "菜刀",
+          "刀剑",
+          "刀片",
+          "一刀纸"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "都牢切"
+        ],
+        "rhyme_group": "豪韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“兵也。象形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "刀与刂旁需建立部件映射。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "刀具",
+          "兵器",
+          "刀形工具",
+          "量词",
+          "刀部字义部件"
+        ],
+        "common_words": [
+          "小刀",
+          "菜刀",
+          "刀剑",
+          "刀片",
+          "一刀纸"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "刀：现代主要用于表示刀具；兵器；刀形工具；量词；刀部字义部件。常见用法如：小刀、菜刀、刀剑、刀片、一刀纸。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "101",
+      "modern": "弓",
+      "traditional_or_variants": [
+        "弓"
+      ],
+      "unicode": "U+5F13",
+      "pinyin": [
+        "gong1"
+      ],
+      "radical": "弓",
+      "stroke_count": 3,
+      "shape_evolution": {
+        "oracle_bronze": "象弯曲的弓形。",
+        "small_seal": "弓身曲线规范化。",
+        "clerical": "曲线转为折笔。",
+        "regular_traditional": "弓",
+        "simplified": "弓",
+        "summary": "由射箭工具象形，发展为弓形、弯曲和弓部构字基础。"
+      },
+      "meaning_evolution": {
+        "original": "弓，射箭工具。",
+        "early": "弓箭之弓。",
+        "later": "弓形物、弯曲、丈量土地的旧单位。",
+        "modern": [
+          "弓",
+          "弓形物",
+          "弯曲",
+          "弓部字义部件"
+        ],
+        "common_words": [
+          "弓箭",
+          "弯弓",
+          "弓形",
+          "弹弓",
+          "弓背"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "居戎切"
+        ],
+        "rhyme_group": "东韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“以近穷远。象形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "弓与矢、射、张等字后续应组成武器/运动小组。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "弓",
+          "弓形物",
+          "弯曲",
+          "弓部字义部件"
+        ],
+        "common_words": [
+          "弓箭",
+          "弯弓",
+          "弓形",
+          "弹弓",
+          "弓背"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "弓：现代主要用于表示弓；弓形物；弯曲；弓部字义部件。常见用法如：弓箭、弯弓、弓形、弹弓、弓背。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "102",
+      "modern": "衣",
+      "traditional_or_variants": [
+        "衣"
+      ],
+      "unicode": "U+8863",
+      "pinyin": [
+        "yi1",
+        "yi4"
+      ],
+      "radical": "衣",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "象上衣展开之形，有衣领、衣襟。",
+        "small_seal": "衣形线条化。",
+        "clerical": "衣襟结构笔画化。",
+        "regular_traditional": "衣",
+        "simplified": "衣",
+        "summary": "由衣服象形，发展为衣物、穿衣、覆盖和衣部构字基础。"
+      },
+      "meaning_evolution": {
+        "original": "衣服。",
+        "early": "上衣、衣物。",
+        "later": "穿衣、覆盖物、外表。",
+        "modern": [
+          "衣服",
+          "穿衣",
+          "覆盖物",
+          "衣部字义部件"
+        ],
+        "common_words": [
+          "衣服",
+          "上衣",
+          "衣食",
+          "穿衣",
+          "雨衣"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "於希切",
+          "於既切"
+        ],
+        "rhyme_group": "微韵、未韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“依也。上曰衣，下曰裳”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "衣的名词 yi1 与动词 yi4 需在后续音义层分开。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "衣服",
+          "穿衣",
+          "覆盖物",
+          "衣部字义部件"
+        ],
+        "common_words": [
+          "衣服",
+          "上衣",
+          "衣食",
+          "穿衣",
+          "雨衣"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "衣：现代主要用于表示衣服；穿衣；覆盖物；衣部字义部件。常见用法如：衣服、上衣、衣食、穿衣、雨衣。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "103",
+      "modern": "食",
+      "traditional_or_variants": [
+        "食"
+      ],
+      "unicode": "U+98DF",
+      "pinyin": [
+        "shi2",
+        "si4",
+        "yi4"
+      ],
+      "radical": "食",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "象盛食物的器具和覆盖之形。",
+        "small_seal": "食器和食物结构线条化。",
+        "clerical": "上部人形/盖形与下部器形笔画化。",
+        "regular_traditional": "食",
+        "simplified": "食",
+        "summary": "由食物和进食，发展为粮食、吃、供养、俸禄和食部构字基础。"
+      },
+      "meaning_evolution": {
+        "original": "食物、吃饭。",
+        "early": "食物；进食。",
+        "later": "粮食、供养、俸禄、日食月食等侵蚀遮蔽义。",
+        "modern": [
+          "食物",
+          "吃",
+          "供养",
+          "食粮",
+          "天体被遮蔽"
+        ],
+        "common_words": [
+          "食物",
+          "食品",
+          "饮食",
+          "粮食",
+          "日食"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "乘力切",
+          "祥吏切",
+          "羊吏切"
+        ],
+        "rhyme_group": "职韵、志韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“一米也。从皀，亼声”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "食多音多义，si4 饲养义、yi4 人名古读需另列。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "食物",
+          "吃",
+          "供养",
+          "食粮",
+          "天体被遮蔽"
+        ],
+        "common_words": [
+          "食物",
+          "食品",
+          "饮食",
+          "粮食",
+          "日食"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "食：现代主要用于表示食物；吃；供养；食粮；天体被遮蔽。常见用法如：食物、食品、饮食、粮食、日食。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "104",
+      "modern": "井",
+      "traditional_or_variants": [
+        "井"
+      ],
+      "unicode": "U+4E95",
+      "pinyin": [
+        "jing3"
+      ],
+      "radical": "二",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "象井栏或井口纵横木架之形。",
+        "small_seal": "井栏结构线条化。",
+        "clerical": "横竖交错笔画定型。",
+        "regular_traditional": "井",
+        "simplified": "井",
+        "summary": "由水井井栏象形，发展为水井、井田、整齐和井形结构。"
+      },
+      "meaning_evolution": {
+        "original": "水井。",
+        "early": "井、取水处。",
+        "later": "井田、整齐有序、像井一样的形状。",
+        "modern": [
+          "水井",
+          "井状物",
+          "整齐",
+          "矿井等深洞"
+        ],
+        "common_words": [
+          "水井",
+          "井口",
+          "矿井",
+          "井然",
+          "井田"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "子郢切"
+        ],
+        "rhyme_group": "静韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“八家一井，象构韩形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "井的字形源头与井田制度解释需分开。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "水井",
+          "井状物",
+          "整齐",
+          "矿井等深洞"
+        ],
+        "common_words": [
+          "水井",
+          "井口",
+          "矿井",
+          "井然",
+          "井田"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "井：现代主要用于表示水井；井状物；整齐；矿井等深洞。常见用法如：水井、井口、矿井、井然、井田。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "105",
+      "modern": "床",
+      "traditional_or_variants": [
+        "床",
+        "牀"
+      ],
+      "unicode": "U+5E8A",
+      "pinyin": [
+        "chuang2"
+      ],
+      "radical": "广",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "床榻类字形资料需复核；传统正体常作“牀”，从爿、木。",
+        "small_seal": "牀形表示木制卧具。",
+        "clerical": "爿木或广木结构笔画化。",
+        "regular_traditional": "牀/床",
+        "simplified": "床",
+        "summary": "由木制卧具，发展为睡床、承托物、床位和像床的底座。"
+      },
+      "meaning_evolution": {
+        "original": "供人坐卧的木制家具。",
+        "early": "床榻、坐卧器具。",
+        "later": "床位、器物底架、河床矿床等承托结构。",
+        "modern": [
+          "睡床",
+          "床位",
+          "器物底架",
+          "像床一样的承托面"
+        ],
+        "common_words": [
+          "床铺",
+          "起床",
+          "病床",
+          "河床",
+          "机床"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "士庄切"
+        ],
+        "rhyme_group": "阳韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》收“牀”，释为“安身之坐者”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "床/牀关系需在繁异体字段长期保留。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "睡床",
+          "床位",
+          "器物底架",
+          "像床一样的承托面"
+        ],
+        "common_words": [
+          "床铺",
+          "起床",
+          "病床",
+          "河床",
+          "机床"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "床：现代主要用于表示睡床；床位；器物底架；像床一样的承托面。常见用法如：床铺、起床、病床、河床、机床。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "106",
+      "modern": "鼎",
+      "traditional_or_variants": [
+        "鼎"
+      ],
+      "unicode": "U+9F0E",
+      "pinyin": [
+        "ding3"
+      ],
+      "radical": "鼎",
+      "stroke_count": 12,
+      "shape_evolution": {
+        "oracle_bronze": "象三足两耳的青铜鼎形。",
+        "small_seal": "鼎身、足、耳结构线条化。",
+        "clerical": "复杂器形笔画化。",
+        "regular_traditional": "鼎",
+        "simplified": "鼎",
+        "summary": "由青铜炊器或礼器象形，发展为权力、重器、鼎盛和三方并立等义。"
+      },
+      "meaning_evolution": {
+        "original": "古代烹煮或祭祀用的三足两耳器。",
+        "early": "鼎器、礼器、国家重器。",
+        "later": "权力象征、显赫盛大、三方并立、更新。",
+        "modern": [
+          "古代礼器或炊器",
+          "重大或显赫",
+          "鼎立",
+          "鼎盛"
+        ],
+        "common_words": [
+          "鼎盛",
+          "问鼎",
+          "鼎立",
+          "大名鼎鼎",
+          "钟鼎"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "都挺切"
+        ],
+        "rhyme_group": "迥韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“三足两耳，和五味之宝器也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "鼎的礼制和权力象征义很强，后续应与王、国、宗庙系统关联。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "古代礼器或炊器",
+          "重大或显赫",
+          "鼎立",
+          "鼎盛"
+        ],
+        "common_words": [
+          "鼎盛",
+          "问鼎",
+          "鼎立",
+          "大名鼎鼎",
+          "钟鼎"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "鼎：现代主要用于表示古代礼器或炊器；重大或显赫；鼎立；鼎盛。常见用法如：鼎盛、问鼎、鼎立、大名鼎鼎、钟鼎。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "107",
+      "modern": "网",
+      "traditional_or_variants": [
+        "网",
+        "網"
+      ],
+      "unicode": "U+7F51",
+      "traditional_unicode": "U+7DB2",
+      "pinyin": [
+        "wang3"
+      ],
+      "radical": "网",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "象交错绳线编成的网形。",
+        "small_seal": "网眼结构线条化；后加糸成“網”强调绳线材料。",
+        "clerical": "网形笔画化。",
+        "regular_traditional": "網",
+        "simplified": "网",
+        "summary": "由捕鱼捕鸟等网具，发展为网络、组织系统、笼罩捕捉和互联网义。"
+      },
+      "meaning_evolution": {
+        "original": "绳线编成的捕捉工具。",
+        "early": "鱼网、鸟网、捕捉工具。",
+        "later": "像网一样的结构；法网、关系网；现代互联网。",
+        "modern": [
+          "网具",
+          "网状结构",
+          "捕捉或笼罩",
+          "网络",
+          "互联网"
+        ],
+        "common_words": [
+          "渔网",
+          "网络",
+          "上网",
+          "网球",
+          "法网"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "文两切"
+        ],
+        "rhyme_group": "养韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》收“网”，释为“庖牺所结绳以渔”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "网/網和现代互联网义跨度大，是新义扩展的好样板。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "网具",
+          "网状结构",
+          "捕捉或笼罩",
+          "网络",
+          "互联网"
+        ],
+        "common_words": [
+          "渔网",
+          "网络",
+          "上网",
+          "网球",
+          "法网"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "网：现代主要用于表示网具；网状结构；捕捉或笼罩；网络；互联网。常见用法如：渔网、网络、上网、网球、法网。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    }
+  ]
+}

@@ -1,0 +1,1457 @@
+{
+  "project": "字溯东方 Hanzi Lifecycle",
+  "version": "batch-004",
+  "description": "第四批社会、宗法与战争核心字样板数据。已跳过前批已有的民、官、法、文。",
+  "entries": [
+    {
+      "id": "055",
+      "modern": "王",
+      "traditional_or_variants": [
+        "王"
+      ],
+      "unicode": "U+738B",
+      "pinyin": [
+        "wang2",
+        "wang4"
+      ],
+      "radical": "王",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "早期形体多作斧钺或权杖一类象征物形，传统也有“三画连通天地人”的解释。",
+        "small_seal": "三横一竖结构规范化。",
+        "clerical": "横竖笔画定型。",
+        "regular_traditional": "王",
+        "simplified": "王",
+        "summary": "由权威象征物或统治者标志，发展为君王、首领、称王和王部构字基础。"
+      },
+      "meaning_evolution": {
+        "original": "最高统治者或王权象征。",
+        "early": "君王、天子、诸侯之长。",
+        "later": "一类中的首领；称王、统治；姓氏。",
+        "modern": [
+          "君主",
+          "一类中居首者",
+          "称王或统治",
+          "姓氏"
+        ],
+        "common_words": [
+          "王国",
+          "君王",
+          "王者",
+          "王后",
+          "称王"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "雨方切",
+          "于放切"
+        ],
+        "rhyme_group": "阳韵、漾韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“天下所归往也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "王字早期构形有权杖、斧钺、贯通天地人等不同解释，需专书复核。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "君主",
+          "一类中居首者",
+          "称王或统治",
+          "姓氏"
+        ],
+        "common_words": [
+          "王国",
+          "君王",
+          "王者",
+          "王后",
+          "称王"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "王：现代主要用于表示君主；一类中居首者；称王或统治；姓氏。常见用法如：王国、君王、王者、王后、称王。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "056",
+      "modern": "臣",
+      "traditional_or_variants": [
+        "臣"
+      ],
+      "unicode": "U+81E3",
+      "pinyin": [
+        "chen2"
+      ],
+      "radical": "臣",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "多像俯首低目之形，传统解释与服属、奴仆或臣属姿态相关。",
+        "small_seal": "眼目或俯伏形态线条化。",
+        "clerical": "框线与内部结构笔画化。",
+        "regular_traditional": "臣",
+        "simplified": "臣",
+        "summary": "由服属者、奴仆或臣属姿态，引申为臣子、官吏和自谦称谓。"
+      },
+      "meaning_evolution": {
+        "original": "服属者、奴仆或臣属。",
+        "early": "臣仆、臣子，事君之人。",
+        "later": "官吏；对君父或尊者的自称；使人臣服。",
+        "modern": [
+          "臣子",
+          "君主时代的官吏",
+          "自谦称谓",
+          "使臣服"
+        ],
+        "common_words": [
+          "大臣",
+          "臣子",
+          "君臣",
+          "臣服",
+          "功臣"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "植邻切"
+        ],
+        "rhyme_group": "真韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“牽也。事君也。象屈服之形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“臣”的男性奴隶、战俘、官吏义层次需在后续来源中细分。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "臣子",
+          "君主时代的官吏",
+          "自谦称谓",
+          "使臣服"
+        ],
+        "common_words": [
+          "大臣",
+          "臣子",
+          "君臣",
+          "臣服",
+          "功臣"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "臣：现代主要用于表示臣子；君主时代的官吏；自谦称谓；使臣服。常见用法如：大臣、臣子、君臣、臣服、功臣。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "057",
+      "modern": "君",
+      "traditional_or_variants": [
+        "君"
+      ],
+      "unicode": "U+541B",
+      "pinyin": [
+        "jun1"
+      ],
+      "radical": "口",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "多从尹、从口，表示发号施令或治理者。",
+        "small_seal": "尹与口结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "君",
+        "simplified": "君",
+        "summary": "由发令治理者，引申为君主、尊称、丈夫或品德高者。"
+      },
+      "meaning_evolution": {
+        "original": "发号施令、治理众人的尊者。",
+        "early": "君主、国君、诸侯。",
+        "later": "对人的尊称；丈夫；君子之君。",
+        "modern": [
+          "君主",
+          "尊称",
+          "对男子或朋友的称呼",
+          "姓氏"
+        ],
+        "common_words": [
+          "君主",
+          "国君",
+          "君子",
+          "诸君",
+          "君臣"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "举云切"
+        ],
+        "rhyme_group": "文韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“尊也。从尹，发号，故从口”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "君与尹、口的构件关系较清楚，但具体早期用例仍需补文献。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "君主",
+          "尊称",
+          "对男子或朋友的称呼",
+          "姓氏"
+        ],
+        "common_words": [
+          "君主",
+          "国君",
+          "君子",
+          "诸君",
+          "君臣"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "君：现代主要用于表示君主；尊称；对男子或朋友的称呼；姓氏。常见用法如：君主、国君、君子、诸君、君臣。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "058",
+      "modern": "主",
+      "traditional_or_variants": [
+        "主"
+      ],
+      "unicode": "U+4E3B",
+      "pinyin": [
+        "zhu3"
+      ],
+      "radical": "丶",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "早期多像灯火或火炷之形，传统解释与灯中主火相关。",
+        "small_seal": "一点与王形结构规范化。",
+        "clerical": "点横竖结构笔画化。",
+        "regular_traditional": "主",
+        "simplified": "主",
+        "summary": "由灯中主火、中心所在，引申为主人、主宰、主要和主持。"
+      },
+      "meaning_evolution": {
+        "original": "灯中主火或中心所在，传统解释需复核。",
+        "early": "主人、主宰、宗庙神主。",
+        "later": "主要、主持、意见主张、君主。",
+        "modern": [
+          "主人",
+          "主要",
+          "主持或掌管",
+          "主张",
+          "牌位或神主"
+        ],
+        "common_words": [
+          "主人",
+          "主要",
+          "主席",
+          "主动",
+          "主张"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "之庾切"
+        ],
+        "rhyme_group": "麌韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“镫中火主也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "主的字形解释传统色彩较强，需结合甲骨金文材料复核。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "主人",
+          "主要",
+          "主持或掌管",
+          "主张",
+          "牌位或神主"
+        ],
+        "common_words": [
+          "主人",
+          "主要",
+          "主席",
+          "主动",
+          "主张"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "主：现代主要用于表示主人；主要；主持或掌管；主张；牌位或神主。常见用法如：主人、主要、主席、主动、主张。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "059",
+      "modern": "奴",
+      "traditional_or_variants": [
+        "奴"
+      ],
+      "unicode": "U+5974",
+      "pinyin": [
+        "nu2"
+      ],
+      "radical": "女",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "从女、从又，传统解释与被役使、被控制的人有关。",
+        "small_seal": "女与又结构规范化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "奴",
+        "simplified": "奴",
+        "summary": "由受役使者，引申为奴隶、奴仆、贬称和自谦称。"
+      },
+      "meaning_evolution": {
+        "original": "受役使的人。",
+        "early": "奴隶、奴仆。",
+        "later": "对人的贬称；女子自称或仆役自称。",
+        "modern": [
+          "奴隶",
+          "奴仆",
+          "受压迫役使者",
+          "贬称"
+        ],
+        "common_words": [
+          "奴隶",
+          "奴仆",
+          "奴才",
+          "家奴",
+          "奴役"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "乃都切"
+        ],
+        "rhyme_group": "模韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“奴、婢，皆古之罪人也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "奴字涉及古代身份制度，释义应避免现代化美化或弱化。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "奴隶",
+          "奴仆",
+          "受压迫役使者",
+          "贬称"
+        ],
+        "common_words": [
+          "奴隶",
+          "奴仆",
+          "奴才",
+          "家奴",
+          "奴役"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "奴：现代主要用于表示奴隶；奴仆；受压迫役使者；贬称。常见用法如：奴隶、奴仆、奴才、家奴、奴役。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "060",
+      "modern": "父",
+      "traditional_or_variants": [
+        "父"
+      ],
+      "unicode": "U+7236",
+      "pinyin": [
+        "fu4",
+        "fu3"
+      ],
+      "radical": "父",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "多像手持斧杖或工具之形，传统解释为家长、父辈权柄象征。",
+        "small_seal": "手持器物的形态线条化。",
+        "clerical": "撇捺交叉结构定型。",
+        "regular_traditional": "父",
+        "simplified": "父",
+        "summary": "由父辈或家长权柄象征，引申为父亲、男性长辈和尊称。"
+      },
+      "meaning_evolution": {
+        "original": "父亲或父辈家长。",
+        "early": "父亲、男性长辈。",
+        "later": "对年长男子尊称；天父、师父等类推称谓。",
+        "modern": [
+          "父亲",
+          "男性长辈",
+          "某些尊称中的父"
+        ],
+        "common_words": [
+          "父亲",
+          "父母",
+          "父子",
+          "祖父",
+          "父老"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "扶雨切",
+          "方矩切"
+        ],
+        "rhyme_group": "麌韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“矩也。家长率教者”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "父字手持工具/斧杖解释需结合字形图进一步校验。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "父亲",
+          "男性长辈",
+          "某些尊称中的父"
+        ],
+        "common_words": [
+          "父亲",
+          "父母",
+          "父子",
+          "祖父",
+          "父老"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "父：现代主要用于表示父亲；男性长辈；某些尊称中的父。常见用法如：父亲、父母、父子、祖父、父老。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "061",
+      "modern": "母",
+      "traditional_or_variants": [
+        "母"
+      ],
+      "unicode": "U+6BCD",
+      "pinyin": [
+        "mu3"
+      ],
+      "radical": "母",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "多像女性形体并突出乳房，以表示母亲。",
+        "small_seal": "女形与乳点结构线条化。",
+        "clerical": "外框和内部点画定型。",
+        "regular_traditional": "母",
+        "simplified": "母",
+        "summary": "由生育哺乳者形象，发展为母亲、来源、雌性和母体等义。"
+      },
+      "meaning_evolution": {
+        "original": "母亲。",
+        "early": "母亲、女性长辈。",
+        "later": "根源、母体、雌性、能产生者。",
+        "modern": [
+          "母亲",
+          "雌性的",
+          "产生或养育事物的来源",
+          "母体"
+        ],
+        "common_words": [
+          "母亲",
+          "父母",
+          "母子",
+          "母语",
+          "母校"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "莫厚切"
+        ],
+        "rhyme_group": "厚韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“牧也。从女，象怀子形”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "母与女的形体关系清楚，具体说文训释需与现代字源解释分层。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "母亲",
+          "雌性的",
+          "产生或养育事物的来源",
+          "母体"
+        ],
+        "common_words": [
+          "母亲",
+          "父母",
+          "母子",
+          "母语",
+          "母校"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "母：现代主要用于表示母亲；雌性的；产生或养育事物的来源；母体。常见用法如：母亲、父母、母子、母语、母校。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "062",
+      "modern": "兄",
+      "traditional_or_variants": [
+        "兄"
+      ],
+      "unicode": "U+5144",
+      "pinyin": [
+        "xiong1"
+      ],
+      "radical": "儿",
+      "stroke_count": 5,
+      "shape_evolution": {
+        "oracle_bronze": "多从口、从人形，传统解释与年长者发号或祝告有关。",
+        "small_seal": "口在人上结构规范化。",
+        "clerical": "口与儿形笔画化。",
+        "regular_traditional": "兄",
+        "simplified": "兄",
+        "summary": "由同辈中年长男性或发言者形象，发展为兄长和朋友间尊称。"
+      },
+      "meaning_evolution": {
+        "original": "兄长，同父母或同族同辈中年长的男子。",
+        "early": "哥哥、兄长。",
+        "later": "朋友间敬称；同辈男性称呼。",
+        "modern": [
+          "哥哥",
+          "兄长",
+          "朋友间男性称谓"
+        ],
+        "common_words": [
+          "兄弟",
+          "兄长",
+          "兄妹",
+          "仁兄",
+          "师兄"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "许荣切"
+        ],
+        "rhyme_group": "庚韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“长也。从儿，从口”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "兄的口部构意存在多说，第一版仅保守处理为称谓字。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "哥哥",
+          "兄长",
+          "朋友间男性称谓"
+        ],
+        "common_words": [
+          "兄弟",
+          "兄长",
+          "兄妹",
+          "仁兄",
+          "师兄"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "兄：现代主要用于表示哥哥；兄长；朋友间男性称谓。常见用法如：兄弟、兄长、兄妹、仁兄、师兄。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "063",
+      "modern": "弟",
+      "traditional_or_variants": [
+        "弟"
+      ],
+      "unicode": "U+5F1F",
+      "pinyin": [
+        "di4"
+      ],
+      "radical": "弓",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "早期形体解释不一，有绳束、次第等传统说法。",
+        "small_seal": "结构线条化，形成上下组合。",
+        "clerical": "笔画化后接近今形。",
+        "regular_traditional": "弟",
+        "simplified": "弟",
+        "summary": "由次第、后继或同辈中年幼者义，发展为弟弟和谦称。"
+      },
+      "meaning_evolution": {
+        "original": "同辈中年幼的男子，具体字源需复核。",
+        "early": "弟弟、年幼同辈。",
+        "later": "门生、后学、自谦称谓。",
+        "modern": [
+          "弟弟",
+          "同辈中年幼男子",
+          "门生或后辈",
+          "自谦称"
+        ],
+        "common_words": [
+          "弟弟",
+          "兄弟",
+          "子弟",
+          "师弟",
+          "弟子"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "徒礼切",
+          "特计切"
+        ],
+        "rhyme_group": "荠韵、霁韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“韦束之次弟也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "弟与第、悌存在音义关系，后续应作为次序/宗法字组处理。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "弟弟",
+          "同辈中年幼男子",
+          "门生或后辈",
+          "自谦称"
+        ],
+        "common_words": [
+          "弟弟",
+          "兄弟",
+          "子弟",
+          "师弟",
+          "弟子"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "弟：现代主要用于表示弟弟；同辈中年幼男子；门生或后辈；自谦称。常见用法如：弟弟、兄弟、子弟、师弟、弟子。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "064",
+      "modern": "祖",
+      "traditional_or_variants": [
+        "祖"
+      ],
+      "unicode": "U+7956",
+      "pinyin": [
+        "zu3"
+      ],
+      "radical": "礻",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "从示、且声或相关构件，表示祭祀祖先的神主或祖庙。",
+        "small_seal": "示与且结构规范化。",
+        "clerical": "示旁隶变为礻，右部笔画化。",
+        "regular_traditional": "祖",
+        "simplified": "祖",
+        "summary": "由祭祀祖先和祖庙神主，发展为祖先、开创者和效法源头。"
+      },
+      "meaning_evolution": {
+        "original": "祖庙或祖先神主。",
+        "early": "祖先、始祖、祭祖场所。",
+        "later": "开创者、源头；效法、祖述。",
+        "modern": [
+          "祖先",
+          "开创者",
+          "事业或学派源头",
+          "祖国相关构词"
+        ],
+        "common_words": [
+          "祖先",
+          "祖父",
+          "祖宗",
+          "祖国",
+          "鼻祖"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "则古切"
+        ],
+        "rhyme_group": "姥韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“始庙也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "祖的宗庙义是理解宗法系统的关键，应与宗、庙、示部联动。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "祖先",
+          "开创者",
+          "事业或学派源头",
+          "祖国相关构词"
+        ],
+        "common_words": [
+          "祖先",
+          "祖父",
+          "祖宗",
+          "祖国",
+          "鼻祖"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "祖：现代主要用于表示祖先；开创者；事业或学派源头；祖国相关构词。常见用法如：祖先、祖父、祖宗、祖国、鼻祖。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "065",
+      "modern": "宗",
+      "traditional_or_variants": [
+        "宗"
+      ],
+      "unicode": "U+5B97",
+      "pinyin": [
+        "zong1"
+      ],
+      "radical": "宀",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "从宀、从示，表示屋宇中的神主或宗庙祭祀。",
+        "small_seal": "宀与示结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "宗",
+        "simplified": "宗",
+        "summary": "由宗庙祭祀空间，发展为祖宗、宗族、宗派、根本和量词。"
+      },
+      "meaning_evolution": {
+        "original": "宗庙，祭祀祖先之所。",
+        "early": "祖庙、祖宗、宗族。",
+        "later": "宗派、根本、尊奉、主要一支；量词。",
+        "modern": [
+          "祖宗",
+          "宗族",
+          "宗派",
+          "根本或主要",
+          "量词"
+        ],
+        "common_words": [
+          "祖宗",
+          "宗族",
+          "宗教",
+          "宗旨",
+          "一宗案"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "作冬切"
+        ],
+        "rhyme_group": "冬韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“尊祖庙也。从宀从示”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "宗的宗教现代义应区别于古代宗庙、宗族义。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "祖宗",
+          "宗族",
+          "宗派",
+          "根本或主要",
+          "量词"
+        ],
+        "common_words": [
+          "祖宗",
+          "宗族",
+          "宗教",
+          "宗旨",
+          "一宗案"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "宗：现代主要用于表示祖宗；宗族；宗派；根本或主要；量词。常见用法如：祖宗、宗族、宗教、宗旨、一宗案。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "066",
+      "modern": "家",
+      "traditional_or_variants": [
+        "家"
+      ],
+      "unicode": "U+5BB6",
+      "pinyin": [
+        "jia1",
+        "jia",
+        "jie"
+      ],
+      "radical": "宀",
+      "stroke_count": 10,
+      "shape_evolution": {
+        "oracle_bronze": "从宀、从豕，传统解释为屋下养猪，表示定居生活单位。",
+        "small_seal": "宀与豕结构规范化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "家",
+        "simplified": "家",
+        "summary": "由屋内有牲畜的定居单位，发展为家庭、住所、学派、专家和量词。"
+      },
+      "meaning_evolution": {
+        "original": "家庭住所或定居生活单位。",
+        "early": "家、居所、家族。",
+        "later": "学派、行业、专家、经营单位；量词。",
+        "modern": [
+          "家庭",
+          "住所",
+          "从事某种专门活动的人",
+          "学派",
+          "量词"
+        ],
+        "common_words": [
+          "家庭",
+          "国家",
+          "家人",
+          "专家",
+          "作家"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "古牙切"
+        ],
+        "rhyme_group": "麻韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“居也。从宀，豭省声”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "家从宀豕的民俗解释流行，但具体声符关系需复核。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "家庭",
+          "住所",
+          "从事某种专门活动的人",
+          "学派",
+          "量词"
+        ],
+        "common_words": [
+          "家庭",
+          "国家",
+          "家人",
+          "专家",
+          "作家"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "家：现代主要用于表示家庭；住所；从事某种专门活动的人；学派；量词。常见用法如：家庭、国家、家人、专家、作家。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "067",
+      "modern": "族",
+      "traditional_or_variants": [
+        "族"
+      ],
+      "unicode": "U+65CF",
+      "pinyin": [
+        "zu2"
+      ],
+      "radical": "方",
+      "stroke_count": 11,
+      "shape_evolution": {
+        "oracle_bronze": "从㫃或旗帜类构件、从矢，传统解释与军旅、氏族旗帜聚众相关。",
+        "small_seal": "旗帜与矢结构规范化。",
+        "clerical": "左右结构笔画化。",
+        "regular_traditional": "族",
+        "simplified": "族",
+        "summary": "由旗帜下聚集的群体，发展为家族、民族、类别和群体。"
+      },
+      "meaning_evolution": {
+        "original": "同族群体或聚众单位，具体构形需复核。",
+        "early": "宗族、氏族、同姓亲属。",
+        "later": "民族、种类、群体、聚集。",
+        "modern": [
+          "家族",
+          "民族",
+          "种类",
+          "有共同属性的人群"
+        ],
+        "common_words": [
+          "民族",
+          "家族",
+          "族人",
+          "种族",
+          "水族"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "昨木切"
+        ],
+        "rhyme_group": "屋韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“矢锋也。束之族族也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "族的字形和本义解释争议较多，需结合甲金文材料重核。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "家族",
+          "民族",
+          "种类",
+          "有共同属性的人群"
+        ],
+        "common_words": [
+          "民族",
+          "家族",
+          "族人",
+          "种族",
+          "水族"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "族：现代主要用于表示家族；民族；种类；有共同属性的人群。常见用法如：民族、家族、族人、种族、水族。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "068",
+      "modern": "兵",
+      "traditional_or_variants": [
+        "兵"
+      ],
+      "unicode": "U+5175",
+      "pinyin": [
+        "bing1"
+      ],
+      "radical": "八",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "多像双手持斤或兵器之形。",
+        "small_seal": "持器结构线条化。",
+        "clerical": "上下结构笔画化。",
+        "regular_traditional": "兵",
+        "simplified": "兵",
+        "summary": "由兵器、持兵器者，引申为士兵、军队、战争和军事策略。"
+      },
+      "meaning_evolution": {
+        "original": "兵器。",
+        "early": "兵器；执兵器的人。",
+        "later": "士兵、军队、战争、军事行动。",
+        "modern": [
+          "士兵",
+          "军队",
+          "兵器",
+          "军事或战争"
+        ],
+        "common_words": [
+          "士兵",
+          "兵器",
+          "兵法",
+          "兵力",
+          "当兵"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "甫明切"
+        ],
+        "rhyme_group": "庚韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“械也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "兵与斤、戈、矛等武器字需建立战争工具网络。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "士兵",
+          "军队",
+          "兵器",
+          "军事或战争"
+        ],
+        "common_words": [
+          "士兵",
+          "兵器",
+          "兵法",
+          "兵力",
+          "当兵"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "兵：现代主要用于表示士兵；军队；兵器；军事或战争。常见用法如：士兵、兵器、兵法、兵力、当兵。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "069",
+      "modern": "戈",
+      "traditional_or_variants": [
+        "戈"
+      ],
+      "unicode": "U+6208",
+      "pinyin": [
+        "ge1"
+      ],
+      "radical": "戈",
+      "stroke_count": 4,
+      "shape_evolution": {
+        "oracle_bronze": "象古代长柄横刃兵器戈之形。",
+        "small_seal": "戈形线条化。",
+        "clerical": "斜钩、撇点等笔画定型。",
+        "regular_traditional": "戈",
+        "simplified": "戈",
+        "summary": "由具体兵器象形，发展为战争、武力和戈部构字基础。"
+      },
+      "meaning_evolution": {
+        "original": "古代长柄横刃兵器。",
+        "early": "戈，兵器。",
+        "later": "战争、武器象征；戈部构字。",
+        "modern": [
+          "古代兵器",
+          "战争或武力象征",
+          "戈部字义部件"
+        ],
+        "common_words": [
+          "干戈",
+          "戈壁",
+          "倒戈",
+          "挥戈",
+          "金戈铁马"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "古禾切"
+        ],
+        "rhyme_group": "戈韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“平头戟也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "戈是国、战、武等字的关键武器部件。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "古代兵器",
+          "战争或武力象征",
+          "戈部字义部件"
+        ],
+        "common_words": [
+          "干戈",
+          "戈壁",
+          "倒戈",
+          "挥戈",
+          "金戈铁马"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "戈：现代主要用于表示古代兵器；战争或武力象征；戈部字义部件。常见用法如：干戈、戈壁、倒戈、挥戈、金戈铁马。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "070",
+      "modern": "武",
+      "traditional_or_variants": [
+        "武"
+      ],
+      "unicode": "U+6B66",
+      "pinyin": [
+        "wu3"
+      ],
+      "radical": "止",
+      "stroke_count": 8,
+      "shape_evolution": {
+        "oracle_bronze": "从戈、从止，传统解释与持戈而行、军事行动有关。",
+        "small_seal": "戈止结构规范化。",
+        "clerical": "戈与止笔画化。",
+        "regular_traditional": "武",
+        "simplified": "武",
+        "summary": "由军事行动、征伐武力，引申为勇武、武艺、军事和与文相对。"
+      },
+      "meaning_evolution": {
+        "original": "军事行动或武力。",
+        "early": "征伐、威武、军旅。",
+        "later": "武艺、勇猛、军事，与文相对。",
+        "modern": [
+          "武力",
+          "军事",
+          "武艺",
+          "勇猛",
+          "与文相对的类别"
+        ],
+        "common_words": [
+          "武力",
+          "武器",
+          "武术",
+          "文武",
+          "威武"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "文甫切"
+        ],
+        "rhyme_group": "麌韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》引楚庄王语，有“止戈为武”的传统解释。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "“止戈为武”是经典训释，但字形也可理解为持戈而行，需分层呈现。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "武力",
+          "军事",
+          "武艺",
+          "勇猛",
+          "与文相对的类别"
+        ],
+        "common_words": [
+          "武力",
+          "武器",
+          "武术",
+          "文武",
+          "威武"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "武：现代主要用于表示武力；军事；武艺；勇猛；与文相对的类别。常见用法如：武力、武器、武术、文武、威武。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "071",
+      "modern": "战",
+      "traditional_or_variants": [
+        "戰"
+      ],
+      "unicode": "U+6218",
+      "traditional_unicode": "U+6230",
+      "pinyin": [
+        "zhan4"
+      ],
+      "radical": "戈",
+      "stroke_count": 9,
+      "shape_evolution": {
+        "oracle_bronze": "战斗相关古义与戈类武器密切相关。",
+        "small_seal": "繁体“戰”从戈，單声一类结构。",
+        "clerical": "复杂结构笔画化。",
+        "regular_traditional": "戰",
+        "simplified": "战",
+        "summary": "由持戈争斗、战争行为，引申为比赛、斗争和战栗等义。"
+      },
+      "meaning_evolution": {
+        "original": "战争、战斗。",
+        "early": "交战、争斗。",
+        "later": "竞赛、斗争；战栗发抖等相关义。",
+        "modern": [
+          "战争",
+          "战斗",
+          "比赛或斗争",
+          "发抖"
+        ],
+        "common_words": [
+          "战争",
+          "战斗",
+          "战士",
+          "挑战",
+          "战栗"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "之膳切"
+        ],
+        "rhyme_group": "线韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释“戰”为“鬭也”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "战/戰繁简差异较大，需在字形链中补充图像。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "战争",
+          "战斗",
+          "比赛或斗争",
+          "发抖"
+        ],
+        "common_words": [
+          "战争",
+          "战斗",
+          "战士",
+          "挑战",
+          "战栗"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "战：现代主要用于表示战争；战斗；比赛或斗争；发抖。常见用法如：战争、战斗、战士、挑战、战栗。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "072",
+      "modern": "邦",
+      "traditional_or_variants": [
+        "邦"
+      ],
+      "unicode": "U+90A6",
+      "pinyin": [
+        "bang1"
+      ],
+      "radical": "阝",
+      "stroke_count": 6,
+      "shape_evolution": {
+        "oracle_bronze": "从邑或封土相关构件，表示有封域的政治共同体。",
+        "small_seal": "左部声符与邑旁结构规范化。",
+        "clerical": "邑旁隶变为右阝。",
+        "regular_traditional": "邦",
+        "simplified": "邦",
+        "summary": "由封域、诸侯国或政治共同体，引申为国家、国土和邦交。"
+      },
+      "meaning_evolution": {
+        "original": "古代诸侯国或政治地域。",
+        "early": "邦国、封国。",
+        "later": "国家、国土；国家之间关系。",
+        "modern": [
+          "国家",
+          "国土",
+          "国与国之间的关系"
+        ],
+        "common_words": [
+          "邦国",
+          "联邦",
+          "邦交",
+          "邻邦",
+          "安邦"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "博江切"
+        ],
+        "rhyme_group": "江韵",
+        "entering_tone": false,
+        "classical_note": "《说文解字》释为“国也。从邑，丰声”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "邦、国、邑语义相近，后续应建立政治空间层级关系。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "国家",
+          "国土",
+          "国与国之间的关系"
+        ],
+        "common_words": [
+          "邦国",
+          "联邦",
+          "邦交",
+          "邻邦",
+          "安邦"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "邦：现代主要用于表示国家；国土；国与国之间的关系。常见用法如：邦国、联邦、邦交、邻邦、安邦。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    },
+    {
+      "id": "073",
+      "modern": "邑",
+      "traditional_or_variants": [
+        "邑"
+      ],
+      "unicode": "U+9091",
+      "pinyin": [
+        "yi4"
+      ],
+      "radical": "邑",
+      "stroke_count": 7,
+      "shape_evolution": {
+        "oracle_bronze": "多从囗、从人跪形，表示人聚居的城邑。",
+        "small_seal": "城郭与人形结构规范化。",
+        "clerical": "邑字和右阝部件笔画化。",
+        "regular_traditional": "邑",
+        "simplified": "邑",
+        "summary": "由有城郭的人群聚居地，发展为城邑、采邑和邑部构字基础。"
+      },
+      "meaning_evolution": {
+        "original": "城邑、聚落。",
+        "early": "城、都邑、封地。",
+        "later": "县邑、采邑、地名；邑部构字。",
+        "modern": [
+          "城镇",
+          "古代封地或县邑",
+          "邑部字义部件"
+        ],
+        "common_words": [
+          "城邑",
+          "都邑",
+          "采邑",
+          "邑人",
+          "食邑"
+        ]
+      },
+      "phonology_sources": {
+        "middle_chinese_fanqie": [
+          "於汲切"
+        ],
+        "rhyme_group": "缉韵",
+        "entering_tone": true,
+        "classical_note": "《说文解字》释为“国也。从囗，先王之制，尊卑有大小”。",
+        "source_level": "说文、广韵/集韵系统资料，现代字典释义"
+      },
+      "review_notes": [
+        "邑与右阝是地名、邦国、城市字的重要部件。"
+      ],
+      "modern_dictionary": {
+        "basis": "新华字典式现代规范义",
+        "reference_edition": "版本待核：建议统一指定第12版或项目实际采用版本。",
+        "brief_gloss": [
+          "城镇",
+          "古代封地或县邑",
+          "邑部字义部件"
+        ],
+        "common_words": [
+          "城邑",
+          "都邑",
+          "采邑",
+          "邑人",
+          "食邑"
+        ],
+        "source_status": "释义为项目整理改写摘要，需逐字核对纸本/授权来源",
+        "copyright_note": "不逐字复制《新华字典》原文；如需收录原文释义，应另行确认授权。",
+        "annotation_type": "项目改写的新华字典式现代简注",
+        "simple_annotation": "邑：现代主要用于表示城镇；古代封地或县邑；邑部字义部件。常见用法如：城邑、都邑、采邑、邑人、食邑。",
+        "source_work": "《新华字典》",
+        "source_note": "现代义项含义参考《新华字典》释义体系整理；当前为项目改写摘要，非逐字原文。",
+        "source_usage": "meaning_reference",
+        "quotation_status": "not_verbatim"
+      }
+    }
+  ]
+}

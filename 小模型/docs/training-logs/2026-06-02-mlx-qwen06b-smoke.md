@@ -63,6 +63,6 @@ HF_HOME=/private/tmp/hf-cache-yizijue-smoke \
 - Smoke adapter size: about 22 MB.
 - Temporary Hugging Face cache: `/private/tmp/hf-cache-yizijue-smoke`, about 1.4 GB.
 - Mac free space after run: about 39 GiB.
-- Remote archive candidate: `ssh n100`, host `yami-n100`, root filesystem had about 58 GB available during this check.
+- Remote archive candidate: `<archive-host>`, root filesystem had about 58 GB available during this check.
 
-For longer runs, keep model/cache data out of the default home cache by setting `HF_HOME` explicitly. Move completed adapters, old caches, or full generated corpora to `n100` and leave a record in this directory.
+For longer runs, keep model/cache data out of the default home cache by setting `HF_HOME` explicitly. Move completed adapters, old caches, or full generated corpora to `<archive-host>` and leave a record in this directory.

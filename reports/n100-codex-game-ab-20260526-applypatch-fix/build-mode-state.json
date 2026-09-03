@@ -1,0 +1,20 @@
+{
+  "status": "updated",
+  "consecutive_failures": 0,
+  "last_exit_code": null,
+  "results": [
+    {
+      "status": "ok",
+      "hexagram": "111",
+      "next_hexagram": "001",
+      "shadow_action": "scoped_writer",
+      "changed_files": [
+        "index.html",
+        "README.md"
+      ],
+      "pytest_status": null,
+      "exit_code": null
+    }
+  ],
+  "repo_card": "[State]: 101-INSPECT | [Target]: *\n[Files]: README.md\n[Risks]: none"
+}

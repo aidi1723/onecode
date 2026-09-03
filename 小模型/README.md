@@ -2,49 +2,49 @@
 
 当前蒸馏与清洗数据主目录：
 
-`/Users/aidi/大字典/小模型`
+`.`
 
 OneCode 项目只作为规则引擎与清洗代码来源，不应继续作为训练资产主目录。
 
 ## 后期维护先看
 
-- 本地维护入口：`/Users/aidi/大字典/小模型/LOCAL_MAINTENANCE.md`
-- 后期维护总览：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_MAINTENANCE_RUNBOOK_CN.md`
-- 中文收尾文档：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_FINAL_CLOSURE_CN_2026-07-05.md`
+- 本地维护入口：`LOCAL_MAINTENANCE.md`
+- 后期维护总览：`docs/YIZIJUE_LM_MAINTENANCE_RUNBOOK_CN.md`
+- 中文收尾文档：`docs/YIZIJUE_LM_FINAL_CLOSURE_CN_2026-07-05.md`
 - 完整验证命令：`bash scripts/verify.sh`
 
 ## 关键数据文件
 
-- 总训练集：`/Users/aidi/大字典/小模型/data/train_data_distilled.jsonl`
-- Qwen SFT messages 格式：`/Users/aidi/大字典/小模型/data/train_messages_distilled.jsonl`
-- Qwen SFT messages 清洗推荐集：`/Users/aidi/大字典/小模型/data/train_messages_distilled_clean.jsonl`
-- balanced 主集：`/Users/aidi/大字典/小模型/data/train_data_balanced.jsonl`
-- security 高危压力集：`/Users/aidi/大字典/小模型/data/train_data_security.jsonl`
+- 总训练集：`data/train_data_distilled.jsonl`
+- Qwen SFT messages 格式：`data/train_messages_distilled.jsonl`
+- Qwen SFT messages 清洗推荐集：`data/train_messages_distilled_clean.jsonl`
+- balanced 主集：`data/train_data_balanced.jsonl`
+- security 高危压力集：`data/train_data_security.jsonl`
 
 ## 蒸馏原始与清洗证据
 
-- 原始 balanced 蒸馏：`/Users/aidi/大字典/小模型/data/training/distillation/raw_deepseek_balanced.jsonl`
-- 原始 security 蒸馏：`/Users/aidi/大字典/小模型/data/training/distillation/raw_deepseek_security.jsonl`
-- OneCode 接受样本：`/Users/aidi/大字典/小模型/data/training/distillation/accepted_balanced.jsonl`
-- OneCode 纠偏样本：`/Users/aidi/大字典/小模型/data/training/distillation/corrected_balanced.jsonl`
-- 拒绝样本：`/Users/aidi/大字典/小模型/data/training/distillation/rejected_balanced.jsonl`
-- 蒸馏错误日志：`/Users/aidi/大字典/小模型/data/training/distillation/errors_balanced.jsonl`
-- messages 标签审计报告：`/Users/aidi/大字典/小模型/data/training/train_messages_distilled_label_audit.json`
+- 原始 balanced 蒸馏：`data/training/distillation/raw_deepseek_balanced.jsonl`
+- 原始 security 蒸馏：`data/training/distillation/raw_deepseek_security.jsonl`
+- OneCode 接受样本：`data/training/distillation/accepted_balanced.jsonl`
+- OneCode 纠偏样本：`data/training/distillation/corrected_balanced.jsonl`
+- 拒绝样本：`data/training/distillation/rejected_balanced.jsonl`
+- 蒸馏错误日志：`data/training/distillation/errors_balanced.jsonl`
+- messages 标签审计报告：`data/training/train_messages_distilled_label_audit.json`
 
 ## 文档
 
-- 本地维护入口：`/Users/aidi/大字典/小模型/LOCAL_MAINTENANCE.md`
-- 后期维护总览：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_MAINTENANCE_RUNBOOK_CN.md`
-- 开发流程：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_DEVELOPMENT_WORKFLOW_CN.md`
-- 发布更新清单：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_RELEASE_UPDATE_CHECKLIST_CN.md`
-- 数据与训练维护：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_DATA_AND_TRAINING_MAINTENANCE_CN.md`
-- 故障排查：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_TROUBLESHOOTING_CN.md`
-- 维护更新记录：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_MAINTENANCE_CHANGELOG_CN.md`
-- 开发手册：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_DEVELOPMENT_MANUAL.md`
-- 训练手册：`/Users/aidi/大字典/小模型/docs/YIZIJUE_QWEN15B_TRAINING_RUNBOOK.md`
-- 2026-07-05 收尾交接：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_RELEASE_CLOSURE_2026-07-05.md`
-- 2026-07-05 中文收尾文档：`/Users/aidi/大字典/小模型/docs/YIZIJUE_LM_FINAL_CLOSURE_CN_2026-07-05.md`
-- 更新日志：`/Users/aidi/大字典/小模型/CHANGELOG.md`
+- 本地维护入口：`LOCAL_MAINTENANCE.md`
+- 后期维护总览：`docs/YIZIJUE_LM_MAINTENANCE_RUNBOOK_CN.md`
+- 开发流程：`docs/YIZIJUE_LM_DEVELOPMENT_WORKFLOW_CN.md`
+- 发布更新清单：`docs/YIZIJUE_LM_RELEASE_UPDATE_CHECKLIST_CN.md`
+- 数据与训练维护：`docs/YIZIJUE_LM_DATA_AND_TRAINING_MAINTENANCE_CN.md`
+- 故障排查：`docs/YIZIJUE_LM_TROUBLESHOOTING_CN.md`
+- 维护更新记录：`docs/YIZIJUE_LM_MAINTENANCE_CHANGELOG_CN.md`
+- 开发手册：`docs/YIZIJUE_LM_DEVELOPMENT_MANUAL.md`
+- 训练手册：`docs/YIZIJUE_QWEN15B_TRAINING_RUNBOOK.md`
+- 2026-07-05 收尾交接：`docs/YIZIJUE_LM_RELEASE_CLOSURE_2026-07-05.md`
+- 2026-07-05 中文收尾文档：`docs/YIZIJUE_LM_FINAL_CLOSURE_CN_2026-07-05.md`
+- 更新日志：`CHANGELOG.md`
 
 ## 当前进度
 
@@ -69,18 +69,18 @@ bash scripts/verify.sh
 继续蒸馏仍需调用 OneCode 的 Python 规则模块。推荐从 OneCode 目录运行，但输出路径指向小模型目录：
 
 ```bash
-cd "/Users/aidi/大字典/one code"
-PYTHONPATH=src DEEPSEEK_API_KEY="你的key" DEEPSEEK_BASE_URL="http://10.0.0.184:6780" DEEPSEEK_MODEL="deepseek-v4-flash" \
+cd "<onecode-repo>"
+PYTHONPATH=src DEEPSEEK_API_KEY="<your-api-key>" DEEPSEEK_BASE_URL="http://127.0.0.1:6780" DEEPSEEK_MODEL="deepseek-v4-flash" \
 python3 scripts/distill_batches.py \
   --batches 8 \
   --batch-size 120 \
   --profile balanced \
-  --raw "/Users/aidi/大字典/小模型/data/training/distillation/raw_deepseek_balanced.jsonl" \
-  --accepted "/Users/aidi/大字典/小模型/data/training/distillation/accepted_balanced.jsonl" \
-  --corrected "/Users/aidi/大字典/小模型/data/training/distillation/corrected_balanced.jsonl" \
-  --rejected "/Users/aidi/大字典/小模型/data/training/distillation/rejected_balanced.jsonl" \
-  --train "/Users/aidi/大字典/小模型/data/train_data_balanced.jsonl" \
-  --errors "/Users/aidi/大字典/小模型/data/training/distillation/errors_balanced.jsonl" \
+  --raw "../小模型/data/training/distillation/raw_deepseek_balanced.jsonl" \
+  --accepted "../小模型/data/training/distillation/accepted_balanced.jsonl" \
+  --corrected "../小模型/data/training/distillation/corrected_balanced.jsonl" \
+  --rejected "../小模型/data/training/distillation/rejected_balanced.jsonl" \
+  --train "../小模型/data/train_data_balanced.jsonl" \
+  --errors "../小模型/data/training/distillation/errors_balanced.jsonl" \
   --request-interval-seconds 0.05 \
   --timeout-seconds 60 \
   --max-tokens 1024
@@ -89,28 +89,28 @@ python3 scripts/distill_batches.py \
 每次暂停或继续后，重新合并：
 
 ```bash
-PYTHONPATH="/Users/aidi/大字典/one code/src" \
+PYTHONPATH="<onecode-repo>/src" \
 python3 scripts/build_distilled_training_set.py \
-  --balanced "/Users/aidi/大字典/小模型/data/train_data_balanced.jsonl" \
-  --security "/Users/aidi/大字典/小模型/data/train_data_security.jsonl" \
-  --merged "/Users/aidi/大字典/小模型/data/train_data_distilled.jsonl" \
-  --messages "/Users/aidi/大字典/小模型/data/train_messages_distilled.jsonl"
+  --balanced "data/train_data_balanced.jsonl" \
+  --security "data/train_data_security.jsonl" \
+  --merged "data/train_data_distilled.jsonl" \
+  --messages "data/train_messages_distilled.jsonl"
 ```
 
 重新合并后，先运行标签审计并输出训练推荐集：
 
 ```bash
 python3 scripts/audit_training_labels.py \
-  --input "/Users/aidi/大字典/小模型/data/train_messages_distilled.jsonl" \
-  --output "/Users/aidi/大字典/小模型/data/training/train_messages_distilled_label_audit.json" \
-  --clean-output "/Users/aidi/大字典/小模型/data/train_messages_distilled_clean.jsonl"
+  --input "data/train_messages_distilled.jsonl" \
+  --output "data/training/train_messages_distilled_label_audit.json" \
+  --clean-output "data/train_messages_distilled_clean.jsonl"
 ```
 
 `build_distilled_training_set.py` 和 `distill_openai_compatible.py` 依赖 OneCode 的 Python 包。未安装 OneCode 时，`--help` 可正常查看参数；实际运行需要安装 OneCode 或设置 `PYTHONPATH` 指向 OneCode 的 `src`。
 
 ## 迁移校验
 
-- 已从 `/Users/aidi/大字典/one code/data` 复制到 `/Users/aidi/大字典/小模型/data`
+- 已从 `<onecode-repo>/data` 复制到 `data`
 - 文件数量：3227 对 3227
 - `train_data_distilled.jsonl` SHA256 一致
 - `train_messages_distilled.jsonl` SHA256 一致

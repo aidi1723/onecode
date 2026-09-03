@@ -1,0 +1,28 @@
+{
+  "quality": {
+    "exit_code": 0,
+    "wall_time_seconds": 42.004,
+    "fs_integrity": "pass",
+    "chars": 795,
+    "stderr_chars": 0,
+    "has_no_secret": true,
+    "report_file": "/home/aidi/projects/codex-evals/reports/dazidian-claude-kimi-native-inspect-short-20260525-native-short.md"
+  },
+  "usage": {
+    "jsonl": "/home/aidi/.claude/projects/-home-aidi-projects-codex-evals-dazidian/afb0495c-6473-44d7-8758-538ba2d8b7af.jsonl",
+    "unique_assistant_messages": 4,
+    "input_tokens": 35220,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 26880,
+    "output_tokens": 1317,
+    "total_without_cache_read": 36537,
+    "total_with_cache_read": 63417,
+    "tool_use_count": 8,
+    "unique_tools": [
+      "Bash",
+      "Read"
+    ],
+    "bash_count": 2,
+    "read_count": 6
+  }
+}

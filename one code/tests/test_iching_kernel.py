@@ -704,6 +704,9 @@ class TestIchingKernel(unittest.TestCase):
             (IchingKernel.DUI, IchingKernel.ZHEN, "prune"),
             (IchingKernel.ZHEN, IchingKernel.LI, "fuel"),
             (IchingKernel.KUN, IchingKernel.KAN, "dam"),
+            (IchingKernel.LI, IchingKernel.KUN, "refine"),       # 火生土：炼化精制
+            (IchingKernel.KUN, IchingKernel.QIAN, "forge"),      # 土生金：铸造强化
+            (IchingKernel.QIAN, IchingKernel.KAN, "temper"),     # 金生水：淬炼冷却
         ]
 
         for outer, inner, modulation in cases:
