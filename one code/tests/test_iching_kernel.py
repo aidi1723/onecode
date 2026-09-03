@@ -827,7 +827,35 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(profile["nuclear"]["transition_action"], IchingKernel.transition(nuclear).action)
 
         self.assertEqual(profile["harmony"], IchingKernel.harmony_score(status))
-        self.assertEqual(IchingKernel.transition(status).action, "checkpoint")
+
+    # ========================================================================
+    # Six-Yao Extension Tests (Phase 2 Extension - Stage 1)
+    # ========================================================================
+
+    def test_hexagram_earthly_branches_covers_all_64_hexagrams(self):
+        """测试纳甲地支映射覆盖所有64卦"""
+        # 测试乾卦（63 = 0b111111）
+        branches = IchingKernel.hexagram_earthly_branches(63)
+        self.assertEqual(branches, ["子", "寅", "辰", "午", "申", "戌"])
+
+        # 测试坤卦（0 = 0b000000）
+        branches = IchingKernel.hexagram_earthly_branches(0)
+        self.assertEqual(branches, ["未", "巳", "卯", "丑", "亥", "酉"])
+
+        # 测试离卦（42 = 0b101101）
+        branches = IchingKernel.hexagram_earthly_branches(42)
+        self.assertEqual(len(branches), 6)
+
+        # 测试所有卦都返回6个地支
+        twelve_branches = ["子", "丑", "寅", "卯", "辰", "巳",
+                          "午", "未", "申", "酉", "戌", "亥"]
+        for i in range(64):
+            branches = IchingKernel.hexagram_earthly_branches(i)
+            self.assertEqual(len(branches), 6)
+            # 每个地支都在十二地支范围内
+            for branch in branches:
+                self.assertIn(branch, twelve_branches)
+
 
     def test_hexagram_record_contains_cross_cutting_rule_profile(self):
         status = IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)

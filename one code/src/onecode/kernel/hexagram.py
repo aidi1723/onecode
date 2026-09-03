@@ -1521,6 +1521,58 @@ class IchingKernel:
         transition = cls.transition(status_code)
         return 1 if cls.dispatch_decision(transition) == "stop" else 0
 
+    # ========================================================================
+    # Six-Yao Extension: Reference Dimensions (Phase 2 Extension - Stage 1)
+    # ========================================================================
+    # These methods provide traditional six-yao system perspectives as
+    # reference dimensions. They DO NOT affect transition() decision logic.
+    # Use cases: visualization, logging, debugging, theoretical completeness.
+
+    @staticmethod
+    def hexagram_earthly_branches(status_code: int) -> list[str]:
+        """
+        返回六爻对应的地支序列（从初爻到上爻）
+
+        纳甲法（Najia method）为每个卦的六爻分配地支，遵循传统口诀：
+        - 乾内甲子外壬午，坎内戊寅外戊申
+        - 震内庚子外庚午，艮内丙辰外丙戌
+        - 坤内乙未外癸丑，巽内辛丑外辛未
+        - 离内己卯外己酉，兑内丁巳外丁亥
+
+        Args:
+            status_code: 6-bit 状态码 (0-63)
+
+        Returns:
+            地支列表（12地支之一），例如 ["子", "寅", "辰", "午", "申", "戌"]
+            索引 0-2 对应内卦，索引 3-5 对应外卦
+
+        用途（参考维度，不影响决策）:
+            - 可视化时显示地支标注
+            - 季节分析的基础数据（可选 Phase 3）
+            - 方位分析的参考维度
+        """
+        inner = status_code & 0b111
+        outer = (status_code >> 3) & 0b111
+
+        # 八卦纳甲地支表（按照传统口诀）
+        # 阳卦（乾坎震艮）顺时针，阴卦（坤巽离兑）逆时针
+        TRIGRAM_BRANCHES = {
+            0b111: ["子", "寅", "辰", "午", "申", "戌"],  # 乾(内甲子外壬午)
+            0b010: ["寅", "辰", "午", "申", "戌", "子"],  # 坎(内戊寅外戊申)
+            0b001: ["子", "寅", "辰", "午", "申", "戌"],  # 震(内庚子外庚午)
+            0b100: ["辰", "午", "申", "戌", "子", "寅"],  # 艮(内丙辰外丙戌)
+            0b000: ["未", "巳", "卯", "丑", "亥", "酉"],  # 坤(内乙未外癸丑)
+            0b110: ["丑", "亥", "酉", "未", "巳", "卯"],  # 巽(内辛丑外辛未)
+            0b101: ["卯", "丑", "亥", "酉", "未", "巳"],  # 离(内己卯外己酉)
+            0b011: ["巳", "卯", "丑", "亥", "酉", "未"],  # 兑(内丁巳外丁亥)
+        }
+
+        # 内卦前三爻，外卦后三爻
+        inner_branches = TRIGRAM_BRANCHES[inner][:3]
+        outer_branches = TRIGRAM_BRANCHES[outer][3:]
+        return inner_branches + outer_branches
+
+
 
 def is_valid_hexagram_code(value: str) -> bool:
     return len(value) == 6 and all(char in "01" for char in value)
