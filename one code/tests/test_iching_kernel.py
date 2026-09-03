@@ -890,6 +890,41 @@ class TestIchingKernel(unittest.TestCase):
             # 卦型是三种之一
             self.assertIn(palace["hexagram_type"], ["pure", "travel", "return"])
 
+    def test_six_relatives_profile_for_li_hexagram(self):
+        """测试离为火卦的六亲关系"""
+        # 离为火（45 = 0b101101）
+        relatives = IchingKernel.six_relatives_profile(45)
+        self.assertEqual(relatives["palace_element"], "fire")
+        self.assertEqual(len(relatives["lines"]), 6)
+
+        # 验证每一爻都有明确六亲
+        valid_relatives = ["brother", "parent", "offspring", "wealth", "officer"]
+        for line in relatives["lines"]:
+            self.assertIn(line["relative"], valid_relatives)
+            self.assertIn(line["line_index"], range(6))
+            self.assertIn(line["element"], ["wood", "fire", "earth", "metal", "water"])
+
+    def test_six_relatives_all_64_hexagrams_have_valid_relations(self):
+        """测试所有64卦的六亲关系合法性"""
+        valid_relatives = ["brother", "parent", "offspring", "wealth", "officer"]
+
+        for i in range(64):
+            relatives = IchingKernel.six_relatives_profile(i)
+
+            # 卦宫五行必须是五行之一
+            self.assertIn(relatives["palace_element"],
+                         ["wood", "fire", "earth", "metal", "water"])
+
+            # 必须有6个爻
+            self.assertEqual(len(relatives["lines"]), 6)
+
+            # 每一爻的六亲关系必须合法
+            for line in relatives["lines"]:
+                self.assertIn(line["relative"], valid_relatives)
+                # 验证五行生克逻辑正确性
+                self.assertIsNotNone(line["element"])
+
+
 
 
     def test_hexagram_record_contains_cross_cutting_rule_profile(self):

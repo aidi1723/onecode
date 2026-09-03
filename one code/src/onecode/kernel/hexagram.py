@@ -1673,6 +1673,117 @@ class IchingKernel:
         # 理论上不会到达这里（64卦都有归属）
         raise ValueError(f"Cannot find palace for status {status_code}")
 
+    @staticmethod
+    def six_relatives_profile(status_code: int) -> dict:
+        """
+        装配六亲关系网（基于卦宫五行）
+
+        传统六爻系统中，以卦宫五行为"我"，根据五行生克关系
+        为每一爻分配六亲身份：兄弟、父母、子孙、妻财、官鬼。
+
+        Args:
+            status_code: 6-bit 状态码 (0-63)
+
+        Returns:
+            {
+                "palace": 卦宫三卦码 (0-7),
+                "palace_element": 卦宫五行 ("metal"/"earth"等),
+                "lines": [
+                    {
+                        "line_index": 爻位索引 (0-5),
+                        "earthly_branch": 地支 ("子"/"丑"等),
+                        "element": 地支五行 ("water"/"earth"等),
+                        "relative": 六亲关系 ("brother"/"parent"/"offspring"/"wealth"/"officer")
+                    },
+                    ...
+                ]
+            }
+
+        六亲规则:
+            - 与卦宫同五行 → 兄弟 (brother) - 竞争者
+            - 生卦宫五行 → 父母 (parent) - 有利因素
+            - 卦宫生之 → 子孙 (offspring) - 受保护者
+            - 卦宫克之 → 妻财 (wealth) - 掌控对象
+            - 克卦宫 → 官鬼 (officer) - 制约因素
+
+        用途（参考维度，不影响决策）:
+            - 语义层面的关系建模
+            - 日志输出时显示六亲标注
+            - 可视化时的关系网络
+        """
+        # 1. 获取卦宫归属
+        palace_info = IchingKernel.palace_attribution(status_code)
+        palace_element = palace_info["palace_element"]
+
+        # 2. 获取地支序列
+        branches = IchingKernel.hexagram_earthly_branches(status_code)
+
+        # 3. 地支配五行表
+        BRANCH_ELEMENTS = {
+            "子": "water", "亥": "water",
+            "丑": "earth", "辰": "earth", "未": "earth", "戌": "earth",
+            "寅": "wood", "卯": "wood",
+            "巳": "fire", "午": "fire",
+            "申": "metal", "酉": "metal",
+        }
+
+        # 4. 为每一爻装六亲
+        lines = []
+        for i, branch in enumerate(branches):
+            branch_element = BRANCH_ELEMENTS[branch]
+
+            # 判断六亲关系
+            if branch_element == palace_element:
+                relative = "brother"
+            elif IchingKernel._element_generates(branch_element, palace_element):
+                relative = "parent"
+            elif IchingKernel._element_generates(palace_element, branch_element):
+                relative = "offspring"
+            elif IchingKernel._element_controls(palace_element, branch_element):
+                relative = "wealth"
+            elif IchingKernel._element_controls(branch_element, palace_element):
+                relative = "officer"
+            else:
+                relative = "unknown"  # 理论上不会出现
+
+            lines.append({
+                "line_index": i,
+                "earthly_branch": branch,
+                "element": branch_element,
+                "relative": relative
+            })
+
+        return {
+            "palace": palace_info["palace"],
+            "palace_element": palace_element,
+            "lines": lines
+        }
+
+    @staticmethod
+    def _element_generates(element_a: str, element_b: str) -> bool:
+        """判断五行相生关系（A生B）"""
+        generation_cycle = {
+            "wood": "fire",
+            "fire": "earth",
+            "earth": "metal",
+            "metal": "water",
+            "water": "wood"
+        }
+        return generation_cycle.get(element_a) == element_b
+
+    @staticmethod
+    def _element_controls(element_a: str, element_b: str) -> bool:
+        """判断五行相克关系（A克B）"""
+        control_cycle = {
+            "wood": "earth",
+            "earth": "water",
+            "water": "fire",
+            "fire": "metal",
+            "metal": "wood"
+        }
+        return control_cycle.get(element_a) == element_b
+
+
 
 
 def is_valid_hexagram_code(value: str) -> bool:
