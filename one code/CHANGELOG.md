@@ -1,5 +1,68 @@
 # Changelog
 
+## v0.4.0 - 2026-09-06 - I Ching Six-Yao Extension & Complete Repository History Publication
+
+### Added - I Ching Six-Yao System
+
+- **Earthly Branches (Najia) Mapping** (`hexagram_earthly_branches`): Assigns one
+  of the 12 earthly branches (子丑寅卯辰巳午未申酉戌亥) to each of the six lines
+  in all 64 hexagrams, following traditional Najia attribution rules. Enables
+  time analysis, directional analysis, and seasonal weight calculations.
+- **Palace Attribution Algorithm** (`palace_attribution`): Implements the
+  world-response positioning method (安世应法) to determine palace membership,
+  world-line position, response-line position, and hexagram type (pure, first,
+  traveling, returning, roaming, error) for each hexagram. Establishes the
+  eight-palace hexagram order system.
+- **Six Relatives Relationship Network** (`six_relatives_profile`): Based on
+  palace five-element, assigns six-relative relationship (兄弟/父母/子孙/妻财/官鬼)
+  to each line. Provides semantic-level relationship modeling similar to the
+  "useful god/source god/taboo god/enemy god" system.
+
+### Added - Five Elements Modulation
+
+- **Same-Element Transition Reason**: Completed I Ching rule coverage by adding
+  explicit reasoning for same-element state transitions (maintain/stabilize).
+- **Generation Cycle Modulations**: Added three modulation types in the
+  generation cycle—refine (精炼), forge (锻造), temper (淬炼)—to model nuanced
+  nurturing relationships beyond simple generation.
+
+### Changed - Repository History
+
+- **Force-pushed complete development history** (288 commits starting from
+  2026-05-27) to replace the previous selective open-source release (44 commits
+  starting from 2026-06-01) on `origin/main`.
+- Unified local and remote history to preserve full project evolution, including
+  all I Ching formula updates and core kernel development.
+
+### Documentation
+
+- Added comprehensive I Ching six-yao system research report
+  (`docs/易经六爻系统调研_2026-09-03.md`).
+- Added implementation plan for six-yao extension Phase 1
+  (`docs/易经六爻扩展实施计划_2026-09-03.md`).
+- Added feature demonstration with concrete hexagram examples
+  (`docs/易经六爻扩展功能演示_2026-09-03.md`).
+- Added comprehensive test report covering 99 test cases, all passing
+  (`docs/易经六爻扩展测试报告_2026-09-03.md`).
+
+### Verification
+
+- I Ching kernel unit tests: 79 passed (0.031s).
+- Mathematical audit: 12 checks passed.
+- Core functionality checks: 8 passed.
+- All 64 hexagrams verified for earthly branches, palace attribution, and
+  six-relatives profiling.
+- Pure hexagrams (乾坤震巽坎离艮兑) verified against traditional formulas.
+
+### Publication
+
+- Repository history unified on 2026-09-06.
+- Complete development history now available at https://github.com/aidi1723/onecode.
+- Feature branch `feature/iching-contrary-inverse-hexagram` pushed and
+  subsequently merged into `main`.
+
+---
+
 ## Unreleased - 2026-07-16 - LibreChat Execution Reliability
 
 ### Changed
