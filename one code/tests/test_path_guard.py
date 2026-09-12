@@ -7,6 +7,43 @@ from onecode.kernel.path_guard import PathGuard, PathGuardError
 
 
 class PathGuardTests(unittest.TestCase):
+    def test_protected_paths_cannot_be_reached_through_parent_segments(self):
+        for target in (".env", ".env.local", "pyproject.toml", ".gitignore", "setup.py", "setup.cfg",
+                       "Makefile", ".pre-commit-config.yaml", ".git/config", ".github/workflows/ci.yml"):
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as tmp:
+                workspace = Path(tmp)
+                (workspace / "nested").mkdir()
+                with self.assertRaises(PathGuardError):
+                    PathGuard.write_text(workspace, f"nested/../{target}", "forbidden")
+                self.assertFalse((workspace / target).exists())
+
+    def test_protected_paths_cannot_be_reached_through_symlinks(self):
+        for target in (".env", ".env.local", "pyproject.toml", "Makefile", ".git/config", ".github/workflows/ci.yml"):
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as tmp:
+                workspace = Path(tmp)
+                protected = workspace / target
+                protected.parent.mkdir(parents=True, exist_ok=True)
+                protected.write_text("original", encoding="utf-8")
+                (workspace / "alias").symlink_to(target)
+                with self.assertRaises(PathGuardError):
+                    PathGuard.write_text(workspace, "alias", "forbidden")
+                self.assertEqual(protected.read_text(encoding="utf-8"), "original")
+
+    def test_directory_symlink_obeys_write_policy_and_workspace_boundary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            workspace.mkdir()
+            for name in (".git", ".github", "src"):
+                (workspace / name).mkdir()
+                (workspace / f"alias-{name}").symlink_to(name, target_is_directory=True)
+            (workspace / "outside").symlink_to(Path(tmp), target_is_directory=True)
+            for target in ("alias-.git/config", "alias-.github/workflows/ci.yml", "outside/out.txt"):
+                with self.subTest(target=target), self.assertRaises(PathGuardError):
+                    PathGuard.write_text(workspace, target, "forbidden")
+            PathGuard.write_text(workspace, "alias-src/allowed.txt", "allowed")
+            self.assertEqual((workspace / "src/allowed.txt").read_text(), "allowed")
+            self.assertFalse((Path(tmp) / "out.txt").exists())
+
     def test_write_text_creates_allowed_relative_file_and_returns_sha256(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

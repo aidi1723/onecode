@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased - OneCode Hardening
+
+### Fixed
+
+- **Execution Reliability**: Correct command failure propagation, canonical write protection, and parallel result accounting.
+- **Approval State Management**: Finalize failed approval executions and isolate interrupted claims without automatic replay.
+- **Text Read Safety**: Bound text-file reads and preserve complete UTF-8 characters at truncation boundaries.
+- **I Ching Data Accuracy**: Correct eight-palace reference data while keeping runtime transition policy unchanged.
+- **LibreChat Integration**: Validate MCP workspace registration and isolate console state by workspace.
+- **User Interface**: Make console failures visible and run actions keyboard-operable.
+- **CI & Packaging**: Run Python verification from the repository-root workflow and validate packaged contracts.
+
+Package metadata remains at 0.8.0 until a separately approved release. Current shell projection schema is `version: 5`; v4 loaders remain available for legacy fixture validation.
+
 ## v0.4.0 - 2026-09-06 - I Ching Six-Yao Extension & Complete Repository History Publication
 
 ### Added - I Ching Six-Yao System

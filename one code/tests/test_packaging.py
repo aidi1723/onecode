@@ -40,6 +40,13 @@ class PackagingTests(unittest.TestCase):
             wheel = Path(tmp) / "onecode-0.1.0-py3-none-any.whl"
             with zipfile.ZipFile(wheel, "w") as archive:
                 archive.writestr("onecode/tui/styles.tcss", "Screen {}\n")
+                for asset in (
+                    "onecode/contracts/shell_projection_v4_schema.json",
+                    "onecode/contracts/shell_projection_v4_cases.json",
+                    "onecode/contracts/shell_projection_v5_schema.json",
+                    "onecode/contracts/shell_projection_v5_cases.json",
+                ):
+                    archive.writestr(asset, "{}")
 
             with redirect_stdout(StringIO()):
                 self.assertEqual(check_wheel_assets([tmp]), 0)

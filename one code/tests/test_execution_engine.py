@@ -2,6 +2,7 @@ import tempfile
 import unittest
 import json
 import time
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -20,6 +21,60 @@ from onecode.kernel.hexagram import IchingKernel
 
 
 class ExecutionEngineTests(unittest.TestCase):
+    def test_parallel_failure_limit_preserves_completed_layer_and_stops_next_layer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            failures = [ExecutionStep(id=f"fail-{index}", description="missing file", tool_calls=[
+                ToolCallSpec(tool_name="read_text", params={"path": f"missing-{index}"}),
+            ]) for index in range(3)]
+            write = ExecutionStep(id="write", description="parallel write", tool_calls=[
+                ToolCallSpec(tool_name="write_text", params={"path": "out.txt", "content": "ok"}),
+            ])
+            downstream = ExecutionStep(id="next", description="next layer", depends_on=["write"], tool_calls=[
+                ToolCallSpec(tool_name="write_text", params={"path": "next.txt", "content": "must not run"}),
+            ])
+            trace = execute_plan(ExecutionPlan(task="mixed layer", steps=[*failures, write, downstream]),
+                                 workspace=workspace, run_id="mixed-layer", require_explicit_approval=True,
+                                 approval_callback=lambda step: True)
+            self.assertTrue((workspace / "out.txt").exists())
+            self.assertFalse((workspace / "next.txt").exists())
+            self.assertEqual([step.step_id for step in trace.step_results], ["fail-0", "fail-1", "fail-2", "write"])
+            self.assertEqual(len(trace.runner_results), 4)
+            self.assertFalse(trace.success)
+            ledger = json.loads((workspace / ".onecode/runs/mixed-layer/ledger.json").read_text())
+            self.assertEqual(ledger["completed_count"], 1)
+            self.assertEqual(ledger["failed_count"], 3)
+            self.assertEqual([step["step_id"] for step in ledger["execution_step_results"]],
+                             ["fail-0", "fail-1", "fail-2", "write"])
+
+    def test_command_exit_status_controls_following_tools_and_dependencies(self):
+        for exit_code in (0, 7):
+            with self.subTest(exit_code=exit_code), tempfile.TemporaryDirectory() as tmp:
+                workspace = Path(tmp)
+                plan = ExecutionPlan(task="command prerequisite", steps=[
+                    ExecutionStep(id="command", description="run command", tool_calls=[
+                        ToolCallSpec(tool_name="run_command", params={
+                            "argv": [sys.executable, "-c", f"print('evidence'); raise SystemExit({exit_code})"],
+                        }),
+                        ToolCallSpec(tool_name="write_text", params={"path": "same-step.txt", "content": "ok"}),
+                    ]),
+                    ExecutionStep(id="dependent", description="dependent write", depends_on=["command"], tool_calls=[
+                        ToolCallSpec(tool_name="write_text", params={"path": "dependent.txt", "content": "ok"}),
+                    ]),
+                ])
+                trace = execute_plan(plan, workspace=workspace, require_explicit_approval=True,
+                                     approval_callback=lambda step: True)
+                self.assertEqual(trace.success, exit_code == 0)
+                self.assertEqual(trace.step_results[0].status, "completed" if exit_code == 0 else "failed")
+                command = trace.step_results[0].tool_results[0]
+                self.assertEqual(command.success, exit_code == 0)
+                self.assertEqual(command.output["payload"]["returncode"], exit_code)
+                self.assertIn("evidence", command.output["payload"]["stdout"])
+                if exit_code:
+                    self.assertEqual(command.reason, "command_nonzero_exit")
+                self.assertEqual((workspace / "same-step.txt").exists(), exit_code == 0)
+                self.assertEqual((workspace / "dependent.txt").exists(), exit_code == 0)
+
     def test_guarded_step_requires_explicit_approval_when_enabled(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

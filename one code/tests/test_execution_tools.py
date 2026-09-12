@@ -5,12 +5,55 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import io
 from unittest.mock import patch
 
 from onecode.kernel.path_guard import PathGuardError
 
 
 class ExecutionToolsTests(unittest.TestCase):
+    def test_read_text_preserves_complete_utf8_characters_at_byte_limit(self):
+        from onecode.kernel.execution_tools import ReadTextTool
+
+        cases = [("中文", 4, "中", True), ("a\U0001f680z", 4, "a", True),
+                 ("中文", 6, "中文", False), ("", 1, "", False), ("ab", 1, "a", True)]
+        for content, limit, expected, truncated in cases:
+            with self.subTest(content=content, limit=limit), tempfile.TemporaryDirectory() as tmp:
+                workspace = Path(tmp)
+                (workspace / "text.txt").write_text(content, encoding="utf-8")
+                result = ReadTextTool().execute({"path": "text.txt", "max_bytes": limit}, workspace)
+                self.assertEqual(result["content"], expected)
+                self.assertEqual(result["byte_count"], len(expected.encode("utf-8")))
+                self.assertEqual(result["truncated"], truncated)
+
+    def test_read_text_bounds_io_not_just_returned_content(self):
+        from onecode.kernel.execution_tools import ReadTextTool
+
+        class BoundedStream(io.BytesIO):
+            def read(self, size=-1):
+                if not 0 <= size <= 2:
+                    raise AssertionError(f"unbounded read: {size}")
+                return super().read(size)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "large.txt").touch()
+            stream = BoundedStream(b"x" * (8 * 1024 * 1024))
+            with patch.object(Path, "open", return_value=stream):
+                result = ReadTextTool().execute({"path": "large.txt", "max_bytes": 1}, workspace)
+            self.assertEqual(result["content"], "x")
+            self.assertTrue(result["truncated"])
+
+    def test_read_text_still_rejects_invalid_utf8(self):
+        from onecode.kernel.execution_tools import ReadTextTool
+
+        for raw, limit in ((b"a\xffz", 2), (b"a\xe4", 2), (b"\xff", 4)):
+            with self.subTest(raw=raw), tempfile.TemporaryDirectory() as tmp:
+                workspace = Path(tmp)
+                (workspace / "text.txt").write_bytes(raw)
+                with self.assertRaises(UnicodeDecodeError):
+                    ReadTextTool().execute({"path": "text.txt", "max_bytes": limit}, workspace)
+
     def test_default_registry_exposes_read_and_guarded_tools(self):
         from onecode.kernel.execution_tools import default_tool_registry
 

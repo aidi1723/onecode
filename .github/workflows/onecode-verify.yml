@@ -1,0 +1,46 @@
+name: OneCode Verify
+
+on:
+  pull_request:
+    paths:
+      - 'one code/**'
+      - '.github/workflows/onecode-verify.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'one code/**'
+      - '.github/workflows/onecode-verify.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  onecode:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    defaults:
+      run:
+        working-directory: one code
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install into the project environment
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install -e ".[tui]"
+      - name: Verify OneCode
+        env:
+          PYTHON: .venv/bin/python
+        run: bash scripts/verify.sh
+      - name: Build wheel and verify packaged resources
+        run: |
+          .venv/bin/python -m pip wheel . --no-deps -w "${{ runner.temp }}/onecode-wheelhouse"
+          .venv/bin/python scripts/check_wheel_assets.py "${{ runner.temp }}/onecode-wheelhouse"
