@@ -21,9 +21,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Verify OneCode
+      - name: Verify OneCode (legacy nested entrypoint)
+        working-directory: one code
         run: bash scripts/verify.sh
       - name: Build wheel and verify packaged TUI assets
+        working-directory: one code
         run: |
           python -m pip wheel . -w /tmp/onecode-wheelhouse --no-deps
           python scripts/check_wheel_assets.py /tmp/onecode-wheelhouse

@@ -1,0 +1,158 @@
+{
+  "name": "onecode.shell_projection",
+  "version": 5,
+  "fields": {
+    "version": {
+      "type": "integer",
+      "description": "Shell projection schema version."
+    },
+    "run_id": {
+      "type": "string|null",
+      "description": "OneCode run identifier."
+    },
+    "status_label": {
+      "type": "string",
+      "description": "Raw run status normalized for shell display."
+    },
+    "severity": {
+      "type": "string",
+      "values": [
+        "blocked",
+        "corrupt",
+        "missing",
+        "ok",
+        "warning"
+      ],
+      "description": "Shell-facing status severity."
+    },
+    "next_action": {
+      "type": "string",
+      "description": "Recommended shell action."
+    },
+    "compact_message": {
+      "type": "string",
+      "description": "Single-line human-readable summary."
+    },
+    "rule_state": {
+      "type": "object",
+      "fields": [
+        "rule_schema",
+        "status_code",
+        "transition_action",
+        "transition_reason",
+        "dispatch_decision"
+      ]
+    },
+    "control_state": {
+      "type": "object",
+      "fields": [
+        "project_context_status",
+        "runtime_config_status",
+        "skill_context_status",
+        "skill_selection_reason",
+        "selected_skill_count",
+        "skill_selection_sha256",
+        "recovery_action"
+      ]
+    },
+    "balance_state": {
+      "type": "object",
+      "fields": [
+        "changed_asset_count",
+        "changed_line_count",
+        "changed_bands",
+        "before_status_code",
+        "after_status_code"
+      ]
+    },
+    "delivery_state": {
+      "type": "object",
+      "fields": [
+        "status",
+        "next_action",
+        "requested_count",
+        "completed_count",
+        "skipped_count",
+        "failed_count"
+      ]
+    },
+    "evidence_ref": {
+      "type": "object",
+      "fields": [
+        "mode",
+        "ledger_path",
+        "manifest_path",
+        "trace_path",
+        "wal_path",
+        "corrupt_path",
+        "profile_sha256"
+      ]
+    },
+    "resume_state": {
+      "type": "object",
+      "fields": [
+        "resumed",
+        "resumed_from"
+      ]
+    },
+    "approval_state": {
+      "type": "object",
+      "fields": [
+        "required",
+        "plan_id",
+        "status"
+      ]
+    }
+  },
+  "nested_fields": {
+    "rule_state": [
+      "rule_schema",
+      "status_code",
+      "transition_action",
+      "transition_reason",
+      "dispatch_decision"
+    ],
+    "control_state": [
+      "project_context_status",
+      "runtime_config_status",
+      "skill_context_status",
+      "skill_selection_reason",
+      "selected_skill_count",
+      "skill_selection_sha256",
+      "recovery_action"
+    ],
+    "balance_state": [
+      "changed_asset_count",
+      "changed_line_count",
+      "changed_bands",
+      "before_status_code",
+      "after_status_code"
+    ],
+    "delivery_state": [
+      "status",
+      "next_action",
+      "requested_count",
+      "completed_count",
+      "skipped_count",
+      "failed_count"
+    ],
+    "evidence_ref": [
+      "mode",
+      "ledger_path",
+      "manifest_path",
+      "trace_path",
+      "wal_path",
+      "corrupt_path",
+      "profile_sha256"
+    ],
+    "resume_state": [
+      "resumed",
+      "resumed_from"
+    ],
+    "approval_state": [
+      "required",
+      "plan_id",
+      "status"
+    ]
+  }
+}

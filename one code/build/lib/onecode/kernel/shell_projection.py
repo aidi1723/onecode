@@ -1,0 +1,364 @@
+from __future__ import annotations
+
+from typing import Any
+
+from onecode.kernel.iching_encoding import normalize_rule_schema
+from onecode.kernel.wal import decode_balance_mutation_tuple
+
+
+BLOCKED_STATUSES = {"denied", "halted", "blocked", "rejected"}
+WARNING_STATUSES = {"partial", "skipped"}
+SHELL_PROJECTION_VERSION = 5
+SHELL_PROJECTION_FIELDS = (
+    "version",
+    "run_id",
+    "status_label",
+    "severity",
+    "next_action",
+    "compact_message",
+    "rule_state",
+    "control_state",
+    "balance_state",
+    "delivery_state",
+    "evidence_ref",
+    "resume_state",
+    "approval_state",
+)
+RULE_STATE_FIELDS = (
+    "rule_schema",
+    "status_code",
+    "transition_action",
+    "transition_reason",
+    "dispatch_decision",
+)
+CONTROL_STATE_FIELDS = (
+    "project_context_status",
+    "runtime_config_status",
+    "skill_context_status",
+    "skill_selection_reason",
+    "selected_skill_count",
+    "skill_selection_sha256",
+    "recovery_action",
+)
+BALANCE_STATE_FIELDS = (
+    "changed_asset_count",
+    "changed_line_count",
+    "changed_bands",
+    "before_status_code",
+    "after_status_code",
+)
+DELIVERY_STATE_FIELDS = (
+    "status",
+    "next_action",
+    "requested_count",
+    "completed_count",
+    "skipped_count",
+    "failed_count",
+)
+EVIDENCE_REF_FIELDS = (
+    "mode",
+    "ledger_path",
+    "manifest_path",
+    "trace_path",
+    "wal_path",
+    "corrupt_path",
+    "profile_sha256",
+)
+RESUME_STATE_FIELDS = (
+    "resumed",
+    "resumed_from",
+)
+APPROVAL_STATE_FIELDS = (
+    "required",
+    "plan_id",
+    "status",
+)
+SEVERITY_VALUES = ("blocked", "corrupt", "missing", "ok", "warning")
+
+
+def shell_projection_schema() -> dict[str, Any]:
+    return {
+        "name": "onecode.shell_projection",
+        "version": SHELL_PROJECTION_VERSION,
+        "fields": {
+            "version": {"type": "integer", "description": "Shell projection schema version."},
+            "run_id": {"type": "string|null", "description": "OneCode run identifier."},
+            "status_label": {"type": "string", "description": "Raw run status normalized for shell display."},
+            "severity": {
+                "type": "string",
+                "values": list(SEVERITY_VALUES),
+                "description": "Shell-facing status severity.",
+            },
+            "next_action": {"type": "string", "description": "Recommended shell action."},
+            "compact_message": {"type": "string", "description": "Single-line human-readable summary."},
+            "rule_state": {"type": "object", "fields": list(RULE_STATE_FIELDS)},
+            "control_state": {"type": "object", "fields": list(CONTROL_STATE_FIELDS)},
+            "balance_state": {"type": "object", "fields": list(BALANCE_STATE_FIELDS)},
+            "delivery_state": {"type": "object", "fields": list(DELIVERY_STATE_FIELDS)},
+            "evidence_ref": {"type": "object", "fields": list(EVIDENCE_REF_FIELDS)},
+            "resume_state": {"type": "object", "fields": list(RESUME_STATE_FIELDS)},
+            "approval_state": {"type": "object", "fields": list(APPROVAL_STATE_FIELDS)},
+        },
+        "nested_fields": {
+            "rule_state": list(RULE_STATE_FIELDS),
+            "control_state": list(CONTROL_STATE_FIELDS),
+            "balance_state": list(BALANCE_STATE_FIELDS),
+            "delivery_state": list(DELIVERY_STATE_FIELDS),
+            "evidence_ref": list(EVIDENCE_REF_FIELDS),
+            "resume_state": list(RESUME_STATE_FIELDS),
+            "approval_state": list(APPROVAL_STATE_FIELDS),
+        },
+    }
+
+
+def project_run_to_shell(run: dict[str, Any]) -> dict[str, Any]:
+    status_label = _string(run.get("status")) or "unknown"
+    severity = _severity(run, status_label)
+    next_action = _next_action(run, severity)
+    evidence_ref = _evidence_ref(run)
+    rule_state = _rule_state(run)
+    control_state = _control_state(run)
+    balance_state = _balance_state(run)
+    delivery_state = _delivery_state(run)
+    resume_state = {
+        "resumed": run.get("resumed") if isinstance(run.get("resumed"), bool) else None,
+        "resumed_from": _string(run.get("resumed_from")),
+    }
+    approval_state = _approval_state(run)
+
+    projection = {
+        "version": SHELL_PROJECTION_VERSION,
+        "run_id": _string(run.get("run_id")),
+        "status_label": status_label,
+        "severity": severity,
+        "next_action": next_action,
+        "compact_message": _compact_message(run, status_label, severity, next_action, evidence_ref, rule_state),
+        "rule_state": rule_state,
+        "control_state": control_state,
+        "balance_state": balance_state,
+        "delivery_state": delivery_state,
+        "evidence_ref": evidence_ref,
+        "resume_state": resume_state,
+        "approval_state": approval_state,
+    }
+    return projection
+
+
+def attach_shell_projection(run: dict[str, Any]) -> dict[str, Any]:
+    return {**run, "shell_projection": project_run_to_shell(run)}
+
+
+def attach_shell_projection_to_runs_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    runs = payload.get("runs")
+    if not isinstance(runs, list):
+        return {**payload, "runs": []}
+    return {
+        **payload,
+        "runs": [attach_shell_projection(run) if isinstance(run, dict) else run for run in runs],
+    }
+
+
+def _string(value: Any) -> str | None:
+    if isinstance(value, str) and value.strip():
+        return value
+    return None
+
+
+def _first_string(*values: Any) -> str | None:
+    for value in values:
+        text = _string(value)
+        if text is not None:
+            return text
+    return None
+
+
+def _integer(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    return None
+
+
+def _severity(run: dict[str, Any], status_label: str) -> str:
+    if status_label == "corrupt":
+        return "corrupt"
+    if status_label == "missing":
+        return "missing"
+    if status_label in BLOCKED_STATUSES:
+        return "blocked"
+    if run.get("partial") is True or status_label in WARNING_STATUSES:
+        return "warning"
+    if status_label == "completed":
+        return "ok"
+    return "warning"
+
+
+def _next_action(run: dict[str, Any], severity: str) -> str:
+    explicit = _string(run.get("next_action"))
+    if explicit is not None:
+        return explicit
+    if run.get("reason") == "approval_required" and _string(run.get("plan_id")) is not None:
+        return "approve"
+    if severity in {"corrupt", "missing", "blocked"}:
+        return "inspect"
+    if severity == "warning":
+        return "verify"
+    return "idle"
+
+
+def _approval_state(run: dict[str, Any]) -> dict[str, Any]:
+    required = run.get("reason") == "approval_required"
+    return {
+        "required": required,
+        "plan_id": _string(run.get("plan_id")) if required else None,
+        "status": "pending" if required else None,
+    }
+
+
+def _rule_state(run: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "rule_schema": normalize_rule_schema(run.get("rule_schema", run.get("rsv"))),
+        "status_code": _integer(
+            run.get("iching_status_code", run.get("global_status_code", run.get("task_status_code")))
+        ),
+        "transition_action": _string(
+            run.get(
+                "iching_transition_action",
+                run.get("global_transition_action", run.get("task_transition_action")),
+            )
+        ),
+        "transition_reason": _string(
+            run.get(
+                "iching_transition_reason",
+                run.get("global_transition_reason", run.get("task_transition_reason")),
+            )
+        ),
+        "dispatch_decision": _string(
+            run.get("task_dispatch_decision", run.get("dispatch_decision", run.get("decision")))
+        ),
+    }
+
+
+def _control_state(run: dict[str, Any]) -> dict[str, Any]:
+    project_context = run.get("project_context")
+    runtime_config = run.get("runtime_config")
+    skill_context = run.get("skill_context")
+    skill_selection = run.get("skill_selection")
+    recovery_policy = run.get("recovery_policy")
+    recovery = run.get("recovery")
+
+    return {
+        "project_context_status": _first_string(
+            project_context.get("status") if isinstance(project_context, dict) else None,
+            run.get("project_context_status"),
+        ),
+        "runtime_config_status": _first_string(
+            runtime_config.get("status") if isinstance(runtime_config, dict) else None,
+            run.get("runtime_config_status"),
+        ),
+        "skill_context_status": _first_string(
+            skill_context.get("status") if isinstance(skill_context, dict) else None,
+            skill_selection.get("status") if isinstance(skill_selection, dict) else None,
+            run.get("skill_context_status"),
+        ),
+        "skill_selection_reason": _first_string(
+            skill_selection.get("selection_reason") if isinstance(skill_selection, dict) else None,
+            run.get("skill_selection_reason"),
+            run.get("ssr"),
+        ),
+        "selected_skill_count": _integer(
+            skill_selection.get("selected_count")
+            if isinstance(skill_selection, dict)
+            else run.get("selected_skill_count", run.get("ssc"))
+        ),
+        "skill_selection_sha256": _first_string(
+            skill_selection.get("selection_sha256") if isinstance(skill_selection, dict) else None,
+            run.get("skill_selection_sha256"),
+            run.get("ssh"),
+        ),
+        "recovery_action": _first_string(
+            recovery_policy.get("recommended_action") if isinstance(recovery_policy, dict) else None,
+            recovery_policy.get("action") if isinstance(recovery_policy, dict) else None,
+            recovery.get("recommended_action") if isinstance(recovery, dict) else None,
+            recovery.get("action") if isinstance(recovery, dict) else None,
+            run.get("recovery_action"),
+        ),
+    }
+
+
+def _delivery_state(run: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": _string(run.get("delivery_status")),
+        "next_action": _string(run.get("next_action")),
+        "requested_count": _integer(run.get("requested_count")),
+        "completed_count": _integer(run.get("completed_count")),
+        "skipped_count": _integer(run.get("skipped_count")),
+        "failed_count": _integer(run.get("failed_count")),
+    }
+
+
+def _balance_state(run: dict[str, Any]) -> dict[str, Any]:
+    summary = run.get("balance_mutation_summary")
+    if not isinstance(summary, dict):
+        try:
+            summary = decode_balance_mutation_tuple(run.get("bm")) or {}
+        except ValueError:
+            summary = {}
+    changed_bands = summary.get("changed_bands")
+    if not isinstance(changed_bands, list) or not all(isinstance(band, str) for band in changed_bands):
+        changed_bands = []
+    return {
+        "changed_asset_count": _integer(summary.get("changed_asset_count")),
+        "changed_line_count": _integer(summary.get("total_changed_line_count")),
+        "changed_bands": changed_bands,
+        "before_status_code": _integer(summary.get("latest_before_status_code")),
+        "after_status_code": _integer(summary.get("latest_after_status_code")),
+    }
+
+
+def _evidence_ref(run: dict[str, Any]) -> dict[str, Any]:
+    ledger_path = _string(run.get("ledger_path"))
+    manifest_path = _string(run.get("manifest_path"))
+    trace_path = _string(run.get("trace_path"))
+    wal_path = _string(run.get("wal_path"))
+    mode = _string(run.get("evidence_mode"))
+    if mode not in {"wal", "full"}:
+        if wal_path is not None:
+            mode = "wal"
+        elif ledger_path is not None or manifest_path is not None:
+            mode = "full"
+        else:
+            mode = "unknown"
+    return {
+        "mode": mode,
+        "ledger_path": ledger_path,
+        "manifest_path": manifest_path,
+        "trace_path": trace_path,
+        "wal_path": wal_path,
+        "corrupt_path": _string(run.get("corrupt_path")),
+        "profile_sha256": _string(run.get("profile_sha256")),
+    }
+
+
+def _compact_message(
+    run: dict[str, Any],
+    status_label: str,
+    severity: str,
+    next_action: str,
+    evidence_ref: dict[str, Any],
+    rule_state: dict[str, Any],
+) -> str:
+    run_id = _string(run.get("run_id")) or "unknown-run"
+    parts = [f"OneCode run {run_id}: {status_label}", f"severity={severity}"]
+    action = rule_state.get("transition_action")
+    if action is not None:
+        parts.append(f"action={action}")
+    reason = _string(run.get("reason")) or _string(run.get("corrupt_reason")) or rule_state.get("transition_reason")
+    if reason is not None:
+        parts.append(f"reason={reason}")
+    parts.append(f"next={next_action}")
+    evidence_mode = evidence_ref.get("mode")
+    if evidence_mode is not None:
+        parts.append(f"evidence={evidence_mode}")
+    return "; ".join(parts)

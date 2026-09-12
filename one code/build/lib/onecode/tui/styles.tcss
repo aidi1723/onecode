@@ -1,0 +1,73 @@
+/* OneCode TUI - Claude Code inspired terminal chat */
+
+Screen {
+    background: #1f2633;
+    color: #e8e8e8;
+}
+
+#chat-log {
+    height: 1fr;
+    padding: 1 2 0 2;
+    scrollbar-size: 1 1;
+    background: #1f2633;
+}
+
+#input {
+    dock: bottom;
+    margin: 0 2 1 2;
+    border: tall #8f9299;
+    padding: 0 1;
+    height: 3;
+    background: #1f2633;
+    color: #e8e8e8;
+}
+
+#input:focus {
+    border: tall #f27954;
+}
+
+WelcomePanel {
+    height: auto;
+    margin: 0 0 1 0;
+    padding: 1 2;
+    border: round #f27954;
+    background: #1f2633;
+    color: #e8e8e8;
+}
+
+UserMessage {
+    height: auto;
+    margin: 1 0 0 0;
+    padding: 0 1;
+    color: #f1f1f1;
+    background: #1f2633;
+}
+
+AssistantMessage {
+    height: auto;
+    margin: 1 0 1 1;
+    padding: 1 2;
+    background: #252d3b;
+    border-left: thick #f27954;
+    color: #e8e8e8;
+}
+
+SystemMessage {
+    height: auto;
+    margin: 1 0 0 1;
+    padding: 0 1;
+    color: #a9abb2;
+    background: #1f2633;
+}
+
+Divider {
+    height: 1;
+    margin: 0 2;
+    color: #8f9299;
+    background: #1f2633;
+}
+
+Footer {
+    background: #1b212c;
+    color: #a9abb2;
+}

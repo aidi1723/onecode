@@ -148,7 +148,7 @@ not yet force all kernel execution paths through Docker.
 
 Shell-facing adapters should consume `shell_projection` instead of inferring
 status from raw kernel evidence. The current projection schema is versioned as
-`version: 4` and exposes:
+`version: 5` and exposes:
 
 - `status_label`, `severity`, `next_action`, and `compact_message` for concise
   UI/CLI rendering
@@ -179,12 +179,12 @@ GET /v1/onecode/shell/schema
 Authorization: Bearer <ONECODE_API_TOKEN>
 ```
 
-Versioned public fixtures are installed in `onecode.contracts`. Python adapters
-can call `load_shell_projection_v4_schema()` and
-`load_shell_projection_v4_cases()` to validate exact v4 compatibility. These
-fixtures are read-only output contracts; runtime severity, next action,
-transition, dispatch, and safety decisions must continue to come from the
-kernel and shell projection code rather than from fixture data.
+Versioned public fixtures are installed in `onecode.contracts`. The current
+shell projection schema is `version: 5`. Versioned fixtures are installed in
+`onecode.contracts`: use `load_shell_projection_v5_schema()` and
+`load_shell_projection_v5_cases()` for the current contract. The v4 loaders
+remain available for exact legacy fixture validation; they do not imply that
+current runtime output is still v4. Runtime decisions remain kernel-owned.
 
 The existing read-only CLI commands `inspect`, `list-runs`, `doctor`,
 `math-audit`, and `shell-schema` are registered and dispatched by the focused

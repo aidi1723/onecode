@@ -15,6 +15,24 @@ from onecode.kernel.checkpoint import sha256_file
 
 
 class PatchingTests(unittest.TestCase):
+    def test_commit_patch_rejects_protected_path_aliases(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "nested").mkdir()
+            (workspace / ".github/workflows").mkdir(parents=True)
+            (workspace / "alias").symlink_to(".github", target_is_directory=True)
+            for requested, canonical in (("nested/../.env", ".env"),
+                                         ("alias/workflows/ci.yml", ".github/workflows/ci.yml")):
+                with self.subTest(requested=requested):
+                    target = workspace / canonical
+                    target.write_text("original", encoding="utf-8")
+                    result = commit_patch(workspace, PatchIntent(
+                        path=requested, search_block="original", replace_block="forbidden",
+                    ))
+                    self.assertEqual(result["status"], "halted")
+                    self.assertEqual(result["reason"], "sovereignty_breach")
+                    self.assertEqual(target.read_text(encoding="utf-8"), "original")
+
     def test_apply_patch_preview_replaces_unique_block_in_memory_only(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

@@ -8,6 +8,10 @@ from pathlib import Path
 
 REQUIRED_ASSETS = {
     "onecode/tui/styles.tcss",
+    "onecode/contracts/shell_projection_v4_schema.json",
+    "onecode/contracts/shell_projection_v4_cases.json",
+    "onecode/contracts/shell_projection_v5_schema.json",
+    "onecode/contracts/shell_projection_v5_cases.json",
 }
 
 
