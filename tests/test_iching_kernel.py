@@ -45,13 +45,17 @@ class TestIchingKernel(unittest.TestCase):
 
         opposite = IchingKernel.opposite_hexagram(status)
         inverse = IchingKernel.inverse_hexagram(status)
+        exchange = IchingKernel.exchange_hexagram(status)
 
         self.assertEqual(opposite, status ^ 0b111111)
         self.assertEqual(IchingKernel.opposite_hexagram(opposite), status)
         self.assertEqual(inverse, 0b110001)
         self.assertEqual(IchingKernel.inverse_hexagram(inverse), status)
+        self.assertEqual(exchange, 0b011100)
+        self.assertEqual(IchingKernel.exchange_hexagram(exchange), status)
         self.assertEqual(IchingKernel.perspective_profile(status)["opposite_status_code"], opposite)
         self.assertEqual(IchingKernel.perspective_profile(status)["inverse_status_code"], inverse)
+        self.assertEqual(IchingKernel.perspective_profile(status)["exchange_status_code"], exchange)
 
     def test_cross_cutting_profile_exposes_position_correspondence_virtue_and_perspective(self):
         status = IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)
@@ -285,7 +289,7 @@ class TestIchingKernel(unittest.TestCase):
                     "role": "agent",
                     "line_indexes": [2, 3],
                     "bits": 0b10,
-                    "symbol": "shao_yin",
+                    "symbol": "shao_yang",
                     "yang_count": 1,
                     "yin_count": 1,
                     "balance": "balanced",
@@ -310,7 +314,9 @@ class TestIchingKernel(unittest.TestCase):
 
     def test_named_projection_helpers_match_existing_kernel_conventions(self):
         self.assertEqual(IchingKernel.four_symbol_for_pair(0b00), "tai_yin")
-        self.assertEqual(IchingKernel.four_symbol_for_pair(0b01), "shao_yang")
+        self.assertEqual(IchingKernel.four_symbol_for_pair(0b01), "shao_yin")
+        self.assertEqual(IchingKernel.four_symbol_for_pair(0b10), "shao_yang")
+        self.assertEqual(IchingKernel.four_symbol_for_pair(0b11), "tai_yang")
         self.assertEqual(IchingKernel.hexagram_status(IchingKernel.QIAN, IchingKernel.DUI), 0b111011)
         record = IchingKernel.trigram_for_bits(0b101)
         self.assertEqual(record["trigram"], IchingKernel.LI)
@@ -465,12 +471,12 @@ class TestIchingKernel(unittest.TestCase):
             IchingKernel.four_symbols(status),
             [
                 {"pair_index": 0, "bits": 0b00, "symbol": "tai_yin"},
-                {"pair_index": 1, "bits": 0b01, "symbol": "shao_yang"},
+                {"pair_index": 1, "bits": 0b01, "symbol": "shao_yin"},
                 {"pair_index": 2, "bits": 0b11, "symbol": "tai_yang"},
             ],
         )
 
-        self.assertEqual(IchingKernel.four_symbol_for_bits(0b10), "shao_yin")
+        self.assertEqual(IchingKernel.four_symbol_for_bits(0b10), "shao_yang")
 
     def test_liangyi_and_overlapping_four_symbol_pipeline(self):
         status = 0b111011
@@ -490,8 +496,8 @@ class TestIchingKernel(unittest.TestCase):
             IchingKernel.overlapping_four_symbols(status),
             [
                 {"window_index": 0, "bits": 0b11, "symbol": "tai_yang", "runtime_semantics": "overload_clash"},
-                {"window_index": 1, "bits": 0b01, "symbol": "shao_yang", "runtime_semantics": "safe_read_skip"},
-                {"window_index": 2, "bits": 0b10, "symbol": "shao_yin", "runtime_semantics": "write_commit"},
+                {"window_index": 1, "bits": 0b01, "symbol": "shao_yin", "runtime_semantics": "write_commit"},
+                {"window_index": 2, "bits": 0b10, "symbol": "shao_yang", "runtime_semantics": "safe_read_skip"},
                 {"window_index": 3, "bits": 0b11, "symbol": "tai_yang", "runtime_semantics": "overload_clash"},
                 {"window_index": 4, "bits": 0b11, "symbol": "tai_yang", "runtime_semantics": "overload_clash"},
             ],
@@ -1197,6 +1203,66 @@ class TestIchingKernel(unittest.TestCase):
             IchingKernel.flip_line(0b000000, -1)
         with self.assertRaises(ValueError):
             IchingKernel.flip_line(0b000000, 6)
+
+    def test_exchange_hexagram_operator_involution_and_trigram_swap(self):
+        for status_code in range(64):
+            exchanged = IchingKernel.exchange_hexagram(status_code)
+            self.assertEqual(IchingKernel.exchange_hexagram(exchanged), status_code)
+
+        for outer in range(8):
+            for inner in range(8):
+                status = IchingKernel.compute_status(outer, inner)
+                swapped = IchingKernel.exchange_hexagram(status)
+                self.assertEqual(swapped, IchingKernel.compute_status(inner, outer))
+
+    def test_iterated_nuclear_attractor_theorem(self):
+        cardinal_attractors = {0, 63, 21, 42}
+        for status_code in range(64):
+            analysis = IchingKernel.nuclear_attractor(status_code)
+            self.assertLessEqual(analysis["steps_to_attractor"], 2)
+            attractor = set(analysis["attractor"])
+            self.assertTrue(attractor.issubset(cardinal_attractors))
+            if len(attractor) == 1:
+                self.assertIn(list(attractor)[0], {0, 63})
+                self.assertEqual(analysis["attractor_type"], "fixed_point")
+            else:
+                self.assertEqual(attractor, {21, 42})
+                self.assertEqual(analysis["attractor_type"], "limit_cycle")
+
+        chain_kun = IchingKernel.nuclear_chain(0)
+        self.assertEqual(chain_kun[:2], [0, 0])
+        chain_qian = IchingKernel.nuclear_chain(63)
+        self.assertEqual(chain_qian[:2], [63, 63])
+
+    def test_dayan_probability_measure_and_properties(self):
+        self.assertAlmostEqual(IchingKernel.dayan_line_probability(9), 3 / 16)
+        self.assertAlmostEqual(IchingKernel.dayan_line_probability(8), 5 / 16)
+        self.assertAlmostEqual(IchingKernel.dayan_line_probability(7), 5 / 16)
+        self.assertAlmostEqual(IchingKernel.dayan_line_probability(6), 3 / 16)
+
+        total_prob = sum(IchingKernel.dayan_line_probability(v) for v in (6, 7, 8, 9))
+        self.assertAlmostEqual(total_prob, 1.0)
+
+        yang_prob = IchingKernel.dayan_line_probability(9) + IchingKernel.dayan_line_probability(7)
+        yin_prob = IchingKernel.dayan_line_probability(6) + IchingKernel.dayan_line_probability(8)
+        self.assertAlmostEqual(yang_prob, 0.5)
+        self.assertAlmostEqual(yin_prob, 0.5)
+
+        with self.assertRaises(ValueError):
+            IchingKernel.dayan_line_probability(5)
+
+    def test_kl_divergence_uniform_information_measure(self):
+        self.assertEqual(IchingKernel.kl_divergence_uniform([]), 0.0)
+
+        single = [42, 42, 42]
+        self.assertAlmostEqual(IchingKernel.kl_divergence_uniform(single), 6.0)
+
+        all_states = list(range(64))
+        self.assertAlmostEqual(IchingKernel.kl_divergence_uniform(all_states), 0.0)
+
+        entropy_info = IchingKernel.state_distribution_entropy(single)
+        self.assertIn("kl_divergence_uniform", entropy_info)
+        self.assertAlmostEqual(entropy_info["kl_divergence_uniform"], 6.0)
 
 
 if __name__ == "__main__":

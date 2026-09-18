@@ -9,11 +9,11 @@ A practical guide for debugging and understanding OneCode's I Ching-based state 
 | **0** | 0x00 | Kun/Kun ☷☷ | Discover | rule_gap_requires_discovery | Pure yin state, no yang activity. System needs to discover next action. |
 | **17** | 0x11 | Kan/Gen ☵☶ | Checkpoint | network_water_preserves_resume_seed | Water over mountain. Network operation timed out, preserve state for resume. |
 | **32** | 0x20 | Gen/Kun ☶☷ | Checkpoint | mountain_contains_local_executor_fault | Mountain over earth. Local execution issue, checkpoint for investigation. |
-| **35** | 0x23 | Zhen/Xun ☳☴ | Cooldown | yang_overload_cooldown | Wood over wood with high yang. System throttling to prevent overload. |
-| **39** | 0x27 | Zhen/Qian ☳☰ | Cooldown | yang_overload_cooldown | Wood over metal, pure yang. Excessive yang pressure requires cooldown. |
+| **35** | 0x23 | Gen/Dui ☶☱ | Accelerate | generating_relation_accelerates_execution | Mountain over lake. Earth generates metal, harmonious acceleration. |
+| **39** | 0x27 | Gen/Qian ☶☰ | Accelerate | generating_relation_accelerates_execution | Mountain over heaven. Earth generates metal, supporting decisive progress. |
 | **40** | 0x28 | Li/Kun ☲☷ | Halt | sovereignty_fire_boundary_halt | Fire over earth. Path traversal or sovereignty breach detected. |
 | **42** | 0x2A | Li/Gen ☲☶ | Halt | sovereignty_fire_boundary_halt | Fire over mountain. Security violation, hard halt. |
-| **49** | 0x31 | Dui/Gen ☱☶ | Continue | metal_generates_earth_stable_continue | Metal over earth. Generation cycle, stable execution. |
+| **49** | 0x31 | Xun/Zhen ☴☳ | Continue | (same element) | Wind over thunder. Wood resonates with wood, balanced same-element continuation. |
 | **63** | 0x3F | Qian/Qian ☰☰ | Cooldown | yang_overload_cooldown | Pure yang state (6 yang lines). Maximum yang pressure. |
 
 ## Trigram Reference
@@ -24,12 +24,12 @@ A practical guide for debugging and understanding OneCode's I Ching-based state 
 |--------|------|---------|--------|---------|--------|----------|
 | ☰ | Qian | 乾 | 111 | Metal | Creative, heaven, strong | Outer/Inner |
 | ☷ | Kun | 坤 | 000 | Earth | Receptive, earth, yielding | Outer/Inner |
-| ☳ | Zhen | 震 | 100 | Wood | Arousing, thunder, movement | Outer/Inner |
+| ☳ | Zhen | 震 | 001 | Wood | Arousing, thunder, movement | Outer/Inner |
 | ☵ | Kan | 坎 | 010 | Water | Abysmal, water, danger | Outer/Inner |
-| ☶ | Gen | 艮 | 001 | Earth | Keeping still, mountain | Outer/Inner |
-| ☴ | Xun | 巽 | 011 | Wood | Gentle, wind, penetrating | Outer/Inner |
+| ☶ | Gen | 艮 | 100 | Earth | Keeping still, mountain | Outer/Inner |
+| ☴ | Xun | 巽 | 110 | Wood | Gentle, wind, penetrating | Outer/Inner |
 | ☲ | Li | 离 | 101 | Fire | Clinging, fire, clarity | Outer/Inner |
-| ☱ | Dui | 兑 | 110 | Metal | Joyful, lake, pleasure | Outer/Inner |
+| ☱ | Dui | 兑 | 011 | Metal | Joyful, lake, pleasure | Outer/Inner |
 
 ### Trigram to Element Mapping
 
@@ -94,8 +94,8 @@ Metal controls Wood   (axe cuts)
 
 4. Check five-element relation:
    Outer (Fire) vs Inner (Earth)
-   Fire generates Earth? No.
-   Fire controls Earth? No, but fire is above earth (sovereignty context)
+   Fire generates Earth (generating cycle), BUT sovereignty hard boundary has higher priority:
+   Fire over earth with sovereignty boundary breach overrides generation and triggers hard halt.
 
 5. Apply decision priority:
    - Hard safety check first
@@ -165,21 +165,21 @@ Run failed or unexpected status?
 
 ## Practical Examples
 
-### Example 1: Normal Completion (Status 39)
+### Example 1: Pure Yang Cooldown (Status 63)
 
 ```json
 {
   "status": "completed",
-  "iching_status_code": 39,
+  "iching_status_code": 63,
   "iching_profile": {
     "inner_trigram": "qian",
-    "outer_trigram": "zhen",
+    "outer_trigram": "qian",
     "inner_element": "metal",
-    "outer_element": "wood",
+    "outer_element": "metal",
     "yin_yang_profile": {
-      "yang_count": 5,
-      "yin_count": 1,
-      "pressure": "yang_heavy"
+      "yang_count": 6,
+      "yin_count": 0,
+      "balance": "pure_yang"
     },
     "transition_action": "cooldown",
     "transition_reason": "yang_overload_cooldown"
@@ -187,32 +187,31 @@ Run failed or unexpected status?
 }
 ```
 
-**Interpretation**: Task completed but triggered cooldown due to high yang pressure (5 out of 6 lines). System is throttling to prevent overload.
+**Interpretation**: Task reached maximum yang capacity (all 6 yang lines). System deterministically triggers cooldown to stabilize execution.
 
-### Example 2: Resume Skip (Status 35)
+### Example 2: Harmonious Progression (Status 39)
 
 ```json
 {
-  "status": "skipped",
-  "reason": "resumed_asset_ready",
-  "iching_status_code": 35,
+  "status": "accelerate",
+  "iching_status_code": 39,
   "iching_profile": {
-    "inner_trigram": "xun",
-    "outer_trigram": "zhen",
-    "inner_element": "wood",
-    "outer_element": "wood",
+    "inner_trigram": "qian",
+    "outer_trigram": "gen",
+    "inner_element": "metal",
+    "outer_element": "earth",
     "yin_yang_profile": {
       "yang_count": 4,
       "yin_count": 2,
-      "pressure": "balanced_yang_lean"
+      "balance": "balanced"
     },
-    "transition_action": "cooldown",
-    "transition_reason": "yang_overload_cooldown"
+    "transition_action": "accelerate",
+    "transition_reason": "generating_relation_accelerates_execution"
   }
 }
 ```
 
-**Interpretation**: Asset was already ready from previous run (resumed), so execution was skipped. Status 35 indicates balanced state with slight yang lean, but still triggering cooldown to be cautious.
+**Interpretation**: Outer Earth generates Inner Metal (土生金, Gen/Qian 山天大畜). The generating relation between outer context and inner state accelerates progress.
 
 ### Example 3: Sovereignty Breach (Status 40)
 

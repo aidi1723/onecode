@@ -13,11 +13,11 @@ actions and dispatch decisions.
   - Example: 0b101000 = outer Li (fire) over inner Kun (earth)
 
 **Trigram → Element Mapping**:
-  - Qian (乾 111), Dui (兑 110) → metal
-  - Zhen (震 100), Xun (巽 011) → wood
+  - Qian (乾 111), Dui (兑 011) → metal
+  - Zhen (震 001), Xun (巽 110) → wood
   - Kan (坎 010) → water
   - Li (离 101) → fire
-  - Kun (坤 000), Gen (艮 001) → earth
+  - Kun (坤 000), Gen (艮 100) → earth
 
 **Five-Element Relations Drive Transitions**:
   - Generation cycle: wood→fire→earth→metal→water (accelerate/continue)
@@ -91,15 +91,26 @@ class IchingKernel:
     RESPONSE_PAIRS = ((0, 3), (1, 4), (2, 5))
     FOUR_SYMBOLS = {
         0b00: "tai_yin",
-        0b01: "shao_yang",
-        0b10: "shao_yin",
+        0b01: "shao_yin",
+        0b10: "shao_yang",
         0b11: "tai_yang",
     }
     FOUR_SYMBOL_RUNTIME_SEMANTICS = {
         "tai_yin": "halted",
-        "shao_yang": "safe_read_skip",
         "shao_yin": "write_commit",
+        "shao_yang": "safe_read_skip",
         "tai_yang": "overload_clash",
+    }
+    # Classical Da Yan (大衍之数) discrete stalk probability measure:
+    # 9 (Old Yang, moving): 3/16 (0.1875)
+    # 8 (Young Yin, static): 5/16 (0.3125)
+    # 7 (Young Yang, static): 5/16 (0.3125)
+    # 6 (Old Yin, moving): 3/16 (0.1875)
+    DAYAN_PROBABILITIES = {
+        9: 3 / 16,
+        8: 5 / 16,
+        7: 5 / 16,
+        6: 3 / 16,
     }
     DIMENSION_LABELS = {
         1: "liangyi",
@@ -329,6 +340,13 @@ class IchingKernel:
     @classmethod
     def four_symbol_for_bits(cls, bits: int) -> str:
         return cls.FOUR_SYMBOLS[bits & 0b11]
+
+    @classmethod
+    def dayan_line_probability(cls, value: int) -> float:
+        """Return the classical Da Yan stalk probability for line value in {6, 7, 8, 9}."""
+        if value not in cls.DAYAN_PROBABILITIES:
+            raise ValueError(f"Invalid Da Yan line value: {value!r}, must be in {{6, 7, 8, 9}}")
+        return cls.DAYAN_PROBABILITIES[value]
 
     @classmethod
     def four_symbols(cls, status_code: int) -> list[dict[str, int | str]]:
@@ -817,7 +835,13 @@ class IchingKernel:
     @classmethod
     def state_distribution_entropy(cls, status_codes: list[int]) -> dict[str, float | int | dict[int, float]]:
         if not status_codes:
-            return {"entropy": 0.0, "max_entropy": 0.0, "unique_state_count": 0, "distribution": {}}
+            return {
+                "entropy": 0.0,
+                "max_entropy": 0.0,
+                "unique_state_count": 0,
+                "distribution": {},
+                "kl_divergence_uniform": 0.0,
+            }
         counts: dict[int, int] = {}
         for status_code in status_codes:
             normalized = status_code & 0b111111
@@ -826,12 +850,29 @@ class IchingKernel:
         distribution = {status_code: count / total for status_code, count in sorted(counts.items())}
         entropy = -sum(probability * math.log2(probability) for probability in distribution.values())
         max_entropy = math.log2(len(distribution)) if distribution else 0.0
+        kl_divergence = max(0.0, 6.0 - entropy)
         return {
             "entropy": entropy,
             "max_entropy": max_entropy,
             "unique_state_count": len(distribution),
             "distribution": distribution,
+            "kl_divergence_uniform": kl_divergence,
         }
+
+    @classmethod
+    def kl_divergence_uniform(cls, status_codes: list[int]) -> float:
+        """Calculate the Kullback-Leibler divergence D_KL(P || U_64) to the uniform prior on Q_6.
+
+        D_KL(P || U_64) = log2(64) - H(P) = 6.0 - H(P)
+        where H(P) is the empirical Shannon entropy in bits.
+        Range: [0.0, 6.0] bits.
+        - 0.0 bits: Perfectly uniform distribution across all 64 states.
+        - 6.0 bits: Fully deterministic distribution on a single state (H = 0).
+        """
+        if not status_codes:
+            return 0.0
+        entropy_info = cls.state_distribution_entropy(status_codes)
+        return float(entropy_info["kl_divergence_uniform"])
 
     @classmethod
     def transition_graph(cls) -> dict[int, int]:
@@ -1363,6 +1404,49 @@ class IchingKernel:
         }
 
     @classmethod
+    def nuclear_chain(cls, status_code: int, max_steps: int = 4) -> list[int]:
+        """Generate the iterated nuclear hexagram sequence starting from status_code."""
+        chain = [status_code & 0b111111]
+        for _ in range(max_steps):
+            nxt = cls.nuclear_hexagram(chain[-1])
+            chain.append(nxt)
+            if len(chain) >= 2 and nxt == chain[-2]:
+                break
+        return chain
+
+    @classmethod
+    def nuclear_attractor(cls, status_code: int) -> dict[str, object]:
+        """Analyze the attractor of the iterated nuclear hexagram mapping.
+
+        Mathematical Theorem:
+        Every hexagram S in Q_6 converges in at most 2 iterations of nuclear_hexagram
+        to one of the four cardinal attractors:
+        - Fixed points: 0 (Kun 坤) or 63 (Qian 乾)
+        - 2-cycle: {21 (Wei Ji 未济), 42 (Ji Ji 既济)}
+        """
+        chain = [status_code & 0b111111]
+        seen = {chain[0]: 0}
+        current = chain[0]
+        while True:
+            nxt = cls.nuclear_hexagram(current)
+            if nxt in seen:
+                cycle_start = seen[nxt]
+                cycle = chain[cycle_start:]
+                break
+            seen[nxt] = len(chain)
+            chain.append(nxt)
+            current = nxt
+
+        attractor_type = "fixed_point" if len(cycle) == 1 else "limit_cycle"
+        return {
+            "initial_status_code": status_code & 0b111111,
+            "chain": chain,
+            "steps_to_attractor": cycle_start,
+            "attractor": cycle,
+            "attractor_type": attractor_type,
+        }
+
+    @classmethod
     def opposite_hexagram(cls, status_code: int) -> int:
         return (status_code & 0b111111) ^ 0b111111
 
@@ -1372,16 +1456,32 @@ class IchingKernel:
         return cls.state_for_bits(list(reversed(bits)))
 
     @classmethod
+    def exchange_hexagram(cls, status_code: int) -> int:
+        """Trigram exchange operator (交卦 / 上下易位).
+
+        Swaps the outer (upper) and inner (lower) trigrams.
+        This forms the fourth cardinal hexagram involution alongside
+        opposite (错卦) and inverse (综卦).
+        """
+        normalized = status_code & 0b111111
+        inner = normalized & 0b111
+        outer = (normalized >> 3) & 0b111
+        return (inner << 3) | outer
+
+    @classmethod
     def perspective_profile(cls, status_code: int) -> dict[str, int | str]:
         normalized = status_code & 0b111111
         opposite = cls.opposite_hexagram(normalized)
         inverse = cls.inverse_hexagram(normalized)
+        exchange = cls.exchange_hexagram(normalized)
         return {
             "status_code": normalized,
             "opposite_status_code": opposite,
             "opposite_binary": format(opposite, "06b"),
             "inverse_status_code": inverse,
             "inverse_binary": format(inverse, "06b"),
+            "exchange_status_code": exchange,
+            "exchange_binary": format(exchange, "06b"),
         }
 
     @classmethod

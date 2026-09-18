@@ -79,6 +79,19 @@ P(H) = product_i P(X_i)
 
 This maps directly to OneCode's existing six-bit `status_code` surface.
 
+### Classical Da Yan Discrete Measure
+
+In classical Zhouyi stalk divination (大衍筮法), three recursive division operations yield four line values in `{6, 7, 8, 9}`:
+- Old Yang (老阳, 9, moving yang): `P(9) = 3/16 = 0.1875`
+- Young Yin (少阴, 8, static yin): `P(8) = 5/16 = 0.3125`
+- Young Yang (少阳, 7, static yang): `P(7) = 5/16 = 0.3125`
+- Old Yin (老阴, 6, moving yin): `P(6) = 3/16 = 0.1875`
+
+Key properties:
+- Marginal Yin/Yang balance: `P(Yang) = P(9) + P(7) = 8/16 = 0.5`, `P(Yin) = P(8) + P(6) = 8/16 = 0.5`.
+- Mutation rate: `P(Moving) = P(6) + P(9) = 6/16 = 37.5%`, `P(Static) = 62.5%`.
+- In OneCode, this provides an authentic discrete prior weighting alongside the standard symmetric Bernoulli coin model.
+
 ## Wuxing Transition Matrix
 
 Five-element dynamics can be modeled as a finite Markov transition matrix.
@@ -121,26 +134,28 @@ fire  -> metal
 metal -> wood
 ```
 
-The dynamic state distribution after `n` steps is:
+The dynamic state distribution row vector `pi(t) in R^{1 x 5}` after `n` steps evolves as:
 
 ```text
-P(t+n) = P(t) * M^n
+pi(t+n) = pi(t) * M^n
 ```
 
 ## Combined State Formula
 
-The combined discrete state prior can be written as:
+The combined discrete state prior couples the hexagram bit configuration `H in {0, 1}^6` with the five-element dynamic state `V_j in V`:
 
 ```text
-P(State_t) = product_i P(X_i) * M^t
+pi_t = pi_0 * M^t
+P(State_t = (H, V_j)) = P(H) * (pi_t)_j = [product_{i=1}^6 P(X_i)] * (pi_t)_j
 ```
 
 Interpretation:
 
-- `product_i P(X_i)` is the static discrete state path probability.
-- `M^t` is the time-evolution transition pressure.
+- `product_{i=1}^6 P(X_i)` is the static discrete hexagram path probability under the chosen line measure (Bernoulli or Da Yan).
+- `pi_t = pi_0 * M^t` is the time-evolved five-element state probability distribution vector.
+- `(pi_t)_j` is the dynamic transition weight of the active element `V_j`.
 
-This formula describes a state prior, not a direct next-token distribution.
+This formalization guarantees dimensional consistency: a scalar probability is modulated by the corresponding element state distribution weight.
 
 ## Relationship To Next-Token Prediction
 
