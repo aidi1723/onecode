@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-09-28 - YiZiJue control-plane closeout
+
+The kernel can now project a hexagram code and closed facts onto one gateway
+action, and the local YiZiJue service decides before generation. This release
+does not connect that decision to ledger or sandbox execution.
+
+### Added
+
+- `project_gateway(status_code, facts)` in `src/onecode/kernel/project_gateway.py`.
+  `100001` is `SOVEREIGNTY_HALT`. `111111` allows a write or a patch only with a
+  workspace-relative path. Other unpinned pairs return `DENY_AND_LEDGER`.
+  The function does not call `IchingKernel.transition()`.
+- `prompt_rules.py` for pre-generation decisions: legacy dangerous text, hosts
+  combined with a stronger marker, vague requests, curl pipes, and host
+  execution (a shell intent together with `/tmp/`, `/etc/`, `/var/`, or `/home/`).
+  A plain pytest request stays `RUN_VERIFIER_IN_SANDBOX`.
+- `allow_evidence.py` to attach SHA-256 evidence for an allow. A relative write
+  records the content digest. A patch records pre and post digests only when the
+  workspace file contains the search block exactly once, and the file is not
+  written back. Absolute paths, missing content, a missing patch file, and a
+  non-unique search block deny.
+- `collapse_decision.py` for the frozen linear head: unseen or flat states fall
+  back to `000000`, and a named action is not sent back through generation.
+- `scripts/hexagram_gateway_comparison.py` prints the 64-code symbolic,
+  permission, and gateway comparison.
+- `docs/2026-09-28-yizijue-closeout.md` records the measured service behavior.
+
+### Verification
+
+- `PYTHONPATH=src python3 -m unittest tests.test_project_gateway tests.test_prompt_rules tests.test_collapse_decision tests.test_allow_evidence`: 25 passed.
+- On 2026-09-28, with the collapse head loaded at `127.0.0.1:8090`, warm rule
+  decisions returned in 0.09–0.15 ms and collapse-head decisions in 26–30 ms.
+  Named actions did not enter full decoding. The server was stopped after the
+  sample. A 3-minute-41-second residency used about 1387 MB, of which about
+  1186 MB was graphics memory.
+
 ## Unreleased - 2026-09-01 - Comprehensive Audit Remediation
 
 Closes all six high- and medium-priority items from

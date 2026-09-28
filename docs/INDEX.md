@@ -14,6 +14,7 @@ OneCode uses an I Ching (易经) based state system for deterministic control fl
 
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Visual diagrams and architecture overview (START HERE)
 - **[ICHING_QUICKREF.md](ICHING_QUICKREF.md)** - Quick reference for debugging status codes
+- **[2026-09-28 YiZiJue closeout](2026-09-28-yizijue-closeout.md)** - Local action-decision closeout, latency, and boundaries
 
 ### Core Concepts
 - [I Ching Complete Rule Kernel](superpowers/specs/2026-05-28-onecode-v0.5-iching-complete-rule-kernel-design.md) - Mathematical foundation: six-line encoding, four symbols, trigrams, 64 states
