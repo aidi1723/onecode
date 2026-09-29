@@ -159,7 +159,7 @@ echo "fake python check: $*"
 
         self.assertIn('PYTHON_BIN="${PYTHON:-}"', text)
         self.assertIn('elif [[ -z "$PYTHON_BIN" && -x ".venv/bin/python" ]]; then', text)
-        self.assertIn('"$PYTHON_BIN" -m pip install -e .[tui]', text)
+        self.assertIn('"$PYTHON_BIN" -m pip install -e ".[tui,dev]"', text)
         self.assertIn('"$PYTHON_BIN" -m coverage run -m unittest discover -s tests -v', text)
         self.assertIn('"$PYTHON_BIN" -m ruff check src tests', text)
         self.assertIn('"$PYTHON_BIN" -m mypy', text)

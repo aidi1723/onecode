@@ -78,4 +78,21 @@ def read_json_request_body(headers: Mapping[str, str], rfile: BinaryIO) -> JsonR
             error_type="invalid_json",
             error_message="request body must be a JSON object",
         )
+    if _contains_null(value):
+        return JsonRequestBody(
+            payload=None,
+            status_code=400,
+            error_type="invalid_request_body",
+            error_message="request body contains a null byte",
+        )
     return JsonRequestBody(payload=value)
+
+
+def _contains_null(value: Any) -> bool:
+    if isinstance(value, str):
+        return "\x00" in value
+    if isinstance(value, dict):
+        return any(_contains_null(key) or _contains_null(item) for key, item in value.items())
+    if isinstance(value, list):
+        return any(_contains_null(item) for item in value)
+    return False

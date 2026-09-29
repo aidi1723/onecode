@@ -43,3 +43,10 @@ def agent_cycle_decision(status: str, reason: str | None) -> dict[str, object]:
         "dispatch": dispatch,
         "cycle": cycle,
     }
+
+
+def agent_cycle_decision_for_tool(status: str, reason: str | None, *, retryable: bool = False) -> dict[str, object]:
+    """Tool-level 429 and 503 stay on the observation. They are not a run timeout."""
+    if retryable:
+        return agent_cycle_decision("completed", None)
+    return agent_cycle_decision(status, reason)

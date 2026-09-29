@@ -12,10 +12,14 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO_SRC="${REPO_ROOT}/src"
 
 echo "install"
-if PYTHONPATH="${REPO_SRC}${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -c "import onecode, textual" >/dev/null 2>&1; then
-  echo "install skipped: onecode and textual already available"
+if PYTHONPATH="${REPO_SRC}${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -c "import onecode, textual, ruff, mypy, coverage" >/dev/null 2>&1; then
+  echo "install skipped: onecode and test tools already available"
 else
-  "$PYTHON_BIN" -m pip install -e .[tui]
+  if ! "$PYTHON_BIN" -m pip install -e ".[tui,dev]"; then
+    "$PYTHON_BIN" -m venv "$REPO_ROOT/.venv"
+    PYTHON_BIN="$REPO_ROOT/.venv/bin/python"
+    "$PYTHON_BIN" -m pip install -e ".[tui,dev]"
+  fi
 fi
 
 echo "compileall"

@@ -64,6 +64,7 @@ def _run_one(
         task=task,
         workspace=workspace,
         remember=False,
+        approve=lambda tool_name, params: False,
     )
     status_code = IchingKernel.classify_outcome(result["status"], result.get("reason"))
     evidence_dir = workspace.resolve() / ".onecode" / "subagents" / agent_id

@@ -194,9 +194,15 @@ def execute_step(
                 )
             else:
                 output = tool.execute(tool_call.params, workspace)
+                status = "completed"
+                reason = None
+                if isinstance(output, dict):
+                    if output.get("status") == "halted" or output.get("returncode") not in {None, 0}:
+                        status = "halted"
+                        reason = output.get("reason") or "action_exception"
                 result = {
-                    "status": "completed",
-                    "reason": None,
+                    "status": status,
+                    "reason": reason,
                     "intent_type": tool.name,
                     "payload": output,
                     "assets": [],

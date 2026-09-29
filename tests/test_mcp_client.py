@@ -127,7 +127,12 @@ class McpClientTests(unittest.TestCase):
             allowed_calls.append((name, params))
             return {"status": "completed", "reason": None, "content": "ping"}
 
-        completed = run_agent_cycle(propose=call_then_stop, execute=run, max_turns=4)
+        completed = run_agent_cycle(
+            propose=call_then_stop,
+            execute=run,
+            approve=lambda tool_name, params: tool_name == "mcp.fixture.echo",
+            max_turns=4,
+        )
 
         self.assertEqual(blocked["reason"], "permission_denied")
         self.assertEqual(denied, ["search_text"])

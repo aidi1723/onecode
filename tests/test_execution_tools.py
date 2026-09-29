@@ -216,6 +216,33 @@ class ExecutionToolsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "argv"):
             RunCommandTool().plan_action({"command": "pwd && rm file"})
 
+    def test_unknown_patch_parameters_name_the_accepted_fields(self):
+        from onecode.kernel.execution_tools import PatchTextTool
+
+        with self.assertRaises(ValueError) as caught:
+            PatchTextTool().plan_action({"path": "stats.py", "rewrite_blocks": "[]"})
+
+        message = str(caught.exception)
+        self.assertIn("rewrite_blocks", message)
+        self.assertIn("search_block", message)
+        self.assertIn("replace_block", message)
+
+    def test_list_files_skips_onecode_metadata(self):
+        from onecode.kernel.execution_tools import ListFilesTool
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "src" / "app.py").write_text("x\n", encoding="utf-8")
+            pending = workspace / ".onecode" / "pending-cycle"
+            pending.mkdir(parents=True)
+            (pending / "secret.json").write_text("{}\n", encoding="utf-8")
+
+            listed = ListFilesTool().execute({"path": "."}, workspace)
+
+        self.assertIn("src/app.py", listed["files"])
+        self.assertFalse(any(".onecode" in path for path in listed["files"]))
+
     def test_run_command_scrubs_service_secrets_from_environment_and_evidence(self):
         from onecode.kernel.execution_tools import RunCommandTool
 
@@ -223,7 +250,7 @@ class ExecutionToolsTests(unittest.TestCase):
         script = f"import os; print(os.getenv('OPENAI_API_KEY', 'missing')); print('{secret}')"
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
             os.environ,
-            {"PATH": os.environ.get("PATH", ""), "OPENAI_API_KEY": secret},
+            {"PATH": os.environ.get("PATH", ""), "OPENAI_API_KEY": secret, "ONECODE_RUN_COMMAND_SANDBOX": "host"},
             clear=True,
         ):
             result = RunCommandTool().execute({"argv": [sys.executable, "-c", script]}, Path(tmp))

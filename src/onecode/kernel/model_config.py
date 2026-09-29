@@ -76,6 +76,10 @@ def read_bounded_response(response: Any, limit: int = MAX_RESPONSE_BYTES) -> byt
 
 
 def normalize_endpoint_url(endpoint: str) -> str:
+    if not isinstance(endpoint, str):
+        raise ValueError("endpoint is required")
+    if "\x00" in endpoint or len(endpoint) > 2_000:
+        raise ValueError("endpoint is invalid")
     value = endpoint.strip().rstrip("/")
     if value == "":
         raise ValueError("endpoint is required")
@@ -170,9 +174,14 @@ def read_model_config(*, include_secret: bool = False) -> dict[str, Any]:
             "api_key_configured": False,
             "api_key_preview": None,
         }
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
+    payload = path.read_text(encoding="utf-8")
+    try:
+        parsed = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise ValueError("model config must be a JSON object") from exc
+    if not isinstance(parsed, dict):
         raise ValueError("model config must be a JSON object")
+    payload = parsed
     api_key = payload.get("api_key") if isinstance(payload.get("api_key"), str) else ""
     result: dict[str, Any] = {
         "configured": bool(api_key and payload.get("endpoint")),

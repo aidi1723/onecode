@@ -540,6 +540,18 @@ class ToolRegistry:
         return sorted(self._tools)
 
 
+def tool_requires_approval(tool_name: str) -> bool:
+    if tool_name.startswith("mcp."):
+        server, dot, remote = tool_name.removeprefix("mcp.").partition(".")
+        return bool(dot) and _mcp_name_segment(server) and _mcp_name_segment(remote)
+    tool = default_tool_registry().get(tool_name)
+    return tool is not None and tool.requires_approval
+
+
+def _mcp_name_segment(value: str) -> bool:
+    return bool(value) and len(value) <= 64 and value.replace("-", "").replace("_", "").isalnum()
+
+
 def default_tool_registry() -> ToolRegistry:
     return ToolRegistry(
         [
@@ -600,7 +612,9 @@ def _status_code(value: Any) -> int:
 def _reject_unknown_params(params: dict[str, Any], allowed: set[str]) -> None:
     unknown = set(params) - allowed
     if unknown:
-        raise ValueError(f"unknown tool parameters: {', '.join(sorted(unknown))}")
+        rejected = ", ".join(sorted(unknown))
+        accepted = ", ".join(sorted(allowed))
+        raise ValueError(f"unknown tool parameters: {rejected}. accepted parameters: {accepted}")
 
 
 def _collect_bounded_files(
@@ -633,7 +647,7 @@ def _collect_bounded_files(
         for entry in sorted(entries, key=lambda item: item.name):
             candidate = Path(entry.path)
             relative = candidate.relative_to(root)
-            if entry.is_symlink() or PathGuard.is_sensitive_read_path(relative):
+            if entry.is_symlink() or PathGuard.is_sensitive_read_path(relative) or ".onecode" in relative.parts:
                 continue
             candidate_depth = directory_depth + 1
             try:

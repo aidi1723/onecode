@@ -773,9 +773,15 @@ def _run_agent_benchmark_task(task: BenchmarkTask, workspace: Path) -> dict[str,
         task=task.prompt,
         workspace=workspace,
         remember=False,
+        approve=_scripted_oracle_approved,
     )
     result["run_id"] = f"benchmark-{task.id}"
     return result
+
+
+def _scripted_oracle_approved(tool_name: str, params: dict[str, Any]) -> bool:
+    del tool_name, params
+    return True
 
 
 def _seed_benchmark_files(workspace: Path, files: object) -> None:

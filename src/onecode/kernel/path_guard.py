@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -7,6 +8,9 @@ from onecode.kernel.checkpoint import sha256_file
 
 class PathGuardError(ValueError):
     pass
+
+
+_INTERRUPTED_WRITE = re.compile(r"\A\..+\.[A-Za-z0-9]{8}\Z")
 
 
 class PathGuard:
@@ -26,7 +30,7 @@ class PathGuard:
 
         temp_path: Path | None = None
         try:
-            with NamedTemporaryFile("w", encoding="utf-8", dir=target.parent, delete=False) as handle:
+            with NamedTemporaryFile("w", encoding="utf-8", dir=target.parent, prefix=f".{target.name}.", delete=False) as handle:
                 temp_path = Path(handle.name)
                 handle.write(content)
                 handle.flush()
@@ -40,6 +44,22 @@ class PathGuard:
                 temp_path.unlink(missing_ok=True)
 
         return {"path": str(target), "sha256": sha256_file(target)}
+
+    @classmethod
+    def discard_interrupted_writes(cls, workspace_root: Path) -> list[str]:
+        root = workspace_root.resolve()
+        removed: list[str] = []
+        if not root.is_dir():
+            return removed
+        for directory, dirnames, filenames in os.walk(root):
+            dirnames[:] = [name for name in dirnames if name not in cls.DENIED_DIRECTORIES]
+            for name in filenames:
+                if _INTERRUPTED_WRITE.fullmatch(name) is None:
+                    continue
+                path = Path(directory) / name
+                path.unlink(missing_ok=True)
+                removed.append(path.relative_to(root).as_posix())
+        return removed
 
     @classmethod
     def resolve_target(cls, workspace_root: Path, relative_path: str) -> Path:
@@ -100,6 +120,10 @@ class PathGuard:
     def _requested_relative_path(cls, relative_path: str) -> Path:
         if not isinstance(relative_path, str) or relative_path == "":
             raise PathGuardError("path must be a non-empty relative string")
+        if "\x00" in relative_path:
+            raise PathGuardError("path contains a null byte")
+        if len(relative_path) > 4_096:
+            raise PathGuardError("path is too long")
         requested = Path(relative_path)
         if requested.is_absolute():
             raise PathGuardError("absolute paths are not allowed")

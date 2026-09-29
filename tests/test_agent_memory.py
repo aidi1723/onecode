@@ -28,7 +28,7 @@ class AgentHistoryTests(unittest.TestCase):
         def propose(history, allowed):
             seen.append(history)
             if len(seen) < 4:
-                return [{"tool_name": "read_text", "params": {"path": "README.md"}}]
+                return [{"tool_name": "read_text", "params": {"path": f"file-{len(seen)}.md"}}]
             return []
 
         def execute(tool_name, params):
@@ -73,11 +73,16 @@ class AgentMemoryTests(unittest.TestCase):
             workspace = Path(tmp)
 
             def propose(history, allowed):
+                if not history:
+                    return [{"tool_name": "read_text", "params": {"path": "README.md"}}]
                 return []
+
+            def execute(tool_name, params):
+                return {"status": "completed", "reason": None, "content": "mesh"}
 
             result = run_agent_cycle(
                 propose=propose,
-                execute=lambda tool_name, params: {},
+                execute=execute,
                 task="fix mesh",
                 workspace=workspace,
                 remember=True,

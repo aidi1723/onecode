@@ -137,6 +137,21 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(result.error_type, "invalid_request_body")
         self.assertIn("content-length", result.error_message)
 
+    def test_request_body_rejects_a_null_byte(self):
+        from io import BytesIO
+
+        from onecode.web.request_body import read_json_request_body
+
+        raw = b'{"task": "hello\\u0000"}'
+        result = read_json_request_body(
+            {"content-length": str(len(raw)), "content-type": "application/json"},
+            BytesIO(raw),
+        )
+
+        self.assertIsNone(result.payload)
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.error_type, "invalid_request_body")
+
     def test_read_json_rejects_non_json_content_type(self):
         from io import BytesIO
         from onecode.web.request_body import read_json_request_body
@@ -1023,6 +1038,41 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual((failed_status, failed_payload["status"]), (200, "halted"))
         self.assertEqual(replay_status, 409)
         self.assertEqual(replay_payload["error"]["message"], "approval_plan_already_resolved")
+
+    def test_nonzero_command_result_halts_the_approved_plan(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelExecutionStep, ModelPlan, ModelToolCall
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ), patch("onecode.kernel.execution_tools._run_command", return_value=(127, "", "not found")):
+            workspace = Path(tmp)
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(
+                    task="missing command",
+                    execution_steps=[
+                        ModelExecutionStep(
+                            id="missing",
+                            description="run missing command",
+                            tool_calls=[
+                                ModelToolCall(
+                                    tool_name="run_command",
+                                    params={"argv": ["onecode-command-that-does-not-exist"]},
+                                )
+                            ],
+                        )
+                    ],
+                ),
+                model_metadata={"model": "m"},
+            )
+            payload, status = handle_onecode_plan_approval(stored.plan_id, {"workspace": tmp, "approved": True})
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["status"], "halted")
 
     def test_onecode_resume_endpoint_rejects_run_id_path_traversal(self):
         from onecode.web.api import handle_onecode_run_resume

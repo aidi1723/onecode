@@ -200,6 +200,10 @@ def validate_resource_budget(
         raise ValueError("max_actions must be positive")
     if isinstance(max_trace_bytes, bool) or not isinstance(max_trace_bytes, int) or max_trace_bytes <= 0:
         raise ValueError("max_trace_bytes must be positive")
+    if not isinstance(task, str):
+        raise ValueError("task must be a string")
+    if "\x00" in task:
+        raise ValueError("task contains a null byte")
     if len(task) > max_task_chars:
         return {
             "budget": "max_task_chars",

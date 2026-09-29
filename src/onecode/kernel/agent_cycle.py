@@ -2,19 +2,27 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from onecode.kernel.agent_memory import compact_agent_history, remember_turn
-from onecode.kernel.outcome_policy import agent_cycle_decision
+from onecode.kernel.cycle_approvals import find_pending_approval, persist_pending_approval
+from onecode.kernel.execution_tools import tool_requires_approval
+from onecode.kernel.outcome_policy import agent_cycle_decision, agent_cycle_decision_for_tool
+from onecode.kernel.path_guard import PathGuard
 
 
 READ_ONLY_TOOLS = frozenset({"read_text", "list_files", "search_text", "git_status", "git_diff", "glob_files", "outline"})
 ALL_TOOLS = READ_ONLY_TOOLS | frozenset({"write_text", "patch_text", "run_command", "git_commit"})
+OUTPUT_LIMIT = 1_500
+UNREACHABLE_NOTICE = "依赖或文件不存在，任务不可达"
 Proposal = dict[str, Any]
 Propose = Callable[[list[dict[str, Any]], frozenset[str]], list[Proposal]]
 Execute = Callable[[str, dict[str, Any]], dict[str, Any]]
+Approve = Callable[[str, dict[str, Any]], bool]
 
 
 def run_agent_cycle(
@@ -26,21 +34,41 @@ def run_agent_cycle(
     max_history_chars: int | None = None,
     workspace: Path | None = None,
     remember: bool = False,
+    approve: Approve | None = None,
+    granted_approval_ids: frozenset[str] | None = None,
 ) -> dict[str, Any]:
     if isinstance(max_turns, bool) or not isinstance(max_turns, int) or max_turns <= 0:
         raise ValueError("max_turns must be a positive integer")
+    if workspace is not None:
+        PathGuard.discard_interrupted_writes(workspace)
     history: list[dict[str, Any]] = []
     allowed = ALL_TOOLS
+    repeat = {
+        "signature": None,
+        "warned": False,
+        "output": "",
+        "miss_streak": 0,
+        "progress_output": None,
+        "retryable": False,
+        "retry_streak": 0,
+    }
+    granted = granted_approval_ids or frozenset()
     for _turn in range(max_turns):
         visible = _visible_history(task, history, max_history_chars)
         proposal = list(propose(visible, allowed) or [])
         if not proposal:
-            result = {"status": "completed", "reason": None, "turn_count": len(history) + 1, "turns": history}
-            _maybe_remember(workspace, remember, {"role": "task", "text": task}, "model_continue", result)
-            return result
-        observation = _run_proposal(proposal[:2], allowed, execute)
+            if _stop_is_success(history):
+                result = {"status": "completed", "reason": None, "turn_count": len(history) + 1, "turns": history}
+                _maybe_remember(workspace, remember, {"role": "task", "text": task}, "model_continue", result)
+                return result
+            return _halt("no_progress", history)
+        observation = _run_proposal(proposal[:2], allowed, execute, repeat, approve, workspace, granted)
         history.append(observation)
-        decision = agent_cycle_decision(observation["status"], observation["reason"])
+        decision = agent_cycle_decision_for_tool(
+            observation["status"],
+            observation["reason"],
+            retryable=observation.get("retryable") is True,
+        )
         observation["cycle"] = decision
         if decision["cycle"] == "stop":
             return _halt(observation["reason"], history)
@@ -79,7 +107,15 @@ def _maybe_remember(
         result["memory_path"] = str(workspace.resolve() / ".onecode" / "memory.jsonl")
 
 
-def _run_proposal(proposal: list[Proposal], allowed: frozenset[str], execute: Execute) -> dict[str, Any]:
+def _run_proposal(
+    proposal: list[Proposal],
+    allowed: frozenset[str],
+    execute: Execute,
+    repeat: dict[str, Any],
+    approve: Approve | None,
+    workspace: Path | None,
+    granted: frozenset[str],
+) -> dict[str, Any]:
     calls = []
     for call in proposal:
         tool_name = call.get("tool_name")
@@ -89,19 +125,244 @@ def _run_proposal(proposal: list[Proposal], allowed: frozenset[str], execute: Ex
                 "status": "halted",
                 "reason": "permission_denied",
                 "tool_name": tool_name if isinstance(tool_name, str) else "",
+                "output": "",
                 "calls": calls,
             }
+        if repeat["miss_streak"] >= 2:
+            return _no_progress(tool_name, calls)
+        gate = _approval_gate(tool_name, params, approve, calls, workspace, granted)
+        if gate is not None:
+            return gate
+        signature = _call_signature(tool_name, params)
+        if signature == repeat["signature"] and not repeat["retryable"]:
+            if repeat["warned"]:
+                return {
+                    "status": "halted",
+                    "reason": "repeated_action",
+                    "tool_name": tool_name,
+                    "notice": "repeated_action",
+                    "output": repeat["output"],
+                    "calls": calls,
+                }
+            repeat["warned"] = True
+            return {
+                "status": "completed",
+                "reason": None,
+                "tool_name": tool_name,
+                "notice": "repeated_action",
+                "output": repeat["output"],
+                "calls": calls,
+            }
+        before = _workspace_fingerprint(workspace) if workspace is not None else None
         outcome = execute(tool_name, params)
+        output = _tool_output(outcome)
         record = {
             "tool_name": tool_name,
             "status": outcome.get("status", "completed"),
             "reason": outcome.get("reason"),
+            "output": output,
         }
+        if "returncode" in outcome:
+            record["returncode"] = outcome["returncode"]
         calls.append(record)
+        repeat["signature"] = signature
+        repeat["warned"] = False
+        repeat["output"] = output
+        if outcome.get("retryable") is True:
+            record["retryable"] = True
+            repeat["retryable"] = True
+            repeat["retry_streak"] += 1
+            repeat["miss_streak"] = 0
+            repeat["progress_output"] = output
+            if repeat["retry_streak"] >= 3:
+                record["retryable"] = False
+                repeat["retryable"] = False
+                return {**record, "status": "halted", "reason": "no_progress", "calls": calls}
+        else:
+            repeat["retryable"] = False
+            repeat["retry_streak"] = 0
+            changed = workspace is None or _workspace_fingerprint(workspace) != before
+            _note_progress(repeat, record, changed)
         if record["status"] != "completed" or record["reason"] not in {None, "search_miss", "path_not_found"}:
             return {**record, "calls": calls}
     last = calls[-1]
     return {**last, "calls": calls}
+
+
+def _no_progress(tool_name: str, calls: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "status": "halted",
+        "reason": "no_progress",
+        "tool_name": tool_name,
+        "notice": "no_progress",
+        "output": UNREACHABLE_NOTICE,
+        "calls": calls,
+    }
+
+
+def _note_progress(repeat: dict[str, Any], record: dict[str, Any], fingerprint_changed: bool) -> None:
+    if _unproductive(record, fingerprint_changed, repeat.get("progress_output")):
+        repeat["miss_streak"] += 1
+    else:
+        repeat["miss_streak"] = 0
+    repeat["progress_output"] = record.get("output")
+
+
+def _unproductive(record: dict[str, Any], fingerprint_changed: bool, previous_output: object) -> bool:
+    if record.get("reason") in {"search_miss", "path_not_found"}:
+        return True
+    if record.get("tool_name") in READ_ONLY_TOOLS and record.get("output") == "" and record.get("reason") is None:
+        return True
+    if record.get("tool_name") in READ_ONLY_TOOLS or fingerprint_changed:
+        return False
+    return previous_output is None or record.get("output") == previous_output
+
+
+def _workspace_fingerprint(workspace: Path) -> str:
+    rows: list[str] = []
+    for path in sorted(workspace.rglob("*")):
+        if len(rows) >= 2_000:
+            break
+        if not path.is_file() or path.is_symlink():
+            continue
+        relative = path.relative_to(workspace).as_posix()
+        if relative.startswith(".onecode/"):
+            continue
+        try:
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError:
+            continue
+        rows.append(f"{relative}:{digest}")
+    return hashlib.sha256("\n".join(rows).encode()).hexdigest()
+
+
+def _approval_gate(
+    tool_name: str,
+    params: dict[str, Any],
+    approve: Approve | None,
+    calls: list[dict[str, Any]],
+    workspace: Path | None,
+    granted: frozenset[str],
+) -> dict[str, Any] | None:
+    if not tool_requires_approval(tool_name):
+        return None
+    if workspace is not None:
+        existing = find_pending_approval(workspace, tool_name, params)
+        if existing is not None and existing["id"] not in granted:
+            return _pending_result(existing, calls)
+    if approve is not None and approve(tool_name, params):
+        return None
+    if approve is not None:
+        return {
+            "status": "halted",
+            "reason": "permission_denied",
+            "tool_name": tool_name,
+            "output": "",
+            "calls": calls,
+        }
+    record = (
+        persist_pending_approval(workspace, tool_name, params)
+        if workspace is not None
+        else {
+            "id": "",
+            "status": "PENDING_APPROVAL",
+            "tool_name": tool_name,
+            "params": params,
+            "reason": "approval_required",
+        }
+    )
+    return _pending_result(record, calls)
+
+
+def _pending_result(record: dict[str, Any], calls: list[dict[str, Any]]) -> dict[str, Any]:
+    pending = {"tool_name": record["tool_name"], "params": record["params"]}
+    return {
+        "status": "halted",
+        "reason": "approval_required",
+        "tool_name": record["tool_name"],
+        "params": record["params"],
+        "pending": pending,
+        "pending_id": record.get("id", ""),
+        "approval_status": record.get("status", "PENDING_APPROVAL"),
+        "output": "",
+        "calls": calls,
+    }
+
+
+def _call_signature(tool_name: str, params: dict[str, Any]) -> str:
+    return json.dumps({"tool": tool_name, "params": params}, ensure_ascii=False, sort_keys=True, default=str)
+
+
+def _tool_output(outcome: dict[str, Any]) -> str:
+    chunks: list[str] = []
+    for key in ("stdout", "stderr", "diff"):
+        value = outcome.get(key)
+        if isinstance(value, str) and value:
+            chunks.append(value)
+    content = outcome.get("content")
+    if isinstance(content, str) and content:
+        chunks.append(content)
+    entries = outcome.get("entries")
+    if isinstance(entries, list) and entries:
+        chunks.append("\n".join(str(item) for item in entries[:40]))
+    paths = outcome.get("paths")
+    if isinstance(paths, list) and paths:
+        chunks.append("\n".join(str(item) for item in paths[:40]))
+    symbols = outcome.get("symbols")
+    if isinstance(symbols, list) and symbols:
+        names = [str(item.get("name")) for item in symbols if isinstance(item, dict) and item.get("name")]
+        if names:
+            chunks.append(", ".join(names))
+    matches = outcome.get("matches")
+    if isinstance(matches, list) and matches:
+        lines = []
+        for item in matches[:40]:
+            if isinstance(item, dict):
+                lines.append(f"{item.get('path', '')}:{item.get('line', '')}:{item.get('text', '')}")
+            else:
+                lines.append(str(item))
+        chunks.append("\n".join(lines))
+    text = "\n".join(chunks)
+    return _truncate(text)
+
+
+def _truncate(text: str) -> str:
+    if len(text) <= OUTPUT_LIMIT:
+        return text
+    tail_len = 480
+    for _ in range(4):
+        omitted = len(text) - (OUTPUT_LIMIT - tail_len)
+        marker = f"\n[truncated remaining={max(omitted, 0)}]\n"
+        head_len = OUTPUT_LIMIT - len(marker) - tail_len
+        if head_len < 80:
+            tail_len = max(120, tail_len - 80)
+            continue
+        omitted = len(text) - head_len - tail_len
+        marker = f"\n[truncated remaining={omitted}]\n"
+        head_len = OUTPUT_LIMIT - len(marker) - tail_len
+        if omitted == len(text) - head_len - tail_len and head_len > 0:
+            break
+    head = text[:head_len]
+    tail = text[-tail_len:]
+    omitted = len(text) - len(head) - len(tail)
+    marker = f"\n[truncated remaining={omitted}]\n"
+    if len(head) + len(marker) + len(tail) > OUTPUT_LIMIT:
+        head = text[: OUTPUT_LIMIT - len(marker) - len(tail)]
+        omitted = len(text) - len(head) - len(tail)
+        marker = f"\n[truncated remaining={omitted}]\n"
+        head = text[: OUTPUT_LIMIT - len(marker) - len(tail)]
+    return head + marker + tail
+
+
+def _stop_is_success(history: list[dict[str, Any]]) -> bool:
+    if not history:
+        return False
+    last = history[-1]
+    if last.get("retryable") is True or last.get("status") != "completed":
+        return False
+    if last.get("returncode") not in {None, 0}:
+        return False
+    return last.get("reason") in {None, "search_miss", "path_not_found"}
 
 
 def _tool_allowed(tool_name: str, allowed: frozenset[str]) -> bool:
@@ -118,10 +379,17 @@ def _mcp_segment(value: str) -> bool:
 
 
 def _halt(reason: str | None, history: list[dict[str, Any]]) -> dict[str, Any]:
-    return {
+    result = {
         "status": "halted",
         "reason": reason,
         "turn_count": len(history),
         "turns": history,
         "cycle": history[-1].get("cycle") if history else None,
     }
+    pending = history[-1].get("pending") if history else None
+    if isinstance(pending, dict):
+        result["pending"] = pending
+    if history and history[-1].get("pending_id"):
+        result["pending_id"] = history[-1]["pending_id"]
+        result["approval_status"] = history[-1].get("approval_status", "PENDING_APPROVAL")
+    return result

@@ -292,7 +292,7 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
     def classify_outcome(cls, status: str, reason: str | None) -> int:
         if reason in {"sovereignty_breach", "permission_denied"}:
             return cls.compute_status(cls.LI, cls.KUN)
-        if reason in {"malformed_input", "oversized_input", "resource_budget_exceeded"}:
+        if reason in {"malformed_input", "oversized_input", "resource_budget_exceeded", "repeated_action", "approval_required", "no_progress"}:
             return cls.compute_status(cls.LI, cls.KUN)
         if reason == "http_timeout":
             return cls.compute_status(cls.KAN, cls.ZHEN)

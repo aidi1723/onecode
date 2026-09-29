@@ -486,7 +486,11 @@ class OpenAIResponsesProvider:
         request = urllib.request.Request(
             self.endpoint,
             data=body,
-            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "onecode/0.8",
+            },
             method="POST",
         )
         try:
@@ -561,7 +565,11 @@ class OpenAIChatCompletionsProvider:
         request = urllib.request.Request(
             self.endpoint,
             data=body,
-            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "onecode/0.8",
+            },
             method="POST",
         )
         try:
