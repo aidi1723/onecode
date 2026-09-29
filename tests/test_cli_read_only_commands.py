@@ -12,7 +12,6 @@ from onecode.contracts import load_shell_projection_v4_schema
 from onecode.cli_commands.read_only import (
     READ_ONLY_COMMANDS,
     dispatch_read_only_command,
-    register_read_only_commands,
 )
 
 

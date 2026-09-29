@@ -63,6 +63,28 @@ class VerifierPolicyTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "verifier command is not allowed"):
                 load_verifier_policy(path)
 
+    def test_load_verifier_policy_rejects_python_path_impersonation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "verifiers.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "verifiers": [
+                            {
+                                "id": "python-unittest",
+                                "command": ["tools/python", "-m", "unittest", "discover", "-s", "tests"],
+                                "cwd": ".",
+                                "timeout_ms": 1000,
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "verifier command is not allowed"):
+                load_verifier_policy(path)
+
     def test_load_verifier_policy_rejects_duplicate_ids(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "verifiers.json"
@@ -150,6 +172,24 @@ class VerifierExecutionTests(unittest.TestCase):
             self.assertEqual(result.stderr_tail, "")
             self.assertRegex(result.stdout_sha256, r"^[0-9a-f]{64}$")
             self.assertRegex(result.stderr_sha256, r"^[0-9a-f]{64}$")
+
+    def test_run_verifier_does_not_inherit_secret_environment(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"OPENAI_API_KEY": "sk-secret-value"},
+            clear=False,
+        ):
+            spec = VerifierSpec(
+                id="env",
+                command=["python3", "-c", "import os; print(os.environ.get('OPENAI_API_KEY', ''))"],
+                cwd=".",
+                timeout_ms=5000,
+            )
+
+            result = run_verifier(Path(tmp), spec)
+
+        self.assertEqual(result.status, "passed")
+        self.assertNotIn("sk-secret-value", result.stdout_tail)
 
     def test_run_verifier_records_failure_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:

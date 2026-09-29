@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import hmac
 import json
+import os
 from pathlib import Path
 import re
 import secrets
@@ -10,8 +12,9 @@ from tempfile import NamedTemporaryFile
 import time
 from typing import Any
 
-from onecode.kernel.model_provider import ModelPlan, validate_model_plan
 from onecode.kernel.execution_tools import default_tool_registry
+from onecode.kernel.model_config import onecode_home
+from onecode.kernel.model_provider import ModelPlan, validate_model_plan
 
 
 PLAN_ID_PATTERN = re.compile(r"[a-f0-9]{32}\Z")
@@ -256,9 +259,27 @@ def _validated_model_metadata(value: Any) -> dict[str, Any]:
     return json.loads(encoded)
 
 
+def _plan_mac_key() -> bytes:
+    directory = onecode_home()
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / "approval-plan.key"
+    if path.is_file():
+        key = path.read_bytes()
+        if len(key) >= 32:
+            return key
+    key = secrets.token_bytes(32)
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        os.write(descriptor, key)
+        os.fchmod(descriptor, 0o600)
+    finally:
+        os.close(descriptor)
+    return key
+
+
 def _payload_sha256(payload: dict[str, Any]) -> str:
     canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return hmac.new(_plan_mac_key(), canonical.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def _atomic_write(path: Path, content: bytes) -> None:

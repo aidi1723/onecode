@@ -1,5 +1,6 @@
 import hashlib
 import json
+import shutil
 import subprocess
 import sys
 import time
@@ -7,6 +8,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from onecode.kernel.execution_tools import _command_environment
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.sandbox import SandboxConfig, run_in_sandbox
 from onecode.kernel.trace import TraceEvent, write_trace_event
@@ -38,19 +40,34 @@ ALLOWED_VERIFIER_COMMANDS = {
 PYTHON_EXECUTABLE_NAMES = {"python", "python3", Path(sys.executable).name}
 
 
+def _allowed_python_executables() -> set[Path]:
+    allowed = {Path(sys.executable).resolve()}
+    for name in ("python3", "python"):
+        found = shutil.which(name)
+        if found:
+            allowed.add(Path(found).resolve())
+    return allowed
+
+
+def _python_executable_allowed(executable: str) -> bool:
+    if not executable or "/" in executable or "\\" in executable or Path(executable).is_absolute():
+        try:
+            return Path(executable).resolve() in _allowed_python_executables()
+        except OSError:
+            return False
+    return Path(executable).name in PYTHON_EXECUTABLE_NAMES
+
+
 def verifier_command_allowed(command: list[str]) -> bool:
     command_tuple = tuple(command)
     if command_tuple in ALLOWED_VERIFIER_COMMANDS:
         return True
-    if not command:
-        return False
-    executable = Path(command[0]).name
-    if executable not in PYTHON_EXECUTABLE_NAMES:
+    if not command or not _python_executable_allowed(command[0]):
         return False
     for allowed in ALLOWED_VERIFIER_COMMANDS:
         if not allowed:
             continue
-        if Path(allowed[0]).name in PYTHON_EXECUTABLE_NAMES and tuple(command[1:]) == tuple(allowed[1:]):
+        if _python_executable_allowed(allowed[0]) and tuple(command[1:]) == tuple(allowed[1:]):
             return True
     return False
 
@@ -258,6 +275,7 @@ def run_verifier(
                 capture_output=True,
                 timeout=spec.timeout_ms / 1000,
                 check=False,
+                env=_command_environment(),
             )
             stdout = completed.stdout
             stderr = completed.stderr

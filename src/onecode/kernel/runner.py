@@ -6,6 +6,7 @@ from onecode.kernel.action_intent import ActionIntent, ActionType
 from onecode.kernel.checkpoint import validate_skill_selection, write_checkpoint, write_global_wal, write_ledger
 from onecode.kernel.context import create_context
 from onecode.kernel.hexagram import COMPLETE, IchingKernel, IchingTransition
+from onecode.kernel.outcome_policy import ready_asset_should_skip, transition_for_result
 from onecode.kernel.iching_encoding import ACTIVE_RULE_SCHEMA
 from onecode.kernel.logos_gate import LogosGate
 from onecode.kernel.path_guard import PathGuard
@@ -354,13 +355,11 @@ def should_skip_ready_asset(ready_asset: ReadyAsset | None, preflight: Any) -> b
         return False
     if preflight.decision != Decision.ALLOWED:
         return False
-    status_code = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI)
-    return IchingKernel.should_skip(status_code)
+    return ready_asset_should_skip()
 
 
 def iching_transition_for_result(gate_result: dict[str, Any]) -> IchingTransition:
-    status_code = IchingKernel.classify_outcome(gate_result["status"], gate_result["reason"])
-    return IchingKernel.transition(status_code)
+    return transition_for_result(gate_result["status"], gate_result["reason"])
 
 
 def iching_status_for_result(gate_result: dict[str, Any]) -> int:
@@ -595,43 +594,25 @@ def run_task(
         return halted_result(context, reason="run_exception", payload=error_payload(exc), trace_id=context.run_id)
 
 
-def _run_task_with_context(
-    task: str,
-    context: Any,
-    http_timeout_seconds: float,
-    simulated_action_seconds: float,
-    write_path: str | None,
-    write_content: str | None,
-    intent_type: str,
-    command: str | None,
-    write_texts: list[str] | None,
-    run_metadata: dict[str, Any] | None,
-    patch_path: str | None,
-    search_block: str | None,
-    replace_block: str | None,
-    plan_actions: list[dict[str, Any]] | None,
-    max_task_chars: int,
-    max_write_bytes: int,
-    max_actions: int,
-    max_trace_bytes: int,
-    max_run_seconds: float,
-    completed_evidence_mode: str,
-    evidence_durability: str,
-) -> dict[str, Any]:
-    if completed_evidence_mode not in {"full", "wal"}:
-        raise ValueError("completed_evidence_mode must be 'full' or 'wal'")
-    if evidence_durability not in {"strict", "relaxed"}:
-        raise ValueError("evidence_durability must be 'strict' or 'relaxed'")
-    run_started_at = time.monotonic()
-    trace_id = context.run_id
-    trace_path = context.evidence_root / "trace.jsonl"
-    trace_aggregator = TraceAggregator(trace_path)
-    defer_completed_evidence = completed_evidence_mode == "wal" and write_texts is None and plan_actions is None
-    pending_trace_events: list[TraceEvent] = []
-    pending_checkpoints: list[dict[str, Any]] = []
-    skill_selection = select_validated_skill_evidence(context.workspace_root, task)
+class _DeferredEvidence:
+    def __init__(
+        self,
+        context: Any,
+        trace_id: str,
+        trace_aggregator: TraceAggregator,
+        defer_completed_evidence: bool,
+        skill_selection: Any,
+    ) -> None:
+        self.context = context
+        self.trace_id = trace_id
+        self.trace_aggregator = trace_aggregator
+        self.defer_completed_evidence = defer_completed_evidence
+        self.skill_selection = skill_selection
+        self.pending_trace_events: list[TraceEvent] = []
+        self.pending_checkpoints: list[dict[str, Any]] = []
 
     def record_trace(
+        self,
         span_id: str,
         event_type: str,
         status: str,
@@ -640,8 +621,8 @@ def _run_task_with_context(
         duration_ms: int | None = None,
     ) -> None:
         event = TraceEvent(
-            trace_id=trace_id,
-            run_id=context.run_id,
+            trace_id=self.trace_id,
+            run_id=self.context.run_id,
             span_id=span_id,
             parent_span_id=parent_span_id,
             event_type=event_type,
@@ -649,18 +630,19 @@ def _run_task_with_context(
             payload=payload or {},
             duration_ms=duration_ms,
         )
-        if defer_completed_evidence:
-            pending_trace_events.append(event)
+        if self.defer_completed_evidence:
+            self.pending_trace_events.append(event)
         else:
-            trace_aggregator.record(event)
+            self.trace_aggregator.record(event)
 
-    def flush_deferred_trace_events() -> None:
-        for event in pending_trace_events:
-            trace_aggregator.record(event)
-        pending_trace_events.clear()
-        trace_aggregator.flush()
+    def flush_trace(self) -> None:
+        for event in self.pending_trace_events:
+            self.trace_aggregator.record(event)
+        self.pending_trace_events.clear()
+        self.trace_aggregator.flush()
 
     def record_checkpoint(
+        self,
         *,
         payload: dict[str, Any],
         status: str,
@@ -687,11 +669,11 @@ def _run_task_with_context(
             "run_control": run_control,
             "balance_mutation_summary": balance_mutation_summary,
         }
-        if defer_completed_evidence:
-            pending_checkpoints.append(checkpoint)
+        if self.defer_completed_evidence:
+            self.pending_checkpoints.append(checkpoint)
             return
         write_checkpoint(
-            context=context,
+            context=self.context,
             payload=payload,
             next_state=COMPLETE,
             status=status,
@@ -705,15 +687,15 @@ def _run_task_with_context(
             iching_profile=iching_profile,
             duration_ms=duration_ms,
             run_control=run_control,
-            skill_selection=skill_selection,
+            skill_selection=self.skill_selection,
             balance_mutation_summary=balance_mutation_summary,
         )
 
-    def flush_deferred_checkpoints() -> None:
-        for checkpoint in pending_checkpoints:
+    def flush_checkpoints(self) -> None:
+        for checkpoint in self.pending_checkpoints:
             transition = checkpoint["iching_transition"]
             write_checkpoint(
-                context=context,
+                context=self.context,
                 payload=checkpoint["payload"],
                 next_state=COMPLETE,
                 status=checkpoint["status"],
@@ -727,40 +709,58 @@ def _run_task_with_context(
                 iching_profile=checkpoint["iching_profile"],
                 duration_ms=checkpoint["duration_ms"],
                 run_control=checkpoint["run_control"],
-                skill_selection=skill_selection,
+                skill_selection=self.skill_selection,
                 balance_mutation_summary=checkpoint["balance_mutation_summary"],
             )
-        pending_checkpoints.clear()
+        self.pending_checkpoints.clear()
 
-    record_trace(
-        "run",
-        "run_started",
-        "started",
-        {"task": task, "resume_from_run_id": context.resume_from_run_id, "skill_selection": skill_selection},
-    )
-    with LogosGate(http_timeout_seconds=http_timeout_seconds) as gate:
-        intents = build_intents(
-            intent_type,
-            write_path,
-            write_content,
-            command,
-            write_texts,
-            patch_path,
-            search_block,
-            replace_block,
-            plan_actions,
+def _observe_intents(
+    task: str,
+    context: Any,
+    gate: Any,
+    intents: list[Any],
+    assets: list[dict[str, Any]],
+    observed_status_codes: list[int],
+    simulated_action_seconds: float,
+    evidence: _DeferredEvidence,
+    run_started_at: float,
+    max_trace_bytes: int,
+    max_run_seconds: float,
+    trace_path: Path,
+    skill_selection: Any,
+    trace_id: str,
+) -> dict[str, Any] | None:
+    for index, intent in enumerate(intents, start=1):
+        intent_started_at = time.monotonic()
+        tool_span_id = f"tool-{index}"
+        evidence.record_trace(
+            tool_span_id,
+            "tool_call_started",
+            "started",
+            {"tool": intent.action_type.value, "index": index},
+            parent_span_id="run",
         )
-        budget_breach = validate_resource_budget(
-            task,
-            intents,
-            max_task_chars=max_task_chars,
-            max_write_bytes=max_write_bytes,
-            max_actions=max_actions,
-            max_trace_bytes=max_trace_bytes,
+        gate_result, preflight = run_intent(task, context, gate, intent, simulated_action_seconds)
+        duration_ms = int((time.monotonic() - intent_started_at) * 1000)
+        evidence.record_trace(
+            tool_span_id,
+            "tool_call_completed",
+            gate_result["status"],
+            {
+                "tool": intent.action_type.value,
+                "index": index,
+                "reason": gate_result["reason"],
+                "decision": preflight.decision.value,
+            },
+            parent_span_id="run",
+            duration_ms=duration_ms,
         )
+        budget_breach = trace_budget_breach(trace_path, max_trace_bytes)
+        if budget_breach is None:
+            budget_breach = run_deadline_breach(run_started_at, max_run_seconds)
         if budget_breach is not None:
-            flush_deferred_trace_events()
-            flush_deferred_checkpoints()
+            evidence.flush_trace()
+            evidence.flush_checkpoints()
             return halted_result(
                 context,
                 reason="resource_budget_exceeded",
@@ -770,146 +770,121 @@ def _run_task_with_context(
                 write_checkpoint_evidence=True,
                 skill_selection=skill_selection,
             )
-        assets = []
-        observed_status_codes: list[int] = []
-
-        for index, intent in enumerate(intents, start=1):
-            intent_started_at = time.monotonic()
-            tool_span_id = f"tool-{index}"
-            record_trace(
-                tool_span_id,
-                "tool_call_started",
-                "started",
-                {"tool": intent.action_type.value, "index": index},
-                parent_span_id="run",
-            )
-            gate_result, preflight = run_intent(task, context, gate, intent, simulated_action_seconds)
-            duration_ms = int((time.monotonic() - intent_started_at) * 1000)
-            record_trace(
-                tool_span_id,
-                "tool_call_completed",
-                gate_result["status"],
-                {
-                    "tool": intent.action_type.value,
-                    "index": index,
-                    "reason": gate_result["reason"],
-                    "decision": preflight.decision.value,
-                },
-                parent_span_id="run",
-                duration_ms=duration_ms,
-            )
-            budget_breach = trace_budget_breach(trace_path, max_trace_bytes)
-            if budget_breach is None:
-                budget_breach = run_deadline_breach(run_started_at, max_run_seconds)
-            if budget_breach is not None:
-                flush_deferred_trace_events()
-                flush_deferred_checkpoints()
-                return halted_result(
-                    context,
-                    reason="resource_budget_exceeded",
-                    payload=budget_breach,
-                    trace_id=trace_id,
-                    checkpoint_intent_type="resource_budget",
-                    write_checkpoint_evidence=True,
-                    skill_selection=skill_selection,
-                )
-            raw_status_code = IchingKernel.classify_outcome(gate_result["status"], gate_result["reason"])
-            iching_transition = iching_transition_for_result(gate_result)
-            iching_profile = IchingKernel.cross_cutting_profile(iching_transition.status_code)
-            observed_status_codes.append(raw_status_code)
-            balanced_status_code = IchingKernel.apply_balanced_event(raw_status_code, gate_result["reason"] or gate_result["status"])
-            balance_mask = IchingKernel.balance_mask(raw_status_code)
-            balanced_transition = IchingKernel.transition(balanced_status_code)
-            four_symbol_balance = IchingKernel.four_symbol_balance_vector(raw_status_code)
-            run_control = IchingKernel.entropy_regulated_status(observed_status_codes)
-            global_status_code = int(run_control["status_code"])
-            global_transition = IchingKernel.transition(global_status_code)
-            run_control_payload = {
-                "global_status_code": global_status_code,
-                "global_transition_action": global_transition.action,
-                "global_transition_reason": global_transition.reason,
-                "global_entropy": run_control["entropy"],
-                "global_entropy_decision": run_control["decision"],
-                "global_entropy_reason": run_control.get("reason"),
+        raw_status_code = IchingKernel.classify_outcome(gate_result["status"], gate_result["reason"])
+        iching_transition = iching_transition_for_result(gate_result)
+        iching_profile = IchingKernel.cross_cutting_profile(iching_transition.status_code)
+        observed_status_codes.append(raw_status_code)
+        balanced_status_code = IchingKernel.apply_balanced_event(raw_status_code, gate_result["reason"] or gate_result["status"])
+        balance_mask = IchingKernel.balance_mask(raw_status_code)
+        balanced_transition = IchingKernel.transition(balanced_status_code)
+        four_symbol_balance = IchingKernel.four_symbol_balance_vector(raw_status_code)
+        run_control = IchingKernel.entropy_regulated_status(observed_status_codes)
+        global_status_code = int(run_control["status_code"])
+        global_transition = IchingKernel.transition(global_status_code)
+        run_control_payload = {
+            "global_status_code": global_status_code,
+            "global_transition_action": global_transition.action,
+            "global_transition_reason": global_transition.reason,
+            "global_entropy": run_control["entropy"],
+            "global_entropy_decision": run_control["decision"],
+            "global_entropy_reason": run_control.get("reason"),
+        }
+        balance_mutation = IchingKernel.balance_mutation_evidence(raw_status_code, balanced_status_code)
+        checkpoint_mutation_summary = balance_mutation_summary([{"balance_mutation": balance_mutation}])
+        checkpoint_payload = gate_result["payload"]
+        entry_payload = checkpoint_payload
+        if intent.action_type == ActionType.WRITE_TEXT and "sha256" in checkpoint_payload:
+            entry_payload = {**checkpoint_payload, "path": intent.payload["path"]}
+        if intent.action_type == ActionType.PATCH_TEXT and "sha256" in checkpoint_payload:
+            checkpoint_payload = {
+                **checkpoint_payload,
+                "search_block": intent.payload["search_block"],
+                "replace_block": intent.payload["replace_block"],
             }
-            balance_mutation = IchingKernel.balance_mutation_evidence(raw_status_code, balanced_status_code)
-            checkpoint_mutation_summary = balance_mutation_summary([{"balance_mutation": balance_mutation}])
-            checkpoint_payload = gate_result["payload"]
-            entry_payload = checkpoint_payload
-            if intent.action_type == ActionType.WRITE_TEXT and "sha256" in checkpoint_payload:
-                entry_payload = {**checkpoint_payload, "path": intent.payload["path"]}
-            if intent.action_type == ActionType.PATCH_TEXT and "sha256" in checkpoint_payload:
-                checkpoint_payload = {
-                    **checkpoint_payload,
-                    "search_block": intent.payload["search_block"],
-                    "replace_block": intent.payload["replace_block"],
-                }
-                entry_payload = {
-                    **checkpoint_payload,
-                    "path": intent.payload["path"],
-                }
+            entry_payload = {
+                **checkpoint_payload,
+                "path": intent.payload["path"],
+            }
 
-            record_checkpoint(
-                payload=checkpoint_payload,
-                status=gate_result["status"],
-                partial=gate_result["partial"],
-                reason=gate_result["reason"],
-                intent_type=intent.action_type.value,
-                decision=preflight.decision.value,
-                iching_transition=iching_transition,
-                iching_profile=iching_profile,
-                duration_ms=duration_ms,
-                run_control=run_control_payload,
-                balance_mutation_summary=checkpoint_mutation_summary,
+        evidence.record_checkpoint(
+            payload=checkpoint_payload,
+            status=gate_result["status"],
+            partial=gate_result["partial"],
+            reason=gate_result["reason"],
+            intent_type=intent.action_type.value,
+            decision=preflight.decision.value,
+            iching_transition=iching_transition,
+            iching_profile=iching_profile,
+            duration_ms=duration_ms,
+            run_control=run_control_payload,
+            balance_mutation_summary=checkpoint_mutation_summary,
+        )
+        evidence.record_trace(
+            f"checkpoint-{index}",
+            "checkpoint_written",
+            gate_result["status"],
+            {
+                "index": index,
+                "intent_type": intent.action_type.value,
+                "status": gate_result["status"],
+            },
+            parent_span_id=tool_span_id,
+            duration_ms=duration_ms,
+        )
+        evidence.record_trace(
+            f"progress-{index}",
+            "progress_tick",
+            "observed",
+            {
+                "index": index,
+                "requested_count": len(intents),
+                "completed_count": sum(asset["status"] == "completed" for asset in assets) + (1 if gate_result["status"] == "completed" else 0),
+                "skipped_count": sum(asset["status"] == "skipped" for asset in assets) + (1 if gate_result["status"] == "skipped" else 0),
+                "failed_count": sum(asset["status"] in {"denied", "halted"} for asset in assets) + (1 if gate_result["status"] in {"denied", "halted"} else 0),
+            },
+            parent_span_id="run",
+        )
+        assets.append(
+            asset_entry(
+                index,
+                gate_result,
+                preflight,
+                intent.action_type.value,
+                iching_transition,
+                iching_profile,
+                duration_ms,
+                raw_status_code,
+                balanced_status_code,
+                balance_mask,
+                balanced_transition.action,
+                str(four_symbol_balance["decision"]),
+                int(four_symbol_balance["change_mask"]),
+                four_symbol_balance["reason"] if isinstance(four_symbol_balance["reason"], str) else None,
+                balance_mutation,
+                entry_payload,
             )
-            record_trace(
-                f"checkpoint-{index}",
-                "checkpoint_written",
-                gate_result["status"],
-                {
-                    "index": index,
-                    "intent_type": intent.action_type.value,
-                    "status": gate_result["status"],
-                },
-                parent_span_id=tool_span_id,
-                duration_ms=duration_ms,
-            )
-            record_trace(
-                f"progress-{index}",
-                "progress_tick",
-                "observed",
-                {
-                    "index": index,
-                    "requested_count": len(intents),
-                    "completed_count": sum(asset["status"] == "completed" for asset in assets) + (1 if gate_result["status"] == "completed" else 0),
-                    "skipped_count": sum(asset["status"] == "skipped" for asset in assets) + (1 if gate_result["status"] == "skipped" else 0),
-                    "failed_count": sum(asset["status"] in {"denied", "halted"} for asset in assets) + (1 if gate_result["status"] in {"denied", "halted"} else 0),
-                },
-                parent_span_id="run",
-            )
-            assets.append(
-                asset_entry(
-                    index,
-                    gate_result,
-                    preflight,
-                    intent.action_type.value,
-                    iching_transition,
-                    iching_profile,
-                    duration_ms,
-                    raw_status_code,
-                    balanced_status_code,
-                    balance_mask,
-                    balanced_transition.action,
-                    str(four_symbol_balance["decision"]),
-                    int(four_symbol_balance["change_mask"]),
-                    four_symbol_balance["reason"] if isinstance(four_symbol_balance["reason"], str) else None,
-                    balance_mutation,
-                    entry_payload,
-                )
-            )
-            if IchingKernel.dispatch_decision(iching_transition) == "stop":
-                break
+        )
+        if IchingKernel.dispatch_decision(iching_transition) == "stop":
+            break
 
+
+    return None
+
+def _finish_task_run(
+    context: Any,
+    assets: list[dict[str, Any]],
+    intents: list[Any],
+    write_texts: list[str] | None,
+    plan_actions: list[dict[str, Any]] | None,
+    evidence: _DeferredEvidence,
+    trace_id: str,
+    trace_path: Path,
+    skill_selection: Any,
+    run_metadata: dict[str, Any] | None,
+    completed_evidence_mode: str,
+    evidence_durability: str,
+    trace_aggregator: TraceAggregator,
+) -> dict[str, Any]:
     ledger_path = context.evidence_root / "ledger.json"
     last_asset = assets[-1]
     completed_count = sum(asset["status"] == "completed" for asset in assets)
@@ -967,7 +942,7 @@ def _run_task_with_context(
         and failed_count == 0
     )
     trace_aggregator.flush()
-    record_trace(
+    evidence.record_trace(
         "run",
         "run_completed",
         result["status"],
@@ -990,8 +965,125 @@ def _run_task_with_context(
         remove_empty_evidence_root(context)
     else:
         result["evidence_mode"] = "full"
-        flush_deferred_trace_events()
-        flush_deferred_checkpoints()
+        evidence.flush_trace()
+        evidence.flush_checkpoints()
         result["evidence_metrics"] = {"trace": trace_evidence_metrics(trace_path)}
         write_ledger(context, result)
     return result
+
+def _run_task_with_context(
+    task: str,
+    context: Any,
+    http_timeout_seconds: float,
+    simulated_action_seconds: float,
+    write_path: str | None,
+    write_content: str | None,
+    intent_type: str,
+    command: str | None,
+    write_texts: list[str] | None,
+    run_metadata: dict[str, Any] | None,
+    patch_path: str | None,
+    search_block: str | None,
+    replace_block: str | None,
+    plan_actions: list[dict[str, Any]] | None,
+    max_task_chars: int,
+    max_write_bytes: int,
+    max_actions: int,
+    max_trace_bytes: int,
+    max_run_seconds: float,
+    completed_evidence_mode: str,
+    evidence_durability: str,
+) -> dict[str, Any]:
+    if completed_evidence_mode not in {"full", "wal"}:
+        raise ValueError("completed_evidence_mode must be 'full' or 'wal'")
+    if evidence_durability not in {"strict", "relaxed"}:
+        raise ValueError("evidence_durability must be 'strict' or 'relaxed'")
+    run_started_at = time.monotonic()
+    trace_id = context.run_id
+    trace_path = context.evidence_root / "trace.jsonl"
+    trace_aggregator = TraceAggregator(trace_path)
+    defer_completed_evidence = completed_evidence_mode == "wal" and write_texts is None and plan_actions is None
+    skill_selection = select_validated_skill_evidence(context.workspace_root, task)
+    evidence = _DeferredEvidence(
+        context=context,
+        trace_id=trace_id,
+        trace_aggregator=trace_aggregator,
+        defer_completed_evidence=defer_completed_evidence,
+        skill_selection=skill_selection,
+    )
+
+    evidence.record_trace(
+        "run",
+        "run_started",
+        "started",
+        {"task": task, "resume_from_run_id": context.resume_from_run_id, "skill_selection": skill_selection},
+    )
+    with LogosGate(http_timeout_seconds=http_timeout_seconds) as gate:
+        intents = build_intents(
+            intent_type,
+            write_path,
+            write_content,
+            command,
+            write_texts,
+            patch_path,
+            search_block,
+            replace_block,
+            plan_actions,
+        )
+        budget_breach = validate_resource_budget(
+            task,
+            intents,
+            max_task_chars=max_task_chars,
+            max_write_bytes=max_write_bytes,
+            max_actions=max_actions,
+            max_trace_bytes=max_trace_bytes,
+        )
+        if budget_breach is not None:
+            evidence.flush_trace()
+            evidence.flush_checkpoints()
+            return halted_result(
+                context,
+                reason="resource_budget_exceeded",
+                payload=budget_breach,
+                trace_id=trace_id,
+                checkpoint_intent_type="resource_budget",
+                write_checkpoint_evidence=True,
+                skill_selection=skill_selection,
+            )
+        assets = []
+        observed_status_codes: list[int] = []
+
+        halted = _observe_intents(
+            task,
+            context,
+            gate,
+            intents,
+            assets,
+            observed_status_codes,
+            simulated_action_seconds,
+            evidence,
+            run_started_at,
+            max_trace_bytes,
+            max_run_seconds,
+            trace_path,
+            skill_selection,
+            trace_id,
+        )
+        if halted is not None:
+            return halted
+
+    return _finish_task_run(
+        context,
+        assets,
+        intents,
+        write_texts,
+        plan_actions,
+        evidence,
+        trace_id,
+        trace_path,
+        skill_selection,
+        run_metadata,
+        completed_evidence_mode,
+        evidence_durability,
+        trace_aggregator,
+    )

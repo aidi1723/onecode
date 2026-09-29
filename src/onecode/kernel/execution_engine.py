@@ -13,7 +13,6 @@ from onecode.kernel.execution_contracts import (
     ToolResult,
 )
 from onecode.kernel.execution_guardrails import (
-    dependencies_met,
     should_require_approval,
     time_budget_exceeded,
     validate_plan,

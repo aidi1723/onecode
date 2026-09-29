@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import tempfile
@@ -8,6 +9,9 @@ import urllib.request
 from urllib.parse import urlparse
 from pathlib import Path
 from typing import Any
+
+
+MAX_RESPONSE_BYTES = 2_000_000
 
 
 DEFAULT_ONECODE_MODEL = "gpt-5.5"
@@ -40,14 +44,35 @@ def mask_api_key(value: str | None) -> str | None:
     return f"{value[:4]}...{value[-4:]}"
 
 
+def endpoint_host(value: str) -> str:
+    raw = value.strip()
+    if "://" in raw:
+        return (urlparse(raw).hostname or "").lower()
+    if raw.startswith("["):
+        end = raw.find("]")
+        return raw[1:end].lower() if end > 1 else ""
+    host = raw.split("/", 1)[0]
+    if host.count(":") == 1:
+        host = host.split(":", 1)[0]
+    return host.lower()
+
+
 def endpoint_has_local_host(value: str) -> bool:
-    host = value.split("/", 1)[0].split(":", 1)[0].lower()
-    return (
-        host in {"localhost", "127.0.0.1", "::1"}
-        or host.startswith("10.")
-        or host.startswith("192.168.")
-        or any(host.startswith(f"172.{index}.") for index in range(16, 32))
-    )
+    host = endpoint_host(value)
+    if host == "localhost":
+        return True
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return bool(address.is_loopback or address.is_private or address.is_link_local)
+
+
+def read_bounded_response(response: Any, limit: int = MAX_RESPONSE_BYTES) -> bytes:
+    raw = response.read(limit + 1)
+    if len(raw) > limit:
+        raise ValueError("response exceeds maximum size")
+    return raw
 
 
 def normalize_endpoint_url(endpoint: str) -> str:
@@ -84,6 +109,11 @@ def write_private_text(path: Path, content: str) -> None:
         raise
 
 
+def endpoint_authority(endpoint: str) -> tuple[str, str, int | None]:
+    parsed = urlparse(normalize_endpoint_url(endpoint))
+    return (parsed.scheme.lower(), (parsed.hostname or "").lower(), parsed.port)
+
+
 def write_model_config(
     *,
     endpoint: str,
@@ -95,14 +125,21 @@ def write_model_config(
 ) -> dict[str, Any]:
     if not isinstance(endpoint, str) or endpoint.strip() == "":
         raise ValueError("endpoint is required")
+    normalized_endpoint = normalize_endpoint_url(endpoint)
     existing_secret = ""
+    existing_endpoint = ""
     if preserve_existing_secret:
         try:
-            existing_secret = read_model_config(include_secret=True).get("api_key", "")
+            existing = read_model_config(include_secret=True)
+            existing_secret = existing.get("api_key", "") if isinstance(existing.get("api_key"), str) else ""
+            existing_endpoint = existing.get("endpoint", "") if isinstance(existing.get("endpoint"), str) else ""
         except (ValueError, json.JSONDecodeError):
             existing_secret = ""
+            existing_endpoint = ""
     selected_api_key = api_key.strip() if isinstance(api_key, str) else ""
     if selected_api_key == "" and preserve_existing_secret:
+        if existing_endpoint and endpoint_authority(existing_endpoint) != endpoint_authority(normalized_endpoint):
+            raise ValueError("api_key is required when the endpoint host changes")
         selected_api_key = existing_secret
     if selected_api_key == "":
         raise ValueError("api_key is required")
@@ -110,7 +147,7 @@ def write_model_config(
     path.parent.mkdir(parents=True, exist_ok=True)
     payload: dict[str, Any] = {
         "provider": provider,
-        "endpoint": normalize_endpoint_url(endpoint),
+        "endpoint": normalized_endpoint,
         "api_key": selected_api_key,
         "model": model.strip() if isinstance(model, str) and model.strip() else DEFAULT_ONECODE_MODEL,
     }
@@ -162,19 +199,32 @@ def models_url_from_endpoint(endpoint: str) -> str:
 
 
 def discover_models(endpoint: str, api_key: str, timeout_seconds: float = 10) -> dict[str, Any]:
+    try:
+        url = models_url_from_endpoint(endpoint)
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise ValueError("endpoint must use http or https")
+        if parsed.scheme == "http" and not endpoint_has_local_host(parsed.hostname):
+            raise ValueError("remote endpoint must use https")
+    except ValueError:
+        return {
+            "source": "fallback",
+            "models": FALLBACK_MODELS,
+            "error": "model discovery failed",
+        }
     request = urllib.request.Request(
-        models_url_from_endpoint(endpoint),
+        url,
         headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
         method="GET",
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except (OSError, TimeoutError, urllib.error.URLError, json.JSONDecodeError) as exc:
+            payload = json.loads(read_bounded_response(response).decode("utf-8"))
+    except (OSError, TimeoutError, urllib.error.URLError, json.JSONDecodeError, ValueError):
         return {
             "source": "fallback",
             "models": FALLBACK_MODELS,
-            "error": str(exc),
+            "error": "model discovery failed",
         }
     models = parse_models_payload(payload)
     if not models:

@@ -89,7 +89,7 @@ class OneCodeWebApiTests(unittest.TestCase):
             authorized = request_authorized({"authorization": "Bearer secret-token"}, "secret-token")
 
         self.assertTrue(authorized)
-        compare_digest.assert_called_once_with("Bearer secret-token", "Bearer secret-token")
+        compare_digest.assert_called_once_with(b"Bearer secret-token", b"Bearer secret-token")
 
     def test_read_json_rejects_oversized_request_body(self):
         from io import BytesIO
@@ -136,6 +136,37 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.error_type, "invalid_request_body")
         self.assertIn("content-length", result.error_message)
+
+    def test_read_json_rejects_non_json_content_type(self):
+        from io import BytesIO
+        from onecode.web.request_body import read_json_request_body
+
+        result = read_json_request_body(
+            {"content-length": "2", "content-type": "text/plain"},
+            BytesIO(b"{}"),
+        )
+
+        self.assertIsNone(result.payload)
+        self.assertEqual(result.status_code, 415)
+        self.assertEqual(result.error_type, "unsupported_media_type")
+
+    def test_local_request_allows_loopback_and_rejects_foreign_origin(self):
+        from onecode.web.auth import local_request_allowed
+
+        self.assertTrue(local_request_allowed({"Host": "127.0.0.1:19080"}, bound_port=19080))
+        self.assertFalse(local_request_allowed({"Host": "evil.example:19080"}, bound_port=19080))
+        self.assertFalse(
+            local_request_allowed(
+                {"Host": "127.0.0.1:19080", "Origin": "https://evil.example"},
+                bound_port=19080,
+            )
+        )
+        self.assertTrue(
+            local_request_allowed(
+                {"Host": "127.0.0.1:19080", "Origin": "http://127.0.0.1:19080"},
+                bound_port=19080,
+            )
+        )
 
     def test_latest_user_message_extracts_last_user_content(self):
         from onecode.web.api import latest_user_message
@@ -920,6 +951,7 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(payload["run_id"], "resumed-api")
         self.assertEqual(run_model.call_args.kwargs["resume_from_run_id"], "source-api")
         self.assertEqual(run_model.call_args.kwargs["workspace"], Path(tmp).resolve())
+        self.assertTrue(run_model.call_args.kwargs["require_explicit_approval"])
 
     def test_onecode_resume_without_model_key_returns_configuration_failure(self):
         from onecode.web.api import handle_onecode_run_resume
@@ -1157,6 +1189,32 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertTrue(payload["configured"])
         self.assertEqual(read_back["api_key"], "sk-test-secret")
         self.assertEqual(read_back["model"], "gpt-4.1")
+
+    def test_model_config_write_rejects_host_change_without_api_key(self):
+        from onecode.kernel.model_config import read_model_config
+        from onecode.web.api import handle_onecode_model_config_write
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"ONECODE_HOME": tmp}, clear=True):
+            handle_onecode_model_config_write(
+                {
+                    "endpoint": "http://127.0.0.1:6780/v1",
+                    "apiKey": "sk-test-secret",
+                    "model": "gpt-5.5",
+                }
+            )
+            payload, status = handle_onecode_model_config_write(
+                {
+                    "endpoint": "https://evil.example/v1",
+                    "apiKey": "",
+                    "model": "gpt-4.1",
+                }
+            )
+            read_back = read_model_config(include_secret=True)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(payload["error"]["type"], "invalid_model_config")
+        self.assertEqual(read_back["api_key"], "sk-test-secret")
+        self.assertEqual(read_back["endpoint"], "http://127.0.0.1:6780/v1")
 
     def test_onecode_doctor_endpoint_returns_doctor_result(self):
         from onecode.web.api import handle_onecode_doctor

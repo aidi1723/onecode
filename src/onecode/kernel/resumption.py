@@ -270,6 +270,8 @@ def load_resume_state(workspace_root: Path, resume_from_run_id: str) -> ResumeSt
     if not manifest_path.exists():
         return load_wal_resume_state(root, resume_from_run_id)
 
+    from onecode.kernel.path_guard import PathGuard, PathGuardError
+
     manifest = load_json(manifest_path)
     ready_assets: dict[str, ReadyAsset] = {}
     audit_events: list[dict] = []
@@ -277,7 +279,10 @@ def load_resume_state(workspace_root: Path, resume_from_run_id: str) -> ResumeSt
         checkpoint_path_value = record.get("path") if isinstance(record, dict) else None
         if not isinstance(checkpoint_path_value, str):
             continue
-        checkpoint_path = Path(checkpoint_path_value)
+        try:
+            checkpoint_path = PathGuard.resolve_contained(manifest_path.parent, checkpoint_path_value)
+        except PathGuardError:
+            continue
         if not checkpoint_path.exists():
             continue
         checkpoint = load_json(checkpoint_path)

@@ -15,6 +15,11 @@ dependencies = []
 tui = [
     "textual==8.2.7",
 ]
+dev = [
+    "ruff>=0.8",
+    "coverage>=7",
+    "mypy>=1.13",
+]
 
 [project.scripts]
 onecode = "onecode.cli:main"
@@ -24,4 +29,22 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "onecode.tui" = ["styles.tcss"]
+"onecode.web" = ["*.html"]
 "onecode.contracts" = ["*.json"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E9", "F"]
+
+[tool.coverage.run]
+source = ["onecode"]
+branch = false
+
+[tool.coverage.report]
+fail_under = 75
+show_missing = false
+skip_empty = true

@@ -2,9 +2,12 @@
 
 This index helps you navigate OneCode's documentation, which is organized by purpose and audience.
 
+`docs/closure/` and `docs/superpowers/` are historical records. They keep the design trail, and many of their commit hashes belong to the previous repository. Current behavior is defined by the source tree, `SECURITY.md`, and this index.
+
 ## Quick Start
 
 - [README.md](../README.md) - Installation, verification, and basic usage
+- [2026-09-29 audit remediation closeout](closure/ONECODE_AUDIT_REMEDIATION_CLOSURE_2026-09-29.md) - Current security boundary and verification record
 - [DESIGN.md](../DESIGN.md) - Core design principles
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - How to contribute (see onboarding guide below)
 

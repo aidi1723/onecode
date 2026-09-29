@@ -84,6 +84,7 @@ class DoctorCliTests(unittest.TestCase):
                 "runtime_config",
                 "skill_context",
                 "recovery_policy",
+                "deployment_boundary",
             ],
         )
         self.assertTrue(all(check["passed"] for check in result["checks"]))
@@ -95,7 +96,7 @@ class DoctorCliTests(unittest.TestCase):
         self.assertEqual(result["checks"][5]["detail"]["summary"]["element"], "earth")
         self.assertEqual(result["checks"][6]["detail"]["summary"]["element"], "water")
         self.assertEqual(result["checks"][7]["detail"]["element"], "fire")
-        for check in result["checks"][4:]:
+        for check in result["checks"][4:8]:
             self.assertIn("iching_status_code", check["detail"])
             self.assertIn("iching_transition_action", check["detail"])
             self.assertIn("dispatch_decision", check["detail"])
@@ -113,6 +114,10 @@ class DoctorCliTests(unittest.TestCase):
             self.assertEqual(detail["iching_transition_action"], expected_transition_action)
             self.assertEqual(detail["dispatch_decision"], expected_dispatch_decision)
             self.assertIn("iching_transition_reason", detail)
+        boundary = result["checks"][8]["detail"]
+        self.assertIn("production_ready", boundary)
+        self.assertIn("docker_ready", boundary)
+        self.assertIn("command_sandbox", boundary)
 
 
 if __name__ == "__main__":

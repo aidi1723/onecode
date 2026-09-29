@@ -8,7 +8,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from onecode.kernel.checkpoint import run_evidence_write_lock
+from onecode.kernel.checkpoint import ensure_private_file, run_evidence_write_lock
 from onecode.kernel.evidence_policy import CaptureMode, RiskTier, classify_event
 
 
@@ -84,6 +84,7 @@ def write_trace_event(path: Path, event: TraceEvent) -> None:
     encoded = (json.dumps(event_payload, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
     placeholder_index = encoded.rindex(latency_field) + latency_value_offset
     with run_evidence_write_lock(path.parent):
+        ensure_private_file(path)
         line_start = path.stat().st_size if path.exists() else 0
         with path.open("ab") as handle:
             handle.write(encoded)

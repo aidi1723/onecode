@@ -1,6 +1,7 @@
 import tempfile
 from pathlib import Path
 
+from onecode.kernel.deployment_boundary import deployment_boundary
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.project_context import discover_project_context
 from onecode.kernel.recovery_policy import recovery_status
@@ -157,5 +158,14 @@ def run_doctor() -> dict:
                 recovery,
             )
         )
+
+    boundary = deployment_boundary()
+    checks.append(
+        doctor_check(
+            "deployment_boundary",
+            True,
+            boundary,
+        )
+    )
 
     return {"status": "ok" if all(check["passed"] for check in checks) else "failed", "checks": checks}

@@ -16,7 +16,6 @@ from onecode.cli import build_parser
 from onecode.cli_commands.local_interfaces import (
     LOCAL_INTERFACE_COMMANDS,
     dispatch_local_interface_command,
-    register_local_interface_commands,
 )
 
 

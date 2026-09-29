@@ -144,6 +144,7 @@ class RunnerTests(unittest.TestCase):
             self.assertTrue(Path(result["ledger_path"]).exists())
             manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
             ledger = json.loads(Path(result["ledger_path"]).read_text(encoding="utf-8"))
+            self.assertIsInstance(ledger, dict)
             self.assertGreaterEqual(manifest["checkpoints"][0]["duration_ms"], 10)
             self.assertEqual(result["assets"][0]["duration_ms"], manifest["checkpoints"][0]["duration_ms"])
 

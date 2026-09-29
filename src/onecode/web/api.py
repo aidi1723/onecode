@@ -12,12 +12,11 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from onecode.web.auth import LOOPBACK_HOSTS, request_authorized
-from onecode.web.request_body import JsonRequestBody, max_request_bytes, read_json_request_body
+from onecode.web.auth import LOOPBACK_HOSTS, local_request_allowed, request_authorized
+from onecode.web.request_body import read_json_request_body
 from onecode.web.responses import encode_json_payload, error_payload
 from onecode.web.workspace import (
     configured_allowed_workspace_roots,
-    path_inside_root,
     require_allowed_workspace,
     workspace_allowed,
     workspace_from_request,
@@ -32,14 +31,18 @@ from onecode.kernel.approval_plans import claim_approval_plan, finalize_approval
 from onecode.kernel.model_config import (
     DEFAULT_ONECODE_MODEL,
     discover_models,
+    read_bounded_response,
     read_model_config,
     write_model_config,
 )
 from onecode.kernel.gateway_engine import adjudicate_gateway_prediction, validate_assistant_content
 from onecode.kernel.model_provider import MissingModelApiKey, ModelProviderError, api_key_from_env, build_provider_config
+from onecode.kernel.allow_evidence import complete_allow_evidence
+from onecode.kernel.path_guard import PathGuard, PathGuardError
+from onecode.kernel.prompt_rules import decide_prompt
 from onecode.kernel.project_context import discover_project_context
 from onecode.kernel.runner import run_task
-from onecode.kernel.self_audit import audit_self
+from onecode.self_audit import audit_self
 from onecode.kernel.skill_context import discover_skill_context, public_skill_context
 from onecode.kernel.shell_projection import (
     attach_shell_projection,
@@ -269,6 +272,7 @@ def handle_onecode_run_resume(run_id: str, body: dict[str, Any]) -> tuple[dict[s
             api_key=effective_model.api_key,
             provider_kind=effective_model.provider,
             endpoint=effective_model.endpoint,
+            require_explicit_approval=True,
         )
     except MissingModelApiKey as exc:
         return error_payload("model_configuration_missing", str(exc)), 503
@@ -452,12 +456,22 @@ def handle_onecode_gateway_adjudicate(body: dict[str, Any]) -> tuple[dict[str, A
     except ValueError:
         raw_prediction = None
     adjudicated_prediction = adjudicate_gateway_prediction(user, prediction)
+    facts = adjudicated_prediction.get("facts") if isinstance(adjudicated_prediction, dict) else {}
+    action = adjudicated_prediction.get("action") if isinstance(adjudicated_prediction, dict) else ""
+    evidence = complete_allow_evidence(
+        action if isinstance(action, str) else "",
+        facts if isinstance(facts, dict) else {},
+        user,
+        Path.cwd(),
+    )
     return {
         "status": "ok",
         "user": user,
         "raw_prediction": raw_prediction,
         "adjudicated_prediction": adjudicated_prediction,
         "changed": raw_prediction != adjudicated_prediction,
+        "prompt_decision": decide_prompt(user),
+        "allow_evidence": evidence,
     }, 200
 
 
@@ -506,8 +520,12 @@ def handle_onecode_run_evidence(run_id: str, params: dict[str, Any]) -> tuple[di
             "checkpoints": [],
             "wal_path": summary.get("wal_path"),
         }, 200
-    ledger_path = Path(ledger_path_value)
-    manifest_path = Path(manifest_path_value)
+    evidence_root = workspace / ".onecode" / "runs" / run_id
+    try:
+        ledger_path = PathGuard.resolve_contained(evidence_root, ledger_path_value)
+        manifest_path = PathGuard.resolve_contained(evidence_root, manifest_path_value)
+    except PathGuardError:
+        return error_payload("path_outside_evidence", "evidence path escapes the run directory"), 400
     ledger, ledger_error = read_json_document(ledger_path)
     manifest, manifest_error = read_json_document(manifest_path)
     checkpoints = []
@@ -515,7 +533,11 @@ def handle_onecode_run_evidence(run_id: str, params: dict[str, Any]) -> tuple[di
         if not isinstance(record, dict) or not isinstance(record.get("path"), str):
             checkpoints.append({"record": record, "error": "invalid_checkpoint_record"})
             continue
-        checkpoint_path = Path(record["path"])
+        try:
+            checkpoint_path = PathGuard.resolve_contained(evidence_root, record["path"])
+        except PathGuardError:
+            checkpoints.append({"path": record["path"], "record": record, "document": None, "error": "path_outside_evidence"})
+            continue
         document, error = read_json_document(checkpoint_path)
         checkpoints.append(
             {
@@ -589,13 +611,15 @@ def direct_chat_completion(
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-            payload = json.loads(response.read().decode("utf-8"))
+            payload = json.loads(read_bounded_response(response).decode("utf-8"))
     except TimeoutError as exc:
         raise TimeoutError("direct chat request timed out") from exc
     except urllib.error.URLError as exc:
         raise ModelProviderError(f"direct chat request failed: {exc.reason}") from exc
     except json.JSONDecodeError as exc:
         raise ModelProviderError("direct chat response was not valid JSON") from exc
+    except ValueError as exc:
+        raise ModelProviderError("direct chat response exceeds maximum size") from exc
     if not isinstance(payload, dict):
         raise ModelProviderError("direct chat response must be an object")
     choices = payload.get("choices")
@@ -795,175 +819,17 @@ def format_run_result(result: dict[str, Any], mode: str) -> str:
 
 
 def gateway_console_html() -> str:
-    return """<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>一字诀 OneCode Gateway</title>
-  <style>
-    :root {
-      color-scheme: dark;
-      --bg: #101010;
-      --panel: #171717;
-      --panel-2: #202020;
-      --text: #f2f0ec;
-      --muted: #a8a29a;
-      --accent: #f59e0b;
-      --accent-2: #38bdf8;
-      --danger: #fb7185;
-      --border: #3f3a33;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
-      font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    }
-    main {
-      width: min(980px, calc(100vw - 32px));
-      margin: 0 auto;
-      padding: 32px 0;
-    }
-    .shell {
-      border: 1px solid var(--accent);
-      background: var(--panel);
-      padding: 20px;
-    }
-    header {
-      display: flex;
-      justify-content: space-between;
-      gap: 16px;
-      align-items: flex-start;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 16px;
-      margin-bottom: 18px;
-    }
-    h1 {
-      margin: 0 0 6px;
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: 0;
-    }
-    .muted { color: var(--muted); }
-    .badge {
-      border: 1px solid var(--border);
-      background: var(--panel-2);
-      color: var(--accent);
-      padding: 4px 8px;
-      white-space: nowrap;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-    }
-    label {
-      display: block;
-      color: var(--muted);
-      margin-bottom: 6px;
-    }
-    textarea, pre {
-      width: 100%;
-      min-height: 170px;
-      margin: 0;
-      border: 1px solid var(--border);
-      background: #0b0b0b;
-      color: var(--text);
-      padding: 12px;
-      font: inherit;
-      overflow: auto;
-    }
-    textarea { resize: vertical; }
-    .actions {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin: 14px 0;
-    }
-    button, a.button {
-      border: 1px solid var(--accent);
-      background: var(--accent);
-      color: #1c1203;
-      padding: 9px 12px;
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
-      text-decoration: none;
-    }
-    button.secondary, a.button.secondary {
-      background: transparent;
-      color: var(--accent);
-    }
-    .status {
-      min-height: 24px;
-      color: var(--accent-2);
-    }
-    .danger { color: var(--danger); }
-    @media (max-width: 760px) {
-      header { display: block; }
-      .badge { display: inline-block; margin-top: 10px; }
-      .grid { grid-template-columns: 1fr; }
-    }
-  </style>
-</head>
-<body>
-  <main>
-    <section class="shell">
-      <header>
-        <div>
-          <h1>一字诀 OneCode Gateway</h1>
-          <div class="muted">确定性裁决层：模型候选输出必须经过 OneCode / 一字诀复判。</div>
-        </div>
-        <div class="badge">service: ok</div>
-      </header>
-      <div class="grid">
-        <div>
-          <label for="input">候选输入</label>
-          <textarea id="input">用户: 随便处理一下这个项目
-模型候选: ALLOW_PATCH_WITH_SHA</textarea>
-        </div>
-        <div>
-          <label for="result">裁决结果</label>
-          <pre id="result">点击“运行演示裁决”查看结果。</pre>
-        </div>
-      </div>
-      <div class="actions">
-        <button id="demo" type="button">运行演示裁决</button>
-        <a class="button secondary" href="/v1/onecode/gateway/adjudicate?demo=1">打开 JSON 演示</a>
-        <a class="button secondary" href="/health">健康检查</a>
-      </div>
-      <div id="status" class="status">POST /v1/onecode/gateway/adjudicate</div>
-    </section>
-  </main>
-  <script>
-    const result = document.getElementById('result');
-    const status = document.getElementById('status');
-    document.getElementById('demo').addEventListener('click', async () => {
-      status.textContent = 'running...';
-      try {
-        const response = await fetch('/v1/onecode/gateway/adjudicate?demo=1');
-        const payload = await response.json();
-        result.textContent = JSON.stringify(payload, null, 2);
-        status.textContent = payload.changed ? 'changed: true' : 'changed: false';
-      } catch (error) {
-        status.textContent = 'request failed';
-        status.className = 'status danger';
-        result.textContent = String(error);
-      }
-    });
-  </script>
-</body>
-</html>
-"""
+    return Path(__file__).with_name("gateway_console.html").read_text(encoding="utf-8")
+
 
 
 class OneCodeRequestHandler(BaseHTTPRequestHandler):
     server_version = "OneCodeHTTP/0.8"
+    timeout = 30
 
     def do_GET(self) -> None:
+        if not self._local_boundary_allowed():
+            return
         path = urlparse(self.path).path
         if path == "/":
             self._send_html(gateway_console_html())
@@ -1105,6 +971,8 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
         self._send_json(error_payload("not_found", f"unknown path: {path}"), status_code=404)
 
     def do_POST(self) -> None:
+        if not self._local_boundary_allowed():
+            return
         path = urlparse(self.path).path
         if path == "/v1/onecode/project/init":
             if not self._authorized():
@@ -1210,6 +1078,16 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: Any) -> None:
         if os.getenv("ONECODE_HTTP_ACCESS_LOG", "").lower() in {"1", "true", "yes", "on"}:
             super().log_message(format, *args)
+
+    def _local_boundary_allowed(self) -> bool:
+        port = int(self.server.server_address[1])
+        if local_request_allowed(self.headers, bound_port=port):
+            return True
+        self._send_json(
+            error_payload("forbidden_origin", "request host or origin is not local"),
+            status_code=403,
+        )
+        return False
 
     def _authorized(self) -> bool:
         allow_unauthenticated = os.getenv("ONECODE_ALLOW_UNAUTHENTICATED", "").lower() in {"1", "true", "yes", "on"}

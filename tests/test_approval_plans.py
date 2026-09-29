@@ -1,6 +1,8 @@
+import hashlib
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from pathlib import Path
@@ -38,6 +40,23 @@ class ApprovalPlanTests(unittest.TestCase):
         self.assertEqual(loaded.plan_sha256, stored.plan_sha256)
         self.assertEqual(loaded.workspace, str(workspace.resolve()))
         self.assertEqual(loaded.plan.execution_steps[0].tool_calls[0].tool_name, "write_text")
+
+    def test_replacing_digest_with_plain_sha256_does_not_load(self):
+        from onecode.kernel.approval_plans import load_approval_plan, persist_approval_plan
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"ONECODE_HOME": tmp}, clear=False):
+            workspace = Path(tmp) / "workspace"
+            workspace.mkdir()
+            stored = persist_approval_plan(workspace, guarded_plan(), model_metadata={"model": "m"})
+            document = json.loads(stored.path.read_text(encoding="utf-8"))
+            digest = document.pop("plan_sha256")
+            canonical = json.dumps(document, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            document["plan_sha256"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+            stored.path.write_text(json.dumps(document), encoding="utf-8")
+
+            self.assertNotEqual(document["plan_sha256"], digest)
+            with self.assertRaisesRegex(ValueError, "approval_plan_mismatch"):
+                load_approval_plan(workspace, stored.plan_id)
 
     def test_tampered_plan_is_rejected(self):
         from onecode.kernel.approval_plans import load_approval_plan, persist_approval_plan

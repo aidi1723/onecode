@@ -6,6 +6,8 @@ src/*.egg-info/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.coverage
+.coverage.*
 .mypy_cache/
 .ruff_cache/
 .venv
@@ -15,3 +17,5 @@ __pycache__/
 .playwright-cli/
 .onecode-complex-plan.json
 reports/
+tmp/
+output/

@@ -80,6 +80,70 @@ class PathGuardTests(unittest.TestCase):
                         PathGuard.write_text(workspace, path, "blocked")
                     self.assertFalse((workspace / path).exists())
 
+    def test_rejects_dotdot_that_resolves_onto_denied_root_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "nested").mkdir()
+
+            with self.assertRaises(PathGuardError):
+                PathGuard.write_text(workspace, "nested/../.env", "blocked")
+
+            self.assertFalse((workspace / ".env").exists())
+
+    def test_rejects_case_variants_of_denied_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            for path in [".ENV", ".Git/hooks/pre-commit", "Pyproject.toml", ".ONECODE/pending-plans/x.json"]:
+                with self.subTest(path=path):
+                    with self.assertRaises(PathGuardError):
+                        PathGuard.write_text(workspace, path, "blocked")
+
+    def test_rejects_write_through_workspace_symlink(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            real = workspace / "real"
+            real.mkdir()
+            (workspace / "link").symlink_to(real, target_is_directory=True)
+
+            with self.assertRaises(PathGuardError):
+                PathGuard.write_text(workspace, "link/out.txt", "blocked")
+
+            self.assertFalse((real / "out.txt").exists())
+
+    def test_write_text_preserves_existing_permissions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            target = workspace / "src" / "tool.sh"
+            target.parent.mkdir()
+            target.write_text("echo old\n", encoding="utf-8")
+            target.chmod(0o755)
+
+            PathGuard.write_text(workspace, "src/tool.sh", "echo new\n")
+
+            self.assertEqual(target.stat().st_mode & 0o777, 0o755)
+            self.assertEqual(list(target.parent.glob(".tool.sh*")), [])
+
+    def test_resolve_contained_rejects_paths_outside_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "run"
+            root.mkdir()
+            outside = Path(tmp) / "secret.txt"
+            outside.write_text("nope", encoding="utf-8")
+
+            with self.assertRaises(PathGuardError):
+                PathGuard.resolve_contained(root, outside)
+            self.assertEqual(PathGuard.resolve_contained(root, "trace.jsonl"), (root / "trace.jsonl").resolve())
+
+    def test_sensitive_read_matches_case_variants(self):
+        self.assertTrue(PathGuard.is_sensitive_read_path(Path(".ENV")))
+        self.assertTrue(PathGuard.is_sensitive_read_path(Path(".Git") / "config"))
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            with self.assertRaises(PathGuardError):
+                PathGuard.resolve_read_target(workspace, ".ENV")
+            with self.assertRaises(PathGuardError):
+                PathGuard.resolve_read_target(workspace, "nested/../.env")
+
 
 if __name__ == "__main__":
     unittest.main()

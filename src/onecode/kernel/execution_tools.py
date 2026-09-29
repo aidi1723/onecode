@@ -1,6 +1,8 @@
 from dataclasses import dataclass
+import json
 import os
 import re
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -103,7 +105,8 @@ class ReadTextTool(ToolDefinition):
         target = PathGuard.resolve_read_target(workspace, action["path"])
         if not target.is_file():
             raise ValueError("read_target_not_file")
-        raw = target.read_bytes()
+        with target.open("rb") as handle:
+            raw = handle.read(action["max_bytes"] + 1)
         byte_truncated = len(raw) > action["max_bytes"]
         text = raw[: action["max_bytes"]].decode("utf-8")
         lines = text.splitlines(keepends=True)
@@ -297,6 +300,58 @@ class GitStatusTool(ToolDefinition):
         return {"entries": lines, "truncated": len(completed.stdout.splitlines()) > len(lines)}
 
 
+_DOCKER_READY: bool | None = None
+
+
+def _docker_daemon_ready() -> bool:
+    global _DOCKER_READY
+    if _DOCKER_READY is not None:
+        return _DOCKER_READY
+    if shutil.which("docker") is None:
+        _DOCKER_READY = False
+        return False
+    try:
+        probe = subprocess.run(["docker", "info"], capture_output=True, text=True, timeout=3, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        _DOCKER_READY = False
+        return False
+    _DOCKER_READY = probe.returncode == 0
+    return _DOCKER_READY
+
+
+def _run_command(argv: list[str], workspace: Path, timeout_seconds: int) -> tuple[int, str, str]:
+    mode = os.environ.get("ONECODE_RUN_COMMAND_SANDBOX", "auto").strip().lower()
+    use_docker = mode in {"docker", "on", "true", "1"} or (mode not in {"host", "off", "false", "0"} and _docker_daemon_ready())
+    if use_docker:
+        from onecode.kernel.sandbox import SandboxConfig, run_in_sandbox
+
+        try:
+            completed = run_in_sandbox(
+                SandboxConfig(workspace=workspace, timeout_seconds=timeout_seconds),
+                argv,
+            )
+        except (OSError, subprocess.TimeoutExpired, ValueError):
+            if mode in {"docker", "on", "true", "1"}:
+                raise
+        else:
+            stdout = completed.stdout or ""
+            stderr = completed.stderr or ""
+            daemon_down = "cannot connect to the docker daemon" in stderr.lower()
+            if mode in {"docker", "on", "true", "1"} or not daemon_down:
+                return completed.returncode, stdout, stderr
+    completed = subprocess.run(
+        argv,
+        cwd=workspace,
+        capture_output=True,
+        text=True,
+        timeout=timeout_seconds,
+        check=False,
+        shell=False,
+        env=_command_environment(),
+    )
+    return completed.returncode, completed.stdout, completed.stderr
+
+
 @dataclass(frozen=True)
 class RunCommandTool(ToolDefinition):
     name: str = "run_command"
@@ -319,21 +374,12 @@ class RunCommandTool(ToolDefinition):
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         action = self.plan_action(params)
         sensitive_values = _sensitive_environment_values()
-        completed = subprocess.run(
-            action["argv"],
-            cwd=workspace,
-            capture_output=True,
-            text=True,
-            timeout=action["timeout_seconds"],
-            check=False,
-            shell=False,
-            env=_command_environment(),
-        )
-        stdout = redact_sensitive_text(completed.stdout, sensitive_values=sensitive_values)
-        stderr = redact_sensitive_text(completed.stderr, sensitive_values=sensitive_values)
+        returncode, stdout, stderr = _run_command(action["argv"], workspace, action["timeout_seconds"])
+        stdout = redact_sensitive_text(stdout, sensitive_values=sensitive_values)
+        stderr = redact_sensitive_text(stderr, sensitive_values=sensitive_values)
         return {
             "argv": [redact_sensitive_text(item, sensitive_values=sensitive_values) for item in action["argv"]],
-            "returncode": completed.returncode,
+            "returncode": returncode,
             "stdout": stdout[-100_000:],
             "stderr": stderr[-100_000:],
             "truncated": len(stdout) > 100_000 or len(stderr) > 100_000,
@@ -468,6 +514,14 @@ def _sensitive_environment_values() -> tuple[str, ...]:
         for key, value in os.environ.items()
         if value and len(value) >= 4 and any(marker in key.upper() for marker in SENSITIVE_ENV_MARKERS)
     }
+    try:
+        from onecode.kernel.model_config import read_model_config
+
+        stored_key = read_model_config(include_secret=True).get("api_key")
+    except (OSError, ValueError, json.JSONDecodeError):
+        stored_key = ""
+    if isinstance(stored_key, str) and len(stored_key) >= 4:
+        values.add(stored_key)
     return tuple(sorted(values, key=len, reverse=True))
 
 

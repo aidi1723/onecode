@@ -200,6 +200,25 @@ class ExecutionToolsTests(unittest.TestCase):
         self.assertIn("missing", result["stdout"])
         self.assertIn("[REDACTED]", serialized)
 
+    def test_run_command_uses_docker_sandbox_when_requested(self):
+        from subprocess import CompletedProcess
+
+        from onecode.kernel import execution_tools
+        from onecode.kernel.execution_tools import RunCommandTool
+
+        execution_tools._DOCKER_READY = None
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            os.environ, {"ONECODE_RUN_COMMAND_SANDBOX": "docker"}
+        ), patch(
+            "onecode.kernel.sandbox.run_in_sandbox",
+            return_value=CompletedProcess(args=[], returncode=0, stdout="ok\n", stderr=""),
+        ) as sandbox:
+            result = RunCommandTool().execute({"argv": ["python", "-c", "print('ok')"]}, Path(tmp))
+
+        self.assertEqual(result["returncode"], 0)
+        self.assertIn("ok", result["stdout"])
+        sandbox.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from onecode.kernel.gateway_engine import adjudicate_gateway_prediction, validate_assistant_content
+from onecode.kernel.model_config import read_bounded_response
 from onecode.kernel.training import state_basis_for_lm_row, validate_yizijue_lm_state_sample
 
 
@@ -70,13 +71,15 @@ class DeepSeekChatClient:
         )
         try:
             with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
-                payload = json.loads(response.read().decode("utf-8"))
+                payload = json.loads(read_bounded_response(response).decode("utf-8"))
         except urllib.error.URLError as exc:
             raise RuntimeError(f"DeepSeek request failed: {exc.reason}") from exc
         except (TimeoutError, socket.timeout, ConnectionResetError) as exc:
             raise RuntimeError(f"DeepSeek request failed: {exc}") from exc
         except json.JSONDecodeError as exc:
             raise RuntimeError("DeepSeek response envelope was not JSON") from exc
+        except ValueError as exc:
+            raise RuntimeError("DeepSeek response exceeds maximum size") from exc
         choices = payload.get("choices") if isinstance(payload, dict) else None
         if not isinstance(choices, list) or not choices:
             raise RuntimeError("DeepSeek response missing choices")

@@ -14,11 +14,8 @@ from pathlib import Path
 from typing import Any
 
 from onecode.kernel.gateway_engine import (
-    ALLOWED_ACTIONS,
-    ALLOWED_EVIDENCE_STATES,
     ALLOWED_INTENT_TYPES,
     ALLOWED_PATH_SCOPES,
-    ALLOWED_SANDBOX_STATES,
     ALLOWED_STATES,
     adjudicate_gateway_prediction,
     assistant_payload,

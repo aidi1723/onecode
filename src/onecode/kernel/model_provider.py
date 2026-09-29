@@ -5,6 +5,8 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
+from onecode.kernel.model_config import read_bounded_response
+
 
 DEFAULT_OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 DEFAULT_OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions"
@@ -484,13 +486,15 @@ class OpenAIResponsesProvider:
         )
         try:
             with urllib.request.urlopen(request, timeout=http_timeout_seconds) as response:
-                response_payload = json.loads(response.read().decode("utf-8"))
+                response_payload = json.loads(read_bounded_response(response).decode("utf-8"))
         except TimeoutError as exc:
             raise ModelProviderTimeout("model request timed out") from exc
         except urllib.error.URLError as exc:
             raise ModelProviderError(f"model request failed: {exc.reason}") from exc
         except json.JSONDecodeError as exc:
             raise ModelProviderError("model response envelope was not valid JSON") from exc
+        except ValueError as exc:
+            raise ModelProviderError("model response exceeds maximum size") from exc
         if not isinstance(response_payload, dict):
             raise ModelProviderError("model response envelope must be an object")
         return parse_response_plan(response_payload)
@@ -557,13 +561,15 @@ class OpenAIChatCompletionsProvider:
         )
         try:
             with urllib.request.urlopen(request, timeout=http_timeout_seconds) as response:
-                response_payload = json.loads(response.read().decode("utf-8"))
+                response_payload = json.loads(read_bounded_response(response).decode("utf-8"))
         except TimeoutError as exc:
             raise ModelProviderTimeout("model request timed out") from exc
         except urllib.error.URLError as exc:
             raise ModelProviderError(f"model request failed: {exc.reason}") from exc
         except json.JSONDecodeError as exc:
             raise ModelProviderError("model response envelope was not valid JSON") from exc
+        except ValueError as exc:
+            raise ModelProviderError("model response exceeds maximum size") from exc
         if not isinstance(response_payload, dict):
             raise ModelProviderError("model response envelope must be an object")
         return self.parse_response(response_payload)

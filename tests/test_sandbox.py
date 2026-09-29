@@ -48,6 +48,12 @@ class SandboxTests(unittest.TestCase):
         self.assertIn("--read-only", command)
         self.assertIn("--tmpfs", command)
         self.assertIn("/tmp:rw,noexec,nosuid,size=64m", command)
+        self.assertIn("--security-opt", command)
+        self.assertIn("no-new-privileges", command)
+        self.assertIn("--user", command)
+        self.assertIn("65534:65534", command)
+        self.assertTrue(any(item.startswith("type=bind,src=") and item.endswith(",dst=/workspace") for item in command))
+        self.assertNotIn("--volume", command)
 
     def test_sandbox_rejects_missing_workspace(self):
         from onecode.kernel.sandbox import SandboxConfig

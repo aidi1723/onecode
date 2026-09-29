@@ -43,6 +43,16 @@ def read_json_request_body(headers: Mapping[str, str], rfile: BinaryIO) -> JsonR
             error_type="invalid_request_body",
             error_message="content-length must not be negative",
         )
+    content_type = headers.get("content-type") or headers.get("Content-Type")
+    if isinstance(content_type, str) and content_type.strip() != "":
+        media_type = content_type.split(";", 1)[0].strip().lower()
+        if media_type != "application/json":
+            return JsonRequestBody(
+                payload=None,
+                status_code=415,
+                error_type="unsupported_media_type",
+                error_message="content-type must be application/json",
+            )
     limit = max_request_bytes()
     if length > limit:
         return JsonRequestBody(

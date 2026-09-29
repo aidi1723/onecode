@@ -91,6 +91,25 @@ class ModelConfigTests(unittest.TestCase):
         self.assertEqual(read_back["model"], "gpt-4.1")
         self.assertEqual(read_back["endpoint"], "http://127.0.0.1:6780/v1/chat/completions")
 
+    def test_write_model_config_requires_new_key_when_endpoint_host_changes(self):
+        from onecode.kernel.model_config import read_model_config, write_model_config
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"ONECODE_HOME": tmp}, clear=True):
+            write_model_config(
+                endpoint="http://127.0.0.1:6780/v1",
+                api_key="sk-test-secret",
+            )
+            with self.assertRaises(ValueError):
+                write_model_config(
+                    endpoint="https://evil.example/v1",
+                    api_key="",
+                    preserve_existing_secret=True,
+                )
+            read_back = read_model_config(include_secret=True)
+
+        self.assertEqual(read_back["api_key"], "sk-test-secret")
+        self.assertEqual(read_back["endpoint"], "http://127.0.0.1:6780/v1")
+
     def test_discover_models_uses_openai_compatible_models_endpoint(self):
         from onecode.kernel.model_config import discover_models
 
@@ -101,7 +120,7 @@ class ModelConfigTests(unittest.TestCase):
             def __exit__(self, exc_type, exc, tb):
                 return False
 
-            def read(self):
+            def read(self, _size=-1):
                 return json.dumps(
                     {
                         "data": [
@@ -130,7 +149,7 @@ class ModelConfigTests(unittest.TestCase):
             def __exit__(self, exc_type, exc, tb):
                 return False
 
-            def read(self):
+            def read(self, _size=-1):
                 return json.dumps({"data": [{"id": "gpt-5.5"}]}).encode("utf-8")
 
         with patch("onecode.kernel.model_config.urllib.request.urlopen", return_value=Response()) as urlopen:
@@ -148,6 +167,18 @@ class ModelConfigTests(unittest.TestCase):
 
         self.assertEqual(payload["source"], "fallback")
         self.assertIn("gpt-5.5", payload["models"])
+        self.assertEqual(payload["error"], "model discovery failed")
+
+    def test_public_http_discovery_does_not_contact_the_remote_host(self):
+        from onecode.kernel.model_config import discover_models, endpoint_has_local_host
+
+        self.assertFalse(endpoint_has_local_host("10.evil.com"))
+        self.assertTrue(endpoint_has_local_host("10.1.2.3"))
+        with patch("onecode.kernel.model_config.urllib.request.urlopen") as urlopen:
+            payload = discover_models("http://evil.example/v1", "sk-test")
+
+        urlopen.assert_not_called()
+        self.assertEqual(payload["error"], "model discovery failed")
 
 
 if __name__ == "__main__":

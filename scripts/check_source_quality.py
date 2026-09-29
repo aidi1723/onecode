@@ -10,17 +10,9 @@ from pathlib import Path
 MAX_FUNCTION_LINES = 160
 MAX_CLASS_LINES = 500
 
-ALLOWED_LONG_FUNCTIONS = {
-    "src/onecode/cli.py:build_parser",
-    "src/onecode/cli.py:main",
-    "src/onecode/kernel/runner.py:_run_task_with_context",
-    "src/onecode/kernel/training/samples.py:expanded_training_samples",
-    "src/onecode/web/api.py:gateway_console_html",
-}
+ALLOWED_LONG_FUNCTIONS: set[str] = set()
 
-ALLOWED_LONG_CLASSES = {
-    "src/onecode/kernel/hexagram.py:IchingKernel",
-}
+ALLOWED_LONG_CLASSES: set[str] = set()
 
 
 @dataclass(frozen=True)

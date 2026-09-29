@@ -23,6 +23,7 @@ class TuiLayoutTests(unittest.TestCase):
             app = OneCodeApp()
 
         self.assertEqual(app.workspace, DEFAULT_WORKSPACE.resolve())
+        self.assertNotIn("oneword-tui-live", str(DEFAULT_WORKSPACE))
         self.assertEqual(app.model, DEFAULT_MODEL)
         self.assertEqual(app.endpoint, "")
 

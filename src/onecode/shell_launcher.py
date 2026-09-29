@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import secrets
 import shutil
 import socket
 import subprocess
@@ -92,7 +93,7 @@ def build_librechat_env(config: ShellLaunchConfig, base_env: Mapping[str, str] |
             "ONECODE_API_TOKEN": config.api_token,
             "ONECODE_ALLOWED_WORKSPACE_ROOTS": str(config.workspace_root),
             "ALLOW_EMAIL_LOGIN": "true",
-            "ALLOW_REGISTRATION": "true",
+            "ALLOW_REGISTRATION": "false",
             "ALLOW_UNVERIFIED_EMAIL_LOGIN": "true",
             "LOGIN_WINDOW": "1",
             "LOGIN_MAX": "100",
@@ -650,6 +651,29 @@ def launch_shell(config: ShellLaunchConfig) -> int:
         )
 
 
+def load_or_create_text_secret(root: Path, name: str) -> str:
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    root.chmod(0o700)
+    path = root / name
+    if path.exists():
+        value = path.read_text(encoding="utf-8").strip()
+        if value:
+            path.chmod(0o600)
+            return value
+    value = secrets.token_urlsafe(32)
+    write_private_text(path, value + "\n")
+    return value
+
+
+PUBLISHED_LOCAL_CREDENTIALS = frozenset({"dev-local-token", "OneCode123!"})
+
+
+def _resolved_secret(value: object, root: Path, name: str) -> str:
+    if isinstance(value, str) and value.strip() and value not in PUBLISHED_LOCAL_CREDENTIALS:
+        return value
+    return load_or_create_text_secret(root, name)
+
+
 def config_from_args(args: object) -> ShellLaunchConfig:
     onecode_root = Path(getattr(args, "onecode_root", Path.cwd())).resolve()
     librechat_dir_arg = getattr(args, "librechat_dir", None)
@@ -676,11 +700,11 @@ def config_from_args(args: object) -> ShellLaunchConfig:
         librechat_host=getattr(args, "librechat_host", "127.0.0.1"),
         librechat_port=getattr(args, "librechat_port", DEFAULT_LIBRECHAT_PORT),
         mongo_port=getattr(args, "mongo_port", DEFAULT_MONGO_PORT),
-        api_token=getattr(args, "api_token", "dev-local-token"),
+        api_token=_resolved_secret(getattr(args, "api_token", None), runtime_state_root, "api-token"),
         workspace_root=workspace_root,
         runtime_state_root=runtime_state_root,
         email=getattr(args, "email", DEFAULT_LOCAL_EMAIL),
-        password=getattr(args, "password", DEFAULT_LOCAL_PASSWORD),
+        password=_resolved_secret(getattr(args, "password", None), runtime_state_root, "local-password"),
         open_browser=getattr(args, "open_browser", True),
         show_credentials=getattr(args, "show_credentials", False),
         model_timeout_seconds=float(model_timeout_seconds),

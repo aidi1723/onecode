@@ -284,7 +284,7 @@ class ShellLauncherConfigTests(unittest.TestCase):
             self.assertEqual(env["ONECODE_API_BASE_URL"], "http://127.0.0.1:18080/v1")
             self.assertEqual(env["ONECODE_API_TOKEN"], "test-token")
             self.assertEqual(env["MONGO_URI"], "mongodb://127.0.0.1:37017/LibreChat")
-            self.assertEqual(env["ALLOW_REGISTRATION"], "true")
+            self.assertEqual(env["ALLOW_REGISTRATION"], "false")
             self.assertEqual(env["ALLOW_EMAIL_LOGIN"], "true")
             self.assertEqual(env["ALLOW_UNVERIFIED_EMAIL_LOGIN"], "true")
             self.assertEqual(env["LOGIN_WINDOW"], "1")
@@ -417,6 +417,21 @@ class ShellLauncherConfigTests(unittest.TestCase):
         self.assertEqual(DEFAULT_LOCAL_EMAIL, "onecode@local.test")
         self.assertEqual(DEFAULT_LOCAL_PASSWORD, "OneCode123!")
 
+    def test_omitted_shell_credentials_are_random_and_persisted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            args = shell_args(api_token=None, password=None, state_dir=tmp)
+            first = config_from_args(args)
+            second = config_from_args(args)
+            state = Path(tmp).resolve()
+
+            self.assertNotIn(first.api_token, {"", "dev-local-token"})
+            self.assertNotEqual(first.password, "OneCode123!")
+            self.assertGreaterEqual(len(first.api_token), 32)
+            self.assertEqual(second.api_token, first.api_token)
+            self.assertEqual(second.password, first.password)
+            self.assertTrue((state / "api-token").exists())
+            self.assertTrue((state / "local-password").exists())
+
     def test_default_shell_ports_match_local_onecode_mapping(self):
         self.assertEqual(DEFAULT_ONECODE_PORT, 19080)
         self.assertEqual(DEFAULT_LIBRECHAT_PORT, 14080)
@@ -434,9 +449,12 @@ class ShellLauncherConfigTests(unittest.TestCase):
             open_browser = False
             show_credentials = False
 
-        config = config_from_args(Args())
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"ONECODE_HOME": tmp}, clear=False):
+            config = config_from_args(Args())
 
         self.assertEqual(config.onecode_port, 19080)
+        self.assertNotEqual(config.api_token, "dev-local-token")
+        self.assertNotEqual(config.password, "OneCode123!")
         self.assertEqual(config.librechat_port, 14080)
         self.assertEqual(config.mongo_port, 39017)
 
@@ -590,7 +608,9 @@ class ShellLauncherCliTests(unittest.TestCase):
     def test_shell_subcommand_dispatches_to_launcher(self):
         from onecode.cli import main
 
-        with patch("onecode.shell_launcher.launch_shell", return_value=0) as launcher:
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ", {"ONECODE_HOME": tmp}, clear=False
+        ), patch("onecode.shell_launcher.launch_shell", return_value=0) as launcher:
             exit_code = main(["shell", "--librechat-dir", "/tmp/shell", "--no-browser"])
 
         self.assertEqual(exit_code, 0)

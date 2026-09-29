@@ -1,3 +1,4 @@
+import re
 import unittest
 from pathlib import Path
 
@@ -43,6 +44,13 @@ class ReadmeTests(unittest.TestCase):
             "After initialization, `run-plan --verifier` reads the workspace default policy",
         ]:
             self.assertIn(snippet, text)
+
+    def test_readme_local_markdown_targets_exist(self):
+        text = Path("README.md").read_text(encoding="utf-8")
+        targets = set(re.findall(r"`(docs/[^`]+)`", text))
+        targets.update(re.findall(r"\((docs/[^)#]+)", text))
+        missing = [target for target in sorted(targets) if not Path(target.split("#", 1)[0]).exists()]
+        self.assertEqual(missing, [])
 
 
 if __name__ == "__main__":

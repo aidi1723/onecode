@@ -3,7 +3,7 @@
 OneCode is a local-first agent kernel prototype. It focuses on scoped file writes, append-only run evidence, stateful resumption, and deterministic Iching-derived status profiles.
 
 Current version: **v0.8.0**. The release closure and verification index is
-recorded in `docs/ONECODE_V0_8_FINAL_CLOSURE_2026-07-10.md`.
+recorded in `docs/closure/ONECODE_V0_8_FINAL_CLOSURE_2026-07-10.md`.
 
 The core kernel has no runtime third-party dependency. Textual is an optional TUI dependency.
 
@@ -76,23 +76,23 @@ This runs:
 
 ## Current Closure Records
 
+The 2026-09-29 audit remediation closeout is
+`docs/closure/ONECODE_AUDIT_REMEDIATION_CLOSURE_2026-09-29.md`.
+
+Historical closure records live in `docs/closure/`. Commit hashes inside the
+older records belong to the previous repository and are explained in
+`docs/GIT_HISTORY_NOTE.md`.
+
 The July 16, 2026 integrated LibreChat v0.8.7 and vNext maintenance line is
 summarized in:
 
-- `docs/ONECODE_V087_VNEXT_GITHUB_CLOSURE_2026-07-16.md`
-
-The implementation is integrated on `feature/gateway-iching-rule-sync` at
-OneCode implementation head `1f3d691b175754f5bd8c3677eaf0e3d72cdeb973`.
-The exact LibreChat source is community tag `v0.8.7` at `9e74cc0e`, with the
-verified OneCode shell at `224e73e8`. The final publication is intentionally a
-fast-forward update of the existing feature branch; unrelated `origin/main`
-history is not merged or rewritten.
+- `docs/closure/ONECODE_V087_VNEXT_GITHUB_CLOSURE_2026-07-16.md`
 
 The detailed July 15-16 records are:
 
-- `docs/ONECODE_LIBRECHAT_V087_HARDENING_CLOSURE_2026-07-15.md`
-- `docs/ONECODE_VNEXT_MAINTENANCE_GOVERNANCE_V087_CLOSURE_2026-07-16.md`
-- `docs/ONECODE_VNEXT_RELEASE_LINE_AUDIT_2026-07-16.md`
+- `docs/closure/ONECODE_LIBRECHAT_V087_HARDENING_CLOSURE_2026-07-15.md`
+- `docs/closure/ONECODE_VNEXT_MAINTENANCE_GOVERNANCE_V087_CLOSURE_2026-07-16.md`
+- `docs/closure/ONECODE_VNEXT_RELEASE_LINE_AUDIT_2026-07-16.md`
 
 This record covers the versioned LibreChat migration, bounded model timeouts,
 zero outer retries, persistent private shell state, restart verification, and
@@ -103,15 +103,15 @@ production shell cutover.
 
 The July 10, 2026 v0.8.0 closure is documented in:
 
-- `docs/ONECODE_V0_8_FINAL_CLOSURE_2026-07-10.md`
-- `docs/ONECODE_ICHING_V2_CANONICALIZATION_CLOSURE_2026-07-10.md`
-- `docs/ONECODE_TRAINING_BENCHMARK_RULE_SCHEMA_CLOSURE_2026-07-10.md`
-- `docs/ONECODE_RUNTIME_BALANCE_MUTATION_EVIDENCE_CLOSURE_2026-07-10.md`
-- `docs/ONECODE_MUTATION_EVIDENCE_INTEGRITY_SHELL_V4_CLOSURE_2026-07-10.md`
-- `docs/ONECODE_SHELL_V4_PUBLIC_CONTRACT_CLOSURE_2026-07-10.md`
-- `docs/ONECODE_CLI_READ_ONLY_COMMAND_SPLIT_CLOSURE_2026-07-10.md`
-- `docs/ONECODE_CLI_LOCAL_INTERFACE_COMMAND_SPLIT_CLOSURE_2026-07-10.md`
-- `docs/ONECODE_CLI_CONFIGURATION_COMMAND_SPLIT_CLOSURE_2026-07-10.md`
+- `docs/closure/ONECODE_V0_8_FINAL_CLOSURE_2026-07-10.md`
+- `docs/closure/ONECODE_ICHING_V2_CANONICALIZATION_CLOSURE_2026-07-10.md`
+- `docs/closure/ONECODE_TRAINING_BENCHMARK_RULE_SCHEMA_CLOSURE_2026-07-10.md`
+- `docs/closure/ONECODE_RUNTIME_BALANCE_MUTATION_EVIDENCE_CLOSURE_2026-07-10.md`
+- `docs/closure/ONECODE_MUTATION_EVIDENCE_INTEGRITY_SHELL_V4_CLOSURE_2026-07-10.md`
+- `docs/closure/ONECODE_SHELL_V4_PUBLIC_CONTRACT_CLOSURE_2026-07-10.md`
+- `docs/closure/ONECODE_CLI_READ_ONLY_COMMAND_SPLIT_CLOSURE_2026-07-10.md`
+- `docs/closure/ONECODE_CLI_LOCAL_INTERFACE_COMMAND_SPLIT_CLOSURE_2026-07-10.md`
+- `docs/closure/ONECODE_CLI_CONFIGURATION_COMMAND_SPLIT_CLOSURE_2026-07-10.md`
 
 These records preserve the authority chain from yin/yang lines through
 trigrams, five-element dynamics, balance, transition, and dispatch. Shell,
@@ -119,9 +119,9 @@ contract, evidence, and CLI changes remain subordinate to the kernel rules.
 
 The July 3, 2026 hardening pass is documented in:
 
-- `docs/ONECODE_PROJECT_OPTIMIZATION_REPORT_2026-07-03.md`
-- `docs/ONECODE_PROJECT_CLOSURE_HANDOFF_2026-07-03.md`
-- `docs/ONECODE_MAINTENANCE_LOG_2026-07-03.md`
+- `docs/closure/ONECODE_PROJECT_OPTIMIZATION_REPORT_2026-07-03.md`
+- `docs/closure/ONECODE_PROJECT_CLOSURE_HANDOFF_2026-07-03.md`
+- `docs/closure/ONECODE_MAINTENANCE_LOG_2026-07-03.md`
 
 These records capture the verification gate, residual risks, skill-boundary
 decision, and recommended follow-up maintenance queue.

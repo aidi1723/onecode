@@ -14,6 +14,7 @@ from onecode.kernel.checkpoint import (
 )
 from onecode.kernel.context import create_context
 from onecode.kernel.hexagram import IchingKernel
+from onecode.kernel.path_guard import PathGuard, PathGuardError
 from onecode.kernel.inspection import (
     LEDGER_COUNT_FIELDS,
     read_json,
@@ -115,7 +116,10 @@ def append_final_trace_status(context: Any, result: dict, verifier_dicts: list[d
     trace_path_value = result.get("trace_path")
     if not isinstance(trace_path_value, str):
         return
-    trace_path = Path(trace_path_value)
+    try:
+        trace_path = PathGuard.resolve_contained(context.evidence_root, trace_path_value)
+    except PathGuardError:
+        return
     if not trace_path.exists():
         return
     write_trace_event(
@@ -595,7 +599,16 @@ def trace_metrics_for_ledger(
     trace_value = ledger.get("trace_path")
     if not isinstance(trace_value, str):
         return evidence_metrics, None
-    trace_path = Path(trace_value)
+    try:
+        trace_path = PathGuard.resolve_contained(manifest_path.parent, trace_value)
+    except PathGuardError:
+        return evidence_metrics, corrupt_inspection_payload(
+            run_id,
+            trace_value,
+            "path_outside_evidence",
+            manifest_path,
+            ledger_path,
+        )
     corrupt_path, corrupt_reason = validate_trace_completion(ledger, trace_path)
     if corrupt_path is not None:
         return evidence_metrics, corrupt_inspection_payload(

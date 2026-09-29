@@ -12,18 +12,18 @@ from onecode.cli_commands.configuration import (
     register_configuration_commands,
 )
 from onecode.kernel.hexagram import IchingKernel
+from onecode.kernel.model_config import read_bounded_response
 from onecode.kernel.diagnostics import run_doctor
 from onecode.kernel.run_inspection import (
     align_counts_with_manifest,
     apply_task_resume_evidence,
     apply_verifier_evidence,
     apply_verifier_evidence_from_dicts,
-    delivery_summary,
+    delivery_summary,  # noqa: F401
     halted_task_resume_result,
-    inspect_run,
-    list_runs,
-    task_completion_evidence,
-    task_status_from_verifier_dicts,
+    inspect_run,  # noqa: F401
+    list_runs,  # noqa: F401
+    task_status_from_verifier_dicts,  # noqa: F401
     verifier_dicts,
     verifier_failure,
     write_result_ledger,
@@ -39,19 +39,16 @@ from onecode.kernel.model_loop import (
     is_patch_only_repair_plan,
     run_model_task,
 )
-from onecode.kernel.model_provider import api_key_from_env, build_provider_config
+from onecode.kernel.model_provider import api_key_from_env, build_provider_config, normalize_chat_endpoint
 from onecode.kernel.sandbox import SandboxConfig, run_sandbox_smoke
-from onecode.kernel.self_audit import audit_self
+from onecode.self_audit import audit_self
 from onecode.kernel.shell_projection import (
     attach_shell_projection,
-    attach_shell_projection_to_runs_payload,
-    shell_projection_schema,
 )
 from onecode.kernel.verifier import (
     DEFAULT_VERIFIER_POLICY_PATH,
     load_verifier_policy,
     run_verifier,
-    task_status_from_results,
     validate_selected_verifiers,
 )
 from onecode.kernel.gateway_engine import adjudicate_gateway_prediction, validate_assistant_content
@@ -144,13 +141,15 @@ class YiZiJueLmChatProvider:
         )
         try:
             with urllib.request.urlopen(request, timeout=http_timeout_seconds) as response:
-                payload = json.loads(response.read().decode("utf-8"))
+                payload = json.loads(read_bounded_response(response).decode("utf-8"))
         except TimeoutError as exc:
             raise TimeoutError("YiZiJue-LM request timed out") from exc
         except urllib.error.URLError as exc:
             raise RuntimeError(f"YiZiJue-LM request failed: {exc.reason}") from exc
         except json.JSONDecodeError as exc:
             raise RuntimeError("YiZiJue-LM response envelope was not valid JSON") from exc
+        except ValueError as exc:
+            raise RuntimeError("YiZiJue-LM response exceeds maximum size") from exc
         choices = payload.get("choices") if isinstance(payload, dict) else None
         if not isinstance(choices, list) or not choices:
             raise RuntimeError("YiZiJue-LM response missing choices")
@@ -162,6 +161,104 @@ class YiZiJueLmChatProvider:
 
 def build_yizijue_lm_provider(*, endpoint: str, api_key: str) -> YiZiJueLmChatProvider:
     return YiZiJueLmChatProvider(api_key=api_key, endpoint=normalize_chat_endpoint(endpoint))
+
+
+def register_training_parsers(subparsers: argparse._SubParsersAction) -> None:
+    training_data_parser = subparsers.add_parser("generate-training-data")
+    training_data_parser.add_argument("--output", default="data/training/yizijue_qwen15b_seed.jsonl")
+    training_data_parser.add_argument("--profile", choices=["seed", "expanded", "benchmark-replay"], default="seed")
+    training_data_parser.add_argument("--tasks-dir", default="benchmarks/tasks")
+    training_data_parser.add_argument("--workspace-root", default=None)
+
+    validate_training_data_parser = subparsers.add_parser("validate-training-data")
+    validate_training_data_parser.add_argument("--input", required=True)
+
+    export_training_data_parser = subparsers.add_parser("export-training-data")
+    export_training_data_parser.add_argument("--format", choices=["llamafactory", "axolotl"], required=True)
+    export_training_data_parser.add_argument("--profile", choices=["seed", "expanded"], default="expanded")
+    export_training_data_parser.add_argument("--output-dir", required=True)
+
+    build_training_corpus_parser = subparsers.add_parser("build-training-corpus")
+    build_training_corpus_parser.add_argument("--output-dir", default="data/training/corpus")
+    build_training_corpus_parser.add_argument("--tasks-dir", default="benchmarks/tasks")
+    build_training_corpus_parser.add_argument("--extra-tasks-dir", action="append", default=None)
+    build_training_corpus_parser.add_argument("--extra-jsonl", action="append", default=None)
+    build_training_corpus_parser.add_argument("--workspace-root", default=None)
+    build_training_corpus_parser.add_argument("--eval-ratio", type=float, default=0.1)
+
+    write_training_configs_parser = subparsers.add_parser("write-training-configs")
+    write_training_configs_parser.add_argument("--corpus-dir", default="data/training/corpus")
+    write_training_configs_parser.add_argument("--output-dir", default="data/training/configs")
+
+    eval_training_predictions_parser = subparsers.add_parser("eval-training-predictions")
+    eval_training_predictions_parser.add_argument("--gold", required=True)
+    eval_training_predictions_parser.add_argument("--predictions", required=True)
+    eval_training_predictions_parser.add_argument("--adjudicate", action="store_true")
+
+    adjudicated_feedback_parser = subparsers.add_parser("build-adjudicated-feedback")
+    adjudicated_feedback_parser.add_argument("--gold", required=True)
+    adjudicated_feedback_parser.add_argument("--predictions", required=True)
+    adjudicated_feedback_parser.add_argument("--output", required=True)
+    adjudicated_feedback_parser.add_argument("--prefix", default="adjudicated-feedback")
+
+    adjudicate_gateway_parser = subparsers.add_parser("adjudicate-gateway")
+    adjudicate_gateway_parser.add_argument("--user", required=True)
+    adjudicate_gateway_parser.add_argument("--prediction", required=True)
+
+    build_yizijue_lm_corpus_parser = subparsers.add_parser("build-yizijue-lm-corpus")
+    build_yizijue_lm_corpus_parser.add_argument("--output", default="data/training/yizijue_lm_corpus.jsonl")
+    build_yizijue_lm_corpus_parser.add_argument("--profile", choices=["seed", "expanded"], default="expanded")
+
+    build_yizijue_lm_state_corpus_parser = subparsers.add_parser("build-yizijue-lm-state-corpus")
+    build_yizijue_lm_state_corpus_parser.add_argument("--output", default="data/training/yizijue_lm_state_corpus.jsonl")
+    build_yizijue_lm_state_corpus_parser.add_argument("--profile", choices=["seed", "expanded"], default="expanded")
+
+    build_yizijue_lm_evalset_parser = subparsers.add_parser("build-yizijue-lm-evalset")
+    build_yizijue_lm_evalset_parser.add_argument("--output", default="data/training/yizijue_lm_eval.jsonl")
+
+    eval_yizijue_lm_predictions_parser = subparsers.add_parser("eval-yizijue-lm-predictions")
+    eval_yizijue_lm_predictions_parser.add_argument("--gold", required=True)
+    eval_yizijue_lm_predictions_parser.add_argument("--predictions", required=True)
+
+    eval_yizijue_lm_state_predictions_parser = subparsers.add_parser("eval-yizijue-lm-state-predictions")
+    eval_yizijue_lm_state_predictions_parser.add_argument("--gold", required=True)
+    eval_yizijue_lm_state_predictions_parser.add_argument("--predictions", required=True)
+
+    run_yizijue_lm_eval_parser = subparsers.add_parser("run-yizijue-lm-eval")
+    run_yizijue_lm_eval_parser.add_argument("--gold", default="data/training/yizijue_lm_eval.jsonl")
+    run_yizijue_lm_eval_parser.add_argument("--output", default="data/training/yizijue_lm_predictions.jsonl")
+    run_yizijue_lm_eval_parser.add_argument("--model", required=True)
+    run_yizijue_lm_eval_parser.add_argument("--endpoint", default="http://127.0.0.1:8000/v1")
+    run_yizijue_lm_eval_parser.add_argument("--api-key", default="local")
+    run_yizijue_lm_eval_parser.add_argument("--http-timeout-seconds", type=float, default=60)
+
+    run_yizijue_lm_transformers_once_parser = subparsers.add_parser("run-yizijue-lm-transformers-once")
+    run_yizijue_lm_transformers_once_parser.add_argument("--input", required=True)
+    run_yizijue_lm_transformers_once_parser.add_argument("--basis-json", required=True)
+    run_yizijue_lm_transformers_once_parser.add_argument("--model", required=True)
+    run_yizijue_lm_transformers_once_parser.add_argument("--max-new-tokens", type=positive_int, default=128)
+    run_yizijue_lm_transformers_once_parser.add_argument("--preferred-bias", type=positive_float, default=2.0)
+    run_yizijue_lm_transformers_once_parser.add_argument("--sample", action="store_true")
+
+    run_yizijue_lm_transformers_eval_parser = subparsers.add_parser("run-yizijue-lm-transformers-eval")
+    run_yizijue_lm_transformers_eval_parser.add_argument("--gold", default="data/training/yizijue_lm_state_corpus.jsonl")
+    run_yizijue_lm_transformers_eval_parser.add_argument("--output", default="data/training/yizijue_lm_state_predictions.jsonl")
+    run_yizijue_lm_transformers_eval_parser.add_argument("--model", required=True)
+    run_yizijue_lm_transformers_eval_parser.add_argument("--max-new-tokens", type=positive_int, default=128)
+    run_yizijue_lm_transformers_eval_parser.add_argument("--preferred-bias", type=positive_float, default=2.0)
+    run_yizijue_lm_transformers_eval_parser.add_argument("--sample", action="store_true")
+
+    generate_training_benchmarks_parser = subparsers.add_parser("generate-training-benchmarks")
+    generate_training_benchmarks_parser.add_argument("--output-dir", default="data/training/benchmarks")
+
+    training_coverage_parser = subparsers.add_parser("training-coverage")
+    training_coverage_parser.add_argument("--input", required=True)
+    training_coverage_parser.add_argument("--report", default=None)
+
+    pretraining_readiness_parser = subparsers.add_parser("pretraining-readiness")
+    pretraining_readiness_parser.add_argument("--corpus-dir", default="data/training/corpus")
+    pretraining_readiness_parser.add_argument("--configs-dir", default="data/training/configs")
+    pretraining_readiness_parser.add_argument("--report", default="data/training/PRETRAINING_READINESS_REPORT.json")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -262,102 +359,7 @@ def build_parser() -> argparse.ArgumentParser:
     sandbox_smoke_parser.add_argument("--timeout-seconds", type=int, default=60)
     sandbox_smoke_parser.add_argument("--report", default=None)
 
-    training_data_parser = subparsers.add_parser("generate-training-data")
-    training_data_parser.add_argument("--output", default="data/training/yizijue_qwen15b_seed.jsonl")
-    training_data_parser.add_argument("--profile", choices=["seed", "expanded", "benchmark-replay"], default="seed")
-    training_data_parser.add_argument("--tasks-dir", default="benchmarks/tasks")
-    training_data_parser.add_argument("--workspace-root", default=None)
-
-    validate_training_data_parser = subparsers.add_parser("validate-training-data")
-    validate_training_data_parser.add_argument("--input", required=True)
-
-    export_training_data_parser = subparsers.add_parser("export-training-data")
-    export_training_data_parser.add_argument("--format", choices=["llamafactory", "axolotl"], required=True)
-    export_training_data_parser.add_argument("--profile", choices=["seed", "expanded"], default="expanded")
-    export_training_data_parser.add_argument("--output-dir", required=True)
-
-    build_training_corpus_parser = subparsers.add_parser("build-training-corpus")
-    build_training_corpus_parser.add_argument("--output-dir", default="data/training/corpus")
-    build_training_corpus_parser.add_argument("--tasks-dir", default="benchmarks/tasks")
-    build_training_corpus_parser.add_argument("--extra-tasks-dir", action="append", default=None)
-    build_training_corpus_parser.add_argument("--extra-jsonl", action="append", default=None)
-    build_training_corpus_parser.add_argument("--workspace-root", default=None)
-    build_training_corpus_parser.add_argument("--eval-ratio", type=float, default=0.1)
-
-    write_training_configs_parser = subparsers.add_parser("write-training-configs")
-    write_training_configs_parser.add_argument("--corpus-dir", default="data/training/corpus")
-    write_training_configs_parser.add_argument("--output-dir", default="data/training/configs")
-
-    eval_training_predictions_parser = subparsers.add_parser("eval-training-predictions")
-    eval_training_predictions_parser.add_argument("--gold", required=True)
-    eval_training_predictions_parser.add_argument("--predictions", required=True)
-    eval_training_predictions_parser.add_argument("--adjudicate", action="store_true")
-
-    adjudicated_feedback_parser = subparsers.add_parser("build-adjudicated-feedback")
-    adjudicated_feedback_parser.add_argument("--gold", required=True)
-    adjudicated_feedback_parser.add_argument("--predictions", required=True)
-    adjudicated_feedback_parser.add_argument("--output", required=True)
-    adjudicated_feedback_parser.add_argument("--prefix", default="adjudicated-feedback")
-
-    adjudicate_gateway_parser = subparsers.add_parser("adjudicate-gateway")
-    adjudicate_gateway_parser.add_argument("--user", required=True)
-    adjudicate_gateway_parser.add_argument("--prediction", required=True)
-
-    build_yizijue_lm_corpus_parser = subparsers.add_parser("build-yizijue-lm-corpus")
-    build_yizijue_lm_corpus_parser.add_argument("--output", default="data/training/yizijue_lm_corpus.jsonl")
-    build_yizijue_lm_corpus_parser.add_argument("--profile", choices=["seed", "expanded"], default="expanded")
-
-    build_yizijue_lm_state_corpus_parser = subparsers.add_parser("build-yizijue-lm-state-corpus")
-    build_yizijue_lm_state_corpus_parser.add_argument("--output", default="data/training/yizijue_lm_state_corpus.jsonl")
-    build_yizijue_lm_state_corpus_parser.add_argument("--profile", choices=["seed", "expanded"], default="expanded")
-
-    build_yizijue_lm_evalset_parser = subparsers.add_parser("build-yizijue-lm-evalset")
-    build_yizijue_lm_evalset_parser.add_argument("--output", default="data/training/yizijue_lm_eval.jsonl")
-
-    eval_yizijue_lm_predictions_parser = subparsers.add_parser("eval-yizijue-lm-predictions")
-    eval_yizijue_lm_predictions_parser.add_argument("--gold", required=True)
-    eval_yizijue_lm_predictions_parser.add_argument("--predictions", required=True)
-
-    eval_yizijue_lm_state_predictions_parser = subparsers.add_parser("eval-yizijue-lm-state-predictions")
-    eval_yizijue_lm_state_predictions_parser.add_argument("--gold", required=True)
-    eval_yizijue_lm_state_predictions_parser.add_argument("--predictions", required=True)
-
-    run_yizijue_lm_eval_parser = subparsers.add_parser("run-yizijue-lm-eval")
-    run_yizijue_lm_eval_parser.add_argument("--gold", default="data/training/yizijue_lm_eval.jsonl")
-    run_yizijue_lm_eval_parser.add_argument("--output", default="data/training/yizijue_lm_predictions.jsonl")
-    run_yizijue_lm_eval_parser.add_argument("--model", required=True)
-    run_yizijue_lm_eval_parser.add_argument("--endpoint", default="http://127.0.0.1:8000/v1")
-    run_yizijue_lm_eval_parser.add_argument("--api-key", default="local")
-    run_yizijue_lm_eval_parser.add_argument("--http-timeout-seconds", type=float, default=60)
-
-    run_yizijue_lm_transformers_once_parser = subparsers.add_parser("run-yizijue-lm-transformers-once")
-    run_yizijue_lm_transformers_once_parser.add_argument("--input", required=True)
-    run_yizijue_lm_transformers_once_parser.add_argument("--basis-json", required=True)
-    run_yizijue_lm_transformers_once_parser.add_argument("--model", required=True)
-    run_yizijue_lm_transformers_once_parser.add_argument("--max-new-tokens", type=positive_int, default=128)
-    run_yizijue_lm_transformers_once_parser.add_argument("--preferred-bias", type=positive_float, default=2.0)
-    run_yizijue_lm_transformers_once_parser.add_argument("--sample", action="store_true")
-
-    run_yizijue_lm_transformers_eval_parser = subparsers.add_parser("run-yizijue-lm-transformers-eval")
-    run_yizijue_lm_transformers_eval_parser.add_argument("--gold", default="data/training/yizijue_lm_state_corpus.jsonl")
-    run_yizijue_lm_transformers_eval_parser.add_argument("--output", default="data/training/yizijue_lm_state_predictions.jsonl")
-    run_yizijue_lm_transformers_eval_parser.add_argument("--model", required=True)
-    run_yizijue_lm_transformers_eval_parser.add_argument("--max-new-tokens", type=positive_int, default=128)
-    run_yizijue_lm_transformers_eval_parser.add_argument("--preferred-bias", type=positive_float, default=2.0)
-    run_yizijue_lm_transformers_eval_parser.add_argument("--sample", action="store_true")
-
-    generate_training_benchmarks_parser = subparsers.add_parser("generate-training-benchmarks")
-    generate_training_benchmarks_parser.add_argument("--output-dir", default="data/training/benchmarks")
-
-    training_coverage_parser = subparsers.add_parser("training-coverage")
-    training_coverage_parser.add_argument("--input", required=True)
-    training_coverage_parser.add_argument("--report", default=None)
-
-    pretraining_readiness_parser = subparsers.add_parser("pretraining-readiness")
-    pretraining_readiness_parser.add_argument("--corpus-dir", default="data/training/corpus")
-    pretraining_readiness_parser.add_argument("--configs-dir", default="data/training/configs")
-    pretraining_readiness_parser.add_argument("--report", default="data/training/PRETRAINING_READINESS_REPORT.json")
-
+    register_training_parsers(subparsers)
     register_local_interface_commands(subparsers)
     return parser
 
@@ -503,22 +505,7 @@ def run_plan_verifier_policy_path(workspace: Path, explicit_policy: str | None) 
     return workspace / DEFAULT_VERIFIER_POLICY_PATH
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = build_parser()
-    args = parser.parse_args(argv)
-
-    read_only_exit_code = dispatch_read_only_command(args)
-    if read_only_exit_code is not None:
-        return read_only_exit_code
-
-    local_interface_exit_code = dispatch_local_interface_command(args, parser)
-    if local_interface_exit_code is not None:
-        return local_interface_exit_code
-
-    configuration_exit_code = dispatch_configuration_command(args, parser)
-    if configuration_exit_code is not None:
-        return configuration_exit_code
-
+def dispatch_service_command(args: Any, parser: argparse.ArgumentParser) -> int | None:
     if args.subcommand == "audit-self":
         result = audit_self(Path.cwd(), run_doctor)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
@@ -584,7 +571,9 @@ def main(argv: list[str] | None = None) -> int:
         if result["status"] == "blocked":
             return 2
         return 1
+    return None
 
+def dispatch_training_command(args: Any, parser: argparse.ArgumentParser) -> int | None:
     if args.subcommand == "generate-training-data":
         if args.profile == "benchmark-replay":
             samples = replay_benchmark_training_samples(
@@ -680,7 +669,9 @@ def main(argv: list[str] | None = None) -> int:
         }
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 0
+    return None
 
+def dispatch_yizijue_command(args: Any, parser: argparse.ArgumentParser) -> int | None:
     if args.subcommand == "build-yizijue-lm-corpus":
         samples = seed_training_samples() if args.profile == "seed" else expanded_training_samples() + schema_correction_training_samples()
         result = build_yizijue_lm_corpus(Path(args.output), samples)
@@ -806,6 +797,9 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(report, ensure_ascii=False, sort_keys=True))
         return 0 if report["status"] == "ready" else 1
 
+    return None
+
+def dispatch_run_command(args: Any, parser: argparse.ArgumentParser) -> int | None:
     if args.subcommand == "run-plan":
         try:
             task, write_texts, plan_evidence = load_task_plan(Path(args.plan))
@@ -944,6 +938,35 @@ def main(argv: list[str] | None = None) -> int:
         return IchingKernel.process_exit_code(status=result["status"], reason=result["reason"])
 
     parser.error(f"unknown command: {args.subcommand}")
+    return 2
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    read_only_exit_code = dispatch_read_only_command(args)
+    if read_only_exit_code is not None:
+        return read_only_exit_code
+
+    local_interface_exit_code = dispatch_local_interface_command(args, parser)
+    if local_interface_exit_code is not None:
+        return local_interface_exit_code
+
+    configuration_exit_code = dispatch_configuration_command(args, parser)
+    if configuration_exit_code is not None:
+        return configuration_exit_code
+
+    service_exit = dispatch_service_command(args, parser)
+    if service_exit is not None:
+        return service_exit
+    training_exit = dispatch_training_command(args, parser)
+    if training_exit is not None:
+        return training_exit
+    yizijue_exit = dispatch_yizijue_command(args, parser)
+    if yizijue_exit is not None:
+        return yizijue_exit
+    return dispatch_run_command(args, parser)
     return 2
 
 

@@ -34,12 +34,15 @@ class PackagingTests(unittest.TestCase):
             data["tool"]["setuptools"]["package-data"]["onecode.tui"],
             ["styles.tcss"],
         )
+        self.assertIn("*.html", data["tool"]["setuptools"]["package-data"]["onecode.web"])
+        self.assertTrue(Path("src/onecode/web/gateway_console.html").exists())
 
     def test_wheel_asset_checker_requires_tui_styles(self):
         with TemporaryDirectory() as tmp:
             wheel = Path(tmp) / "onecode-0.1.0-py3-none-any.whl"
             with zipfile.ZipFile(wheel, "w") as archive:
                 archive.writestr("onecode/tui/styles.tcss", "Screen {}\n")
+                archive.writestr("onecode/web/gateway_console.html", "<!doctype html>\n")
 
             with redirect_stdout(StringIO()):
                 self.assertEqual(check_wheel_assets([tmp]), 0)

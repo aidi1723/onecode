@@ -15,7 +15,7 @@ class CheckpointTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             lock_path = Path(tmp) / "evidence.lock"
 
-            with patch("onecode.kernel.checkpoint.fcntl.flock") as flock:
+            with patch("onecode.kernel.evidence_io.fcntl.flock") as flock:
                 with file_lock(lock_path):
                     pass
 

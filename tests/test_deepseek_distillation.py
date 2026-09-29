@@ -1,5 +1,4 @@
 import json
-import socket
 import tempfile
 import unittest
 from pathlib import Path
@@ -160,7 +159,7 @@ class DeepSeekDistillationTests(unittest.TestCase):
             def __exit__(self, exc_type, exc, tb):
                 return False
 
-            def read(self):
+            def read(self, _size=-1):
                 return json.dumps(
                     {"choices": [{"message": {"content": '{"ok":true}'}}]},
                     ensure_ascii=False,
@@ -199,7 +198,7 @@ class DeepSeekDistillationTests(unittest.TestCase):
             def __exit__(self, exc_type, exc, tb):
                 return False
 
-            def read(self):
+            def read(self, _size=-1):
                 return json.dumps({"choices": [{"message": {"content": '{"ok":true}'}}]}).encode("utf-8")
 
         def fake_urlopen(request, timeout):

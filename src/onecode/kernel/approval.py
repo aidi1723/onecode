@@ -6,6 +6,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
+from onecode.kernel.checkpoint import ensure_private_file
+
 ApprovalAction = Literal["approve", "reject", "edit"]
 APPROVAL_ACTIONS = {"approve", "reject", "edit"}
 
@@ -39,7 +41,7 @@ class ApprovalDecision:
 
 
 def write_approval_decision(path: Path, decision: ApprovalDecision) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_private_file(path)
     with path.open("a", encoding="utf-8") as handle:
         handle.write(
             json.dumps(decision.to_dict(), ensure_ascii=False, sort_keys=True) + "\n"

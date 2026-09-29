@@ -5,7 +5,7 @@ import sys
 import unittest
 from pathlib import Path
 
-from onecode.kernel.self_audit import audit_check, audit_self
+from onecode.self_audit import audit_check, audit_self
 from onecode.kernel.hexagram import IchingKernel
 
 

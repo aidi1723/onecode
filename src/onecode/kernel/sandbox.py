@@ -51,12 +51,18 @@ def build_docker_command(config: SandboxConfig, command: Sequence[str]) -> list[
         "--tmpfs",
         config.tmpfs,
     ]
+    if ":" in config.workspace.as_posix():
+        raise ValueError("sandbox workspace path must not contain ':'")
     if config.read_only:
         docker_command.append("--read-only")
     return [
         *docker_command,
-        "--volume",
-        f"{config.workspace}:/workspace",
+        "--security-opt",
+        "no-new-privileges",
+        "--user",
+        "65534:65534",
+        "--mount",
+        f"type=bind,src={config.workspace.as_posix()},dst=/workspace",
         "--workdir",
         "/workspace",
         config.image,

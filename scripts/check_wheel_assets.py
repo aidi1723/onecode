@@ -8,6 +8,7 @@ from pathlib import Path
 
 REQUIRED_ASSETS = {
     "onecode/tui/styles.tcss",
+    "onecode/web/gateway_console.html",
 }
 
 
