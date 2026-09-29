@@ -17,6 +17,7 @@ from textual.worker import Worker, WorkerState
 
 from onecode.kernel.runner import run_task
 from onecode.kernel.model_loop import run_model_task
+from onecode.web.api import handle_onecode_plan_approval
 from onecode.kernel.model_config import read_model_config
 from onecode.kernel.model_provider import api_key_from_env, build_provider_config
 from onecode.kernel.shell_projection import project_run_to_shell
@@ -99,6 +100,33 @@ def shell_projection_for(result: dict) -> dict:
     if isinstance(projection, dict):
         return projection
     return project_run_to_shell(result)
+
+
+def format_tool_turn(turn: dict) -> str:
+    tools = ", ".join(name for name in turn.get("tool_names", []) if isinstance(name, str))
+    line = f"tool {tools or turn.get('step_id', '?')}: {turn.get('status', '?')}"
+    if turn.get("reason"):
+        line += f" | {turn['reason']}"
+    return line
+
+
+def format_approval_preview(result: dict) -> str:
+    plan_id = str(result.get("plan_id") or "")
+    lines = ["计划已生成，尚未执行。", f"审批计划 ID：{plan_id}"]
+    if plan_id:
+        lines.append(f"批准：/approve {plan_id}")
+        lines.append(f"拒绝：/reject {plan_id}")
+    summary = result.get("plan_summary")
+    actions = summary.get("actions") if isinstance(summary, dict) else None
+    if isinstance(actions, list):
+        for action in actions:
+            if not isinstance(action, dict):
+                continue
+            lines.append(f"{action.get('tool', 'tool')} {action.get('path', '')}".rstrip())
+            diff = action.get("diff")
+            if isinstance(diff, str) and diff:
+                lines.append(diff)
+    return "\n".join(lines)
 
 
 def format_execution_trace(trace: dict) -> str:
@@ -324,6 +352,8 @@ class OneCodeApp(App):
             self._run_plan(text[6:].strip())
         elif low.startswith("/exec-plan "):
             self._run_execution_plan(text[11:].strip())
+        elif low.startswith("/approve ") or low.startswith("/reject "):
+            self._run_plan_decision(text.split(maxsplit=1)[1].strip(), approved=low.startswith("/approve "))
         elif low.startswith("/model"):
             arg = text[6:].strip()
             if arg:
@@ -349,6 +379,8 @@ class OneCodeApp(App):
             "  /write path=content  Write a file\n"
             "  /plan file.json    Execute task plan\n"
             "  /exec-plan file.json Execute multi-step plan\n"
+            "  /approve <plan-id> Approve a pending diff\n"
+            "  /reject <plan-id>  Reject a pending diff\n"
             "  /inspect <run-id>  Inspect run evidence\n"
             "  /runs              List all runs\n"
             "  /export            Show transcript file path\n"
@@ -402,7 +434,27 @@ class OneCodeApp(App):
             api_key=self.api_key,
             provider_kind=self.provider_kind,
             endpoint=self.endpoint,
+            require_explicit_approval=True,
+            on_turn=lambda turn: self.call_from_thread(self._system, format_tool_turn(turn)),
         )
+
+    def _run_plan_decision(self, plan_id: str, approved: bool) -> None:
+        if not plan_id:
+            self._error("Usage: /approve <plan-id>")
+            return
+        self.run_worker(lambda: self._approval_worker(plan_id, approved), name="task", thread=True)
+
+    def _approval_worker(self, plan_id: str, approved: bool) -> dict:
+        payload, status = handle_onecode_plan_approval(
+            plan_id,
+            {"workspace": str(self.workspace), "approved": approved},
+            on_turn=lambda turn: self.call_from_thread(self._system, format_tool_turn(turn)),
+        )
+        if status != 200:
+            error = payload.get("error")
+            message = error.get("message") if isinstance(error, dict) else "approval_failed"
+            return {"status": "halted", "reason": message or "approval_failed"}
+        return payload
 
     def _run_write(self, arg: str) -> None:
         if "=" not in arg or not arg.split("=", 1)[0].strip():
@@ -514,6 +566,9 @@ class OneCodeApp(App):
         self._assistant(f"Doctor: [{color}]{status}[/{color}]\n" + "\n".join(lines))
 
     def _handle_task(self, result: dict) -> None:
+        if result.get("reason") == "approval_required":
+            self._assistant(format_approval_preview(result))
+            return
         if isinstance(result.get("execution_trace"), dict):
             self._handle_execution_trace(result["execution_trace"])
             return

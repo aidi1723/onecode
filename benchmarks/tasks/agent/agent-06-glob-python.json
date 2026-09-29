@@ -1,0 +1,30 @@
+{
+  "id": "agent-06-glob-python",
+  "prompt": "列出 Python 文件",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [
+      {
+        "path": "src/keep.py",
+        "content": "x = 1\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "glob_files",
+        "params": {
+          "pattern": "src/*.py",
+          "path": "src"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_exists",
+      "path": "src/keep.py"
+    }
+  ]
+}

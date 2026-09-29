@@ -1,0 +1,26 @@
+{
+  "id": "agent-24-write-calculator",
+  "prompt": "写加法",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/calc.py",
+          "content": "def add(a, b):\n    return a + b\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/calc.py",
+      "text": "def add"
+    }
+  ]
+}

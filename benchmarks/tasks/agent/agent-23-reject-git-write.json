@@ -1,0 +1,25 @@
+{
+  "id": "agent-23-reject-git-write",
+  "prompt": "拒绝写入 git 目录",
+  "expected_status": "halted",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": ".git/config",
+          "content": "x\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_absent",
+      "path": ".git/config"
+    }
+  ]
+}

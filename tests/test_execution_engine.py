@@ -45,6 +45,41 @@ class ExecutionEngineTests(unittest.TestCase):
             self.assertEqual(trace.reason, "approval_required")
             self.assertFalse((workspace / "out.txt").exists())
 
+    def test_execute_plan_emits_each_step_as_it_finishes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "a.txt").write_text("a\n", encoding="utf-8")
+            seen: list[str] = []
+
+            def on_turn(turn):
+                seen.append(turn["step_id"])
+                self.assertEqual(turn["tool_names"], ["read_text"])
+                self.assertEqual(turn["status"], "completed")
+
+            trace = execute_plan(
+                ExecutionPlan(
+                    task="read twice",
+                    steps=[
+                        ExecutionStep(
+                            id="first",
+                            description="read",
+                            tool_calls=[ToolCallSpec(tool_name="read_text", params={"path": "a.txt"})],
+                        ),
+                        ExecutionStep(
+                            id="second",
+                            description="read again",
+                            depends_on=["first"],
+                            tool_calls=[ToolCallSpec(tool_name="read_text", params={"path": "a.txt"})],
+                        ),
+                    ],
+                ),
+                workspace=workspace,
+                on_turn=on_turn,
+            )
+
+        self.assertTrue(trace.success)
+        self.assertEqual(seen, ["first", "second"])
+
     def test_guardrail_config_rejects_boolean_numeric_limits(self):
         with self.assertRaisesRegex(ValueError, "max_steps must be positive"):
             GuardrailConfig(max_steps=True)

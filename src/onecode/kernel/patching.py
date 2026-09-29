@@ -1,3 +1,4 @@
+import difflib
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
@@ -34,6 +35,7 @@ class PatchPreview:
     path: str
     content: str
     pre_sha256: str
+    diff: str = ""
     status: Literal["ready"] = "ready"
 
 
@@ -51,7 +53,15 @@ def apply_patch_preview(workspace_root: Path, intent: PatchIntent) -> PatchPrevi
         raise PatchRejected("patch_search_ambiguous")
 
     content = original.replace(intent.search_block, intent.replace_block, 1)
-    return PatchPreview(path=intent.path, content=content, pre_sha256=sha256_file(target))
+    diff = "".join(
+        difflib.unified_diff(
+            original.splitlines(keepends=True),
+            content.splitlines(keepends=True),
+            fromfile=f"a/{intent.path}",
+            tofile=f"b/{intent.path}",
+        )
+    )
+    return PatchPreview(path=intent.path, content=content, pre_sha256=sha256_file(target), diff=diff)
 
 
 def compile_patch_preview(preview: PatchPreview) -> None:
@@ -87,11 +97,21 @@ def commit_patch(workspace_root: Path, intent: PatchIntent) -> dict[str, str | b
         "reason": None,
         "pre_sha256": preview.pre_sha256,
         "post_sha256": written["sha256"],
+        "diff": preview.diff,
         "search_block_sha256": hashlib_sha256_text(intent.search_block),
         "replace_block_sha256": hashlib_sha256_text(intent.replace_block),
         **written,
     }
 
 
+def restore_checked_text(workspace_root: Path, relative_path: str, *, expected_sha256: str, content: str) -> dict[str, str | None]:
+    target = PathGuard.resolve_target(workspace_root, relative_path)
+    if not target.is_file() or sha256_file(target) != expected_sha256:
+        return {"status": "halted", "reason": "sha256_mismatch", "path": relative_path}
+    written = PathGuard.write_text(workspace_root, relative_path, content)
+    return {"status": "completed", "reason": None, "path": written["path"], "sha256": written["sha256"]}
+
+
 def hashlib_sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
     return hashlib.sha256(value.encode("utf-8")).hexdigest()

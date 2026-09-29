@@ -1,7 +1,9 @@
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import subprocess
 import time
 from pathlib import Path
+from typing import Any
 
 from onecode.kernel.execution_contracts import (
     ApprovalCallback,
@@ -246,6 +248,7 @@ def execute_plan(
     guardrails: GuardrailConfig | None = None,
     approval_callback: ApprovalCallback | None = None,
     require_explicit_approval: bool = False,
+    on_turn: Callable[[dict[str, Any]], None] | None = None,
 ) -> ExecutionTrace:
     config = guardrails or GuardrailConfig()
     registry = tool_registry or default_tool_registry()
@@ -334,6 +337,15 @@ def execute_plan(
             step_results.append(step_result)
             runner_results.extend(step_runner_results)
             processed_step_ids.add(step.id)
+            if on_turn is not None:
+                on_turn(
+                    {
+                        "step_id": step.id,
+                        "status": step_result.status,
+                        "reason": step_result.reason,
+                        "tool_names": [tool_call.tool_name for tool_call in step.tool_calls],
+                    }
+                )
             if step_result.status == "completed":
                 completed_step_ids.add(step.id)
                 consecutive_failures = 0

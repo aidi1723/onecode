@@ -1,0 +1,33 @@
+{
+  "id": "agent-13-nested-package",
+  "prompt": "创建包模块",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "pkg/mod/__init__.py",
+          "content": ""
+        }
+      },
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "pkg/mod/core.py",
+          "content": "def run():\n    return 1\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "pkg/mod/core.py",
+      "text": "def run"
+    }
+  ]
+}

@@ -353,6 +353,60 @@ class ModelLoopTests(unittest.TestCase):
             self.assertEqual(result["plan_summary"]["actions"][0]["content_bytes"], 5)
             self.assertEqual(len(result["plan_summary"]["actions"]), 1)
 
+    def test_approval_summary_includes_diff_without_writing(self):
+        from onecode.web.api import format_run_result
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            target = workspace / "docs" / "result.md"
+            target.parent.mkdir()
+            target.write_text("old\n", encoding="utf-8")
+            provider = ContextCapturingProvider(
+                ModelPlan(
+                    task="update result",
+                    execution_steps=[
+                        ModelExecutionStep(
+                            id="write",
+                            description="write notes",
+                            tool_calls=[
+                                ModelToolCall(tool_name="write_text", params={"path": "notes.md", "content": "hello\n"})
+                            ],
+                        ),
+                        ModelExecutionStep(
+                            id="patch",
+                            description="patch result",
+                            tool_calls=[
+                                ModelToolCall(
+                                    tool_name="patch_text",
+                                    params={"path": "docs/result.md", "search_block": "old\n", "replace_block": "new\n"},
+                                )
+                            ],
+                        ),
+                    ],
+                )
+            )
+
+            result = run_model_task(
+                "修改 docs/result.md",
+                workspace=workspace,
+                api_key="key",
+                provider=provider,
+                provider_kind="chat",
+                task_mode="change_task",
+                safe_agent_route=SafeAgentRoute("no_match", "no_matching_scenario", schema_version=2),
+                require_explicit_approval=True,
+            )
+            actions = {item["tool"]: item for item in result["plan_summary"]["actions"]}
+            notes_exist = (workspace / "notes.md").exists()
+            original = target.read_text(encoding="utf-8")
+
+        self.assertIn("+hello", actions["write_text"]["diff"])
+        self.assertIn("-old", actions["patch_text"]["diff"])
+        self.assertIn("+new", actions["patch_text"]["diff"])
+        self.assertFalse(notes_exist)
+        self.assertEqual(original, "old\n")
+        self.assertIn("+hello", format_run_result(result, "approval_required"))
+
     def test_guarded_command_approval_summary_displays_exact_argv(self):
         from onecode.web.api import format_run_result
 

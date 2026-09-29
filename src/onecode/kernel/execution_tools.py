@@ -2,12 +2,17 @@ from dataclasses import dataclass
 import json
 import os
 import re
+import select
 import shutil
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 
 from onecode.kernel.path_guard import PathGuard
+
+
+_NESTED_REPEAT = re.compile(r"\([^)]*[+*][^)]*\)[+*{]")
 
 
 COMMAND_ENV_ALLOWLIST = frozenset(
@@ -83,6 +88,18 @@ class PatchTextTool(ToolDefinition):
         if "status_code" in params:
             action["status_code"] = _status_code(params["status_code"])
         return action
+
+    def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
+        from onecode.kernel.patching import PatchIntent, commit_patch
+
+        action = self.plan_action(params)
+        result = commit_patch(
+            workspace,
+            PatchIntent(path=action["path"], search_block=action["search_block"], replace_block=action["replace_block"]),
+        )
+        if result.get("reason") in {"patch_search_not_found", "patch_search_ambiguous"}:
+            return {**result, "reason": "patch_mismatch"}
+        return result
 
 
 @dataclass(frozen=True)
@@ -175,14 +192,20 @@ class SearchTextTool(ToolDefinition):
         regex = params.get("regex", False)
         if not isinstance(regex, bool):
             raise ValueError("regex must be boolean")
-        if regex:
-            raise ValueError("search_text supports literal queries only")
         query = _required_string(params, "query")
         if len(query) > 2_000:
             raise ValueError("query must not exceed 2000 characters")
+        if regex and _NESTED_REPEAT.search(query):
+            raise ValueError("regex pattern is too expensive")
+        if regex:
+            try:
+                re.compile(query)
+            except re.error as exc:
+                raise ValueError("regex pattern is invalid") from exc
         return {
             "action_type": self.name,
             "query": query,
+            "regex": regex,
             "path": _optional_path(params),
             "max_matches": _bounded_int(params.get("max_matches", 200), "max_matches", 1, 5_000),
             "max_depth": _bounded_int(params.get("max_depth", 8), "max_depth", 0, 20),
@@ -230,7 +253,8 @@ class SearchTextTool(ToolDefinition):
             except UnicodeDecodeError:
                 continue
             for line_number, line in enumerate(text.splitlines(), start=1):
-                if action["query"] not in line:
+                matched = _line_matches(line, action["query"], action["regex"])
+                if not matched:
                     continue
                 if len(matches) >= action["max_matches"]:
                     truncated = True
@@ -245,13 +269,60 @@ class SearchTextTool(ToolDefinition):
                 )
             if match_limit_reached:
                 break
-        return {
+        result = {
             "query": action["query"],
             "matches": matches,
             "scanned_file_count": scanned_file_count,
             "scanned_bytes": scanned_bytes,
             "truncated": truncated,
         }
+        if not matches and not truncated:
+            result["status"] = "completed"
+            result["reason"] = "search_miss"
+        return result
+
+
+@dataclass(frozen=True)
+class GlobFilesTool(ToolDefinition):
+    name: str = "glob_files"
+    requires_approval: bool = False
+    runner_managed: bool = False
+
+    def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
+        _reject_unknown_params(params, {"pattern", "path", "max_matches"})
+        pattern = _required_string(params, "pattern")
+        if pattern.startswith("/") or ".." in Path(pattern).parts:
+            raise ValueError("pattern must stay inside the workspace")
+        return {
+            "action_type": self.name,
+            "pattern": pattern,
+            "path": _optional_path(params),
+            "max_matches": _bounded_int(params.get("max_matches", 200), "max_matches", 1, 5_000),
+        }
+
+    def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
+        from onecode.kernel.code_index import glob_workspace
+
+        action = self.plan_action(params)
+        start = PathGuard.resolve_read_target(workspace, action["path"])
+        return glob_workspace(workspace, action["pattern"], start=start, max_matches=action["max_matches"])
+
+
+@dataclass(frozen=True)
+class OutlineTool(ToolDefinition):
+    name: str = "outline"
+    requires_approval: bool = False
+    runner_managed: bool = False
+
+    def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
+        _reject_unknown_params(params, {"path"})
+        return {"action_type": self.name, "path": _required_string(params, "path")}
+
+    def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
+        from onecode.kernel.code_index import outline_python
+
+        action = self.plan_action(params)
+        return outline_python(workspace, action["path"])
 
 
 @dataclass(frozen=True)
@@ -267,37 +338,71 @@ class GitStatusTool(ToolDefinition):
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         self.plan_action(params)
-        environment = _command_environment()
-        environment.update(
-            {
-                "GIT_CONFIG_GLOBAL": os.devnull,
-                "GIT_CONFIG_SYSTEM": os.devnull,
-                "GIT_OPTIONAL_LOCKS": "0",
-            }
-        )
-        completed = subprocess.run(
-            [
-                "git",
-                "--no-optional-locks",
-                "-c",
-                "core.fsmonitor=false",
-                "-c",
-                f"core.hooksPath={os.devnull}",
-                "status",
-                "--short",
-                "--untracked-files=normal",
-            ],
-            cwd=workspace,
-            capture_output=True,
-            text=True,
-            timeout=10,
-            check=False,
-            env=environment,
+        completed = _run_git(
+            workspace,
+            ["status", "--short", "--untracked-files=normal"],
         )
         if completed.returncode != 0:
             raise ValueError("git_status_failed")
         lines = completed.stdout.splitlines()[:1_000]
         return {"entries": lines, "truncated": len(completed.stdout.splitlines()) > len(lines)}
+
+
+@dataclass(frozen=True)
+class GitDiffTool(ToolDefinition):
+    name: str = "git_diff"
+    requires_approval: bool = False
+    runner_managed: bool = False
+
+    def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
+        if params:
+            raise ValueError("git_diff does not accept parameters")
+        return {"action_type": self.name}
+
+    def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
+        self.plan_action(params)
+        parts: list[str] = []
+        for args in (["diff", "--no-ext-diff"], ["diff", "--cached", "--no-ext-diff"]):
+            completed = _run_git(workspace, args)
+            if completed.returncode != 0:
+                return {"status": "halted", "reason": "action_exception", "diff": ""}
+            if completed.stdout:
+                parts.append(completed.stdout)
+        diff = "".join(parts)
+        return {"status": "completed", "diff": diff[-100_000:], "truncated": len(diff) > 100_000}
+
+
+@dataclass(frozen=True)
+class GitCommitTool(ToolDefinition):
+    name: str = "git_commit"
+    requires_approval: bool = True
+    runner_managed: bool = False
+
+    def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
+        _reject_unknown_params(params, {"message", "paths"})
+        message = _required_string(params, "message")
+        if len(message) > 500:
+            raise ValueError("message is too long")
+        paths = params.get("paths")
+        if not isinstance(paths, list) or not paths or len(paths) > 64:
+            raise ValueError("paths must be a non-empty bounded string list")
+        if not all(isinstance(item, str) and item and len(item) <= 4_096 for item in paths):
+            raise ValueError("paths must be a non-empty bounded string list")
+        return {"action_type": self.name, "message": message, "paths": list(paths)}
+
+    def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
+        action = self.plan_action(params)
+        relative_paths = [_workspace_relative(workspace, path) for path in action["paths"]]
+        added = _run_git(workspace, ["add", "--", *relative_paths])
+        if added.returncode != 0:
+            return {"status": "halted", "reason": "action_exception"}
+        committed = _run_git(
+            workspace,
+            ["commit", "--no-verify", "-m", action["message"], "--", *relative_paths],
+        )
+        if committed.returncode != 0:
+            return {"status": "halted", "reason": "action_exception"}
+        return {"status": "completed", "stdout": (committed.stdout or "")[-4_000:]}
 
 
 _DOCKER_READY: bool | None = None
@@ -319,18 +424,25 @@ def _docker_daemon_ready() -> bool:
     return _DOCKER_READY
 
 
-def _run_command(argv: list[str], workspace: Path, timeout_seconds: int) -> tuple[int, str, str]:
+def _run_command(
+    argv: list[str],
+    workspace: Path,
+    timeout_seconds: int,
+    on_output: Any | None = None,
+) -> tuple[int, str, str]:
     mode = os.environ.get("ONECODE_RUN_COMMAND_SANDBOX", "auto").strip().lower()
     use_docker = mode in {"docker", "on", "true", "1"} or (mode not in {"host", "off", "false", "0"} and _docker_daemon_ready())
     if use_docker:
-        from onecode.kernel.sandbox import SandboxConfig, run_in_sandbox
+        from onecode.kernel.sandbox import SandboxConfig, run_in_reused_sandbox
 
         try:
-            completed = run_in_sandbox(
+            completed = run_in_reused_sandbox(
                 SandboxConfig(workspace=workspace, timeout_seconds=timeout_seconds),
                 argv,
             )
-        except (OSError, subprocess.TimeoutExpired, ValueError):
+        except subprocess.TimeoutExpired:
+            raise
+        except (OSError, ValueError):
             if mode in {"docker", "on", "true", "1"}:
                 raise
         else:
@@ -338,18 +450,22 @@ def _run_command(argv: list[str], workspace: Path, timeout_seconds: int) -> tupl
             stderr = completed.stderr or ""
             daemon_down = "cannot connect to the docker daemon" in stderr.lower()
             if mode in {"docker", "on", "true", "1"} or not daemon_down:
+                if on_output is not None and stdout:
+                    on_output(stdout)
                 return completed.returncode, stdout, stderr
-    completed = subprocess.run(
-        argv,
-        cwd=workspace,
-        capture_output=True,
-        text=True,
-        timeout=timeout_seconds,
-        check=False,
-        shell=False,
-        env=_command_environment(),
-    )
-    return completed.returncode, completed.stdout, completed.stderr
+    if on_output is None:
+        completed = subprocess.run(
+            argv,
+            cwd=workspace,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+            check=False,
+            shell=False,
+            env=_command_environment(),
+        )
+        return completed.returncode, completed.stdout, completed.stderr
+    return _stream_host_command(argv, workspace, timeout_seconds, on_output)
 
 
 @dataclass(frozen=True)
@@ -371,14 +487,36 @@ class RunCommandTool(ToolDefinition):
             "timeout_seconds": _bounded_int(params.get("timeout_seconds", 60), "timeout_seconds", 1, 600),
         }
 
-    def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
+    def execute(self, params: dict[str, Any], workspace: Path, on_output: Any | None = None) -> dict[str, Any]:
         action = self.plan_action(params)
         sensitive_values = _sensitive_environment_values()
-        returncode, stdout, stderr = _run_command(action["argv"], workspace, action["timeout_seconds"])
+        argv = [redact_sensitive_text(item, sensitive_values=sensitive_values) for item in action["argv"]]
+
+        def emit(chunk: str) -> None:
+            if on_output is not None:
+                on_output(redact_sensitive_text(chunk, sensitive_values=sensitive_values))
+
+        try:
+            returncode, stdout, stderr = _run_command(
+                action["argv"],
+                workspace,
+                action["timeout_seconds"],
+                on_output=emit if on_output is not None else None,
+            )
+        except subprocess.TimeoutExpired:
+            return {
+                "status": "halted",
+                "reason": "http_timeout",
+                "argv": argv,
+                "returncode": None,
+                "stdout": "",
+                "stderr": "",
+                "truncated": False,
+            }
         stdout = redact_sensitive_text(stdout, sensitive_values=sensitive_values)
         stderr = redact_sensitive_text(stderr, sensitive_values=sensitive_values)
         return {
-            "argv": [redact_sensitive_text(item, sensitive_values=sensitive_values) for item in action["argv"]],
+            "argv": argv,
             "returncode": returncode,
             "stdout": stdout[-100_000:],
             "stderr": stderr[-100_000:],
@@ -410,10 +548,20 @@ def default_tool_registry() -> ToolRegistry:
             ReadTextTool(),
             ListFilesTool(),
             SearchTextTool(),
+            GlobFilesTool(),
+            OutlineTool(),
             GitStatusTool(),
+            GitDiffTool(),
+            GitCommitTool(),
             RunCommandTool(),
         ]
     )
+
+
+def _line_matches(line: str, query: str, regex: bool) -> bool:
+    if not regex:
+        return query in line
+    return re.search(query, line) is not None
 
 
 def _required_string(params: dict[str, Any], key: str) -> str:
@@ -500,6 +648,93 @@ def _collect_bounded_files(
             except OSError:
                 continue
     return files, False
+
+
+def _workspace_relative(workspace: Path, relative_path: str) -> str:
+    target = PathGuard.resolve_target(workspace, relative_path)
+    return target.relative_to(workspace.resolve()).as_posix()
+
+
+def _git_environment() -> dict[str, str]:
+    environment = _command_environment()
+    environment.update(
+        {
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_CONFIG_SYSTEM": os.devnull,
+            "GIT_OPTIONAL_LOCKS": "0",
+        }
+    )
+    return environment
+
+
+def _git_argv(args: list[str]) -> list[str]:
+    return [
+        "git",
+        "--no-optional-locks",
+        "-c",
+        "core.fsmonitor=false",
+        "-c",
+        f"core.hooksPath={os.devnull}",
+        *args,
+    ]
+
+
+def _run_git(workspace: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        _git_argv(args),
+        cwd=workspace,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+        env=_git_environment(),
+    )
+
+
+def _stream_host_command(
+    argv: list[str],
+    workspace: Path,
+    timeout_seconds: int,
+    on_output: Any,
+) -> tuple[int, str, str]:
+    proc = subprocess.Popen(
+        argv,
+        cwd=workspace,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        env=_command_environment(),
+        shell=False,
+    )
+    chunks: list[str] = []
+    deadline = time.monotonic() + timeout_seconds
+    timed_out = False
+    try:
+        if proc.stdout is None:
+            raise RuntimeError("command stdout was not captured")
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                timed_out = True
+                break
+            ready, _, _ = select.select([proc.stdout], [], [], remaining)
+            if not ready:
+                timed_out = True
+                break
+            chunk = os.read(proc.stdout.fileno(), 4096)
+            if not chunk:
+                break
+            text = chunk.decode("utf-8", errors="replace")
+            chunks.append(text)
+            on_output(text)
+        if timed_out:
+            raise subprocess.TimeoutExpired(argv, timeout_seconds)
+        return proc.wait(timeout=5), "".join(chunks), ""
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait(timeout=5)
+        if proc.stdout is not None:
+            proc.stdout.close()
 
 
 def _command_environment() -> dict[str, str]:

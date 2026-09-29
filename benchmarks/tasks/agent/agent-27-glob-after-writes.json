@@ -1,0 +1,45 @@
+{
+  "id": "agent-27-glob-after-writes",
+  "prompt": "写两个文件后匹配",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/one.py",
+          "content": "a = 1\n"
+        }
+      },
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/two.py",
+          "content": "b = 2\n"
+        }
+      },
+      {
+        "tool_name": "glob_files",
+        "params": {
+          "pattern": "src/*.py",
+          "path": "src"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/one.py",
+      "text": "a = 1"
+    },
+    {
+      "type": "file_contains",
+      "path": "src/two.py",
+      "text": "b = 2"
+    }
+  ]
+}

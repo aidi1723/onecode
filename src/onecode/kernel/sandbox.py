@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -68,6 +69,57 @@ def build_docker_command(config: SandboxConfig, command: Sequence[str]) -> list[
         config.image,
         *command,
     ]
+
+
+def workspace_container_name(workspace: Path) -> str:
+    digest = hashlib.sha256(workspace.resolve().as_posix().encode("utf-8")).hexdigest()[:16]
+    return f"onecode-{digest}"
+
+
+def build_container_create(config: SandboxConfig) -> list[str]:
+    command = build_docker_command(config, ["sleep", "infinity"])
+    name = workspace_container_name(config.workspace)
+    run_at = command.index("run")
+    return ["docker", "create", "--name", name, *command[run_at + 2 :]]
+
+
+def build_container_exec(config: SandboxConfig, command: Sequence[str]) -> list[str]:
+    if not command:
+        raise ValueError("sandbox command must not be empty")
+    return ["docker", "exec", "-w", "/workspace", workspace_container_name(config.workspace), *command]
+
+
+def run_in_reused_sandbox(config: SandboxConfig, command: Sequence[str]) -> subprocess.CompletedProcess[str]:
+    name = workspace_container_name(config.workspace)
+    inspected = subprocess.run(["docker", "inspect", name], capture_output=True, text=True, timeout=10, check=False)
+    if inspected.returncode != 0:
+        if "cannot connect to the docker daemon" in inspected.stderr.lower():
+            return inspected
+        created = subprocess.run(build_container_create(config), capture_output=True, text=True, timeout=30, check=False)
+        if created.returncode != 0:
+            return created
+        started = subprocess.run(["docker", "start", name], capture_output=True, text=True, timeout=30, check=False)
+        if started.returncode != 0:
+            return started
+    else:
+        state = subprocess.run(
+            ["docker", "inspect", "-f", "{{.State.Running}}", name],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        if state.returncode != 0 or state.stdout.strip() != "true":
+            started = subprocess.run(["docker", "start", name], capture_output=True, text=True, timeout=30, check=False)
+            if started.returncode != 0:
+                return started
+    return subprocess.run(
+        build_container_exec(config, command),
+        capture_output=True,
+        text=True,
+        timeout=config.timeout_seconds,
+        check=False,
+    )
 
 
 def run_in_sandbox(config: SandboxConfig, command: Sequence[str]) -> subprocess.CompletedProcess[str]:

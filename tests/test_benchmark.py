@@ -506,3 +506,132 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(result["status"], "completed")
         self.assertIn("baseline", result["arms"])
         self.assertIn("onecode", report["arms"])
+
+    def test_agent_local_tasks_record_pass_rate_turns_and_stop_reasons(self):
+        from onecode.benchmark import agent_pass_rate_record, load_benchmark_tasks, run_benchmark_tasks
+
+        tasks = load_benchmark_tasks(Path("benchmarks/tasks/agent"))
+        self.assertEqual(len(tasks), 30)
+        self.assertTrue(all(task.mode == "agent" for task in tasks))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            report = run_benchmark_tasks(tasks, workspace_root=Path(tmp) / "workspaces")
+        record = agent_pass_rate_record(report)
+
+        self.assertEqual(record["task_count"], 30)
+        self.assertEqual(record["passed_count"], 30)
+        self.assertEqual(record["pass_rate"], 1.0)
+        self.assertEqual(record["runner"], "scripted_oracle")
+        self.assertFalse(record["claims_mainstream_parity"])
+        reasons = {item["stop_reason"] for item in record["tasks"]}
+        self.assertIn(None, reasons)
+        self.assertIn("resource_budget_exceeded", reasons)
+        self.assertIn("permission_denied", reasons)
+        self.assertTrue(all(isinstance(item["turn_count"], int) and item["turn_count"] >= 1 for item in record["tasks"]))
+
+    def test_swebench_lite_subset_does_not_claim_parity(self):
+        from onecode.benchmark import SWEBENCH_LITE_SUBSET_IDS, swebench_lite_subset_report
+
+        missing = swebench_lite_subset_report(Path("/no/such/swebench-lite.jsonl"))
+        self.assertEqual(missing["status"], "not_connected")
+        self.assertEqual(missing["loaded_count"], 0)
+        self.assertFalse(missing["claims_mainstream_parity"])
+        self.assertEqual(missing["subset_ids"], list(SWEBENCH_LITE_SUBSET_IDS))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dataset = Path(tmp) / "lite.jsonl"
+            dataset.write_text(
+                "\n".join(
+                    [
+                        json.dumps(
+                            {
+                                "instance_id": SWEBENCH_LITE_SUBSET_IDS[0],
+                                "repo": "django/django",
+                                "problem_statement": "fix the lookup",
+                            }
+                        ),
+                        json.dumps(
+                            {
+                                "instance_id": "not-in-subset",
+                                "repo": "example/example",
+                                "problem_statement": "ignore",
+                            }
+                        ),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            loaded = swebench_lite_subset_report(dataset)
+
+        self.assertEqual(loaded["status"], "loaded")
+        self.assertEqual(loaded["loaded_count"], 1)
+        self.assertEqual(loaded["instances"][0]["instance_id"], SWEBENCH_LITE_SUBSET_IDS[0])
+        self.assertFalse(loaded["claims_mainstream_parity"])
+        self.assertNotIn("pass_rate", loaded)
+
+    def test_vendored_swebench_lite_subset_is_loaded_and_unscored(self):
+        from onecode.benchmark import SWEBENCH_LITE_SUBSET_IDS, vendored_swebench_lite_subset_report
+
+        report = vendored_swebench_lite_subset_report()
+
+        self.assertEqual(report["status"], "loaded")
+        self.assertEqual(report["loaded_count"], len(SWEBENCH_LITE_SUBSET_IDS))
+        self.assertEqual(
+            [item["instance_id"] for item in report["instances"]],
+            list(SWEBENCH_LITE_SUBSET_IDS),
+        )
+        self.assertEqual(report["eval_status"], "not_executed")
+        self.assertFalse(report["claims_mainstream_parity"])
+        self.assertNotIn("pass_rate", report)
+
+    def test_official_patch_harness_records_fail_then_pass_without_claiming_parity(self):
+        import subprocess
+        import sys
+
+        from onecode.benchmark import evaluate_swebench_instance, summarize_swebench_eval
+
+        with tempfile.TemporaryDirectory() as tmp:
+            origin = Path(tmp) / "origin"
+            origin.mkdir()
+            subprocess.run(["git", "init"], cwd=origin, check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.email", "onecode@local.test"], cwd=origin, check=True)
+            subprocess.run(["git", "config", "user.name", "OneCode"], cwd=origin, check=True)
+            (origin / "sample.py").write_text("value = 0\n", encoding="utf-8")
+            subprocess.run(["git", "add", "sample.py"], cwd=origin, check=True)
+            subprocess.run(["git", "commit", "-m", "base"], cwd=origin, check=True, capture_output=True)
+            base = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=origin, text=True).strip()
+            (origin / "test_sample.py").write_text(
+                "import sample\nraise SystemExit(0 if sample.value == 1 else 1)\n",
+                encoding="utf-8",
+            )
+            subprocess.run(["git", "add", "-N", "test_sample.py"], cwd=origin, check=True)
+            test_patch = subprocess.check_output(["git", "diff", "--no-ext-diff"], cwd=origin, text=True)
+            (origin / "test_sample.py").unlink()
+            subprocess.run(["git", "reset"], cwd=origin, check=True, capture_output=True)
+            (origin / "sample.py").write_text("value = 1\n", encoding="utf-8")
+            gold_patch = subprocess.check_output(["git", "diff", "--no-ext-diff"], cwd=origin, text=True)
+            subprocess.run(["git", "checkout", "--", "sample.py"], cwd=origin, check=True)
+
+            result = evaluate_swebench_instance(
+                {
+                    "instance_id": "local__sample-1",
+                    "repo": str(origin),
+                    "base_commit": base,
+                    "test_patch": test_patch,
+                    "patch": gold_patch,
+                    "test_argv": ["{python}", "test_sample.py"],
+                },
+                Path(tmp) / "work",
+                python=sys.executable,
+                install=False,
+            )
+            summary = summarize_swebench_eval([result])
+
+        self.assertNotEqual(result["before_returncode"], 0)
+        self.assertEqual(result["after_returncode"], 0)
+        self.assertEqual(result["status"], "passed")
+        self.assertEqual(summary["runner"], "official_gold_patch")
+        self.assertEqual(summary["pass_rate"], 1.0)
+        self.assertEqual(summary["eval_status"], "executed")
+        self.assertFalse(summary["claims_mainstream_parity"])

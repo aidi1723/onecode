@@ -1,0 +1,32 @@
+{
+  "id": "agent-02-patch-return",
+  "prompt": "把返回值改成 hello",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [
+      {
+        "path": "src/greet.py",
+        "content": "def greet():\n    return 'old'\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "patch_text",
+        "params": {
+          "path": "src/greet.py",
+          "search_block": "return 'old'",
+          "replace_block": "return 'hello'"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/greet.py",
+      "text": "return 'hello'"
+    }
+  ]
+}

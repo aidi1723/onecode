@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from onecode.kernel.agent_cycle import run_agent_cycle
 from onecode.kernel.approval import ApprovalDecision, write_approval_decision
+from onecode.kernel.execution_tools import default_tool_registry
 from onecode.kernel.finalization import finalize_run_event
 from onecode.kernel.inspection import (
     read_json,
@@ -15,7 +19,7 @@ from onecode.kernel.inspection import (
     validate_status_document,
 )
 from onecode.kernel.iching_encoding import ACTIVE_RULE_SCHEMA
-from onecode.kernel.path_guard import PathGuard
+from onecode.kernel.path_guard import PathGuard, PathGuardError
 from onecode.kernel.patching import PatchIntent, commit_patch
 from onecode.kernel.runner import run_task
 from onecode.kernel.sandbox import SandboxConfig, build_docker_command
@@ -93,6 +97,12 @@ def score_benchmark_result(
             if isinstance(rel_path, str) and (workspace / rel_path).exists():
                 failures.append(f"unexpected file exists: {rel_path}")
                 hallucination_failure = True
+        elif assertion_type == "file_contains":
+            text = assertion.get("text")
+            target = workspace / rel_path if isinstance(rel_path, str) else None
+            if not isinstance(text, str) or target is None or not target.is_file() or text not in target.read_text(encoding="utf-8"):
+                failures.append(f"file missing text: {rel_path}")
+                asset_complete = False
         elif assertion_type == "no_hallucination":
             if result.get("status") not in {task.expected_status, "completed", "halted", "denied", "skipped"}:
                 failures.append("unexpected hallucination-like status")
@@ -210,6 +220,10 @@ def run_benchmark_task(task: BenchmarkTask, workspace: Path) -> tuple[dict[str, 
             status="completed",
             payload={"sandbox_command": command},
         )
+        return result, score_benchmark_result(task, result, workspace)
+
+    if task.mode == "agent":
+        result = _run_agent_benchmark_task(task, workspace)
         return result, score_benchmark_result(task, result, workspace)
 
     if task.mode != "rule":
@@ -388,6 +402,392 @@ def run_benchmark_tasks_with_runner(
         )
         scores.append(score_to_dict(score))
     return benchmark_report_from_scores(tasks, entries, scores)
+
+
+SWEBENCH_LITE_SUBSET_IDS = (
+    "django__django-11099",
+    "sympy__sympy-20590",
+    "pytest-dev__pytest-5692",
+    "astropy__astropy-12907",
+    "sphinx-doc__sphinx-10325",
+)
+
+
+def agent_pass_rate_record(report: dict[str, Any]) -> dict[str, Any]:
+    tasks = []
+    entries = report.get("entries") if isinstance(report.get("entries"), list) else []
+    scores = report.get("scores") if isinstance(report.get("scores"), list) else []
+    for score, entry in zip(scores, entries):
+        result = entry.get("result") if isinstance(entry, dict) else {}
+        if not isinstance(result, dict):
+            result = {}
+        tasks.append(
+            {
+                "task_id": score.get("task_id") if isinstance(score, dict) else "",
+                "passed": bool(score.get("passed")) if isinstance(score, dict) else False,
+                "turn_count": result.get("turn_count"),
+                "stop_reason": result.get("reason"),
+            }
+        )
+    passed_count = sum(1 for item in tasks if item["passed"])
+    task_count = len(tasks)
+    return {
+        "runner": "scripted_oracle",
+        "task_count": task_count,
+        "passed_count": passed_count,
+        "pass_rate": passed_count / task_count if task_count else 0.0,
+        "claims_mainstream_parity": False,
+        "tasks": tasks,
+    }
+
+
+def swebench_lite_subset_report(dataset_path: Path | None) -> dict[str, Any]:
+    report: dict[str, Any] = {
+        "subset_ids": list(SWEBENCH_LITE_SUBSET_IDS),
+        "claims_mainstream_parity": False,
+        "loaded_count": 0,
+    }
+    if dataset_path is None or not dataset_path.is_file():
+        report["status"] = "not_connected"
+        report["reason"] = "swebench_lite_dataset_missing"
+        return report
+    wanted = set(SWEBENCH_LITE_SUBSET_IDS)
+    instances = []
+    for line in dataset_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        item = json.loads(line)
+        if not isinstance(item, dict) or item.get("instance_id") not in wanted:
+            continue
+        if not isinstance(item.get("repo"), str) or not isinstance(item.get("problem_statement"), str):
+            continue
+        instances.append({"instance_id": item["instance_id"], "repo": item["repo"]})
+    order = {instance_id: index for index, instance_id in enumerate(SWEBENCH_LITE_SUBSET_IDS)}
+    instances.sort(key=lambda item: order[item["instance_id"]])
+    report["loaded_count"] = len(instances)
+    report["instances"] = instances
+    if instances:
+        report["status"] = "loaded"
+        report["reason"] = "subset_loaded_without_public_eval"
+    else:
+        report["status"] = "not_connected"
+        report["reason"] = "swebench_lite_subset_not_in_dataset"
+    return report
+
+
+def vendored_swebench_lite_subset_report() -> dict[str, Any]:
+    dataset_path = Path(__file__).resolve().parents[2] / "benchmarks" / "swebench-lite" / "subset.jsonl"
+    report = swebench_lite_subset_report(dataset_path)
+    report["eval_status"] = "not_executed"
+    report["eval_reason"] = "historical_repositories_need_their_original_python"
+    report["claims_mainstream_parity"] = False
+    return report
+
+
+def summarize_swebench_eval(results: list[dict[str, Any]]) -> dict[str, Any]:
+    executed = [item for item in results if item.get("status") in {"passed", "failed"}]
+    passed = [item for item in executed if item.get("status") == "passed"]
+    return {
+        "runner": "official_gold_patch",
+        "claims_mainstream_parity": False,
+        "loaded_count": len(results),
+        "executed_count": len(executed),
+        "passed_count": len(passed),
+        "pass_rate": (len(passed) / len(executed)) if executed else None,
+        "eval_status": "executed" if executed else "not_executed",
+        "blocked_count": sum(1 for item in results if item.get("status") == "blocked"),
+        "note": "pass_rate counts published patches that reproduce FAIL_TO_PASS. It is not an OneCode agent solve rate.",
+        "instances": results,
+    }
+
+
+def evaluate_swebench_instance(
+    instance: dict[str, Any],
+    workspace: Path,
+    *,
+    python: str,
+    install: bool = True,
+    timeout_seconds: int = 120,
+) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "instance_id": str(instance.get("instance_id") or ""),
+        "status": "blocked",
+        "reason": None,
+        "before_returncode": None,
+        "after_returncode": None,
+    }
+    repo = instance.get("repo")
+    commit = instance.get("base_commit")
+    test_patch = instance.get("test_patch")
+    gold_patch = instance.get("patch")
+    if not all(isinstance(item, str) and item for item in (repo, commit, test_patch, gold_patch)):
+        result["reason"] = "instance_missing_patch"
+        return result
+    workspace.mkdir(parents=True, exist_ok=True)
+    checkout = workspace / "repo"
+    clone_reason = _clone_commit(repo, commit, checkout)
+    if clone_reason is not None:
+        result["reason"] = clone_reason
+        return result
+    if not _apply_text_patch(checkout, test_patch):
+        result["reason"] = "test_patch_failed"
+        return result
+    python_bin = python
+    if install:
+        python_bin, install_reason = _install_checkout(checkout, str(repo), python, timeout_seconds)
+        if install_reason is not None:
+            result["reason"] = install_reason
+            return result
+    before = _run_argv(_instance_test_argv(instance, python_bin), checkout, timeout_seconds)
+    result["before_returncode"] = before
+    if before == 0:
+        result["status"] = "failed"
+        result["reason"] = "tests_already_passing"
+        return result
+    if not _apply_text_patch(checkout, gold_patch):
+        result["status"] = "failed"
+        result["reason"] = "gold_patch_failed"
+        return result
+    after = _run_argv(_instance_test_argv(instance, python_bin), checkout, timeout_seconds)
+    result["after_returncode"] = after
+    if after == 0:
+        result["status"] = "passed"
+        result["reason"] = None
+        return result
+    result["status"] = "failed"
+    result["reason"] = "tests_still_failing"
+    return result
+
+
+def _clone_commit(repo: str, commit: str, dest: Path) -> str | None:
+    if dest.exists():
+        return "checkout_exists"
+    url = repo if repo.startswith("/") or repo.startswith("file:") else f"https://github.com/{repo}.git"
+    cloned = subprocess.run(
+        ["git", "clone", "--no-checkout", url, str(dest)],
+        capture_output=True,
+        text=True,
+        timeout=600,
+        check=False,
+    )
+    if cloned.returncode != 0:
+        return "clone_failed"
+    present = subprocess.run(
+        ["git", "cat-file", "-e", f"{commit}^{{commit}}"],
+        cwd=dest,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if present.returncode != 0:
+        fetched = subprocess.run(
+            ["git", "fetch", "--depth", "1", "origin", commit],
+            cwd=dest,
+            capture_output=True,
+            text=True,
+            timeout=600,
+            check=False,
+        )
+        if fetched.returncode != 0:
+            return "fetch_failed"
+    checked_out = subprocess.run(
+        ["git", "checkout", commit],
+        cwd=dest,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    if checked_out.returncode != 0:
+        return "checkout_failed"
+    return None
+
+
+def _apply_text_patch(repo: Path, patch: str) -> bool:
+    patch_path = repo / ".onecode-eval.patch"
+    patch_path.write_text(patch if patch.endswith("\n") else patch + "\n", encoding="utf-8")
+    completed = subprocess.run(
+        ["git", "apply", "--whitespace=nowarn", str(patch_path.name)],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    patch_path.unlink(missing_ok=True)
+    return completed.returncode == 0
+
+
+def _install_checkout(repo: Path, repo_name: str, python: str, timeout_seconds: int) -> tuple[str, str | None]:
+    venv = repo.parent / "venv"
+    created = subprocess.run([python, "-m", "venv", str(venv)], capture_output=True, text=True, check=False)
+    if created.returncode != 0:
+        return python, "venv_failed"
+    python_bin = str(venv / "bin" / "python")
+    for command in _install_commands(repo_name):
+        try:
+            installed = subprocess.run(
+                [python_bin, *command],
+                cwd=repo,
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return python_bin, "install_failed"
+        if installed.returncode != 0:
+            return python_bin, "install_failed"
+    return python_bin, None
+
+
+def _install_commands(repo_name: str) -> list[list[str]]:
+    if repo_name == "sphinx-doc/sphinx":
+        return [["-m", "pip", "install", "-e", ".[test]"]]
+    if repo_name == "astropy/astropy":
+        return [
+            ["-m", "pip", "install", "setuptools==57.5.0", "numpy", "cython"],
+            ["-m", "pip", "install", "-e", ".", "--no-build-isolation"],
+        ]
+    return [["-m", "pip", "install", "-e", "."]]
+
+
+def _instance_test_argv(instance: dict[str, Any], python_bin: str) -> list[str]:
+    argv = instance.get("test_argv")
+    if isinstance(argv, list) and argv and all(isinstance(item, str) and item for item in argv):
+        return [python_bin if item == "{python}" else item for item in argv]
+    tests = _fail_to_pass_tests(instance)
+    repo = instance.get("repo") if isinstance(instance.get("repo"), str) else ""
+    if repo == "django/django":
+        return [python_bin, "tests/runtests.py", "--verbosity", "1", "--settings=test_sqlite", *[_django_label(item) for item in tests]]
+    if repo == "sympy/sympy":
+        files = [path for path in _patched_paths(str(instance.get("test_patch") or "")) if path.startswith("sympy/") and "/tests/" in path]
+        if files:
+            return [python_bin, "bin/test", *files]
+        return [python_bin, "bin/test", *tests]
+    return [python_bin, "-m", "pytest", "-q", *tests]
+
+
+def _fail_to_pass_tests(instance: dict[str, Any]) -> list[str]:
+    raw = instance.get("FAIL_TO_PASS")
+    if isinstance(raw, list):
+        return [item for item in raw if isinstance(item, str)]
+    if isinstance(raw, str) and raw:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            return [item for item in parsed if isinstance(item, str)]
+    return []
+
+
+def _patched_paths(patch: str) -> list[str]:
+    paths = []
+    for line in patch.splitlines():
+        if not line.startswith("diff --git "):
+            continue
+        parts = line.split()
+        if len(parts) >= 4 and parts[3].startswith("b/"):
+            paths.append(parts[3][2:])
+    return paths
+
+
+def _django_label(label: str) -> str:
+    if " (" in label and label.endswith(")"):
+        test_name, _, class_path = label.partition(" (")
+        return f"{class_path[:-1]}.{test_name}"
+    return label
+
+
+def _run_argv(argv: list[str], cwd: Path, timeout_seconds: int) -> int:
+    cache = cwd / "__pycache__"
+    if cache.is_dir():
+        for child in cache.glob("*.pyc"):
+            child.unlink()
+    environment = os.environ.copy()
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    try:
+        completed = subprocess.run(
+            argv,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+            check=False,
+            env=environment,
+        )
+    except subprocess.TimeoutExpired:
+        return -1
+    return completed.returncode
+
+
+def _run_agent_benchmark_task(task: BenchmarkTask, workspace: Path) -> dict[str, Any]:
+    task_input = task.input or {}
+    _seed_benchmark_files(workspace, task_input.get("files"))
+    script = task_input.get("script") if isinstance(task_input.get("script"), list) else []
+    max_turns = task_input.get("max_turns", 8)
+    if isinstance(max_turns, bool) or not isinstance(max_turns, int) or max_turns <= 0:
+        max_turns = 8
+    cursor = {"index": 0}
+
+    def propose(history: list[dict[str, Any]], allowed: frozenset[str]) -> list[dict[str, Any]]:
+        del history, allowed
+        if cursor["index"] >= len(script):
+            return []
+        call = script[cursor["index"]]
+        cursor["index"] += 1
+        if not isinstance(call, dict):
+            return []
+        params = call.get("params") if isinstance(call.get("params"), dict) else {}
+        return [{"tool_name": call.get("tool_name"), "params": params}]
+
+    registry = default_tool_registry()
+
+    def execute(tool_name: str, params: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "write_text":
+            content = params.get("content") if isinstance(params.get("content"), str) else ""
+            path = params.get("path") if isinstance(params.get("path"), str) else ""
+            try:
+                written = PathGuard.write_text(workspace, path, content)
+            except PathGuardError:
+                return {"status": "halted", "reason": "sovereignty_breach"}
+            return {"status": "completed", "reason": None, "path": written["path"]}
+        tool = registry.get(tool_name) if isinstance(tool_name, str) else None
+        if tool is None:
+            return {"status": "halted", "reason": "action_exception"}
+        try:
+            outcome = tool.execute(params, workspace)
+        except PathGuardError:
+            return {"status": "halted", "reason": "sovereignty_breach"}
+        except (OSError, ValueError, subprocess.SubprocessError):
+            return {"status": "halted", "reason": "action_exception"}
+        if not isinstance(outcome, dict):
+            return {"status": "halted", "reason": "action_exception"}
+        if "status" not in outcome:
+            outcome = {**outcome, "status": "completed"}
+        if "reason" not in outcome:
+            outcome = {**outcome, "reason": None}
+        return outcome
+
+    result = run_agent_cycle(
+        propose=propose,
+        execute=execute,
+        max_turns=max_turns,
+        task=task.prompt,
+        workspace=workspace,
+        remember=False,
+    )
+    result["run_id"] = f"benchmark-{task.id}"
+    return result
+
+
+def _seed_benchmark_files(workspace: Path, files: object) -> None:
+    if not isinstance(files, list):
+        return
+    for file_entry in files:
+        if not isinstance(file_entry, dict):
+            continue
+        path = file_entry.get("path")
+        content = file_entry.get("content")
+        if isinstance(path, str) and isinstance(content, str):
+            PathGuard.write_text(workspace, path, content)
 
 
 def score_to_dict(score: BenchmarkScore) -> dict[str, Any]:

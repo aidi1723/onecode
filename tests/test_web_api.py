@@ -1448,6 +1448,61 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertIn('"delta"', text)
         self.assertTrue(text.rstrip().endswith("data: [DONE]"))
 
+    def test_streaming_chat_emits_each_tool_turn_before_the_run_returns(self):
+        from onecode.web.api import stream_chat_completion
+
+        chunks: list[bytes] = []
+
+        def write(data: bytes) -> None:
+            chunks.append(data)
+
+        def fake_run(*args, **kwargs):
+            on_turn = kwargs["on_turn"]
+            on_turn({"step_id": "read", "status": "completed", "reason": None, "tool_names": ["read_text"]})
+            self.assertEqual(len(chunks), 1)
+            self.assertIn("read_text", chunks[0].decode())
+            on_turn({"step_id": "search", "status": "completed", "reason": "search_miss", "tool_names": ["search_text"]})
+            self.assertEqual(len(chunks), 2)
+            return {
+                "run_id": "stream-turns",
+                "status": "completed",
+                "reason": None,
+                "requested_count": 2,
+                "completed_count": 2,
+                "skipped_count": 0,
+                "failed_count": 0,
+                "assets": [],
+            }
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+            },
+            clear=True,
+        ), patch(
+            "onecode.web.api.read_model_config",
+            return_value={"provider": "chat", "model": "m", "endpoint": "http://model/v1", "api_key": "key"},
+        ), patch("onecode.web.api.run_model_task", side_effect=fake_run):
+            payload, status = stream_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "查：stream turns"}],
+                    "stream": True,
+                },
+                write,
+            )
+
+        text = b"".join(chunks).decode()
+        self.assertEqual(status, 200)
+        self.assertEqual(text.count('"tool_turn"'), 2)
+        self.assertIn("search_text", text)
+        self.assertTrue(text.rstrip().endswith("data: [DONE]"))
+        self.assertEqual(payload["onecode"]["result"]["run_id"], "stream-turns")
+
     def test_http_server_serves_models_and_chat_completion(self):
         from onecode.web.api import OneCodeRequestHandler
 

@@ -9,6 +9,7 @@ import urllib.request
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -281,7 +282,11 @@ def handle_onecode_run_resume(run_id: str, body: dict[str, Any]) -> tuple[dict[s
     return attach_shell_projection(result), 200
 
 
-def handle_onecode_plan_approval(plan_id: str, body: dict[str, Any]) -> tuple[dict[str, Any], int]:
+def handle_onecode_plan_approval(
+    plan_id: str,
+    body: dict[str, Any],
+    on_turn: Callable[[dict[str, Any]], None] | None = None,
+) -> tuple[dict[str, Any], int]:
     approved = body.get("approved")
     if not isinstance(approved, bool):
         return error_payload("invalid_approval", "approved must be boolean"), 400
@@ -314,6 +319,7 @@ def handle_onecode_plan_approval(plan_id: str, body: dict[str, Any]) -> tuple[di
         resume_from_run_id=None,
         run_metadata={**stored.model_metadata, "approved_plan_id": plan_id},
         approval_callback=lambda _step: True,
+        on_turn=on_turn,
     )
     finalize_approval_plan(stored, "approved", result)
     return attach_shell_projection(result), 200
@@ -668,7 +674,10 @@ def chat_completion_payload(
     }
 
 
-def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
+def handle_chat_completion(
+    body: dict[str, Any],
+    on_turn: Callable[[dict[str, Any]], None] | None = None,
+) -> tuple[dict[str, Any], int]:
     user_message = latest_user_message(body.get("messages"))
     if user_message.strip() == "":
         return error_payload("invalid_request", "messages must include a user message"), 400
@@ -684,6 +693,7 @@ def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
         result, status_code = handle_onecode_plan_approval(
             plan_id,
             {"workspace": str(workspace), "approved": approved},
+            on_turn=on_turn,
         )
         if status_code != 200:
             return result, status_code
@@ -737,6 +747,7 @@ def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
             task_mode=task_mode,
             require_explicit_approval=True,
             http_timeout_seconds=model_timeout_seconds,
+            on_turn=on_turn,
         )
         failure_statuses = {
             "model_provider_timeout": 504,
@@ -780,6 +791,75 @@ def handle_chat_completion(body: dict[str, Any]) -> tuple[dict[str, Any], int]:
 
     content = format_run_result(result, mode)
     return chat_completion_payload(content, model, result, mode), 200
+
+
+def stream_chat_completion(
+    body: dict[str, Any],
+    write: Callable[[bytes], None],
+) -> tuple[dict[str, Any], int]:
+    def on_turn(turn: dict[str, Any]) -> None:
+        write(_sse_bytes(tool_turn_chunk(turn)))
+
+    payload, status = handle_chat_completion(body, on_turn=on_turn)
+    if status != 200:
+        return payload, status
+    write(_sse_bytes(content_chunk(payload)))
+    write(_sse_bytes(stop_chunk(payload)))
+    write(b"data: [DONE]\n\n")
+    return payload, status
+
+
+def tool_turn_chunk(turn: dict[str, Any]) -> dict[str, Any]:
+    tool_names = [name for name in turn.get("tool_names", []) if isinstance(name, str)]
+    reason = turn.get("reason")
+    label = ", ".join(tool_names) or str(turn.get("step_id") or "tool")
+    content = f"{label}: {turn.get('status') or 'completed'}"
+    if isinstance(reason, str) and reason:
+        content += f" | {reason}"
+    return {
+        "object": "chat.completion.chunk",
+        "choices": [{"index": 0, "delta": {"content": content + "\n"}, "finish_reason": None}],
+        "onecode": {
+            "event": "tool_turn",
+            "step_id": turn.get("step_id"),
+            "tool_names": tool_names,
+            "status": turn.get("status"),
+            "reason": reason,
+        },
+    }
+
+
+def content_chunk(payload: dict[str, Any]) -> dict[str, Any]:
+    choice = payload.get("choices", [{}])[0] if isinstance(payload.get("choices"), list) else {}
+    message = choice.get("message", {}) if isinstance(choice, dict) else {}
+    content = message.get("content") if isinstance(message, dict) else ""
+    return {
+        "id": payload.get("id"),
+        "object": "chat.completion.chunk",
+        "created": payload.get("created"),
+        "model": payload.get("model"),
+        "choices": [
+            {
+                "index": 0,
+                "delta": {"role": "assistant", "content": content if isinstance(content, str) else ""},
+                "finish_reason": None,
+            }
+        ],
+    }
+
+
+def stop_chunk(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": payload.get("id"),
+        "object": "chat.completion.chunk",
+        "created": payload.get("created"),
+        "model": payload.get("model"),
+        "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+    }
+
+
+def _sse_bytes(payload: dict[str, Any]) -> bytes:
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n".encode("utf-8")
 
 
 def format_run_result(result: dict[str, Any], mode: str) -> str:
@@ -1069,10 +1149,10 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
         body = self._read_json_or_send_error()
         if body is None:
             return
-        payload, status_code = handle_chat_completion(body)
-        if status_code == 200 and body.get("stream") is True:
-            self._send_sse_chat_completion(payload)
+        if body.get("stream") is True:
+            self._send_streaming_chat(body)
             return
+        payload, status_code = handle_chat_completion(body)
         self._send_json(payload, status_code=status_code)
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -1128,43 +1208,24 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(encoded)
 
-    def _send_sse_chat_completion(self, payload: dict[str, Any]) -> None:
-        choice = payload.get("choices", [{}])[0] if isinstance(payload.get("choices"), list) else {}
-        message = choice.get("message", {}) if isinstance(choice, dict) else {}
-        content = message.get("content") if isinstance(message, dict) else ""
-        chunk = {
-            "id": payload.get("id"),
-            "object": "chat.completion.chunk",
-            "created": payload.get("created"),
-            "model": payload.get("model"),
-            "choices": [
-                {
-                    "index": 0,
-                    "delta": {"role": "assistant", "content": content if isinstance(content, str) else ""},
-                    "finish_reason": None,
-                }
-            ],
-        }
-        final_chunk = {
-            "id": payload.get("id"),
-            "object": "chat.completion.chunk",
-            "created": payload.get("created"),
-            "model": payload.get("model"),
-            "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
-        }
-        body = (
-            f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
-            f"data: {json.dumps(final_chunk, ensure_ascii=False)}\n\n"
-            "data: [DONE]\n\n"
-        ).encode("utf-8")
-        self.send_response(200)
-        self.send_header("content-type", "text/event-stream; charset=utf-8")
-        self.send_header("cache-control", "no-cache")
-        self.send_header("connection", "close")
-        self.send_header("content-length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-        self.wfile.flush()
+    def _send_streaming_chat(self, body: dict[str, Any]) -> None:
+        started = False
+
+        def write(data: bytes) -> None:
+            nonlocal started
+            if not started:
+                self.send_response(200)
+                self.send_header("content-type", "text/event-stream; charset=utf-8")
+                self.send_header("cache-control", "no-cache")
+                self.send_header("connection", "close")
+                self.end_headers()
+                started = True
+            self.wfile.write(data)
+            self.wfile.flush()
+
+        payload, status = stream_chat_completion(body, write)
+        if not started:
+            self._send_json(payload, status_code=status)
 
 
 def run_server(host: str = "127.0.0.1", port: int = 19080) -> None:

@@ -1,6 +1,8 @@
 from pathlib import Path
+import difflib
 import hashlib
 import inspect
+import subprocess
 import time
 from typing import Any, Callable
 
@@ -25,6 +27,8 @@ from onecode.kernel.runner import halted_result, run_task
 from onecode.kernel.trace import TraceEvent, write_trace_event
 from onecode.kernel.safe_agent_router import SafeAgentRoute, route_safe_agent_task
 from onecode.kernel.approval_plans import model_plan_requires_approval, persist_approval_plan
+from onecode.kernel.patching import PatchIntent, PatchRejected, apply_patch_preview
+from onecode.kernel.path_guard import PathGuard, PathGuardError
 
 
 def write_texts_from_plan(plan: ModelPlan) -> list[str]:
@@ -201,6 +205,7 @@ def execute_model_plan(
     run_metadata: dict[str, Any],
     require_explicit_approval: bool = False,
     approval_callback: Callable[[ExecutionStep], bool] | None = None,
+    on_turn: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     if plan.execution_steps:
         context = create_context(workspace_root=workspace, run_id=run_id, resume_from_run_id=resume_from_run_id)
@@ -211,6 +216,7 @@ def execute_model_plan(
             resume_from_run_id=resume_from_run_id,
             approval_callback=approval_callback,
             require_explicit_approval=require_explicit_approval,
+            on_turn=on_turn,
         )
         trace_dict = execution_trace_to_dict(trace)
         result = {
@@ -386,7 +392,7 @@ def pending_approval_result(
             "asset_count": len(plan.assets),
             "patch_count": len(plan.patches),
             "tool_names": tool_names,
-            "actions": approval_action_summaries(plan),
+            "actions": approval_action_summaries(plan, workspace),
         },
         "model_provider": model_provider,
         "model": resolved_model,
@@ -394,25 +400,35 @@ def pending_approval_result(
     }
 
 
-def approval_action_summaries(plan: ModelPlan) -> list[dict[str, Any]]:
+def approval_action_summaries(plan: ModelPlan, workspace: Path) -> list[dict[str, Any]]:
     actions: list[dict[str, Any]] = []
     for step in execution_plan_from_model_plan(plan).steps:
         for tool_call in step.tool_calls:
             params = tool_call.params
             if tool_call.tool_name == "write_text":
                 actions.append(
-                    _write_approval_summary(
-                        "write_text",
-                        params.get("path"),
-                        params.get("content"),
+                    _with_change_diff(
+                        workspace,
+                        tool_call.tool_name,
+                        params,
+                        _write_approval_summary(
+                            "write_text",
+                            params.get("path"),
+                            params.get("content"),
+                        ),
                     )
                 )
             elif tool_call.tool_name == "patch_text":
                 actions.append(
-                    _patch_approval_summary(
-                        params.get("path"),
-                        params.get("search_block"),
-                        params.get("replace_block"),
+                    _with_change_diff(
+                        workspace,
+                        tool_call.tool_name,
+                        params,
+                        _patch_approval_summary(
+                            params.get("path"),
+                            params.get("search_block"),
+                            params.get("replace_block"),
+                        ),
                     )
                 )
             elif tool_call.tool_name == "run_command":
@@ -424,6 +440,8 @@ def approval_action_summaries(plan: ModelPlan) -> list[dict[str, Any]]:
                         "timeout_seconds": params.get("timeout_seconds", 60),
                     }
                 )
+            elif tool_call.tool_name == "git_commit":
+                actions.append(_with_change_diff(workspace, tool_call.tool_name, params, {"tool": "git_commit"}))
             else:
                 summary: dict[str, Any] = {"tool": tool_call.tool_name}
                 for key in ("path", "query", "max_entries", "max_matches"):
@@ -432,6 +450,69 @@ def approval_action_summaries(plan: ModelPlan) -> list[dict[str, Any]]:
                         summary[key] = redact_sensitive_text(value) if isinstance(value, str) else value
                 actions.append(summary)
     return actions
+
+
+def _with_change_diff(workspace: Path, tool_name: str, params: dict[str, Any], summary: dict[str, Any]) -> dict[str, Any]:
+    summary["diff"] = _change_diff(workspace, tool_name, params)
+    return summary
+
+
+def _change_diff(workspace: Path, tool_name: str, params: dict[str, Any]) -> str:
+    if tool_name == "write_text" and isinstance(params.get("path"), str):
+        content = params.get("content") if isinstance(params.get("content"), str) else ""
+        return _unified_diff(params["path"], _preview_text(workspace, params["path"]), content)
+    if tool_name == "patch_text":
+        path = params.get("path") if isinstance(params.get("path"), str) else ""
+        search = params.get("search_block") if isinstance(params.get("search_block"), str) else ""
+        replace = params.get("replace_block") if isinstance(params.get("replace_block"), str) else ""
+        try:
+            preview = apply_patch_preview(workspace, PatchIntent(path=path, search_block=search, replace_block=replace))
+        except (PatchRejected, PathGuardError, OSError, ValueError):
+            return ""
+        return preview.diff[:100_000]
+    if tool_name == "git_commit" and isinstance(params.get("paths"), list):
+        parts = []
+        for path in params["paths"]:
+            if isinstance(path, str):
+                parts.append(_unified_diff(path, _git_head_text(workspace, path), _preview_text(workspace, path)))
+        return "".join(parts)[:100_000]
+    return ""
+
+
+def _preview_text(workspace: Path, relative_path: str) -> str:
+    try:
+        target = PathGuard.resolve_target(workspace, relative_path)
+    except PathGuardError:
+        return ""
+    if not target.is_file():
+        return ""
+    return target.read_text(encoding="utf-8")
+
+
+def _git_head_text(workspace: Path, relative_path: str) -> str:
+    completed = subprocess.run(
+        ["git", "show", f"HEAD:{relative_path}"],
+        cwd=workspace,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return ""
+    return completed.stdout
+
+
+def _unified_diff(path: str, before: str, after: str) -> str:
+    diff = "".join(
+        difflib.unified_diff(
+            before.splitlines(keepends=True),
+            after.splitlines(keepends=True),
+            fromfile=f"a/{path}",
+            tofile=f"b/{path}",
+        )
+    )
+    return diff[:100_000]
 
 
 def _write_approval_summary(tool: str, path: Any, content: Any) -> dict[str, Any]:
@@ -658,6 +739,7 @@ def run_model_task(
     safe_agent_route: SafeAgentRoute | None = None,
     require_explicit_approval: bool = False,
     execution_approval: Callable[[ExecutionStep], bool] | None = None,
+    on_turn: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     validate_model_task_limits(http_timeout_seconds, max_repair_attempts)
     provider_config, resolved_model, resolved_api_key = resolve_model_runtime(
@@ -727,6 +809,7 @@ def run_model_task(
         run_metadata=run_metadata,
         require_explicit_approval=require_explicit_approval,
         approval_callback=execution_approval,
+        on_turn=on_turn,
     )
     if result["status"] == "completed" or max_repair_attempts <= 0:
         return result
@@ -771,6 +854,7 @@ def run_model_task(
             run_metadata=repair_metadata,
             require_explicit_approval=require_explicit_approval,
             approval_callback=execution_approval,
+            on_turn=on_turn,
         )
         merged = merge_repair_result(result, repair_result, repair_attempt_count=attempt)
         if repair_result.get("status") == "completed":

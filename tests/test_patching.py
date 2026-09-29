@@ -56,6 +56,65 @@ class PatchingTests(unittest.TestCase):
 
             self.assertEqual(target.read_text(encoding="utf-8"), "x = 1\nx = 1\n")
 
+    def test_patch_tool_reports_mismatch_without_writing(self):
+        from onecode.kernel.execution_tools import PatchTextTool
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            target = workspace / "src" / "mesh.py"
+            target.parent.mkdir()
+            target.write_text("x = 1\n", encoding="utf-8")
+
+            missing = PatchTextTool().execute(
+                {"path": "src/mesh.py", "search_block": "missing", "replace_block": "y = 2"},
+                workspace,
+            )
+            target.write_text("x = 1\nx = 1\n", encoding="utf-8")
+            ambiguous = PatchTextTool().execute(
+                {"path": "src/mesh.py", "search_block": "x = 1", "replace_block": "x = 2"},
+                workspace,
+            )
+            self.assertEqual(missing["reason"], "patch_mismatch")
+            self.assertEqual(ambiguous["reason"], "patch_mismatch")
+            self.assertEqual(target.read_text(encoding="utf-8"), "x = 1\nx = 1\n")
+
+    def test_commit_patch_includes_diff_and_restore_checks_sha(self):
+        from onecode.kernel.patching import restore_checked_text
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            target = workspace / "src" / "mesh.py"
+            target.parent.mkdir()
+            original = "def status():\n    return False\n"
+            target.write_text(original, encoding="utf-8")
+
+            result = commit_patch(
+                workspace,
+                PatchIntent(
+                    path="src/mesh.py",
+                    search_block="return False",
+                    replace_block="return True",
+                ),
+            )
+            self.assertIn("return True", result["diff"])
+            self.assertIn("return True", target.read_text(encoding="utf-8"))
+            restored = restore_checked_text(
+                workspace,
+                "src/mesh.py",
+                expected_sha256=result["post_sha256"],
+                content=original,
+            )
+            self.assertEqual(restored["status"], "completed")
+            self.assertEqual(target.read_text(encoding="utf-8"), original)
+            mismatch = restore_checked_text(
+                workspace,
+                "src/mesh.py",
+                expected_sha256="0" * 64,
+                content="nope\n",
+            )
+            self.assertEqual(mismatch["reason"], "sha256_mismatch")
+            self.assertEqual(target.read_text(encoding="utf-8"), original)
+
     def test_commit_patch_rejects_python_syntax_error_without_writing(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

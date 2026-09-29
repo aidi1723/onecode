@@ -1,0 +1,30 @@
+{
+  "id": "agent-08-list-src",
+  "prompt": "列出 src",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [
+      {
+        "path": "src/item.txt",
+        "content": "ok\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "list_files",
+        "params": {
+          "path": "src"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/item.txt",
+      "text": "ok"
+    }
+  ]
+}

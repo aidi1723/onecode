@@ -1,0 +1,26 @@
+{
+  "id": "agent-15-write-check",
+  "prompt": "写一个断言示例",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "samples/check_sample.py",
+          "content": "def test_ok():\n    assert True\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "samples/check_sample.py",
+      "text": "assert True"
+    }
+  ]
+}

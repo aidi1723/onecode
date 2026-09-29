@@ -44,7 +44,10 @@ def validate_plan(plan: ExecutionPlan, config: GuardrailConfig) -> GuardrailVali
 def should_require_approval(step: ExecutionStep, config: GuardrailConfig) -> bool:
     if step.mode in {"review", "manual"}:
         return True
-    return any(tool_call.tool_name in config.require_approval_for for tool_call in step.tool_calls)
+    return any(
+        tool_call.tool_name in config.require_approval_for or tool_call.tool_name.startswith("mcp.")
+        for tool_call in step.tool_calls
+    )
 
 
 def dependencies_met(step: ExecutionStep, results: list[StepResult]) -> bool:

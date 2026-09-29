@@ -187,7 +187,8 @@ MODEL_TOOL_CONTRACTS = {
     "search_text": {
         "approval": False,
         "params": {
-            "query": "literal string",
+            "query": "literal string or regex",
+            "regex": "boolean",
             "path": "string",
             "max_matches": "integer",
             "max_depth": "integer",
@@ -196,7 +197,11 @@ MODEL_TOOL_CONTRACTS = {
             "max_total_bytes": "integer",
         },
     },
+    "glob_files": {"approval": False, "params": {"pattern": "string", "path": "string", "max_matches": "integer"}},
+    "outline": {"approval": False, "params": {"path": "string"}},
     "git_status": {"approval": False, "params": {}},
+    "git_diff": {"approval": False, "params": {}},
+    "git_commit": {"approval": True, "params": {"message": "string", "paths": "string[]"}},
     "run_command": {"approval": True, "params": {"argv": "string[]", "timeout_seconds": "integer"}},
     "write_text": {"approval": True, "params": {"path": "string", "content": "string"}},
     "patch_text": {

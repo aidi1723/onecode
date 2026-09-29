@@ -296,6 +296,8 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
             return cls.compute_status(cls.LI, cls.KUN)
         if reason == "http_timeout":
             return cls.compute_status(cls.KAN, cls.ZHEN)
+        if reason in {"search_miss", "path_not_found"}:
+            return cls.compute_status(cls.KUN, cls.KUN)
         if reason in {"action_exception", "run_exception"}:
             return cls.compute_status(cls.GEN, cls.KUN)
         if reason == "invalid_intent":

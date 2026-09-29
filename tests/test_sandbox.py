@@ -55,6 +55,49 @@ class SandboxTests(unittest.TestCase):
         self.assertTrue(any(item.startswith("type=bind,src=") and item.endswith(",dst=/workspace") for item in command))
         self.assertNotIn("--volume", command)
 
+    def test_reused_container_commands_share_one_name(self):
+        from onecode.kernel.sandbox import SandboxConfig, build_container_create, build_container_exec
+
+        with tempfile.TemporaryDirectory() as tmp:
+            config = SandboxConfig(workspace=Path(tmp))
+            created = build_container_create(config)
+            first = build_container_exec(config, ["python", "-V"])
+            second = build_container_exec(config, ["python", "-c", "print(1)"])
+
+        self.assertEqual(created[:3], ["docker", "create", "--name"])
+        self.assertEqual(created[-2:], ["sleep", "infinity"])
+        self.assertEqual(first[4], second[4])
+        self.assertEqual(first[4], created[3])
+        self.assertTrue(first[4].startswith("onecode-"))
+
+    def test_reused_sandbox_creates_once_then_execs(self):
+        from subprocess import CompletedProcess
+
+        from onecode.kernel.sandbox import SandboxConfig, run_in_reused_sandbox
+
+        calls: list[list[str]] = []
+
+        def fake_run(argv, **kwargs):
+            calls.append(list(argv))
+            if argv[:2] == ["docker", "inspect"] and len(argv) == 3:
+                exists = any(item[:2] == ["docker", "create"] for item in calls)
+                return CompletedProcess(argv, 0 if exists else 1, "", "")
+            if argv[:3] == ["docker", "inspect", "-f"]:
+                return CompletedProcess(argv, 0, "true\n", "")
+            return CompletedProcess(argv, 0, "ok\n", "")
+
+        with tempfile.TemporaryDirectory() as tmp, patch("onecode.kernel.sandbox.subprocess.run", side_effect=fake_run):
+            config = SandboxConfig(workspace=Path(tmp))
+            first = run_in_reused_sandbox(config, ["python", "-V"])
+            second = run_in_reused_sandbox(config, ["python", "-V"])
+
+        self.assertEqual(first.stdout, "ok\n")
+        self.assertEqual(second.stdout, "ok\n")
+        self.assertEqual(sum(item[:2] == ["docker", "create"] for item in calls), 1)
+        execs = [item for item in calls if item[:2] == ["docker", "exec"]]
+        self.assertEqual(len(execs), 2)
+        self.assertEqual(execs[0][4], execs[1][4])
+
     def test_sandbox_rejects_missing_workspace(self):
         from onecode.kernel.sandbox import SandboxConfig
 

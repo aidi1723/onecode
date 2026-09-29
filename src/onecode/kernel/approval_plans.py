@@ -22,7 +22,7 @@ PLAN_STORE_VERSION = 1
 MAX_PLAN_BYTES = 500_000
 DEFAULT_MAX_PLAN_AGE_SECONDS = 3_600
 ALLOWED_MODEL_METADATA = frozenset({"model", "model_provider", "safe_agent"})
-GUARDED_TOOL_NAMES = frozenset({"write_text", "patch_text", "run_command"})
+GUARDED_TOOL_NAMES = frozenset({"write_text", "patch_text", "run_command", "git_commit"})
 
 
 @dataclass(frozen=True)
@@ -210,7 +210,7 @@ def model_plan_requires_approval(plan: ModelPlan) -> bool:
     if plan.assets or plan.patches:
         return True
     return any(
-        tool.tool_name in GUARDED_TOOL_NAMES
+        tool.tool_name in GUARDED_TOOL_NAMES or tool.tool_name.startswith("mcp.")
         for step in plan.execution_steps
         for tool in step.tool_calls
     )

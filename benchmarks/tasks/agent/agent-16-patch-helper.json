@@ -1,0 +1,32 @@
+{
+  "id": "agent-16-patch-helper",
+  "prompt": "让 helper 返回 1",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [
+      {
+        "path": "src/helper.py",
+        "content": "def helper():\n    return 0\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "patch_text",
+        "params": {
+          "path": "src/helper.py",
+          "search_block": "return 0",
+          "replace_block": "return 1"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/helper.py",
+      "text": "return 1"
+    }
+  ]
+}

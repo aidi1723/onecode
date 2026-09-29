@@ -8,6 +8,7 @@ This index helps you navigate OneCode's documentation, which is organized by pur
 
 - [README.md](../README.md) - Installation, verification, and basic usage
 - [2026-09-29 audit remediation closeout](closure/ONECODE_AUDIT_REMEDIATION_CLOSURE_2026-09-29.md) - Current security boundary and verification record
+- [2026-09-29 agent parity closeout](closure/ONECODE_AGENT_PARITY_CLOSURE_2026-09-29.md) - Handbook phases, workflow run, and evaluation limits
 - [DESIGN.md](../DESIGN.md) - Core design principles
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - How to contribute (see onboarding guide below)
 

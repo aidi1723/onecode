@@ -1,0 +1,53 @@
+{
+  "runner": "official_gold_patch",
+  "claims_mainstream_parity": false,
+  "loaded_count": 5,
+  "executed_count": 4,
+  "passed_count": 4,
+  "pass_rate": 1.0,
+  "eval_status": "executed",
+  "blocked_count": 1,
+  "note": "pass_rate counts published patches that reproduce FAIL_TO_PASS. It is not an OneCode agent solve rate.",
+  "instances": [
+    {
+      "instance_id": "django__django-11099",
+      "repo": "django/django",
+      "status": "passed",
+      "reason": null,
+      "before_returncode": 1,
+      "after_returncode": 0
+    },
+    {
+      "instance_id": "sympy__sympy-20590",
+      "repo": "sympy/sympy",
+      "status": "passed",
+      "reason": null,
+      "before_returncode": 1,
+      "after_returncode": 0
+    },
+    {
+      "instance_id": "pytest-dev__pytest-5692",
+      "repo": "pytest-dev/pytest",
+      "status": "passed",
+      "reason": null,
+      "before_returncode": 1,
+      "after_returncode": 0
+    },
+    {
+      "instance_id": "astropy__astropy-12907",
+      "repo": "astropy/astropy",
+      "status": "blocked",
+      "reason": "install_failed",
+      "before_returncode": null,
+      "after_returncode": null
+    },
+    {
+      "instance_id": "sphinx-doc__sphinx-10325",
+      "repo": "sphinx-doc/sphinx",
+      "status": "passed",
+      "reason": null,
+      "before_returncode": 1,
+      "after_returncode": 0
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "id": "agent-03-two-modules",
+  "prompt": "写下两个模块",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/a.py",
+          "content": "VALUE = 1\n"
+        }
+      },
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/b.py",
+          "content": "VALUE = 2\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/a.py",
+      "text": "VALUE = 1"
+    },
+    {
+      "type": "file_contains",
+      "path": "src/b.py",
+      "text": "VALUE = 2"
+    }
+  ]
+}

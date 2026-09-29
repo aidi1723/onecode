@@ -1,0 +1,32 @@
+{
+  "id": "agent-20-message-constant",
+  "prompt": "写就绪消息",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/message.py",
+          "content": "MESSAGE = 'ready'\n"
+        }
+      },
+      {
+        "tool_name": "read_text",
+        "params": {
+          "path": "src/message.py"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/message.py",
+      "text": "MESSAGE"
+    }
+  ]
+}

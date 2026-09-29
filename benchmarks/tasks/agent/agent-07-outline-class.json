@@ -1,0 +1,30 @@
+{
+  "id": "agent-07-outline-class",
+  "prompt": "查看类大纲",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [
+      {
+        "path": "src/mesh.py",
+        "content": "class Mesh:\n    pass\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "outline",
+        "params": {
+          "path": "src/mesh.py"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/mesh.py",
+      "text": "class Mesh"
+    }
+  ]
+}

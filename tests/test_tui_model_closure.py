@@ -32,6 +32,7 @@ class TuiModelClosureTests(unittest.TestCase):
             self.assertEqual(kwargs["workspace"], Path(tmp).resolve())
             self.assertEqual(kwargs["model"], "test-model")
             self.assertEqual(kwargs["provider_kind"], "chat")
+            self.assertTrue(kwargs["require_explicit_approval"])
 
     def test_blocking_tui_workers_run_in_threads(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -176,6 +177,28 @@ class TuiModelClosureTests(unittest.TestCase):
             app._handle_task(result)
 
         self.assertIn("repair: attempts=1 initial=halted | patch_compile_error", assistant.call_args.args[0])
+
+    def test_pending_approval_renders_diff_before_execution(self):
+        app = OneCodeApp(model="test-model")
+        result = {
+            "status": "halted",
+            "reason": "approval_required",
+            "plan_id": "a" * 32,
+            "plan_summary": {
+                "actions": [
+                    {"tool": "write_text", "path": "a.txt", "diff": "--- a/a.txt\n+++ b/a.txt\n+hello\n"}
+                ]
+            },
+            "shell_projection": {"compact_message": "halted"},
+        }
+
+        with patch.object(app, "_assistant") as assistant:
+            app._handle_task(result)
+
+        text = assistant.call_args.args[0]
+        self.assertIn("a" * 32, text)
+        self.assertIn("+hello", text)
+        self.assertNotIn("completed", text)
 
     def test_tui_handlers_prefer_shell_projection_compact_message(self):
         app = OneCodeApp(model="test-model")

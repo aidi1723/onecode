@@ -1,0 +1,32 @@
+{
+  "id": "agent-10-fix-typo",
+  "prompt": "修正拼写",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [
+      {
+        "path": "src/text.txt",
+        "content": "helo world\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "patch_text",
+        "params": {
+          "path": "src/text.txt",
+          "search_block": "helo world",
+          "replace_block": "hello world"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/text.txt",
+      "text": "hello world"
+    }
+  ]
+}
