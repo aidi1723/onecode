@@ -39,6 +39,21 @@ def project_gateway(status_code: int, facts: dict[str, str]) -> str:
     return "DENY_AND_LEDGER"
 
 
+def gateway_disagreement(state: object, facts: object, action: object) -> str | None:
+    """Re-read one hexagram through the gateway. Missing facts do not authorize."""
+    if not isinstance(state, str) or len(state) != 6 or any(bit not in "01" for bit in state):
+        return "gateway_unread"
+    if not isinstance(facts, dict):
+        return "gateway_unread"
+    try:
+        projected = project_gateway(int(state, 2), facts)
+    except (TypeError, ValueError):
+        return "gateway_unread"
+    if projected != action:
+        return "gateway_mismatch"
+    return None
+
+
 def _status_code(status_code: int) -> int:
     if isinstance(status_code, bool) or not isinstance(status_code, int) or not 0 <= status_code <= 63:
         raise ValueError("status_code must be an int in 0..63")

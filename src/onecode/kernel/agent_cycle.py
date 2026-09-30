@@ -36,9 +36,21 @@ def run_agent_cycle(
     remember: bool = False,
     approve: Approve | None = None,
     granted_approval_ids: frozenset[str] | None = None,
+    admission: dict[str, Any] | None = None,
+    verifier_runner: Callable[[Path, list[str]], dict[str, Any]] | None = None,
+    write_runner: Callable[[Path, str, str], dict[str, Any]] | None = None,
+    write_content: str | None = None,
 ) -> dict[str, Any]:
     if isinstance(max_turns, bool) or not isinstance(max_turns, int) or max_turns <= 0:
         raise ValueError("max_turns must be a positive integer")
+    if admission is not None:
+        return _admission_halt(
+            admission,
+            workspace,
+            verifier_runner=verifier_runner,
+            write_runner=write_runner,
+            write_content=write_content,
+        )
     if workspace is not None:
         PathGuard.discard_interrupted_writes(workspace)
     history: list[dict[str, Any]] = []
@@ -376,6 +388,108 @@ def _tool_allowed(tool_name: str, allowed: frozenset[str]) -> bool:
 
 def _mcp_segment(value: str) -> bool:
     return bool(value) and len(value) <= 64 and value.replace("-", "").replace("_", "").isalnum()
+
+
+def _admission_halt(
+    admission: dict[str, Any],
+    workspace: Path | None,
+    *,
+    verifier_runner: Callable[[Path, list[str]], dict[str, Any]] | None,
+    write_runner: Callable[[Path, str, str], dict[str, Any]] | None,
+    write_content: str | None,
+) -> dict[str, Any]:
+    from onecode.experimental.yizijue_ledger import yizijue_ledger_entry
+    from onecode.experimental.yizijue_verifier import run_pinned_verifier
+    from onecode.experimental.yizijue_write import run_pinned_write
+
+    try:
+        entry = yizijue_ledger_entry(admission)
+    except ValueError:
+        if workspace is not None:
+            from onecode.experimental.yizijue_ledger import append_rejected_ledger_entry
+
+            append_rejected_ledger_entry(workspace, admission)
+        return _halt("yizijue_admission_rejected", [])
+    reason = "verifier_requires_sandbox" if entry.get("cycle") == "verify" else entry.get("reason") or "yizijue_stop"
+    result = _halt(str(reason), [])
+    result["yizijue_state"] = entry.get("yizijue_state")
+    result["yizijue_action"] = entry.get("action")
+    if workspace is None:
+        return result
+    from onecode.experimental.yizijue_ledger import append_yizijue_effect, append_yizijue_ledger
+
+    append_yizijue_ledger(workspace, admission)
+    facts = admission.get("facts") if isinstance(admission.get("facts"), dict) else None
+    gated = {**entry, "facts": facts}
+    if verifier_runner is not None:
+        outcome = run_pinned_verifier(workspace, gated, verifier_runner)
+        _publish_effect(result, "verifier", outcome, _record_effect(workspace, append_yizijue_effect, entry, "verifier", outcome))
+    if write_runner is not None and write_content is not None:
+        evidence = admission.get("evidence") if isinstance(admission.get("evidence"), dict) else None
+        outcome = run_pinned_write(
+            workspace,
+            {**gated, "evidence": evidence, "executed": False},
+            write_content,
+            write_runner,
+        )
+        _publish_effect(result, "write", outcome, _record_effect(workspace, append_yizijue_effect, entry, "write", outcome))
+    _sync_halt_reason(result)
+    return result
+
+
+def _sync_halt_reason(result: dict[str, Any]) -> None:
+    verifier = result.get("verifier")
+    write = result.get("write")
+    if isinstance(verifier, dict) and verifier.get("executed") is True:
+        return
+    if isinstance(write, dict) and write.get("executed") is True:
+        return
+    if result.get("yizijue_action") in {"ALLOW_ATOMIC_WRITE", "ALLOW_PATCH_WITH_SHA"} and isinstance(write, dict) and write.get("reason"):
+        result["reason"] = write["reason"]
+        return
+    if result.get("reason") == "verifier_requires_sandbox" and isinstance(verifier, dict) and verifier.get("reason"):
+        result["reason"] = verifier["reason"]
+
+
+def _effect_view(outcome: dict[str, Any]) -> dict[str, Any]:
+    view = {"ran": outcome["ran"], "executed": outcome["executed"]}
+    if outcome.get("reason") is not None:
+        view["reason"] = outcome["reason"]
+    result_body = outcome.get("result")
+    if isinstance(result_body, dict) and result_body.get("status") is not None:
+        view["status"] = result_body["status"]
+    if outcome.get("executed") is True:
+        from onecode.experimental.yizijue_ledger import confirmed_proof
+
+        view.update(confirmed_proof(outcome))
+    return view
+
+
+def _publish_effect(result: dict[str, Any], key: str, outcome: dict[str, Any], recorded: bool) -> None:
+    view = _effect_view(outcome)
+    if not recorded and view.get("executed") is True:
+        view = {"ran": False, "executed": False, "reason": "effect_not_recorded"}
+    result[key] = view
+
+
+def _record_effect(workspace: Path, append, entry: dict[str, Any], effect: str, outcome: dict[str, Any]) -> bool:
+    try:
+        append(
+            workspace,
+            {
+                "effect": effect,
+                "yizijue_state": entry.get("yizijue_state"),
+                "action": entry.get("action"),
+                "reason": outcome.get("reason") or entry.get("reason"),
+                "ran": outcome.get("ran") is True,
+                "command": outcome.get("command"),
+                "path": outcome.get("path"),
+                "sha256": outcome.get("sha256"),
+            },
+        )
+        return True
+    except ValueError:
+        return False
 
 
 def _halt(reason: str | None, history: list[dict[str, Any]]) -> dict[str, Any]:

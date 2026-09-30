@@ -3,10 +3,12 @@ import unittest
 from pathlib import Path
 
 from onecode.kernel.collapse_decision import (
+    ENTROPY_GATE,
     FAIL_STATE,
     collapse_decision,
     collapse_should_defer,
     expected_calibration_error,
+    line_marginals,
 )
 from onecode.kernel.prompt_rules import classify_prompt
 
@@ -57,6 +59,50 @@ class CollapseDecisionTests(unittest.TestCase):
         )
         self.assertTrue(unseen_decision["abstained"])
         self.assertEqual(unseen_decision["action"], "DENY_AND_LEDGER")
+
+    def test_entropy_gate_keeps_the_hexagram_and_withholds_release(self):
+        self.assertEqual(ENTROPY_GATE, 0.5)
+        flat = [1.0 / 64] * 64
+        observed = collapse_decision(
+            flat,
+            _one_hot(5, 0),
+            _one_hot(3, 0),
+            _one_hot(3, 1),
+            _one_hot(3, 1),
+            threshold=0.5,
+            entropy_gate=ENTROPY_GATE,
+        )
+        self.assertTrue(observed["observe"])
+        self.assertEqual(observed["yizijue_state"], "000000")
+        self.assertEqual(observed["action"], "DENY_AND_LEDGER")
+        self.assertEqual(observed["facts"]["intent_type"], "write_text")
+
+        unseen = collapse_decision(
+            _one_hot(64, 0b000111),
+            _one_hot(5, 0),
+            _one_hot(3, 0),
+            _one_hot(3, 1),
+            _one_hot(3, 1),
+            threshold=0.5,
+            entropy_gate=ENTROPY_GATE,
+        )
+        self.assertFalse(unseen["observe"])
+        self.assertEqual(unseen["yizijue_state"], "000111")
+        self.assertEqual(unseen["projected_action"], "DENY_AND_LEDGER")
+        self.assertEqual(line_marginals(_one_hot(64, 0b000111)), [1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
+
+        write = collapse_decision(
+            _one_hot(64, 0b111111),
+            _one_hot(5, 0),
+            _one_hot(3, 0),
+            _one_hot(3, 1),
+            _one_hot(3, 1),
+            threshold=0.5,
+            entropy_gate=ENTROPY_GATE,
+        )
+        self.assertFalse(write["observe"])
+        self.assertEqual(write["action"], "ALLOW_ATOMIC_WRITE")
+        self.assertEqual(write["yizijue_state"], "111111")
 
     def test_calibration_error_is_zero_for_a_perfect_split(self):
         self.assertEqual(expected_calibration_error([1.0, 0.0], [True, False]), 0.0)

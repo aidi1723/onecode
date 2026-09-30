@@ -2,12 +2,21 @@
 
 Turn a 64-way state distribution and closed fact scores into one gateway action.
 
-Confidence never enters ``project_gateway``. A flat distribution, or a state
-outside the four codes that have natural-language labels, collapses to the
-designated failure code inside the same 64-state surface.
+The hexagram distribution is the judgment base. Line probabilities are marginals
+of that distribution. ``project_gateway`` still projects a committed hexagram
+and the closed facts. It does not read confidence.
+
+When ``entropy_gate`` is set, a normalized entropy above that gate is ``observe``:
+the argmax hexagram is kept, and any non-halt projection is withheld. When it is
+omitted, the earlier four-code confidence rule remains for already trained heads.
 """
 
+import math
+
+from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.project_gateway import project_gateway
+
+ENTROPY_GATE = IchingKernel.ENTROPY_THRESHOLD
 
 
 OBSERVED_STATES = (0b000000, 0b010010, 0b100001, 0b111111)
@@ -30,6 +39,27 @@ FAIL_FACTS = {
 }
 
 
+def normalized_entropy(state_probs: list[float]) -> float:
+    """Shannon entropy of a 64-way cast, divided by log2(64)."""
+    _check_distribution(state_probs, 64, "state_probs")
+    entropy = 0.0
+    for probability in state_probs:
+        if probability > 0.0:
+            entropy -= probability * math.log2(probability)
+    return entropy / 6.0
+
+
+def line_marginals(state_probs: list[float]) -> list[float]:
+    """Yang probability of each line, bottom to top, from the hexagram distribution."""
+    _check_distribution(state_probs, 64, "state_probs")
+    marginals = []
+    for bit_index in range(6):
+        marginals.append(
+            sum(probability for code, probability in enumerate(state_probs) if (code >> bit_index) & 1)
+        )
+    return marginals
+
+
 def collapse_decision(
     state_probs: list[float],
     intent_probs: list[float],
@@ -38,9 +68,12 @@ def collapse_decision(
     evidence_probs: list[float],
     *,
     threshold: float,
+    entropy_gate: float | None = None,
 ) -> dict[str, object]:
     if not 0.0 <= threshold <= 1.0:
         raise ValueError("threshold must be between 0 and 1")
+    if entropy_gate is not None and not 0.0 <= entropy_gate <= 1.0:
+        raise ValueError("entropy_gate must be between 0 and 1")
     _check_distribution(state_probs, 64, "state_probs")
     _check_distribution(intent_probs, len(INTENT_LABELS), "intent_probs")
     _check_distribution(path_probs, len(PATH_LABELS), "path_probs")
@@ -48,26 +81,52 @@ def collapse_decision(
     _check_distribution(evidence_probs, len(EVIDENCE_LABELS), "evidence_probs")
 
     state_index, state_confidence = _argmax(state_probs)
-    observed = state_index in OBSERVED_STATES
-    abstained = (not observed) or state_confidence < threshold
-    status_code = FAIL_STATE if abstained else state_index
-    if abstained:
-        facts = dict(FAIL_FACTS)
+    entropy = normalized_entropy(state_probs)
+    marginals = line_marginals(state_probs)
+    if entropy_gate is None:
+        observed = state_index in OBSERVED_STATES
+        abstained = (not observed) or state_confidence < threshold
+        status_code = FAIL_STATE if abstained else state_index
+        facts = dict(FAIL_FACTS) if abstained else _fact_choice(intent_probs, path_probs, sandbox_probs, evidence_probs)
+        projected = project_gateway(status_code, facts)
+        action = projected
+        observe = False
     else:
-        facts = {
-            "intent_type": INTENT_LABELS[_argmax(intent_probs)[0]],
-            "path_scope": PATH_LABELS[_argmax(path_probs)[0]],
-            "sandbox_state": SANDBOX_LABELS[_argmax(sandbox_probs)[0]],
-            "evidence_state": EVIDENCE_LABELS[_argmax(evidence_probs)[0]],
-        }
+        facts = _fact_choice(intent_probs, path_probs, sandbox_probs, evidence_probs)
+        status_code = state_index
+        projected = project_gateway(status_code, facts)
+        observe = entropy > entropy_gate
+        abstained = observe
+        if observe and projected != "SOVEREIGNTY_HALT":
+            action = "DENY_AND_LEDGER"
+        else:
+            action = projected
     return {
         "status_code": status_code,
         "yizijue_state": format(status_code, "06b"),
         "facts": facts,
-        "action": project_gateway(status_code, facts),
+        "action": action,
+        "projected_action": projected,
         "abstained": abstained,
+        "observe": observe,
         "state_confidence": state_confidence,
+        "normalized_entropy": entropy,
+        "line_marginals": marginals,
         "raw_state": state_index,
+    }
+
+
+def _fact_choice(
+    intent_probs: list[float],
+    path_probs: list[float],
+    sandbox_probs: list[float],
+    evidence_probs: list[float],
+) -> dict[str, str]:
+    return {
+        "intent_type": INTENT_LABELS[_argmax(intent_probs)[0]],
+        "path_scope": PATH_LABELS[_argmax(path_probs)[0]],
+        "sandbox_state": SANDBOX_LABELS[_argmax(sandbox_probs)[0]],
+        "evidence_state": EVIDENCE_LABELS[_argmax(evidence_probs)[0]],
     }
 
 
