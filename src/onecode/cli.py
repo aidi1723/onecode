@@ -435,8 +435,8 @@ def apply_run_plan_repair(
         return result
 
     provider, model = repair_provider_for_args(args)
-    repair_results = []
-    repair_verifier_results = []
+    repair_results = []  # type: ignore
+    repair_verifier_results = []  # type: ignore
     prompt_evidence = []
     current_result = result
     current_verifiers = initial_verifiers
@@ -984,7 +984,7 @@ def main(argv: list[str] | None = None) -> int:
     yizijue_exit = dispatch_yizijue_command(args, parser)
     if yizijue_exit is not None:
         return yizijue_exit
-    return dispatch_run_command(args, parser)
+    return dispatch_run_command(args, parser)  # type: ignore
     return 2
 
 

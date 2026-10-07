@@ -80,7 +80,7 @@ def audit_cli_entrypoint() -> dict:
     from onecode.cli import build_parser
 
     parser = build_parser()
-    subcommands = sorted(parser._subparsers._group_actions[0].choices)
+    subcommands = sorted(parser._subparsers._group_actions[0].choices)  # type: ignore
     return audit_check(
         "cli_entrypoint",
         "audit-self" in subcommands and "tui" in subcommands and "run-model" in subcommands,

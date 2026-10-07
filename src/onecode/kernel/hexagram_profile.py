@@ -2,8 +2,32 @@ from __future__ import annotations
 
 
 
+from typing import ClassVar, cast, Any
 
 class IchingProfileMixin:
+    DIMENSION_LABELS: ClassVar[dict[int, str]]
+    TRIADIC_BANDS: ClassVar[Any]
+    RULE_LAYERS: ClassVar[Any]
+    FOUR_SYMBOLS: ClassVar[dict[int, str]]
+    DAYAN_PROBABILITIES: ClassVar[dict[int, float]]
+    FOUR_SYMBOL_RUNTIME_SEMANTICS: ClassVar[dict[str, str]]
+    LINE_POSITION_NAMES: ClassVar[Any]
+    RESPONSE_PAIRS: ClassVar[Any]
+    TRIGRAM_NAMES: ClassVar[dict[int, str]]
+    TRIGRAM_VIRTUES: ClassVar[dict[int, tuple[str, str | int]]]
+    TRIGRAM_ELEMENTS: ClassVar[dict[int, str]]
+    ELEMENT_GENERATION_ORDER: ClassVar[Any]
+    GENERATES: ClassVar[dict[str, str]]
+    CONTROLS: ClassVar[dict[str, str]]
+    HARMONY_RELATION_SCORES: ClassVar[dict[str, int]]
+    RUNTIME_CONTROL_MODULATION_POLICY: ClassVar[dict[str, tuple[str, str | None]]]
+    RUNTIME_RELATION_POLICY: ClassVar[dict[str, tuple[str, str | None]]]
+    ELEMENT_EXECUTION_BANDWIDTH: ClassVar[dict[tuple[str, str], float]]
+    KUN: ClassVar[int]
+
+    @classmethod
+    def balance_mask(cls, status_code: int, threshold: float | None = None) -> int: raise NotImplementedError
+
     @classmethod
     def compute_status(cls, outer_trigram: int, inner_trigram: int) -> int:
         return ((outer_trigram & 0b111) << 3) | (inner_trigram & 0b111)
@@ -104,7 +128,7 @@ class IchingProfileMixin:
     @classmethod
     def overlapping_four_symbols(cls, status_code: int) -> list[dict[str, int | str]]:
         normalized = status_code & 0b111111
-        windows = []
+        windows: list[dict[str, int | str]] = []
         for window_index in range(5):
             bits = (normalized >> window_index) & 0b11
             symbol = cls.four_symbol_for_bits(bits)
@@ -189,8 +213,8 @@ class IchingProfileMixin:
                     "central_and_proper": central and proper,
                 }
             )
-        central_lines = [int(line["line_index"]) for line in lines if line["central"]]
-        central_proper_lines = [int(line["line_index"]) for line in lines if line["central_and_proper"]]
+        central_lines = [int(cast(int, line["line_index"])) for line in lines if line["central"]]
+        central_proper_lines = [int(cast(int, line["line_index"])) for line in lines if line["central_and_proper"]]
         return {
             "lines": lines,
             "proper_line_count": sum(bool(line["proper"]) for line in lines),
@@ -287,12 +311,12 @@ class IchingProfileMixin:
             "yin_count": global_profile["yin_count"],
             "balance": global_profile["balance"],
             "global": global_profile,
-            "pressure": cls.balance_pressure(global_profile["balance"]),
+            "pressure": cls.balance_pressure(cast(str, global_profile["balance"])),
             "polarity_index": cls.polarity_index(normalized),
             "balance_mask": cls.balance_mask(normalized),
             "lines": lines,
             "four_symbol_windows": [
-                {"pair_index": pair_index}
+                cast(dict[str, int | str], {"pair_index": pair_index})
                 | cls.yin_yang_profile_for_bits((normalized >> (pair_index * 2)) & 0b11, width=2)
                 for pair_index in range(3)
             ],

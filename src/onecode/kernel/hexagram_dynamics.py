@@ -4,7 +4,40 @@ import math
 
 
 
+from typing import ClassVar, Any, Protocol, cast
+
+class TransitionRecord(Protocol):
+    status_code: int
+    action: str
+    reason: str
+
 class IchingDynamicsMixin:
+    POLARITY_THRESHOLD: ClassVar[float]
+    ELEMENT_ORDER: ClassVar[Any]
+    ELEMENT_DAMPING_ALPHA: ClassVar[float]
+    ELEMENT_EXECUTION_BANDWIDTH: ClassVar[dict[tuple[str, str], float]]
+    ENTROPY_THRESHOLD: ClassVar[float]
+    ROLLBACK_STATUS: ClassVar[int]
+
+    @classmethod
+    def polarity_index(cls, status_code: int) -> float: raise NotImplementedError
+    @classmethod
+    def change_mask_for_event(cls, status_code: int, event: str) -> int: raise NotImplementedError
+    @classmethod
+    def yin_yang_profile_for_bits(cls, value: int, width: int) -> dict[str, int | str]: raise NotImplementedError
+    @classmethod
+    def element_for_trigram(cls, trigram: int) -> str: raise NotImplementedError
+    @classmethod
+    def aggregate_status(cls, status_codes: list[int]) -> int: raise NotImplementedError
+    @classmethod
+    def transition(cls, status_code: int) -> Any: raise NotImplementedError
+    @classmethod
+    def lyapunov_energy(cls, status_code: int) -> float: raise NotImplementedError
+    @classmethod
+    def classify_resume_audit(cls, status: str, reason: str | None) -> int: raise NotImplementedError
+    @classmethod
+    def classify_outcome(cls, status: str, reason: str | None) -> int: raise NotImplementedError
+
     @classmethod
     def balance_mask(cls, status_code: int, threshold: float | None = None) -> int:
         polarity = cls.polarity_index(status_code)
@@ -24,7 +57,8 @@ class IchingDynamicsMixin:
     @classmethod
     def element_polarity(cls, trigram: int) -> str:
         profile = cls.yin_yang_profile_for_bits(trigram, width=3)
-        return "+" if profile["yang_count"] >= profile["yin_count"] else "-"
+        from typing import cast
+        return "+" if cast(int, profile["yang_count"]) >= cast(int, profile["yin_count"]) else "-"
     @classmethod
     def evolved_element_tensor(cls, status_code: int, alpha: float | None = None) -> list[list[float]]:
         polarity = cls.polarity_index(status_code)
@@ -92,8 +126,8 @@ class IchingDynamicsMixin:
     @classmethod
     def entropy_regulated_status(cls, status_codes: list[int]) -> dict[str, float | int | str]:
         entropy = cls.global_entropy(status_codes)
-        if entropy["entropy"] < cls.ENTROPY_THRESHOLD:
-            if entropy["polarity_index"] > 0:
+        if cast(float, entropy["entropy"]) < cls.ENTROPY_THRESHOLD:
+            if cast(float, entropy["polarity_index"]) > 0:
                 return {
                     "status_code": cls.aggregate_status(status_codes),
                     "decision": "accept_positive_polarity",
@@ -152,7 +186,7 @@ class IchingDynamicsMixin:
         if not status_codes:
             return 0.0
         entropy_info = cls.state_distribution_entropy(status_codes)
-        return float(entropy_info["kl_divergence_uniform"])
+        return cast(float, entropy_info["kl_divergence_uniform"])
     @classmethod
     def transition_graph(cls) -> dict[int, int]:
         return {
@@ -213,9 +247,9 @@ class IchingDynamicsMixin:
         ]
         return {
             "state_count": 64,
-            "limit_cycle_count": len(attractors["attractors"]),
-            "nontrivial_limit_cycle_count": sum(1 for cycle in attractors["attractors"] if len(cycle) > 1),
-            "unclassified_state_count": len(attractors["unclassified_states"]),
+            "limit_cycle_count": len(cast(list[list[int]], attractors["attractors"])),
+            "nontrivial_limit_cycle_count": sum(1 for cycle in cast(list[list[int]], attractors["attractors"]) if len(cycle) > 1),
+            "unclassified_state_count": len(cast(list[int], attractors["unclassified_states"])),
             "steps_to_attractor": steps_to_attractor,
             "max_steps_to_attractor": max(steps_to_attractor.values()) if steps_to_attractor else 0,
             "energy_increase_transition_count": sum(1 for delta in energy_deltas if delta > 0),
@@ -292,11 +326,11 @@ class IchingDynamicsMixin:
     @classmethod
     def entropy_gate_certificate(cls, status_codes: list[int]) -> dict[str, float | int | str]:
         distribution = cls.state_distribution_entropy(status_codes)
-        max_entropy = float(distribution["max_entropy"])
-        entropy = float(distribution["entropy"])
+        max_entropy = cast(float, distribution["max_entropy"])
+        entropy = cast(float, distribution["entropy"])
         normalized_entropy = entropy / max_entropy if max_entropy > 0 else 0.0
         sample_count = len(status_codes)
-        unique_state_count = int(distribution["unique_state_count"])
+        unique_state_count = cast(int, distribution["unique_state_count"])
         transition_actions = [
             cls.transition(status_code).action
             for status_code in status_codes

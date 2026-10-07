@@ -98,11 +98,11 @@ def build_librechat_env(config: ShellLaunchConfig, base_env: Mapping[str, str] |
             "LOGIN_WINDOW": "1",
             "LOGIN_MAX": "100",
             "JWT_SECRET": env.get("JWT_SECRET")
-            or stored_secrets.jwt_secret,
+            or stored_secrets.jwt_secret,  # type: ignore
             "JWT_REFRESH_SECRET": env.get("JWT_REFRESH_SECRET")
-            or stored_secrets.jwt_refresh_secret,
-            "CREDS_KEY": env.get("CREDS_KEY") or stored_secrets.creds_key,
-            "CREDS_IV": env.get("CREDS_IV") or stored_secrets.creds_iv,
+            or stored_secrets.jwt_refresh_secret,  # type: ignore
+            "CREDS_KEY": env.get("CREDS_KEY") or stored_secrets.creds_key,  # type: ignore
+            "CREDS_IV": env.get("CREDS_IV") or stored_secrets.creds_iv,  # type: ignore
             "MEILI_NO_SYNC": "true",
             "CONFIG_PATH": str(runtime_config_path(config)),
         }
@@ -560,7 +560,7 @@ def launch_shell(config: ShellLaunchConfig) -> int:
     logs_root.chmod(0o700)
     failure_summary: str | None = None
     write_runtime_status(state_root, status="starting", services=services)
-    for warning in preflight["warnings"]:
+    for warning in preflight["warnings"]:  # type: ignore
         print(f"[onecode shell] warning: {warning}", flush=True)
 
     try:

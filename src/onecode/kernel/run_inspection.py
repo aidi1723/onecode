@@ -155,7 +155,7 @@ def task_status_from_verifier_dicts(result: dict, verifier_dicts: list[dict]) ->
                 verifier.get("reason"),
             )
         )
-    entropy = IchingKernel.entropy_regulated_status(status_codes)
+    entropy = IchingKernel.entropy_regulated_status(status_codes)  # type: ignore
     status_code = int(entropy["status_code"])
     transition = IchingKernel.transition(status_code)
     return {

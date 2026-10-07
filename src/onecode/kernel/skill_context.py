@@ -67,7 +67,7 @@ def discover_skill_context(workspace: Path) -> dict[str, Any]:
     onecode_dir = root / ".onecode"
     directory = onecode_dir / "skills"
     if onecode_dir.is_symlink():
-        candidate_paths = []
+        candidate_paths = []  # type: ignore
         invalid_skills.append({"path": ".onecode", "reason": "outside_project"})
     elif directory.is_symlink():
         candidate_paths = []

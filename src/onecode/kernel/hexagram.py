@@ -404,16 +404,16 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
         failed_count: int | None,
     ) -> dict[str, int | str]:
         if all(isinstance(value, int) and not isinstance(value, bool) for value in (requested_count, completed_count, skipped_count, failed_count)):
-            resolved = completed_count + skipped_count + failed_count
+            resolved = cast(int, completed_count) + cast(int, skipped_count) + cast(int, failed_count)  # type: ignore
             counts = {
                 "resolved_count": resolved,
-                "remaining_count": max(requested_count - resolved, 0),
+                "remaining_count": max(cast(int, requested_count) - resolved, 0),  # type: ignore
             }
-            if status == "completed" and failed_count == 0 and resolved == requested_count:
+            if status == "completed" and cast(int, failed_count) == 0 and resolved == cast(int, requested_count):  # type: ignore
                 return {"delivery_status": "deliverable", "next_action": "idle"} | counts
-            if failed_count > 0 or status in {"halted", "denied"}:
+            if cast(int, failed_count) > 0 or status in {"halted", "denied"}:  # type: ignore
                 return {"delivery_status": "blocked", "next_action": "resume"} | counts
-            if resolved < requested_count:
+            if resolved < cast(int, requested_count):  # type: ignore
                 return {"delivery_status": "partial", "next_action": "resume"} | counts
         if status == "completed":
             return {"delivery_status": "deliverable", "next_action": "idle"}

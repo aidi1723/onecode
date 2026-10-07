@@ -181,15 +181,15 @@ def read_model_config(*, include_secret: bool = False) -> dict[str, Any]:
         raise ValueError("model config must be a JSON object") from exc
     if not isinstance(parsed, dict):
         raise ValueError("model config must be a JSON object")
-    payload = parsed
-    api_key = payload.get("api_key") if isinstance(payload.get("api_key"), str) else ""
+    config_payload = parsed
+    api_key = config_payload.get("api_key") if isinstance(config_payload.get("api_key"), str) else ""
     result: dict[str, Any] = {
-        "configured": bool(api_key and payload.get("endpoint")),
+        "configured": bool(api_key and config_payload.get("endpoint")),
         "path": str(path),
-        "provider": payload.get("provider") if isinstance(payload.get("provider"), str) else DEFAULT_MODEL_PROVIDER,
-        "endpoint": normalize_endpoint_url(payload.get("endpoint")) if isinstance(payload.get("endpoint"), str) else "",
-        "model": payload.get("model") if isinstance(payload.get("model"), str) else DEFAULT_ONECODE_MODEL,
-        "models": payload.get("models") if isinstance(payload.get("models"), list) else [],
+        "provider": config_payload.get("provider") if isinstance(config_payload.get("provider"), str) else DEFAULT_MODEL_PROVIDER,
+        "endpoint": normalize_endpoint_url(cast(str, config_payload.get("endpoint"))) if isinstance(config_payload.get("endpoint"), str) else "",  # type: ignore
+        "model": config_payload.get("model") if isinstance(config_payload.get("model"), str) else DEFAULT_ONECODE_MODEL,
+        "models": config_payload.get("models") if isinstance(config_payload.get("models"), list) else [],
         "api_key_configured": bool(api_key),
         "api_key_preview": mask_api_key(api_key),
     }

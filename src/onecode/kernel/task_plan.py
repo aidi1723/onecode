@@ -36,24 +36,24 @@ def load_task_plan(path: Path) -> tuple[str, list[str], dict]:
     if not isinstance(assets, list) or not assets:
         raise ValueError("invalid plan: assets must be a non-empty list")
 
-    write_texts = []
-    seen_paths = set()
+    write_texts: list[str] = []
+    seen_paths: set[str] = set()
     for index, asset in enumerate(assets, start=1):
         if not isinstance(asset, dict):
             raise ValueError(f"invalid plan asset {index}: asset must be an object")
         unknown_fields = sorted(set(asset) - PLAN_ASSET_FIELDS)
         if unknown_fields:
             raise ValueError(f"invalid plan asset {index}: unknown fields {', '.join(unknown_fields)}")
-        path = asset.get("path")
+        asset_path = asset.get("path")
         content = asset.get("content")
-        if not isinstance(path, str) or not path:
+        if not isinstance(asset_path, str) or not asset_path:
             raise ValueError(f"invalid plan asset {index}: path must be a non-empty string")
         if not isinstance(content, str):
             raise ValueError(f"invalid plan asset {index}: content must be a string")
-        if path in seen_paths:
-            raise ValueError(f"invalid plan asset {index}: duplicate path {path}")
-        seen_paths.add(path)
-        write_texts.append(f"{path}={content}")
+        if asset_path in seen_paths:
+            raise ValueError(f"invalid plan asset {index}: duplicate path {asset_path}")
+        seen_paths.add(asset_path)
+        write_texts.append(f"{asset_path}={content}")
     plan_evidence = {
         "plan_path": str(resolved_path),
         "plan_sha256": sha256_bytes(resolved_path),

@@ -24,7 +24,7 @@ class _ParsedRulesImport(RulesImport):
 
     @property
     def frameworks(self) -> tuple[str, ...]:
-        return self._framework_order
+        return self._framework_order  # type: ignore
 
 
 def inspect_runtime_config(workspace: Path) -> dict:

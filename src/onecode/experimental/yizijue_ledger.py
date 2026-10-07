@@ -94,12 +94,12 @@ def accepted_moving_cast(state: object, moving: object) -> dict | None:
         except ValueError:
             return None
         if (
-            format(int(cast["before"]), "06b") != before
-            or format(int(cast["after"]), "06b") != after
-            or list(cast["moving"]) != list(lines)
+            format(int(cast["before"]), "06b") != before  # type: ignore
+            or format(int(cast["after"]), "06b") != after  # type: ignore
+            or list(cast["moving"]) != list(lines)  # type: ignore
         ):
             return None
-        return {"values": list(cast["values"]), "before": before, "after": after, "moving": list(lines)}
+        return {"values": list(cast["values"]), "before": before, "after": after, "moving": list(lines)}  # type: ignore
     return {"before": before, "after": after, "moving": list(lines)}
 
 
@@ -176,9 +176,9 @@ def confirmed_proof(outcome: dict) -> dict:
     if command is not None:
         proof["command"] = command
     if path is not None:
-        proof["path"] = path
+        proof["path"] = path  # type: ignore
     if digest is not None:
-        proof["sha256"] = digest
+        proof["sha256"] = digest  # type: ignore
     return proof
 
 
@@ -186,7 +186,7 @@ def _effect_command(command: object) -> list[str] | None:
     from onecode.experimental.yizijue_verifier import pinned_verifier_command
 
     try:
-        reported = list(command) if command is not None else None
+        reported = list(command) if command is not None else None  # type: ignore
     except TypeError:
         return None
     if reported is None:

@@ -14,11 +14,11 @@ def single_balance_mutation_summary(balance_mutation: dict[str, object]) -> dict
     mutation = balance_mutation["mutation"]
     return {
         "asset_count": 1,
-        "changed_asset_count": 1 if mutation["change_count"] > 0 else 0,
-        "total_changed_line_count": mutation["change_count"],
-        "changed_bands": mutation["changed_bands"],
-        "latest_before_status_code": mutation["before"],
-        "latest_after_status_code": mutation["after"],
+        "changed_asset_count": 1 if mutation["change_count"] > 0 else 0,  # type: ignore
+        "total_changed_line_count": mutation["change_count"],  # type: ignore
+        "changed_bands": mutation["changed_bands"],  # type: ignore
+        "latest_before_status_code": mutation["before"],  # type: ignore
+        "latest_after_status_code": mutation["after"],  # type: ignore
     }
 
 
@@ -135,7 +135,7 @@ def finalize_run_event(
                 "balance_action": balanced_transition.action,
                 "balance_mutation": balance_mutation,
                 "four_symbol_decision": str(four_symbol_balance["decision"]),
-                "four_symbol_change_mask": int(four_symbol_balance["change_mask"]),
+                "four_symbol_change_mask": int(four_symbol_balance["change_mask"]),  # type: ignore
                 "four_symbol_reason": four_symbol_balance["reason"] if isinstance(four_symbol_balance["reason"], str) else None,
                 "payload": event_payload,
                 "raw_payload": event_payload,

@@ -210,8 +210,8 @@ def trace_evidence_metrics(path: Path, *, aggregate_gap_threshold_seconds: int =
         if capture_mode == CaptureMode.AGGREGATE:
             metrics["aggregate_event_count"] += 1
             payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
-            aggregate_start = _parse_timestamp(payload.get("first_timestamp"))
-            aggregate_end = _parse_timestamp(payload.get("last_timestamp"))
+            aggregate_start = _parse_timestamp(payload.get("first_timestamp"))  # type: ignore
+            aggregate_end = _parse_timestamp(payload.get("last_timestamp"))  # type: ignore
             if aggregate_start is not None and aggregate_end is not None:
                 aggregate_windows.append((aggregate_start, aggregate_end))
         latency = event.get("write_latency_ms")

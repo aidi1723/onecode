@@ -48,20 +48,20 @@ def validate_ledger_counts(ledger: dict, path: Path) -> tuple[str | None, str | 
 def mutation_summary_from_assets(assets: list[dict]) -> dict:
     mutation_records = [asset.get("balance_mutation") for asset in assets if isinstance(asset, dict)]
     mutation_records = [mutation for mutation in mutation_records if isinstance(mutation, dict)]
-    changed_records = [mutation for mutation in mutation_records if mutation["mutation"]["change_count"] > 0]
+    changed_records = [mutation for mutation in mutation_records if mutation["mutation"]["change_count"] > 0]  # type: ignore
     changed_bands = sorted(
         {
             band
             for mutation in changed_records
-            for band in mutation["mutation"]["changed_bands"]
+            for band in mutation["mutation"]["changed_bands"]  # type: ignore
         },
         key=("earth", "human", "heaven").index,
     )
-    latest = mutation_records[-1]["mutation"] if mutation_records else {}
+    latest = mutation_records[-1]["mutation"] if mutation_records else {}  # type: ignore
     return {
         "asset_count": len(assets),
         "changed_asset_count": len(changed_records),
-        "total_changed_line_count": sum(mutation["mutation"]["change_count"] for mutation in changed_records),
+        "total_changed_line_count": sum(mutation["mutation"]["change_count"] for mutation in changed_records),  # type: ignore
         "changed_bands": changed_bands,
         "latest_before_status_code": latest.get("before"),
         "latest_after_status_code": latest.get("after"),
@@ -119,9 +119,9 @@ def validate_checkpoint_evidence(checkpoints: list[dict], path: Path) -> tuple[s
         checkpoint_payload, corrupt_checkpoint_path, corrupt_checkpoint_reason = read_json(checkpoint_path)
         if corrupt_checkpoint_path is not None:
             return corrupt_checkpoint_path, corrupt_checkpoint_reason
-        if checkpoint_payload.get("status") != checkpoint.get("status"):
+        if checkpoint_payload.get("status") != checkpoint.get("status"):  # type: ignore
             return str(path), "checkpoint_record_mismatch"
-        if checkpoint_payload.get("balance_mutation_summary") != checkpoint.get("balance_mutation_summary"):
+        if checkpoint_payload.get("balance_mutation_summary") != checkpoint.get("balance_mutation_summary"):  # type: ignore
             return str(path), "balance_mutation_summary_mismatch"
     return None, None
 

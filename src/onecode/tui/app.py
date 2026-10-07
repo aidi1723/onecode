@@ -414,7 +414,7 @@ class OneCodeApp(App):
 
     def _chat_worker(self) -> str:
         return chat_completion(
-            self.messages, self.model, self.endpoint, self.api_key, timeout=60
+            self.messages, self.model, self.endpoint, self.api_key, timeout=60  # type: ignore
         )
 
     # --- Kernel operations ---

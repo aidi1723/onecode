@@ -400,10 +400,10 @@ def run_intent(
             "partial": False,
             "reason": "resumed_asset_ready",
             "payload": {
-                "path": ready_asset.path,
-                "sha256": ready_asset.sha256,
-                "source_run_id": ready_asset.source_run_id,
-                "source_turn_index": ready_asset.source_turn_index,
+                "path": ready_asset.path,  # type: ignore
+                "sha256": ready_asset.sha256,  # type: ignore
+                "source_run_id": ready_asset.source_run_id,  # type: ignore
+                "source_turn_index": ready_asset.source_turn_index,  # type: ignore
             },
         }, preflight
     if simulated_action_seconds > gate.http_timeout_seconds:
@@ -526,8 +526,8 @@ def balance_mutation_summary(assets: list[dict[str, Any]]) -> dict[str, Any]:
         "changed_asset_count": len(changed_records),
         "total_changed_line_count": sum(int(mutation["mutation"]["change_count"]) for mutation in changed_records),
         "changed_bands": changed_bands,
-        "latest_before_status_code": latest_mutation.get("before"),
-        "latest_after_status_code": latest_mutation.get("after"),
+        "latest_before_status_code": latest_mutation.get("before"),  # type: ignore
+        "latest_after_status_code": latest_mutation.get("after"),  # type: ignore
     }
 
 
@@ -862,7 +862,7 @@ def _observe_intents(
                 balance_mask,
                 balanced_transition.action,
                 str(four_symbol_balance["decision"]),
-                int(four_symbol_balance["change_mask"]),
+                int(four_symbol_balance["change_mask"]),  # type: ignore
                 four_symbol_balance["reason"] if isinstance(four_symbol_balance["reason"], str) else None,
                 balance_mutation,
                 entry_payload,
@@ -1054,7 +1054,7 @@ def _run_task_with_context(
                 write_checkpoint_evidence=True,
                 skill_selection=skill_selection,
             )
-        assets = []
+        assets = []  # type: ignore
         observed_status_codes: list[int] = []
 
         halted = _observe_intents(

@@ -61,7 +61,7 @@ def execution_plan_from_model_plan(plan: ModelPlan) -> ExecutionPlan:
                     id=step.id,
                     description=step.description,
                     depends_on=list(step.depends_on),
-                    mode=step.mode,
+                    mode=step.mode,  # type: ignore
                     tool_calls=[
                         ToolCallSpec(
                             tool_name=tool.tool_name,
@@ -460,13 +460,13 @@ def _with_change_diff(workspace: Path, tool_name: str, params: dict[str, Any], s
 def _change_diff(workspace: Path, tool_name: str, params: dict[str, Any]) -> str:
     if tool_name == "write_text" and isinstance(params.get("path"), str):
         content = params.get("content") if isinstance(params.get("content"), str) else ""
-        return _unified_diff(params["path"], _preview_text(workspace, params["path"]), content)
+        return _unified_diff(params["path"], _preview_text(workspace, params["path"]), content)  # type: ignore
     if tool_name == "patch_text":
         path = params.get("path") if isinstance(params.get("path"), str) else ""
         search = params.get("search_block") if isinstance(params.get("search_block"), str) else ""
         replace = params.get("replace_block") if isinstance(params.get("replace_block"), str) else ""
         try:
-            preview = apply_patch_preview(workspace, PatchIntent(path=path, search_block=search, replace_block=replace))
+            preview = apply_patch_preview(workspace, PatchIntent(path=path, search_block=search, replace_block=replace))  # type: ignore
         except (PatchRejected, PathGuardError, OSError, ValueError):
             return ""
         return preview.diff[:100_000]

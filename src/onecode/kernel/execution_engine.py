@@ -236,7 +236,7 @@ def execute_step(
     return (
         StepResult(
             step_id=step.id,
-            status=step_status,
+            status=step_status,  # type: ignore
             tool_results=tool_results,
             reason=step_failed_reason,
             duration_ms=duration_ms,

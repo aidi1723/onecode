@@ -226,10 +226,10 @@ def natural_language_rule_lm_samples() -> list[dict[str, Any]]:
                 yizijue_lm_action_row(
                     f"lm-nl-{spec['prefix']}-{index:03d}",
                     prompt,
-                    facts=spec["facts"],
-                    yizijue_state=spec["state"],
-                    action=spec["action"],
-                    reason=spec["reason"],
+                    facts=spec["facts"],  # type: ignore
+                    yizijue_state=spec["state"],  # type: ignore
+                    action=spec["action"],  # type: ignore
+                    reason=spec["reason"],  # type: ignore
                 )
             )
     return [validate_yizijue_lm_sample({**row, "rule_schema": ACTIVE_RULE_SCHEMA}) for row in rows]
@@ -374,10 +374,10 @@ def yizijue_lm_eval_samples() -> list[dict[str, Any]]:
                 yizijue_lm_action_row(
                     f"lm-eval-{spec['prefix']}-{index:03d}",
                     prompt,
-                    facts=spec["facts"],
-                    yizijue_state=spec["state"],
-                    action=spec["action"],
-                    reason=spec["reason"],
+                    facts=spec["facts"],  # type: ignore
+                    yizijue_state=spec["state"],  # type: ignore
+                    action=spec["action"],  # type: ignore
+                    reason=spec["reason"],  # type: ignore
                 )
             )
     return [validate_yizijue_lm_sample({**row, "rule_schema": ACTIVE_RULE_SCHEMA}) for row in rows]

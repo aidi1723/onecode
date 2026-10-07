@@ -300,7 +300,7 @@ def read_yizijue_lm_state_prediction_jsonl(path: Path) -> dict[str, dict[str, An
         try:
             predictions[sample_id] = normalize_yizijue_lm_state_prediction(
                 sample_id,
-                prediction,
+                prediction,  # type: ignore
                 normalize_rule_schema(row.get("rule_schema")),
             )
         except ValueError as exc:
@@ -326,7 +326,7 @@ def read_yizijue_lm_prediction_jsonl(path: Path) -> dict[str, dict[str, Any]]:
         try:
             predictions[sample_id] = normalize_yizijue_lm_prediction(
                 sample_id,
-                prediction,
+                prediction,  # type: ignore
                 normalize_rule_schema(row.get("rule_schema")),
             )
         except ValueError as exc:

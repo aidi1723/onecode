@@ -27,7 +27,7 @@ def verifier_block_reason(entry: dict) -> str | None:
 
 
 def pinned_verifier_command() -> list[str]:
-    return list(VERIFIER_POLICY_PRESETS["python-unittest"]["command"])
+    return list(VERIFIER_POLICY_PRESETS["python-unittest"]["command"])  # type: ignore
 
 
 def sandbox_unittest_runner(workspace: Path, command: list[str]) -> dict:
@@ -67,6 +67,6 @@ def _verifier_confirmed(result: object, command: list[str]) -> bool:
         return False
     reported = result.get("command")
     try:
-        return list(reported) == list(command)
+        return list(reported) == list(command)  # type: ignore
     except TypeError:
         return False

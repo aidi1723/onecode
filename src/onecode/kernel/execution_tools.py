@@ -67,7 +67,7 @@ class WriteTextTool(ToolDefinition):
             "content": _string_value(params, "content"),
         }
         if "status_code" in params:
-            action["status_code"] = _status_code(params["status_code"])
+            action["status_code"] = _status_code(params["status_code"])  # type: ignore
         return action
 
 
@@ -86,7 +86,7 @@ class PatchTextTool(ToolDefinition):
             "replace_block": _string_value(params, "replace_block"),
         }
         if "status_code" in params:
-            action["status_code"] = _status_code(params["status_code"])
+            action["status_code"] = _status_code(params["status_code"])  # type: ignore
         return action
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
@@ -228,7 +228,7 @@ class SearchTextTool(ToolDefinition):
             max_depth=action["max_depth"],
             max_files=action["max_files"],
         )
-        matches = []
+        matches = []  # type: ignore
         scanned_file_count = 0
         scanned_bytes = 0
         match_limit_reached = False

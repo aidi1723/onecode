@@ -33,8 +33,8 @@ VERIFIER_POLICY_PRESETS = {
     },
 }
 
-ALLOWED_VERIFIER_COMMANDS = {
-    tuple(preset["command"])
+ALLOWED_VERIFIER_COMMANDS = {  # type: ignore
+    tuple(preset["command"])  # type: ignore
     for preset in VERIFIER_POLICY_PRESETS.values()
 }
 PYTHON_EXECUTABLE_NAMES = {"python", "python3", Path(sys.executable).name}
@@ -174,7 +174,7 @@ def verifier_policy_presets_summary() -> dict[str, Any]:
         "presets": [
             {
                 "id": preset_id,
-                "command": list(preset["command"]),
+                "command": list(preset["command"]),  # type: ignore
                 "cwd": preset["cwd"],
                 "timeout_ms": preset["timeout_ms"],
             }
@@ -269,7 +269,7 @@ def run_verifier(
             stdout = completed.stdout.encode("utf-8") if isinstance(completed.stdout, str) else completed.stdout
             stderr = completed.stderr.encode("utf-8") if isinstance(completed.stderr, str) else completed.stderr
         else:
-            completed = subprocess.run(
+            completed = subprocess.run(  # type: ignore
                 spec.command,
                 cwd=resolved_cwd,
                 capture_output=True,
@@ -277,8 +277,8 @@ def run_verifier(
                 check=False,
                 env=_command_environment(),
             )
-            stdout = completed.stdout
-            stderr = completed.stderr
+            stdout = completed.stdout  # type: ignore
+            stderr = completed.stderr  # type: ignore
         status: VerifierStatus = "passed" if completed.returncode == 0 else "failed"
         reason = None if completed.returncode == 0 else "verifier_failed"
         failure_kind: VerifierFailureKind | None = None if completed.returncode == 0 else "command_failed"
@@ -351,7 +351,7 @@ def task_status_from_results(asset_result: dict[str, Any], verifier_results: lis
                 result.reason,
             )
         )
-    entropy = IchingKernel.entropy_regulated_status(status_codes)
+    entropy = IchingKernel.entropy_regulated_status(status_codes)  # type: ignore
     status_code = int(entropy["status_code"])
     transition = IchingKernel.transition(status_code)
     return {

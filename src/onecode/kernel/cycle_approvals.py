@@ -97,7 +97,7 @@ def _read_record(path: Path) -> dict[str, Any] | None:
 
 def _atomic_write(path: Path, content: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary: Path | None = None
+    temporary: str | None = None
     with file_lock(path.parent.parent / "pending-cycle.lock"):
         try:
             with NamedTemporaryFile("wb", dir=path.parent, prefix=f".{path.name}.", delete=False) as handle:

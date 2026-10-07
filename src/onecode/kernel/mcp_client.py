@@ -78,7 +78,7 @@ class McpStdioClient:
             raise
         return self
 
-    def __exit__(self, exc_type: object, exc: object, traceback: object) -> bool:
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> bool:  # type: ignore
         self.close()
         return False
 

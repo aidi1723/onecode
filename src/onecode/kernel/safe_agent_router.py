@@ -143,7 +143,7 @@ def _validate_task_pack(payload: dict[str, Any]) -> SafeAgentRoute:
     )
 
     graph = payload.get("execution_graph")
-    nodes = graph.get("nodes") if isinstance(graph, dict) else []
+    nodes = graph.get("nodes") or [] if isinstance(graph, dict) else []
     execution_order = tuple(
         item["skill"]
         for item in nodes

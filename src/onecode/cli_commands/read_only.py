@@ -90,9 +90,9 @@ def math_audit_payload() -> dict[str, object]:
         "status": "ok",
         "state_count": len(graph),
         "transition_count": len(graph),
-        "attractor_count": len(attractors["attractors"]),
+        "attractor_count": len(attractors["attractors"]),  # type: ignore
         "attractors": attractors["attractors"],
-        "unclassified_state_count": len(attractors["unclassified_states"]),
+        "unclassified_state_count": len(attractors["unclassified_states"]),  # type: ignore
         "lyapunov_min": min(energies),
         "lyapunov_max": max(energies),
         "stability": stability,

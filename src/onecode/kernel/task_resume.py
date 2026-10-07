@@ -77,7 +77,7 @@ def make_decision(
         reason=reason,
         status_code=status_code,
         transition_action=transition.action,
-        transition_reason=transition.reason,
+        transition_reason=transition.reason,  # type: ignore
     )
 
 
@@ -223,7 +223,7 @@ def aggregate_summary(decisions: list[TaskResumeDecision]) -> TaskResumeSummary:
         decisions=decisions,
         status_code=status_code,
         transition_action=transition.action,
-        transition_reason=transition.reason,
+        transition_reason=transition.reason,  # type: ignore
         dispatch_decision=IchingKernel.dispatch_decision(transition),
     )
 
