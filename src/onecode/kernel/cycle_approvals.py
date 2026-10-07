@@ -79,9 +79,41 @@ def resume_pending_approval(workspace: Path, pending_id: str, decision: str, exe
 
 
 def _get_approval_secret(workspace: Path) -> bytes:
-    from onecode.shell_state import load_or_create_shell_secrets
-    secrets = load_or_create_shell_secrets(Path.home() / ".onecode")
-    return secrets.jwt_secret.encode("utf-8")
+    import json
+    import os
+    import secrets
+    from onecode.kernel.checkpoint import file_lock
+    
+    root = Path.home() / ".onecode"
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    
+    secrets_dir = root / "approval_secrets_store"
+    secrets_dir.mkdir(parents=True, exist_ok=True)
+    secrets_dir.chmod(0o300)
+    
+    index_path = root / "approval_index.json"
+    with file_lock(root / ".approval_index.lock"):
+        if index_path.exists():
+            index_path.chmod(0o600)
+            try:
+                data = json.loads(index_path.read_text(encoding="utf-8"))
+                filename = data["key_filename"]
+                key_path = secrets_dir / filename
+                if key_path.exists():
+                    return key_path.read_bytes()
+            except (json.JSONDecodeError, KeyError, OSError):
+                pass
+                
+        new_filename = f"{secrets.token_hex(16)}.key"
+        new_secret = secrets.token_bytes(32)
+        key_path = secrets_dir / new_filename
+        key_path.write_bytes(new_secret)
+        os.chmod(key_path, 0o400)
+        
+        index_path.write_text(json.dumps({"key_filename": new_filename}))
+        index_path.chmod(0o600)
+        
+        return new_secret
 
 
 def _sign_record(workspace: Path, tool_name: str, params: dict[str, Any], record_id: str) -> str:
