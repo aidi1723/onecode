@@ -106,14 +106,14 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
     }
     # Classical Da Yan (大衍之数) discrete stalk probability measure:
     # 9 (Old Yang, moving): 3/16 (0.1875)
-    # 8 (Young Yin, static): 5/16 (0.3125)
+    # 8 (Young Yin, static): 7/16 (0.4375)
     # 7 (Young Yang, static): 5/16 (0.3125)
-    # 6 (Old Yin, moving): 3/16 (0.1875)
+    # 6 (Old Yin, moving): 1/16 (0.0625)
     DAYAN_PROBABILITIES = {
         9: 3 / 16,
-        8: 5 / 16,
+        8: 7 / 16,
         7: 5 / 16,
-        6: 3 / 16,
+        6: 1 / 16,
     }
     DIMENSION_LABELS = {
         1: "liangyi",

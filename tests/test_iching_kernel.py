@@ -1236,9 +1236,9 @@ class TestIchingKernel(unittest.TestCase):
 
     def test_dayan_probability_measure_and_properties(self):
         self.assertAlmostEqual(IchingKernel.dayan_line_probability(9), 3 / 16)
-        self.assertAlmostEqual(IchingKernel.dayan_line_probability(8), 5 / 16)
+        self.assertAlmostEqual(IchingKernel.dayan_line_probability(8), 7 / 16)
         self.assertAlmostEqual(IchingKernel.dayan_line_probability(7), 5 / 16)
-        self.assertAlmostEqual(IchingKernel.dayan_line_probability(6), 3 / 16)
+        self.assertAlmostEqual(IchingKernel.dayan_line_probability(6), 1 / 16)
 
         total_prob = sum(IchingKernel.dayan_line_probability(v) for v in (6, 7, 8, 9))
         self.assertAlmostEqual(total_prob, 1.0)

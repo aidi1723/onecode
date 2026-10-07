@@ -104,6 +104,7 @@ OneCode uses an I Ching (易经) based state system for deterministic control fl
 All development closure and verification records live in the [closure/](closure/) directory (41 documents).
 
 Key closure documents:
+- [Zhouyi Math Optimization Closure (Oct)](closure/ONECODE_ZHOUYI_MATH_OPTIMIZATION_CLOSURE_2026-10-07.md) - Da Yan probability asymmetry, Nuclear attractor mapping typo
 - [Zhouyi Math Optimization Closure](closure/ONECODE_ZHOUYI_MATH_OPTIMIZATION_CLOSURE_2026-09-18.md) - Four symbols bit order, exchange operator, nuclear attractor theorem, Da Yan measure, KL divergence
 - [v0.8 Final Closure](closure/ONECODE_V0_8_FINAL_CLOSURE_2026-07-10.md)
 - [I Ching v2 Canonicalization](closure/ONECODE_ICHING_V2_CANONICALIZATION_CLOSURE_2026-07-10.md)

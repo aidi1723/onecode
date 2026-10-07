@@ -243,7 +243,7 @@ class IchingCertificatesMixin:
         Every hexagram S in Q_6 converges in at most 2 iterations of nuclear_hexagram
         to one of the four cardinal attractors:
         - Fixed points: 0 (Kun 坤) or 63 (Qian 乾)
-        - 2-cycle: {21 (Wei Ji 未济), 42 (Ji Ji 既济)}
+        - 2-cycle: {21 (Ji Ji 既济), 42 (Wei Ji 未济)}
         """
         chain = [status_code & 0b111111]
         seen = {chain[0]: 0}
