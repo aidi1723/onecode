@@ -115,7 +115,7 @@ class PathGuard:
     @staticmethod
     def is_sensitive_read_path(path: Path) -> bool:
         return any(
-            part.casefold() == ".git" or part.casefold() == ".env" or part.casefold().startswith(".env.")
+            part.casefold() == ".git" or part.casefold() == ".onecode" or part.casefold() == ".env" or part.casefold().startswith(".env.")
             for part in path.parts
         )
 

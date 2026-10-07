@@ -1,5 +1,8 @@
---- ARM64 CONTAINER TEST ---
-Wed Oct  7 08:57:17 PM CST 2026
+aidi@yami-n100:~/onecode-linux-test$ date
+Wed Oct  7 20:57:17 CST 2026
+aidi@yami-n100:~/onecode-linux-test$ hostname
 yami-n100
+aidi@yami-n100:~/onecode-linux-test$ docker run --rm --platform linux/arm64 python:3.12.3-slim python3 -c 'import platform; print(platform.machine())'
 aarch64
-Exit Code: 0
+aidi@yami-n100:~/onecode-linux-test$ echo $?
+0

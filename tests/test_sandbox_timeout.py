@@ -50,5 +50,36 @@ class TestSandboxTimeout(unittest.TestCase):
         name = kill_calls[0].args[0][2]
         self.assertTrue(name.startswith("onecode_ephemeral_"))
 
+
+    @patch("onecode.kernel.sandbox.subprocess.run")
+    def test_run_in_reused_sandbox_timeout_restarts_fails(self, mock_run):
+        config = SandboxConfig(workspace=self.workspace, timeout_seconds=10)
+        
+        def side_effect(*args, **kwargs):
+            if args[0][:2] == ["docker", "exec"]:
+                raise subprocess.TimeoutExpired(args[0], 10)
+            if args[0][:2] == ["docker", "restart"]:
+                return MagicMock(returncode=1, stderr="fatal error")
+            return MagicMock(returncode=0, stdout="true", stderr="")
+        mock_run.side_effect = side_effect
+        
+        with self.assertRaisesRegex(RuntimeError, "failed to restart container after timeout: fatal error"):
+            run_in_reused_sandbox(config, ["sleep", "100"])
+            
+    @patch("onecode.kernel.sandbox.subprocess.run")
+    def test_run_in_sandbox_timeout_kills_fails(self, mock_run):
+        config = SandboxConfig(workspace=self.workspace, timeout_seconds=10)
+        
+        def side_effect(*args, **kwargs):
+            if args[0][:2] == ["docker", "run"]:
+                raise subprocess.TimeoutExpired(args[0], 10)
+            if args[0][:2] == ["docker", "kill"]:
+                return MagicMock(returncode=1, stderr="fatal error")
+            return MagicMock(returncode=0)
+        mock_run.side_effect = side_effect
+        
+        with self.assertRaisesRegex(RuntimeError, "failed to kill container after timeout: fatal error"):
+            run_in_sandbox(config, ["sleep", "100"])
+
 if __name__ == "__main__":
     unittest.main()
