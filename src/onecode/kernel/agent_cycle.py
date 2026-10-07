@@ -232,20 +232,34 @@ def _unproductive(record: dict[str, Any], fingerprint_changed: bool, previous_ou
 
 def _workspace_fingerprint(workspace: Path) -> str:
     rows: list[str] = []
-    for path in sorted(workspace.rglob("*")):
+    ignored_dirs = {".git", ".venv", "venv", "__pycache__", "node_modules", ".mypy_cache", ".ruff_cache", ".pytest_cache", ".onecode"}
+    
+    # We use os.walk to effectively prune ignored directories instead of rglob
+    for dirpath, dirnames, filenames in os.walk(workspace):
+        dirnames[:] = [d for d in dirnames if d not in ignored_dirs]
+        
+        for filename in sorted(filenames):
+            if len(rows) >= 2_000:
+                break
+            
+            path = Path(dirpath) / filename
+            if not path.is_file() or path.is_symlink():
+                continue
+                
+            try:
+                relative = path.relative_to(workspace).as_posix()
+                digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            except OSError:
+                continue
+            rows.append(f"{relative}:{digest}")
+            
         if len(rows) >= 2_000:
             break
-        if not path.is_file() or path.is_symlink():
-            continue
-        relative = path.relative_to(workspace).as_posix()
-        if relative.startswith(".onecode/"):
-            continue
-        try:
-            digest = hashlib.sha256(path.read_bytes()).hexdigest()
-        except OSError:
-            continue
-        rows.append(f"{relative}:{digest}")
+            
+    # Sort the final rows to ensure consistent hashing
+    rows.sort()
     return hashlib.sha256("\n".join(rows).encode()).hexdigest()
+
 
 
 def _approval_gate(

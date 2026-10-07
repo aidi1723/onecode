@@ -2,6 +2,18 @@ import json
 import os
 import urllib.error
 import urllib.request
+
+class StripAuthRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new_req = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new_req is not None and req.host != new_req.host:
+            for key in list(new_req.headers.keys()):
+                if key.lower() in ("authorization", "api-key"):
+                    del new_req.headers[key]
+        return new_req
+
+_SAFE_OPENER = urllib.request.build_opener(StripAuthRedirectHandler())
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -494,7 +506,7 @@ class OpenAIResponsesProvider:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=http_timeout_seconds) as response:
+            with _SAFE_OPENER.open(request, timeout=http_timeout_seconds) as response:
                 response_payload = json.loads(read_bounded_response(response).decode("utf-8"))
         except TimeoutError as exc:
             raise ModelProviderTimeout("model request timed out") from exc
@@ -573,7 +585,7 @@ class OpenAIChatCompletionsProvider:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=http_timeout_seconds) as response:
+            with _SAFE_OPENER.open(request, timeout=http_timeout_seconds) as response:
                 response_payload = json.loads(read_bounded_response(response).decode("utf-8"))
         except TimeoutError as exc:
             raise ModelProviderTimeout("model request timed out") from exc

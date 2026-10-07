@@ -297,7 +297,7 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
         if reason == "http_timeout":
             return cls.compute_status(cls.KAN, cls.ZHEN)
         if reason in {"search_miss", "path_not_found"}:
-            return cls.compute_status(cls.KUN, cls.KUN)
+            return cls.compute_status(cls.LI, cls.KUN)
         if reason in {"action_exception", "run_exception"}:
             return cls.compute_status(cls.GEN, cls.KUN)
         if reason == "invalid_intent":
@@ -308,7 +308,7 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
             return cls.compute_status(cls.QIAN, cls.DUI)
         if status == "completed":
             return cls.compute_status(cls.QIAN, cls.QIAN)
-        return cls.compute_status(cls.KUN, cls.KUN)
+        return cls.compute_status(cls.LI, cls.KUN)
     @classmethod
     def classify_resume_audit(cls, status: str, reason: str | None) -> int:
         if status == "ready":
@@ -319,7 +319,7 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
             return cls.compute_status(cls.LI, cls.KUN)
         if reason in {"missing_file", "sha256_mismatch"}:
             return cls.compute_status(cls.KAN, cls.ZHEN)
-        return cls.compute_status(cls.KUN, cls.KUN)
+        return cls.compute_status(cls.LI, cls.KUN)
     @classmethod
     def classify_skill_context(cls, status: str, reason: str | None) -> int:
         if status == "blocked" or reason in {"unsafe_executable_skill", "outside_project"}:
@@ -328,7 +328,7 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
             return cls.compute_status(cls.KAN, cls.GEN)
         if status == "ok":
             return cls.compute_status(cls.KAN, cls.ZHEN)
-        return cls.compute_status(cls.KUN, cls.KUN)
+        return cls.compute_status(cls.LI, cls.KUN)
     @classmethod
     def transition(cls, status_code: int) -> IchingTransition:
         normalized = status_code & 0b111111

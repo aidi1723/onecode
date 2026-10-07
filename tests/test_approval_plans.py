@@ -29,6 +29,13 @@ def guarded_plan() -> ModelPlan:
 
 
 class ApprovalPlanTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.env_patcher = patch.dict("os.environ", {"ONECODE_HOME": self.tmp.name})
+        self.env_patcher.start()
+        self.addCleanup(self.env_patcher.stop)
+
     def test_plan_round_trip_checks_digest_and_workspace(self):
         from onecode.kernel.approval_plans import load_approval_plan, persist_approval_plan
 

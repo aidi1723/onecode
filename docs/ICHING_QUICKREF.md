@@ -7,12 +7,12 @@ A practical guide for debugging and understanding OneCode's I Ching-based state 
 | Code | Hex | Hexagram | Decision | Reason | What It Means |
 |------|-----|----------|----------|--------|---------------|
 | **0** | 0x00 | Kun/Kun ☷☷ | Discover | rule_gap_requires_discovery | Pure yin state, no yang activity. System needs to discover next action. |
-| **17** | 0x11 | Kan/Gen ☵☶ | Checkpoint | network_water_preserves_resume_seed | Water over mountain. Network operation timed out, preserve state for resume. |
+| **17** | 0x11 | Kan/Zhen ☵☳ | Checkpoint | network_water_preserves_resume_seed | Water over thunder. Network operation timed out, preserve state for resume. |
 | **32** | 0x20 | Gen/Kun ☶☷ | Checkpoint | mountain_contains_local_executor_fault | Mountain over earth. Local execution issue, checkpoint for investigation. |
 | **35** | 0x23 | Gen/Dui ☶☱ | Accelerate | generating_relation_accelerates_execution | Mountain over lake. Earth generates metal, harmonious acceleration. |
 | **39** | 0x27 | Gen/Qian ☶☰ | Accelerate | generating_relation_accelerates_execution | Mountain over heaven. Earth generates metal, supporting decisive progress. |
 | **40** | 0x28 | Li/Kun ☲☷ | Halt | sovereignty_fire_boundary_halt | Fire over earth. Path traversal or sovereignty breach detected. |
-| **42** | 0x2A | Li/Gen ☲☶ | Halt | sovereignty_fire_boundary_halt | Fire over mountain. Security violation, hard halt. |
+| **42** | 0x2A | Li/Kan ☲☵ | Halt | sovereignty_fire_boundary_halt | Fire over water. Security violation, hard halt. |
 | **49** | 0x31 | Xun/Zhen ☴☳ | Continue | (same element) | Wind over thunder. Wood resonates with wood, balanced same-element continuation. |
 | **63** | 0x3F | Qian/Qian ☰☰ | Cooldown | yang_overload_cooldown | Pure yang state (6 yang lines). Maximum yang pressure. |
 
@@ -265,7 +265,7 @@ Run failed or unexpected status?
 }
 ```
 
-**Interpretation**: Network operation timed out. Water (outer) over Mountain/Earth (inner) suggests containment and preservation. Status 17 triggers checkpoint to save resume state for retry.
+**Interpretation**: Network operation timed out. Water (outer) over Thunder (inner) suggests containment and preservation. Status 17 triggers checkpoint to save resume state for retry.
 
 ## Full 64-Hexagram Table
 

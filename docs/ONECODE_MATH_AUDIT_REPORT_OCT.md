@@ -18,7 +18,7 @@ This aligns perfectly with classical derivation (太极生两仪，两仪生四�
 
 ### 2.2 Hexagram Involution Operators (四大基本变换)
 **Audit Status**: ✅ Mathematically Closed
-The four classical transformations form a complete non-abelian group over $Q_6$:
+The four classical transformations form a complete abelian group over $Q_6$:
 - **Opposite (错卦)**: `status_code ^ 0b111111`. Flips all lines perfectly.
 - **Inverse (综卦)**: Reverses the bit order. Correctly swaps perspective.
 - **Exchange (交卦)**: `(inner << 3) | outer`. Correctly swaps inner and outer trigrams.

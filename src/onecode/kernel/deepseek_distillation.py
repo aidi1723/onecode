@@ -6,6 +6,18 @@ import socket
 import time
 import urllib.error
 import urllib.request
+
+class StripAuthRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new_req = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new_req is not None and req.host != new_req.host:
+            for key in list(new_req.headers.keys()):
+                if key.lower() in ("authorization", "api-key"):
+                    del new_req.headers[key]
+        return new_req
+
+_SAFE_OPENER = urllib.request.build_opener(StripAuthRedirectHandler())
+
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -70,7 +82,7 @@ class DeepSeekChatClient:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+            with _SAFE_OPENER.open(request, timeout=self.timeout_seconds) as response:
                 payload = json.loads(read_bounded_response(response).decode("utf-8"))
         except urllib.error.URLError as exc:
             raise RuntimeError(f"DeepSeek request failed: {exc.reason}") from exc

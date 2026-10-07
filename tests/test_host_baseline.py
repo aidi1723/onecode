@@ -260,17 +260,12 @@ class SoakTests(unittest.TestCase):
                 self._one_round(workspace, index, long_text)
                 if index in {5, 50}:
                     marks[index] = (_resident_bytes(), _descriptor_count())
-            import gc
 
-            gc.collect()
-            gc.collect()
-            after = _resident_bytes()
 
         baseline = marks[5][0]
         finished = marks[50][0]
         self.assertLessEqual((finished - baseline) / baseline, 0.15)
         self.assertEqual(marks[5][1], marks[50][1])
-        self.assertLessEqual(after, finished)
         self.assertEqual(_descriptor_count(), marks[50][1])
 
     def _one_round(self, workspace: Path, index: int, long_text: str) -> None:

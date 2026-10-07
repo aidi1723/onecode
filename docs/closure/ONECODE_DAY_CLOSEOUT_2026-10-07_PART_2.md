@@ -5,7 +5,7 @@
 ## 1. Accomplishments
 
 ### 1.1 Mathematics & Domain Knowledge Corrections
-- **Da Yan Probabilities Fixed**: Corrected the random hexagram generator to use the authentic asymmetric Yarrow stalk (大衍之数) probabilities (Old Yang 3/16, Young Yin 7/16, Young Yang 5/16, Old Yin 1/16).
+- **Da Yan Probabilities Fixed**: Corrected the domain modeling to use the authentic asymmetric Yarrow stalk (大衍之数) probabilities (Old Yang 3/16, Young Yin 7/16, Young Yang 5/16, Old Yin 1/16).
 - **Trigram Mapping Corrected**: Fixed docstrings identifying hexagram 21 as *Ji Ji* (既济) and 42 as *Wei Ji* (未济) based on bottom-up bit orientation.
 
 ### 1.2 Theoretical Scope Defined

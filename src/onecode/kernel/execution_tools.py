@@ -35,7 +35,7 @@ COMMAND_ENV_ALLOWLIST = frozenset(
 )
 SENSITIVE_ENV_MARKERS = ("KEY", "TOKEN", "SECRET", "PASSWORD", "PASSWD", "AUTH", "CREDENTIAL")
 SENSITIVE_ASSIGNMENT_PATTERN = re.compile(
-    r"(?i)\b(api[_-]?key|token|secret|password|passwd|authorization|credential)\b(\s*[:=]\s*)([^\s,;]+)"
+    r"(?i)\b(api[_-]?key|key|token|secret|password|passwd|authorization|credential)\b(\s*[:=]\s*)([^\s,;]+)"
 )
 MAX_DIRECTORY_SCAN_ENTRIES = 10_000
 

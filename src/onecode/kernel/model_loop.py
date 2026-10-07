@@ -203,7 +203,7 @@ def execute_model_plan(
     run_id: str | None,
     resume_from_run_id: str | None,
     run_metadata: dict[str, Any],
-    require_explicit_approval: bool = False,
+    require_explicit_approval: bool = True,
     approval_callback: Callable[[ExecutionStep], bool] | None = None,
     on_turn: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
@@ -737,7 +737,7 @@ def run_model_task(
     max_repair_attempts: int = 0,
     task_mode: str | None = None,
     safe_agent_route: SafeAgentRoute | None = None,
-    require_explicit_approval: bool = False,
+    require_explicit_approval: bool = True,
     execution_approval: Callable[[ExecutionStep], bool] | None = None,
     on_turn: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
