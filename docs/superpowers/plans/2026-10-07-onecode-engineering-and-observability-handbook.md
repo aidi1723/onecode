@@ -1,12 +1,12 @@
 # OneCode Engineering & Observability Handbook
 **Date**: 2026-10-07
-**Target Version**: v1.0 Production Readiness
+**Target Version**: v0.8.0 Release Candidate
 
 ## 1. Executive Summary
 
-The OneCode kernel currently possesses a rigorously verified mathematical topology for its $Q_6$ state space, I Ching transformations, and deterministic execution control based on Wuxing (五行) relations and tooling outcomes. 
+The OneCode kernel possesses a verified mathematical topology for its $Q_6$ state space and I Ching transformations. `classify_outcome` maps to 6 out of 64 states, and the majority of hexagram calculations serve purely as observable evidence rather than control logic. 
 
-This handbook establishes the final development roadmap required to lift the project into true production readiness. It explicitly rejects "forced metaphors" (e.g., using I Ching semantics to arbitrarily override CI/CD rules) and pivots the focus entirely to **hard engineering robustness** and **pure observability**.
+This handbook establishes the development roadmap required to lift the project toward readiness. It explicitly rejects "forced metaphors" (e.g., using I Ching semantics to arbitrarily override CI/CD rules) and pivots the focus entirely to **hard engineering robustness** and **pure observability**.
 
 ---
 
@@ -14,22 +14,20 @@ This handbook establishes the final development roadmap required to lift the pro
 
 The system cannot pass production sign-off until the following infrastructure defects are resolved. Note that resolving these does **not** instantly qualify the project for v1.0. `claims_mainstream_parity` remains `false` until external penetration scanning and dual-machine release orchestration are also completed.
 
-### 2.1 Memory Profiling in Soak Tests (浸泡测试内存增长排查)
-**The Problem**:
-During the 4-hour soak test on the `n100` Linux environment, the resident memory (RSS) steadily increased from 21.3 MB to 36.1 MB within 15 minutes. The file descriptor count remained flat at 5. Crucially, this soak test **only executed tool loops and approval creation/deletion** without passing through the model gateway, and `agent_cycle.py` did not reference `wal.py`.
+### 2.1 Memory Profiling in Soak Tests (浸泡测试内存验证)
+**The State**:
+The Python 3.12 `pathlib` `sys.intern` correlation was observed on `n100` (Python 3.12.3) but absent on macOS (Python 3.12.12). This represents a correlated observation, not a universally proven root cause.
 **Action Items**:
-- It is premature to definitively label this a "leak" or to suspect the Ledger/WAL.
-- The immediate next step is to run the identical soak script with `tracemalloc` injected.
-- Determine whether objects within the tool cycle are actually accumulating, or if the Python interpreter is merely retaining OS pages.
-- **Success Criteria**: A 4-hour soak test must demonstrate an RSS plateau.
+- Run the full 4-hour soak test and permanently record the RSS plateau curve as hard evidence.
+- Verify that GC assertions hold steadily at a baseline without monotonic growth over long durations.
+- **Success Criteria**: A complete 4-hour log proving the memory curve goes flat, committed to the repository.
 
 ### 2.2 ARM64 Container Host Compatibility (宿主机跨架构支持)
-**The Problem**:
-The `n100` host is `x86_64` and lacks the capability to execute `python:3.12-slim` ARM64 images, resulting in `exec format error`. This is purely a host emulation issue, not a missing Dockerfile configuration.
+**The State**:
+`qemu-user-static` and `binfmt_misc` have been installed directly on the `n100` host.
 **Action Items**:
-- Install and configure `qemu-user-static` and `binfmt_misc` directly on the `n100` host.
-- Do not attempt to fix this via `docker buildx`, as the repository correctly does not maintain its own Dockerfile for this base image.
-- **Success Criteria**: The host successfully runs the foreign architecture container.
+- Boot the `python:3.12-slim` ARM64 image using the configured emulator.
+- **Success Criteria**: Commit the execution output confirming the host successfully runs and returns `aarch64` from within the foreign architecture container.
 
 ---
 
@@ -37,26 +35,28 @@ The `n100` host is `x86_64` and lacks the capability to execute `python:3.12-sli
 
 While the fundamental control plane (Dispatch, Transition, Bandwidth, Sovereignty Fire) is mathematically closed and must remain untouched, deeper I Ching concepts will be integrated strictly as **Read-Only Evidence Profiles (观测证据层)**. 
 
-*Rule of Thumb: Do not use classical sequence or line-position metaphors to artificially restrict file permissions, halt execution, or modify bandwidth. They belong solely in the telemetry and audit trail.*
+**Acceptance Criteria (验收条件)**:
+No field may be added without an explicit test proving its isolation. For each read-only field (Moving Lines, Micro-Structural Vectors, Sequential Telemetry), there must be a test asserting that adding or removing the field leaves the output of `transition`, `dispatch`, `sovereignty_fire`, and `execution_bandwidth` **byte-for-byte identical**, and that the `agent_cycle` halt reason remains completely unchanged.
 
-### 3.1 Moving Lines Tracking (动爻追踪)
-- **Implementation**: Extend `hexagram_profile.py` to identify which specific bits flipped between the original hexagram (本卦) and the resulting hexagram (变卦).
-- **Usage**: Output this as a telemetry array (e.g., `moving_lines: [0, 4]`). Do not use the index of the moving line to define which files the agent is allowed to write to.
+**Implementation Landing Zones (待建项落点)**:
+The fields `moving_lines`, `micro_relations` (承乘比应), and `cycle_phase` currently do not exist in the source code. Because `agent_cycle.py` does not directly reference `wal.py`, these multi-turn cycle telemetry items must be injected into the evidence payload generated in `runner.py` and `execution_engine.py` before being committed to the WAL.
+
+### 3.1 Base Hexagram & Moving Lines Tracking (本卦定义与动爻追踪)
+- **Input Definition (输入定义)**: The "Base Hexagram" (本卦) for any turn is derived exactly from the `status_code` of the PREVIOUS evidence record. The first round's base hexagram is explicitly defined as empty/none.
+- **Implementation**: Extend the profile to identify the specific bits that flipped between the Base Hexagram and the Resulting Hexagram. Output this as a telemetry array. 
 
 ### 3.2 Micro-Structural Vectors (承、乘、比、应)
-- **Implementation**: Calculate the physical layout forces within the hexagram:
-  - **Cheng (承)**: Yin supporting Yang.
-  - **Sheng (乘)**: Yin oppressing Yang.
-  - **Bi (比)**: Adjacent compatibilities.
-  - **Ying (应)**: Corresponding line resonances (1-4, 2-5, 3-6).
-- **Usage**: Add these exact counts and states to the JSON evidence payload generated by `hexagram_profile.py`. This provides deeper metadata for post-run audits and training sets. It must **not** be wired into `lyapunov_energy` or `sovereignty_fire`.
+- **Implementation**: Calculate the physical layout forces: Cheng (承), Sheng (乘), Bi (比), Ying (应).
+- **Usage**: Add these exact counts to the JSON evidence payload. They must **not** be wired into `lyapunov_energy` or `sovereignty_fire`.
 
 ### 3.3 Temporal & Sequential Telemetry (宏观时序与周期标注)
-- **Implementation**: Map the execution log distance or loop count to chronological markers (like the 12 Sovereign Hexagrams / 十二消息卦) and King Wen's sequence (文王序卦).
-- **Usage**: Embed this purely as a chronological stamp (`cycle_phase`) in the WAL (Write-Ahead Log) for data visualization. Do not use this sequence distance to artificially adjust execution tolerance or fault limits.
+- **Hardcoded Sequences (卦序定死)**: 
+  - The 12 Sovereign Hexagrams (十二消息卦) must be hardcoded strictly as: **复、临、泰、大壮、夬、乾、姤、遁、否、观、剥、坤**.
+  - The King Wen Sequence (文王序卦) must use a fixed 1 to 64 lookup table embedded within the tests, without runtime dynamic interpretation.
+- **Usage**: Map `cycle_count % 12` to the Sovereign Hexagrams and output the chronological stamp (`cycle_phase`) in the telemetry. Do not use sequence distance to adjust execution tolerance.
 
 ---
 
 ## 4. Conclusion
 
-By strictly separating **Deterministic Control Logic** from **Philosophical Telemetry**, OneCode preserves its heavily-tested stability while simultaneously enriching its analytical depth. Resolving the memory and cross-arch blockers will finalize its v1.0 deployment viability.
+By strictly separating Deterministic Control Logic from Philosophical Telemetry, OneCode preserves its tested stability. Resolving the memory and cross-arch blockers will finalize its v0.8.0 deployment viability.

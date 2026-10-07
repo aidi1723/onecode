@@ -29,4 +29,4 @@ Following a deep mathematical and logical audit of the OneCode I Ching Kernel (`
 ## Verification
 - Local unit tests in `tests/` passed cleanly (`unittest discover`).
 - Mathematical topology checks (e.g. `onecode math-audit`) remain closed and unviolated.
-- The mathematical fidelity of the engine to classical I Ching texts is now perfectly aligned.
+- The mathematical fidelity of the engine to classical I Ching texts is now mathematically corrected but not yet implemented at runtime.
