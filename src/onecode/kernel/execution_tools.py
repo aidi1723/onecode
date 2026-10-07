@@ -433,9 +433,11 @@ def _run_command(
 ) -> tuple[int, str, str]:
     mode = os.environ.get("ONECODE_RUN_COMMAND_SANDBOX", "auto").strip().lower()
     use_docker = mode in {"docker", "on", "true", "1"} or (mode not in {"host", "off", "false", "0"} and _docker_daemon_ready())
+    fallback_used = False
+    explicit_host = mode in {"host", "off", "false", "0"}
+    
     if use_docker:
         from onecode.kernel.sandbox import SandboxConfig, run_in_reused_sandbox
-
         try:
             completed = run_in_reused_sandbox(
                 SandboxConfig(workspace=workspace, timeout_seconds=timeout_seconds),
@@ -446,6 +448,7 @@ def _run_command(
         except (OSError, ValueError):
             if mode in {"docker", "on", "true", "1"}:
                 raise
+            fallback_used = True
         else:
             stdout = completed.stdout or ""
             stderr = completed.stderr or ""
@@ -454,8 +457,12 @@ def _run_command(
                 if on_output is not None and stdout:
                     on_output(stdout)
                 return completed.returncode, stdout, stderr
+            fallback_used = True
+    elif not explicit_host:
+        fallback_used = True
+
     warning_msg = ""
-    if use_docker:
+    if fallback_used:
         warning_msg = "[WARNING: Docker sandbox unavailable, command executed on host fallback]\n"
         if on_output is not None:
             on_output(warning_msg)

@@ -32,13 +32,17 @@ class SandboxConfig:
             raise ValueError("sandbox pids_limit must be positive")
 
 
-def build_docker_command(config: SandboxConfig, command: Sequence[str]) -> list[str]:
+def build_docker_command(config: SandboxConfig, command: Sequence[str], name: str | None = None) -> list[str]:
     if not command:
         raise ValueError("sandbox command must not be empty")
     docker_command = [
         "docker",
         "run",
         "--rm",
+    ]
+    if name:
+        docker_command.extend(["--name", name])
+    docker_command.extend([
         "--network",
         config.network,
         "--memory",
@@ -51,7 +55,7 @@ def build_docker_command(config: SandboxConfig, command: Sequence[str]) -> list[
         "ALL",
         "--tmpfs",
         config.tmpfs,
-    ]
+    ])
     if ":" in config.workspace.as_posix():
         raise ValueError("sandbox workspace path must not contain ':'")
     if config.read_only:
@@ -113,23 +117,33 @@ def run_in_reused_sandbox(config: SandboxConfig, command: Sequence[str]) -> subp
             started = subprocess.run(["docker", "start", name], capture_output=True, text=True, timeout=30, check=False)
             if started.returncode != 0:
                 return started
-    return subprocess.run(
-        build_container_exec(config, command),
-        capture_output=True,
-        text=True,
-        timeout=config.timeout_seconds,
-        check=False,
-    )
+    try:
+        return subprocess.run(
+            build_container_exec(config, command),
+            capture_output=True,
+            text=True,
+            timeout=config.timeout_seconds,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        subprocess.run(["docker", "restart", "-t", "1", name], capture_output=True, check=False)
+        raise
 
 
 def run_in_sandbox(config: SandboxConfig, command: Sequence[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        build_docker_command(config, command),
-        text=True,
-        capture_output=True,
-        timeout=config.timeout_seconds,
-        check=False,
-    )
+    import secrets
+    name = f"onecode_ephemeral_{secrets.token_hex(8)}"
+    try:
+        return subprocess.run(
+            build_docker_command(config, command, name=name),
+            text=True,
+            capture_output=True,
+            timeout=config.timeout_seconds,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        subprocess.run(["docker", "kill", name], capture_output=True, check=False)
+        raise
 
 
 def run_sandbox_smoke(

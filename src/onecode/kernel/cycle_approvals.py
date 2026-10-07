@@ -79,11 +79,13 @@ def resume_pending_approval(workspace: Path, pending_id: str, decision: str, exe
 
 
 def _get_approval_secret(workspace: Path) -> bytes:
-    directory = Path(workspace).resolve() / _DIRECTORY
-    directory.mkdir(parents=True, exist_ok=True)
-    secret_path = directory / ".secret"
+    import hashlib
+    workspace_hash = hashlib.sha256(str(workspace.resolve()).encode("utf-8")).hexdigest()
+    secret_dir = Path.home() / ".onecode" / "workspaces" / workspace_hash
+    secret_dir.mkdir(parents=True, exist_ok=True)
+    secret_path = secret_dir / "pending.secret"
     if not secret_path.exists():
-        with file_lock(directory.parent / "pending-cycle.lock"):
+        with file_lock(secret_dir / "pending.lock"):
             if not secret_path.exists():
                 import secrets
                 secret_path.write_bytes(secrets.token_bytes(32))
