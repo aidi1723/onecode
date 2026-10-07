@@ -8,7 +8,7 @@ import urllib.error
 import urllib.request
 from urllib.parse import urlparse
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 MAX_RESPONSE_BYTES = 2_000_000
