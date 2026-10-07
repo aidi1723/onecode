@@ -125,8 +125,10 @@ def run_in_reused_sandbox(config: SandboxConfig, command: Sequence[str]) -> subp
             timeout=config.timeout_seconds,
             check=False,
         )
-    except subprocess.TimeoutExpired:
-        subprocess.run(["docker", "restart", "-t", "1", name], capture_output=True, check=False)
+    except subprocess.TimeoutExpired as exc:
+        killed = subprocess.run(["docker", "restart", "-t", "1", name], capture_output=True, text=True, check=False)
+        if killed.returncode != 0 and "No such container" not in killed.stderr:
+            raise RuntimeError(f"failed to restart container after timeout: {killed.stderr}") from exc
         raise
 
 
@@ -141,8 +143,10 @@ def run_in_sandbox(config: SandboxConfig, command: Sequence[str]) -> subprocess.
             timeout=config.timeout_seconds,
             check=False,
         )
-    except subprocess.TimeoutExpired:
-        subprocess.run(["docker", "kill", name], capture_output=True, check=False)
+    except subprocess.TimeoutExpired as exc:
+        killed = subprocess.run(["docker", "kill", name], capture_output=True, text=True, check=False)
+        if killed.returncode != 0 and "is not running" not in killed.stderr and "No such container" not in killed.stderr:
+            raise RuntimeError(f"failed to kill container after timeout: {killed.stderr}") from exc
         raise
 
 

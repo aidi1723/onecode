@@ -78,19 +78,10 @@ def resume_pending_approval(workspace: Path, pending_id: str, decision: str, exe
 
 
 
+_APPROVAL_SECRET = secrets.token_bytes(32)
+
 def _get_approval_secret(workspace: Path) -> bytes:
-    import hashlib
-    workspace_hash = hashlib.sha256(str(workspace.resolve()).encode("utf-8")).hexdigest()
-    secret_dir = Path.home() / ".onecode" / "workspaces" / workspace_hash
-    secret_dir.mkdir(parents=True, exist_ok=True)
-    secret_path = secret_dir / "pending.secret"
-    if not secret_path.exists():
-        with file_lock(secret_dir / "pending.lock"):
-            if not secret_path.exists():
-                import secrets
-                secret_path.write_bytes(secrets.token_bytes(32))
-                os.chmod(secret_path, 0o600)
-    return secret_path.read_bytes()
+    return _APPROVAL_SECRET
 
 def _sign_record(workspace: Path, tool_name: str, params: dict[str, Any], record_id: str) -> str:
     msg = json.dumps({"id": record_id, "tool": tool_name, "params": params}, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")

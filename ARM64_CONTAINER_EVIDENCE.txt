@@ -1,2 +1,5 @@
-> docker run --rm --platform linux/arm64 python:3.12.3-slim python3 -c 'import platform; print(platform.machine())'
+--- ARM64 CONTAINER TEST ---
+Wed Oct  7 08:57:17 PM CST 2026
+yami-n100
 aarch64
+Exit Code: 0
