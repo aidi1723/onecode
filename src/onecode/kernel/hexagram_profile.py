@@ -438,3 +438,42 @@ class IchingProfileMixin:
     @classmethod
     def polarity_index(cls, status_code: int) -> float:
         return (((status_code & 0b111111).bit_count()) - 3) / 3
+
+    @classmethod
+    def moving_lines(cls, base_status: int | None, current_status: int) -> list[int]:
+        if base_status is None:
+            return []
+        diff = (base_status & 0b111111) ^ (current_status & 0b111111)
+        return [i for i in range(6) if (diff >> i) & 1]
+
+    @classmethod
+    def micro_relations(cls, status_code: int) -> dict[str, int]:
+        normalized = status_code & 0b111111
+        cheng = 0
+        sheng = 0
+        bi = 0
+        ying = 0
+        for i in range(5):
+            lower = (normalized >> i) & 1
+            upper = (normalized >> (i + 1)) & 1
+            if lower == 0 and upper == 1:
+                cheng += 1
+            if lower == 1 and upper == 0:
+                sheng += 1
+            bi += 1
+        for i in range(3):
+            lower = (normalized >> i) & 1
+            upper = (normalized >> (i + 3)) & 1
+            if lower != upper:
+                ying += 1
+        return {
+            "cheng": cheng,
+            "sheng": sheng,
+            "bi": bi,
+            "ying": ying
+        }
+
+    @classmethod
+    def cycle_phase(cls, cycle_count: int) -> str:
+        SOVEREIGN_HEXAGRAMS = ["复", "临", "泰", "大壮", "夬", "乾", "姤", "遁", "否", "观", "剥", "坤"]
+        return SOVEREIGN_HEXAGRAMS[cycle_count % 12]

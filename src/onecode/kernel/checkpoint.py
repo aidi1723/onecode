@@ -719,6 +719,33 @@ def validate_manifest_metrics(metrics: dict[str, Any]) -> None:
                 raise ValueError(f"manifest_metrics_section_bytes_exceeded:{key}")
 
 
+
+def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number: int, iching_status_code: int | None) -> dict[str, Any]:
+    base_status = None
+    if existing_checkpoints:
+        try:
+            import json
+            last_checkpoint = json.loads(existing_checkpoints[-1]["path"].read_text())
+            base_status = last_checkpoint.get("iching_status_code")
+        except Exception:
+            try:
+                import json
+                last_path = context.evidence_root / existing_checkpoints[-1]["path"]
+                if last_path.is_file():
+                    base_status = json.loads(last_path.read_text()).get("iching_status_code")
+            except Exception:
+                pass
+
+    telemetry = {}
+    if iching_status_code is not None:
+        from onecode.kernel.hexagram import IchingKernel
+        telemetry = {
+            "moving_lines": IchingKernel.moving_lines(base_status, iching_status_code),
+            "micro_relations": IchingKernel.micro_relations(iching_status_code),
+            "cycle_phase": IchingKernel.cycle_phase(turn_number - 1)
+        }
+    return telemetry
+
 def write_checkpoint(
     context: OneCodeContext,
     payload: dict[str, Any],
@@ -761,6 +788,8 @@ def write_checkpoint(
             registry_ref = ensure_profile_registry_entry(context.workspace_root, iching_profile)
         evidence_profile = compact_completed_evidence_profile(status, partial, reason, iching_profile, registry_ref)
         evidence_rule_schema = normalize_rule_schema(rule_schema)
+        telemetry = _build_telemetry(context, existing_checkpoints, turn_number, iching_status_code)
+
         checkpoint = {
             "run_id": context.run_id,
             "rule_schema": evidence_rule_schema,
@@ -770,12 +799,14 @@ def write_checkpoint(
             "status": status,
             "partial": partial,
             "reason": reason,
+            "telemetry": telemetry,
             "intent_type": intent_type,
             "decision": decision,
             "iching_status_code": iching_status_code,
             "iching_transition_action": iching_transition_action,
             "iching_transition_reason": iching_transition_reason,
             "iching_profile": evidence_profile,
+
             "duration_ms": duration_ms,
             "run_control": run_control,
             "balance_mutation_summary": balance_mutation_summary,
@@ -798,6 +829,7 @@ def write_checkpoint(
             "status": status,
             "partial": partial,
             "reason": reason,
+            "telemetry": telemetry,
             "intent_type": intent_type,
             "decision": decision,
             "iching_status_code": iching_status_code,
@@ -838,6 +870,7 @@ def write_checkpoint(
             "status": status,
             "partial": partial,
             "reason": reason,
+            "telemetry": telemetry,
             "iching_status_code": iching_status_code,
             "iching_transition_action": iching_transition_action,
             "iching_transition_reason": iching_transition_reason,

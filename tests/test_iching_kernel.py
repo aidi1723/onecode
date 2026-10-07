@@ -123,7 +123,7 @@ class TestIchingKernel(unittest.TestCase):
         )
         self.assertEqual(
             IchingKernel.classify_skill_context("missing", "no_skills"),
-            IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN),
+            IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
         )
 
     def test_classify_skill_context_maps_invalid_and_blocked_skill_evidence(self):
