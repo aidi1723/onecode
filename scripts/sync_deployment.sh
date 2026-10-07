@@ -12,12 +12,6 @@ REMOTE_WORKSPACE="~/onecode-linux-test"
 LOCAL_WORKSPACE=$(pwd)
 
 if [ "$ACTION" == "push-n100" ]; then
-    echo "Synchronizing workspace to n100..."
-    rsync -avz --exclude '.venv' --exclude '__pycache__' --exclude '.git' \
-          --exclude '.mypy_cache' --exclude '.ruff_cache' \
-          --exclude 'node_modules' --exclude '.DS_Store' \
-          "${LOCAL_WORKSPACE}/" "${REMOTE_HOST}:${REMOTE_WORKSPACE}/"
-
     echo "Synchronizing approval secret to n100..."
     ssh "${REMOTE_HOST}" "mkdir -p ~/.onecode && chmod 700 ~/.onecode"
     if [ -f ~/.onecode/approval-secret.key ]; then
@@ -26,15 +20,17 @@ if [ "$ACTION" == "push-n100" ]; then
         echo "No local approval-secret.key to sync."
     fi
     
-    echo "Push complete. .onecode/pending-cycle/ is implicitly included in the workspace sync."
+    echo "Synchronizing pending approvals to n100..."
+    if [ -d "${LOCAL_WORKSPACE}/.onecode/pending-cycle" ]; then
+        ssh "${REMOTE_HOST}" "mkdir -p ${REMOTE_WORKSPACE}/.onecode"
+        rsync -avz "${LOCAL_WORKSPACE}/.onecode/pending-cycle/" "${REMOTE_HOST}:${REMOTE_WORKSPACE}/.onecode/pending-cycle/"
+    else
+        echo "No local pending approvals to sync."
+    fi
+    
+    echo "Push complete."
     
 elif [ "$ACTION" == "pull-n100" ]; then
-    echo "Synchronizing workspace from n100..."
-    rsync -avz --exclude '.venv' --exclude '__pycache__' --exclude '.git' \
-          --exclude '.mypy_cache' --exclude '.ruff_cache' \
-          --exclude 'node_modules' --exclude '.DS_Store' \
-          "${REMOTE_HOST}:${REMOTE_WORKSPACE}/" "${LOCAL_WORKSPACE}/"
-
     echo "Synchronizing approval secret from n100..."
     mkdir -p ~/.onecode && chmod 700 ~/.onecode
     if ssh "${REMOTE_HOST}" "[ -f ~/.onecode/approval-secret.key ]"; then
@@ -43,7 +39,15 @@ elif [ "$ACTION" == "pull-n100" ]; then
         echo "No remote approval-secret.key to sync."
     fi
     
-    echo "Pull complete. .onecode/pending-cycle/ is implicitly included in the workspace sync."
+    echo "Synchronizing pending approvals from n100..."
+    if ssh "${REMOTE_HOST}" "[ -d ${REMOTE_WORKSPACE}/.onecode/pending-cycle ]"; then
+        mkdir -p "${LOCAL_WORKSPACE}/.onecode"
+        rsync -avz "${REMOTE_HOST}:${REMOTE_WORKSPACE}/.onecode/pending-cycle/" "${LOCAL_WORKSPACE}/.onecode/pending-cycle/"
+    else
+        echo "No remote pending approvals to sync."
+    fi
+    
+    echo "Pull complete."
     
 else
     echo "Unknown action: $ACTION. Use push-n100 or pull-n100."
