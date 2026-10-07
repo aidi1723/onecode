@@ -45,6 +45,7 @@ priority, mood, retry scores).
 
 """
 from dataclasses import dataclass
+from typing import cast
 
 
 from onecode.kernel.hexagram_profile import IchingProfileMixin

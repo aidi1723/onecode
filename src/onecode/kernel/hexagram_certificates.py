@@ -25,9 +25,9 @@ class IchingCertificatesMixin:
     @classmethod
     def lyapunov_energy(cls, status_code: int) -> float:
         normalized = status_code & 0b111111
-        profile = cls.yin_yang_profile(normalized)
+        profile = cls.yin_yang_profile(normalized)  # type: ignore[attr-defined]
         balance_penalty = abs(float(profile["yang_count"]) - 3.0) / 3.0
-        transition = cls.transition(normalized)
+        transition = cls.transition(normalized)  # type: ignore[attr-defined]
         action_penalties = {
             "continue": 0.0,
             "recover": 0.0,
@@ -40,7 +40,7 @@ class IchingCertificatesMixin:
             "discover": 0.85,
             "halt": 1.0,
         }
-        bandwidth_penalty = 1.0 - cls.execution_bandwidth(normalized)
+        bandwidth_penalty = 1.0 - cls.execution_bandwidth(normalized)  # type: ignore[attr-defined]
         return balance_penalty + action_penalties.get(transition.action, 0.5) + bandwidth_penalty
     @classmethod
     def hysteresis_gate(cls, value: float, previous: int, low: float, high: float) -> int:
@@ -57,11 +57,11 @@ class IchingCertificatesMixin:
         normalized = status_code & 0b111111
         inner = normalized & 0b111
         outer = (normalized >> 3) & 0b111
-        outer_element = cls.element_for_trigram(outer)
-        inner_element = cls.element_for_trigram(inner)
-        relation = cls.element_relation(outer_element, inner_element)
-        cross_relation = cls.element_cross_relation(outer_element, inner_element)
-        pressure = cls.yin_yang_cross_profile(normalized)["pressure"]
+        outer_element = cls.element_for_trigram(outer)  # type: ignore[attr-defined]
+        inner_element = cls.element_for_trigram(inner)  # type: ignore[attr-defined]
+        relation = cls.element_relation(outer_element, inner_element)  # type: ignore[attr-defined]
+        cross_relation = cls.element_cross_relation(outer_element, inner_element)  # type: ignore[attr-defined]
+        pressure = cls.yin_yang_cross_profile(normalized)["pressure"]  # type: ignore[attr-defined]
         if cross_relation == "controls" and outer_element == "fire" and inner_element == "metal":
             modulation = "hard_control"
         elif cross_relation == "generates" and outer_element == "water" and inner_element == "wood":
@@ -91,20 +91,20 @@ class IchingCertificatesMixin:
         normalized = status_code & 0b111111
         inner = normalized & 0b111
         outer = (normalized >> 3) & 0b111
-        outer_element = cls.element_for_trigram(outer)
-        inner_element = cls.element_for_trigram(inner)
-        dynamics = cls.element_dynamics(normalized)
-        transition = cls.transition(normalized)
-        runtime_action, runtime_reason = cls.runtime_relation_policy(dynamics["cross_relation"], dynamics["modulation"])
+        outer_element = cls.element_for_trigram(outer)  # type: ignore[attr-defined]
+        inner_element = cls.element_for_trigram(inner)  # type: ignore[attr-defined]
+        dynamics = cls.element_dynamics(normalized)  # type: ignore[attr-defined]
+        transition = cls.transition(normalized)  # type: ignore[attr-defined]
+        runtime_action, runtime_reason = cls.runtime_relation_policy(dynamics["cross_relation"], dynamics["modulation"])  # type: ignore[attr-defined]
         if dynamics["modulation"] == "recovery_seed" and transition.action == "checkpoint":
             runtime_action, runtime_reason = transition.action, transition.reason
-        dispatch_decision = cls.dispatch_decision(transition)
+        dispatch_decision = cls.dispatch_decision(transition)  # type: ignore[attr-defined]
         return {
             "rule_schema": ACTIVE_RULE_SCHEMA,
             "status_code": normalized,
             "binary": format(normalized, "06b"),
             "math": {
-                "liangyi": list(cls.liangyi_values()),
+                "liangyi": list(cls.liangyi_values()),  # type: ignore[attr-defined]
                 "state_space_sizes": {
                     "liangyi": 1 << 1,
                     "sixiang": 1 << 2,
@@ -112,53 +112,53 @@ class IchingCertificatesMixin:
                     "hexagram": 1 << 6,
                 },
             },
-            "dimension": cls.dimension_profile(6),
-            "triadic": cls.triadic_profile(normalized),
-            "position": cls.line_position_profile(normalized),
-            "correspondence": cls.correspondence_profile(normalized),
-            "perspective": cls.perspective_profile(normalized),
+            "dimension": cls.dimension_profile(6),  # type: ignore[attr-defined]
+            "triadic": cls.triadic_profile(normalized),  # type: ignore[attr-defined]
+            "position": cls.line_position_profile(normalized),  # type: ignore[attr-defined]
+            "correspondence": cls.correspondence_profile(normalized),  # type: ignore[attr-defined]
+            "perspective": cls.perspective_profile(normalized),  # type: ignore[attr-defined]
             "mutation": None,
-            "nuclear": cls.nuclear_profile(normalized),
+            "nuclear": cls.nuclear_profile(normalized),  # type: ignore[attr-defined]
             "outer_trigram": outer,
             "inner_trigram": inner,
-            "lines": cls.line_records(normalized),
-            "liangyi": cls.liangyi_bits(normalized),
-            "outer_trigram_record": cls.trigram_record(normalized, "outer"),
-            "inner_trigram_record": cls.trigram_record(normalized, "inner"),
-            "outer_trigram_virtue": cls.trigram_virtue_record(outer),
-            "inner_trigram_virtue": cls.trigram_virtue_record(inner),
-            "trigram_records": cls.trigram_records(),
+            "lines": cls.line_records(normalized),  # type: ignore[attr-defined]
+            "liangyi": cls.liangyi_bits(normalized),  # type: ignore[attr-defined]
+            "outer_trigram_record": cls.trigram_record(normalized, "outer"),  # type: ignore[attr-defined]
+            "inner_trigram_record": cls.trigram_record(normalized, "inner"),  # type: ignore[attr-defined]
+            "outer_trigram_virtue": cls.trigram_virtue_record(outer),  # type: ignore[attr-defined]
+            "inner_trigram_virtue": cls.trigram_virtue_record(inner),  # type: ignore[attr-defined]
+            "trigram_records": cls.trigram_records(),  # type: ignore[attr-defined]
             "outer_element": outer_element,
             "inner_element": inner_element,
-            "element_records": cls.element_records(),
-            "element_matrix": {f"{source}->{target}": relation for (source, target), relation in cls.element_matrix().items()},
-            "element_relation": cls.element_relation(outer_element, inner_element),
+            "element_records": cls.element_records(),  # type: ignore[attr-defined]
+            "element_matrix": {f"{source}->{target}": relation for (source, target), relation in cls.element_matrix().items()},  # type: ignore[attr-defined]
+            "element_relation": cls.element_relation(outer_element, inner_element),  # type: ignore[attr-defined]
             "element_dynamics": dynamics,
             "runtime_policy": {
                 "action": runtime_action,
                 "reason": runtime_reason,
             },
-            "execution_bandwidth": cls.execution_bandwidth(normalized),
-            "evolved_element_modulation": cls.evolved_element_modulation(normalized),
-            "harmony": cls.harmony_score(normalized),
-            "yin_yang": cls.yin_yang_cross_profile(normalized),
-            "four_symbols": cls.four_symbols(normalized),
-            "overlapping_four_symbols": cls.overlapping_four_symbols(normalized),
-            "four_symbol_balance": cls.four_symbol_balance_vector(normalized),
+            "execution_bandwidth": cls.execution_bandwidth(normalized),  # type: ignore[attr-defined]
+            "evolved_element_modulation": cls.evolved_element_modulation(normalized),  # type: ignore[attr-defined]
+            "harmony": cls.harmony_score(normalized),  # type: ignore[attr-defined]
+            "yin_yang": cls.yin_yang_cross_profile(normalized),  # type: ignore[attr-defined]
+            "four_symbols": cls.four_symbols(normalized),  # type: ignore[attr-defined]
+            "overlapping_four_symbols": cls.overlapping_four_symbols(normalized),  # type: ignore[attr-defined]
+            "four_symbol_balance": cls.four_symbol_balance_vector(normalized),  # type: ignore[attr-defined]
             "transition": {
                 "status_code": transition.status_code,
                 "action": transition.action,
                 "reason": transition.reason,
             },
             "dispatch_decision": dispatch_decision,
-            "rule_layers": cls.rule_layers(),
+            "rule_layers": cls.rule_layers(),  # type: ignore[attr-defined]
         }
     @classmethod
     def hexagram_record(cls, status_code: int) -> dict:
-        return cls.cross_cutting_profile(status_code)
+        return cls.cross_cutting_profile(status_code)  # type: ignore[attr-defined]
     @classmethod
     def hexagram_records(cls) -> dict[int, dict]:
-        return {status_code: cls.hexagram_record(status_code) for status_code in range(64)}
+        return {status_code: cls.hexagram_record(status_code) for status_code in range(64)}  # type: ignore[attr-defined]
     @classmethod
     def flip_line(cls, status_code: int, line_index: int) -> int:
         if line_index < 0 or line_index > 5:
@@ -181,7 +181,7 @@ class IchingCertificatesMixin:
     def mutation_profile(cls, before: int, after: int) -> dict[str, int | list[int] | list[str]]:
         normalized_before = before & 0b111111
         normalized_after = after & 0b111111
-        changed = cls.changed_lines(normalized_before, normalized_after)
+        changed = cls.changed_lines(normalized_before, normalized_after)  # type: ignore[attr-defined]
         changed_bands = [
             name
             for name, _role, line_indexes in cls.TRIADIC_BANDS
@@ -198,8 +198,8 @@ class IchingCertificatesMixin:
     def balance_mutation_evidence(cls, before: int, after: int) -> dict[str, object]:
         normalized_before = before & 0b111111
         normalized_after = after & 0b111111
-        before_profile = cls.cross_cutting_profile(normalized_before)
-        after_profile = cls.cross_cutting_profile(normalized_after)
+        before_profile = cls.cross_cutting_profile(normalized_before)  # type: ignore[attr-defined]
+        after_profile = cls.cross_cutting_profile(normalized_after)  # type: ignore[attr-defined]
 
         def state_evidence(profile: dict[str, object]) -> dict[str, object]:
             return {
@@ -215,22 +215,22 @@ class IchingCertificatesMixin:
 
         return {
             "rule_schema": ACTIVE_RULE_SCHEMA,
-            "mutation": cls.mutation_profile(normalized_before, normalized_after),
+            "mutation": cls.mutation_profile(normalized_before, normalized_after),  # type: ignore[attr-defined]
             "before": state_evidence(before_profile),
             "after": state_evidence(after_profile),
         }
     @classmethod
     def nuclear_hexagram(cls, status_code: int) -> int:
-        bits = cls.bits_for_state(status_code & 0b111111, width=6)
-        return cls.state_for_bits([bits[1], bits[2], bits[3], bits[2], bits[3], bits[4]])
+        bits = cls.bits_for_state(status_code & 0b111111, width=6)  # type: ignore[attr-defined]
+        return cls.state_for_bits([bits[1], bits[2], bits[3], bits[2], bits[3], bits[4]])  # type: ignore[attr-defined]
     @classmethod
     def nuclear_profile(cls, status_code: int) -> dict[str, int | str]:
-        nuclear = cls.nuclear_hexagram(status_code)
+        nuclear = cls.nuclear_hexagram(status_code)  # type: ignore[attr-defined]
         inner = nuclear & 0b111
         outer = (nuclear >> 3) & 0b111
-        outer_element = cls.element_for_trigram(outer)
-        inner_element = cls.element_for_trigram(inner)
-        transition = cls.transition(nuclear)
+        outer_element = cls.element_for_trigram(outer)  # type: ignore[attr-defined]
+        inner_element = cls.element_for_trigram(inner)  # type: ignore[attr-defined]
+        transition = cls.transition(nuclear)  # type: ignore[attr-defined]
         return {
             "status_code": nuclear,
             "binary": format(nuclear, "06b"),
@@ -238,7 +238,7 @@ class IchingCertificatesMixin:
             "outer_trigram": outer,
             "outer_element": outer_element,
             "inner_element": inner_element,
-            "element_relation": cls.element_cross_relation(outer_element, inner_element),
+            "element_relation": cls.element_cross_relation(outer_element, inner_element),  # type: ignore[attr-defined]
             "transition_action": transition.action,
             "transition_reason": transition.reason,
         }
@@ -247,7 +247,7 @@ class IchingCertificatesMixin:
         """Generate the iterated nuclear hexagram sequence starting from status_code."""
         chain = [status_code & 0b111111]
         for _ in range(max_steps):
-            nxt = cls.nuclear_hexagram(chain[-1])
+            nxt = cls.nuclear_hexagram(chain[-1])  # type: ignore[attr-defined]
             chain.append(nxt)
             if len(chain) >= 2 and nxt == chain[-2]:
                 break
@@ -266,7 +266,7 @@ class IchingCertificatesMixin:
         seen = {chain[0]: 0}
         current = chain[0]
         while True:
-            nxt = cls.nuclear_hexagram(current)
+            nxt = cls.nuclear_hexagram(current)  # type: ignore[attr-defined]
             if nxt in seen:
                 cycle_start = seen[nxt]
                 cycle = chain[cycle_start:]
@@ -288,8 +288,8 @@ class IchingCertificatesMixin:
         return (status_code & 0b111111) ^ 0b111111
     @classmethod
     def inverse_hexagram(cls, status_code: int) -> int:
-        bits = cls.bits_for_state(status_code & 0b111111, width=6)
-        return cls.state_for_bits(list(reversed(bits)))
+        bits = cls.bits_for_state(status_code & 0b111111, width=6)  # type: ignore[attr-defined]
+        return cls.state_for_bits(list(reversed(bits)))  # type: ignore[attr-defined]
     @classmethod
     def exchange_hexagram(cls, status_code: int) -> int:
         """Trigram exchange operator (交卦 / 上下易位).
@@ -305,9 +305,9 @@ class IchingCertificatesMixin:
     @classmethod
     def perspective_profile(cls, status_code: int) -> dict[str, int | str]:
         normalized = status_code & 0b111111
-        opposite = cls.opposite_hexagram(normalized)
-        inverse = cls.inverse_hexagram(normalized)
-        exchange = cls.exchange_hexagram(normalized)
+        opposite = cls.opposite_hexagram(normalized)  # type: ignore[attr-defined]
+        inverse = cls.inverse_hexagram(normalized)  # type: ignore[attr-defined]
+        exchange = cls.exchange_hexagram(normalized)  # type: ignore[attr-defined]
         return {
             "status_code": normalized,
             "opposite_status_code": opposite,
@@ -320,19 +320,19 @@ class IchingCertificatesMixin:
     @classmethod
     def target_status_for_event(cls, event: str) -> int:
         if event in {"completed", "write_completed", "patch_completed"}:
-            return cls.compute_status(cls.QIAN, cls.QIAN)
+            return cls.compute_status(cls.QIAN, cls.QIAN)  # type: ignore[attr-defined]
         if event in {"skipped", "resumed_asset_ready"}:
-            return cls.compute_status(cls.QIAN, cls.DUI)
+            return cls.compute_status(cls.QIAN, cls.DUI)  # type: ignore[attr-defined]
         if event in {"http_timeout", "network_timeout"}:
-            return cls.compute_status(cls.KAN, cls.ZHEN)
+            return cls.compute_status(cls.KAN, cls.ZHEN)  # type: ignore[attr-defined]
         if event in {"action_exception", "run_exception", "local_executor_fault"}:
-            return cls.compute_status(cls.GEN, cls.KUN)
+            return cls.compute_status(cls.GEN, cls.KUN)  # type: ignore[attr-defined]
         if event in {"sovereignty_breach", "permission_denied", "invalid_intent"}:
-            return cls.compute_status(cls.LI, cls.KUN)
-        return cls.compute_status(cls.KUN, cls.KUN)
+            return cls.compute_status(cls.LI, cls.KUN)  # type: ignore[attr-defined]
+        return cls.compute_status(cls.KUN, cls.KUN)  # type: ignore[attr-defined]
     @classmethod
     def change_mask_for_event(cls, status_code: int, event: str) -> int:
-        return (status_code & 0b111111) ^ cls.target_status_for_event(event)
+        return (status_code & 0b111111) ^ cls.target_status_for_event(event)  # type: ignore[attr-defined]
     @classmethod
     def apply_event(cls, status_code: int, event: str) -> int:
-        return (status_code & 0b111111) ^ cls.change_mask_for_event(status_code, event)
+        return (status_code & 0b111111) ^ cls.change_mask_for_event(status_code, event)  # type: ignore[attr-defined]

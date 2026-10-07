@@ -32,12 +32,7 @@ echo "ruff"
 PYTHONPATH="${REPO_SRC}${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -m ruff check src tests
 
 echo "mypy"
-PYTHONPATH="${REPO_SRC}${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -m mypy \
-  src/onecode/kernel/deployment_boundary.py \
-  src/onecode/kernel/outcome_policy.py \
-  src/onecode/kernel/evidence_io.py \
-  src/onecode/kernel/path_guard.py \
-  src/onecode/web/auth.py
+PYTHONPATH="${REPO_SRC}${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -m mypy src/
 
 if [[ "${1:-}" != "--skip-tests" ]]; then
   echo "unittest"

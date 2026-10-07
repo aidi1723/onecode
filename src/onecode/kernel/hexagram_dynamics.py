@@ -21,7 +21,7 @@ class IchingDynamicsMixin:
 
     @classmethod
     def balance_mask(cls, status_code: int, threshold: float | None = None) -> int:
-        polarity = cls.polarity_index(status_code)
+        polarity = cls.polarity_index(status_code)  # type: ignore[attr-defined]
         active_threshold = cls.POLARITY_THRESHOLD if threshold is None else threshold
         if abs(polarity) <= active_threshold:
             return 0b000000
@@ -31,26 +31,26 @@ class IchingDynamicsMixin:
     @classmethod
     def apply_balanced_event(cls, status_code: int, event: str, threshold: float | None = None) -> int:
         normalized = status_code & 0b111111
-        return normalized ^ cls.change_mask_for_event(normalized, event) ^ cls.balance_mask(normalized, threshold)
+        return normalized ^ cls.change_mask_for_event(normalized, event) ^ cls.balance_mask(normalized, threshold)  # type: ignore[attr-defined]
     @classmethod
     def evolved_element_labels(cls) -> list[str]:
         return [f"{element}+" for element in cls.ELEMENT_ORDER] + [f"{element}-" for element in cls.ELEMENT_ORDER]
     @classmethod
     def element_polarity(cls, trigram: int) -> str:
-        profile = cls.yin_yang_profile_for_bits(trigram, width=3)
+        profile = cls.yin_yang_profile_for_bits(trigram, width=3)  # type: ignore[attr-defined]
         from typing import cast
         return "+" if cast(int, profile["yang_count"]) >= cast(int, profile["yin_count"]) else "-"
     @classmethod
     def evolved_element_tensor(cls, status_code: int, alpha: float | None = None) -> list[list[float]]:
-        polarity = cls.polarity_index(status_code)
+        polarity = cls.polarity_index(status_code)  # type: ignore[attr-defined]
         damping_alpha = cls.ELEMENT_DAMPING_ALPHA if alpha is None else alpha
         positive_to_negative = math.exp(damping_alpha * max(0.0, polarity))
         negative_to_positive = math.exp(damping_alpha * max(0.0, -polarity))
         tensor: list[list[float]] = []
-        for source_label in cls.evolved_element_labels():
+        for source_label in cls.evolved_element_labels():  # type: ignore[attr-defined]
             source_element, source_polarity = source_label[:-1], source_label[-1]
             row = []
-            for target_label in cls.evolved_element_labels():
+            for target_label in cls.evolved_element_labels():  # type: ignore[attr-defined]
                 target_element, target_polarity = target_label[:-1], target_label[-1]
                 coefficient = cls.ELEMENT_EXECUTION_BANDWIDTH[(source_element, target_element)]
                 if source_polarity == "+" and target_polarity == "-":
@@ -65,15 +65,15 @@ class IchingDynamicsMixin:
         normalized = status_code & 0b111111
         inner = normalized & 0b111
         outer = (normalized >> 3) & 0b111
-        outer_label = f"{cls.element_for_trigram(outer)}{cls.element_polarity(outer)}"
-        inner_label = f"{cls.element_for_trigram(inner)}{cls.element_polarity(inner)}"
-        labels = cls.evolved_element_labels()
-        tensor = cls.evolved_element_tensor(normalized)
+        outer_label = f"{cls.element_for_trigram(outer)}{cls.element_polarity(outer)}"  # type: ignore[attr-defined]
+        inner_label = f"{cls.element_for_trigram(inner)}{cls.element_polarity(inner)}"  # type: ignore[attr-defined]
+        labels = cls.evolved_element_labels()  # type: ignore[attr-defined]
+        tensor = cls.evolved_element_tensor(normalized)  # type: ignore[attr-defined]
         return {
             "outer_label": outer_label,
             "inner_label": inner_label,
             "coefficient": tensor[labels.index(outer_label)][labels.index(inner_label)],
-            "polarity_index": cls.polarity_index(normalized),
+            "polarity_index": cls.polarity_index(normalized),  # type: ignore[attr-defined]
         }
     @classmethod
     def global_entropy(cls, status_codes: list[int]) -> dict[str, float | str]:
@@ -106,11 +106,11 @@ class IchingDynamicsMixin:
         }
     @classmethod
     def entropy_regulated_status(cls, status_codes: list[int]) -> dict[str, float | int | str]:
-        entropy = cls.global_entropy(status_codes)
+        entropy = cls.global_entropy(status_codes)  # type: ignore[attr-defined]
         if cast(float, entropy["entropy"]) < cls.ENTROPY_THRESHOLD:
             if cast(float, entropy["polarity_index"]) > 0:
                 return {
-                    "status_code": cls.aggregate_status(status_codes),
+                    "status_code": cls.aggregate_status(status_codes),  # type: ignore[attr-defined]
                     "decision": "accept_positive_polarity",
                     "entropy": entropy["entropy"],
                     "threshold": cls.ENTROPY_THRESHOLD,
@@ -123,7 +123,7 @@ class IchingDynamicsMixin:
                 "threshold": cls.ENTROPY_THRESHOLD,
             }
         return {
-            "status_code": cls.aggregate_status(status_codes),
+            "status_code": cls.aggregate_status(status_codes),  # type: ignore[attr-defined]
             "decision": "accept",
             "entropy": entropy["entropy"],
             "threshold": cls.ENTROPY_THRESHOLD,
@@ -166,17 +166,17 @@ class IchingDynamicsMixin:
         """
         if not status_codes:
             return 0.0
-        entropy_info = cls.state_distribution_entropy(status_codes)
+        entropy_info = cls.state_distribution_entropy(status_codes)  # type: ignore[attr-defined]
         return cast(float, entropy_info["kl_divergence_uniform"])
     @classmethod
     def transition_graph(cls) -> dict[int, int]:
         return {
-            status_code: cls.transition(status_code).status_code & 0b111111
+            status_code: cls.transition(status_code).status_code & 0b111111  # type: ignore[attr-defined]
             for status_code in range(64)
         }
     @classmethod
     def attractor_analysis(cls) -> dict[str, int | list[list[int]] | list[int]]:
-        graph = cls.transition_graph()
+        graph = cls.transition_graph()  # type: ignore[attr-defined]
         attractors: list[list[int]] = []
         classified: set[int] = set()
         seen_cycles: set[tuple[int, ...]] = set()
@@ -202,8 +202,8 @@ class IchingDynamicsMixin:
         }
     @classmethod
     def stability_analysis(cls) -> dict[str, int | float | dict[int, int]]:
-        graph = cls.transition_graph()
-        attractors = cls.attractor_analysis()
+        graph = cls.transition_graph()  # type: ignore[attr-defined]
+        attractors = cls.attractor_analysis()  # type: ignore[attr-defined]
         steps_to_attractor: dict[int, int] = {}
         for start in range(64):
             current = start
@@ -223,7 +223,7 @@ class IchingDynamicsMixin:
                 steps_to_attractor[start] = steps
 
         energy_deltas = [
-            cls.lyapunov_energy(graph[status_code]) - cls.lyapunov_energy(status_code)
+            cls.lyapunov_energy(graph[status_code]) - cls.lyapunov_energy(status_code)  # type: ignore[attr-defined]
             for status_code in range(64)
         ]
         return {
@@ -244,7 +244,7 @@ class IchingDynamicsMixin:
         return ((left ^ right) & 0b111111).bit_count()
     @classmethod
     def topology_certificate(cls) -> dict[str, int | str | dict[int, int]]:
-        graph = cls.transition_graph()
+        graph = cls.transition_graph()  # type: ignore[attr-defined]
         distance_histogram = {distance: 0 for distance in range(7)}
         closed_transition_count = 0
         fixed_point_count = 0
@@ -253,7 +253,7 @@ class IchingDynamicsMixin:
         for source, target in graph.items():
             if 0 <= target < 64:
                 closed_transition_count += 1
-            distance = cls.hamming_distance(source, target)
+            distance = cls.hamming_distance(source, target)  # type: ignore[attr-defined]
             distance_histogram[distance] += 1
             if distance == 0:
                 fixed_point_count += 1
@@ -276,12 +276,12 @@ class IchingDynamicsMixin:
         }
     @classmethod
     def lyapunov_certificate(cls) -> dict[str, bool | int | float | list[dict[str, float | int]]]:
-        graph = cls.transition_graph()
+        graph = cls.transition_graph()  # type: ignore[attr-defined]
         deltas: list[float] = []
         violating_transitions: list[dict[str, float | int]] = []
         for source, target in graph.items():
-            source_energy = cls.lyapunov_energy(source)
-            target_energy = cls.lyapunov_energy(target)
+            source_energy = cls.lyapunov_energy(source)  # type: ignore[attr-defined]
+            target_energy = cls.lyapunov_energy(target)  # type: ignore[attr-defined]
             delta = target_energy - source_energy
             deltas.append(delta)
             if delta > 0:
@@ -306,14 +306,14 @@ class IchingDynamicsMixin:
         }
     @classmethod
     def entropy_gate_certificate(cls, status_codes: list[int]) -> dict[str, float | int | str]:
-        distribution = cls.state_distribution_entropy(status_codes)
+        distribution = cls.state_distribution_entropy(status_codes)  # type: ignore[attr-defined]
         max_entropy = cast(float, distribution["max_entropy"])
         entropy = cast(float, distribution["entropy"])
         normalized_entropy = entropy / max_entropy if max_entropy > 0 else 0.0
         sample_count = len(status_codes)
         unique_state_count = cast(int, distribution["unique_state_count"])
         transition_actions = [
-            cls.transition(status_code).action
+            cls.transition(status_code).action  # type: ignore[attr-defined]
             for status_code in status_codes
         ]
         halt_count = sum(1 for action in transition_actions if action == "halt")
@@ -375,12 +375,12 @@ class IchingDynamicsMixin:
         reason = sample["reason"]
         reason_value = str(reason) if reason is not None else None
         if kind == "resume":
-            return cls.classify_resume_audit(status, reason_value)
-        return cls.classify_outcome(status, reason_value)
+            return cls.classify_resume_audit(status, reason_value)  # type: ignore[attr-defined]
+        return cls.classify_outcome(status, reason_value)  # type: ignore[attr-defined]
     @classmethod
     def totality_certificate(cls) -> dict[str, bool | int | str | list[str]]:
-        samples = cls.totality_samples()
-        mapped = [cls.classify_known_input(sample) for sample in samples]
+        samples = cls.totality_samples()  # type: ignore[attr-defined]
+        mapped = [cls.classify_known_input(sample) for sample in samples]  # type: ignore[attr-defined]
         unmapped_count = sum(1 for status_code in mapped if not 0 <= status_code < 64)
         return {
             "domain": "known_runtime_and_resume_inputs",
@@ -396,12 +396,12 @@ class IchingDynamicsMixin:
         unsafe_pass_through_samples: list[dict[str, int | str | bool | None]] = []
         histogram: dict[str, int] = {}
         dangerous_sample_count = 0
-        for sample in cls.totality_samples():
+        for sample in cls.totality_samples():  # type: ignore[attr-defined]
             if not bool(sample["dangerous"]):
                 continue
             dangerous_sample_count += 1
-            status_code = cls.classify_known_input(sample)
-            transition = cls.transition(status_code)
+            status_code = cls.classify_known_input(sample)  # type: ignore[attr-defined]
+            transition = cls.transition(status_code)  # type: ignore[attr-defined]
             histogram[transition.action] = histogram.get(transition.action, 0) + 1
             if transition.action in {"continue", "accelerate", "activate"}:
                 unsafe_pass_through_samples.append(
@@ -424,8 +424,8 @@ class IchingDynamicsMixin:
     @classmethod
     def collision_risk_certificate(cls) -> dict[str, bool | int | list[dict[str, int | str | list[str]]]]:
         grouped: dict[int, list[dict[str, str | bool | None]]] = {}
-        for sample in cls.totality_samples():
-            status_code = cls.classify_known_input(sample)
+        for sample in cls.totality_samples():  # type: ignore[attr-defined]
+            status_code = cls.classify_known_input(sample)  # type: ignore[attr-defined]
             grouped.setdefault(status_code, []).append(sample)
         unsafe_collisions: list[dict[str, int | str | list[str]]] = []
         for status_code, samples in grouped.items():
@@ -433,7 +433,7 @@ class IchingDynamicsMixin:
                 continue
             has_dangerous = any(bool(sample["dangerous"]) for sample in samples)
             has_nondangerous = any(not bool(sample["dangerous"]) for sample in samples)
-            transition = cls.transition(status_code)
+            transition = cls.transition(status_code)  # type: ignore[attr-defined]
             if has_dangerous and has_nondangerous and transition.action in {"continue", "accelerate", "activate"}:
                 unsafe_collisions.append(
                     {
@@ -446,7 +446,7 @@ class IchingDynamicsMixin:
                     }
                 )
         return {
-            "sample_count": len(cls.totality_samples()),
+            "sample_count": len(cls.totality_samples()),  # type: ignore[attr-defined]
             "collision_state_count": sum(1 for samples in grouped.values() if len(samples) > 1),
             "unsafe_collision_count": len(unsafe_collisions),
             "unsafe_collisions": unsafe_collisions,
