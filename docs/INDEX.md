@@ -10,7 +10,6 @@ This index helps you navigate OneCode's documentation, which is organized by pur
 - [2026-09-29 audit remediation closeout](closure/ONECODE_AUDIT_REMEDIATION_CLOSURE_2026-09-29.md) - Current security boundary and verification record
 - [2026-09-29 agent parity closeout](closure/ONECODE_AGENT_PARITY_CLOSURE_2026-09-29.md) - Handbook phases, workflow run, and evaluation limits
 - [2026-09-29 host contract handbook](superpowers/plans/2026-09-29-host-contract-handbook.md) - Execution-gate approval, no-progress stop, transient errors, truncation
-- [2026-10-07 I Ching semantic dynamics handbook](superpowers/plans/2026-10-07-onecode-iching-semantic-dynamics-handbook.md) - Next-gen roadmap: moving lines, micro-gravity, macro-cycles
 - [2026-09-29 day closeout](closure/ONECODE_DAY_CLOSEOUT_2026-09-29.md) - Mac and n100 results, and what is still running
 - [DESIGN.md](../DESIGN.md) - Core design principles
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - How to contribute (see onboarding guide below)
