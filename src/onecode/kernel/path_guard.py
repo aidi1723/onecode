@@ -28,7 +28,7 @@ class PathGuard:
         target = cls.resolve_target(workspace_root, relative_path)
         target.parent.mkdir(parents=True, exist_ok=True)
 
-        temp_path: Path | None = None
+        temp_path: str | None = None
         try:
             with NamedTemporaryFile("w", encoding="utf-8", dir=target.parent, prefix=f".{target.name}.", delete=False) as handle:
                 temp_path = handle.name
@@ -41,7 +41,10 @@ class PathGuard:
             temp_path = None
         finally:
             if temp_path is not None:
-                temp_path.unlink(missing_ok=True)
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
 
         return {"path": str(target), "sha256": sha256_file(target)}
 

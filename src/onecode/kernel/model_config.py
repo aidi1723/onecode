@@ -107,8 +107,8 @@ def write_private_text(path: Path, content: str) -> None:
         except OSError:
             pass
         try:
-            tmp_path.unlink()
-        except FileNotFoundError:
+            os.unlink(tmp_path)
+        except OSError:
             pass
         raise
 
