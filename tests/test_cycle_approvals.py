@@ -32,7 +32,7 @@ class TestCycleApprovals(unittest.TestCase):
             record_path.write_text(json.dumps(tampered))
             
             # Find should return None due to signature mismatch
-            found = find_pending_approval(self.workspace, "test_tool", {"arg": "malicious"})
+            found = find_pending_approval(self.workspace, "test_tool", {"arg": "val"})
             self.assertIsNone(found)
 
 if __name__ == "__main__":

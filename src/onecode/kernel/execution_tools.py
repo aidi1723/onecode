@@ -476,7 +476,7 @@ def _run_command(
             text=True,
             shell=False,
             start_new_session=True,
-            env=_command_environment(),
+            env=_command_environment(workspace),
         )
         try:
             out, err = proc.communicate(timeout=timeout_seconds)
@@ -695,8 +695,8 @@ def _workspace_relative(workspace: Path, relative_path: str) -> str:
     return target.relative_to(workspace.resolve()).as_posix()
 
 
-def _git_environment() -> dict[str, str]:
-    environment = _command_environment()
+def _git_environment(workspace: Path) -> dict[str, str]:
+    environment = _command_environment(workspace)
     environment.update(
         {
             "GIT_CONFIG_GLOBAL": os.devnull,
@@ -727,7 +727,7 @@ def _run_git(workspace: Path, args: list[str]) -> subprocess.CompletedProcess[st
         text=True,
         timeout=10,
         check=False,
-        env=_git_environment(),
+        env=_git_environment(workspace),
     )
 
 
@@ -743,7 +743,7 @@ def _stream_host_command(
         cwd=workspace,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        env=_command_environment(),
+        env=_command_environment(workspace),
         shell=False,
         start_new_session=True,
     )
@@ -783,9 +783,10 @@ def _stream_host_command(
             proc.stdout.close()
 
 
-def _command_environment() -> dict[str, str]:
+def _command_environment(workspace: Path) -> dict[str, str]:
     environment = {key: value for key, value in os.environ.items() if key in COMMAND_ENV_ALLOWLIST}
     environment.setdefault("PATH", os.defpath)
+    environment["HOME"] = str(workspace.resolve())
     return environment
 
 
