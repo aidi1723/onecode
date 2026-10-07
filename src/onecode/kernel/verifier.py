@@ -275,7 +275,7 @@ def run_verifier(
                 capture_output=True,
                 timeout=spec.timeout_ms / 1000,
                 check=False,
-                env=_command_environment(),
+                env=_command_environment(resolved_cwd),
             )
             stdout = completed.stdout  # type: ignore
             stderr = completed.stderr  # type: ignore

@@ -60,7 +60,7 @@ class McpStdioClient:
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
-            env=_command_environment(),
+            env=_command_environment(self._cwd or __import__('pathlib').Path.cwd()),
             shell=False,
         )
         try:

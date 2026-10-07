@@ -78,10 +78,11 @@ def resume_pending_approval(workspace: Path, pending_id: str, decision: str, exe
 
 
 
-_APPROVAL_SECRET = secrets.token_bytes(32)
-
 def _get_approval_secret(workspace: Path) -> bytes:
-    return _APPROVAL_SECRET
+    from onecode.shell_state import load_or_create_shell_secrets
+    secrets = load_or_create_shell_secrets(Path.home() / ".onecode")
+    return secrets.jwt_secret.encode("utf-8")
+
 
 def _sign_record(workspace: Path, tool_name: str, params: dict[str, Any], record_id: str) -> str:
     msg = json.dumps({"id": record_id, "tool": tool_name, "params": params}, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
