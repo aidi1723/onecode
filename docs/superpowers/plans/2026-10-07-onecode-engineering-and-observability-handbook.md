@@ -12,24 +12,24 @@ This handbook establishes the final development roadmap required to lift the pro
 
 ## 2. Phase 1: Engineering Gaps & Production Blockers (生产环境硬卡点)
 
-The system cannot pass production sign-off until the following two infrastructure defects are resolved.
+The system cannot pass production sign-off until the following infrastructure defects are resolved. Note that resolving these does **not** instantly qualify the project for v1.0. `claims_mainstream_parity` remains `false` until external penetration scanning and dual-machine release orchestration are also completed.
 
-### 2.1 Memory Leak Remediation in Soak Tests (长驻内存治理)
+### 2.1 Memory Profiling in Soak Tests (浸泡测试内存增长排查)
 **The Problem**:
-During the 4-hour soak test on the `n100` Linux environment, the resident memory (RSS) steadily increased from 21.3 MB to 36.1 MB within 15 minutes (approx. 45,000 cycles). The file descriptor count remained flat at 5, indicating a pure memory retention issue rather than resource leaking.
+During the 4-hour soak test on the `n100` Linux environment, the resident memory (RSS) steadily increased from 21.3 MB to 36.1 MB within 15 minutes. The file descriptor count remained flat at 5. Crucially, this soak test **only executed tool loops and approval creation/deletion** without passing through the model gateway, and `agent_cycle.py` did not reference `wal.py`.
 **Action Items**:
-- Perform strict memory profiling (e.g., `tracemalloc`) on the core `AgentCycle` loop.
-- Audit `wal.py` and Ledger components to ensure historical state data isn't infinitely accumulating in memory variables instead of being flushed to disk.
-- Audit contextual variables, Token/Logits caches, and exception history to verify proper garbage collection after each transition loop.
-- **Success Criteria**: A 4-hour soak test must demonstrate an RSS plateau (flattening out) rather than a continuous linear or logarithmic increase.
+- It is premature to definitively label this a "leak" or to suspect the Ledger/WAL.
+- The immediate next step is to run the identical soak script with `tracemalloc` injected.
+- Determine whether objects within the tool cycle are actually accumulating, or if the Python interpreter is merely retaining OS pages.
+- **Success Criteria**: A 4-hour soak test must demonstrate an RSS plateau.
 
-### 2.2 ARM64 Container Compatibility (跨平台沙箱兼容)
+### 2.2 ARM64 Container Host Compatibility (宿主机跨架构支持)
 **The Problem**:
-The Mac environment (darwin/arm64) natively passes tests, but running `python:3.12-slim` ARM64 docker images on the `n100` (x86_64) host fails with `exec format error`.
+The `n100` host is `x86_64` and lacks the capability to execute `python:3.12-slim` ARM64 images, resulting in `exec format error`. This is purely a host emulation issue, not a missing Dockerfile configuration.
 **Action Items**:
-- Verify the integration of `qemu-user-static` and `binfmt_misc` on the host to emulate ARM64 execution.
-- Update the Dockerfile/CI pipeline to explicitly utilize `docker buildx` with `--platform=linux/arm64,linux/amd64` to ensure correct architecture manifests.
-- **Success Criteria**: The Sandbox verifier must cleanly execute Python execution contexts inside an ARM64 container running on an x86_64 host.
+- Install and configure `qemu-user-static` and `binfmt_misc` directly on the `n100` host.
+- Do not attempt to fix this via `docker buildx`, as the repository correctly does not maintain its own Dockerfile for this base image.
+- **Success Criteria**: The host successfully runs the foreign architecture container.
 
 ---
 
