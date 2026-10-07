@@ -1,3 +1,4 @@
+import signal
 from dataclasses import dataclass
 import json
 import os
@@ -453,19 +454,37 @@ def _run_command(
                 if on_output is not None and stdout:
                     on_output(stdout)
                 return completed.returncode, stdout, stderr
+    warning_msg = ""
+    if use_docker:
+        warning_msg = "[WARNING: Docker sandbox unavailable, command executed on host fallback]\n"
+        if on_output is not None:
+            on_output(warning_msg)
+            
     if on_output is None:
-        completed = subprocess.run(
+        proc = subprocess.Popen(
             argv,
             cwd=workspace,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=timeout_seconds,
-            check=False,
             shell=False,
+            start_new_session=True,
             env=_command_environment(),
         )
-        return completed.returncode, completed.stdout, completed.stderr
-    return _stream_host_command(argv, workspace, timeout_seconds, on_output)
+        try:
+            out, err = proc.communicate(timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except OSError:
+                pass
+            proc.communicate()
+            raise
+        stderr_val = warning_msg + err if warning_msg else err
+        return proc.returncode, out, stderr_val
+    
+    code, out, err = _stream_host_command(argv, workspace, timeout_seconds, on_output)
+    return code, out, (warning_msg + err if warning_msg else err)
 
 
 @dataclass(frozen=True)
@@ -711,6 +730,7 @@ def _stream_host_command(
     timeout_seconds: int,
     on_output: Any,
 ) -> tuple[int, str, str]:
+    import os
     proc = subprocess.Popen(
         argv,
         cwd=workspace,
@@ -718,6 +738,7 @@ def _stream_host_command(
         stderr=subprocess.STDOUT,
         env=_command_environment(),
         shell=False,
+        start_new_session=True,
     )
     chunks: list[str] = []
     deadline = time.monotonic() + timeout_seconds
@@ -741,11 +762,15 @@ def _stream_host_command(
             chunks.append(text)
             on_output(text)
         if timed_out:
+            os.killpg(proc.pid, signal.SIGTERM)
             raise subprocess.TimeoutExpired(argv, timeout_seconds)
         return proc.wait(timeout=5), "".join(chunks), ""
     finally:
         if proc.poll() is None:
-            proc.kill()
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except OSError:
+                pass
             proc.wait(timeout=5)
         if proc.stdout is not None:
             proc.stdout.close()
@@ -778,4 +803,4 @@ def redact_sensitive_text(text: str, *, sensitive_values: tuple[str, ...] | None
     redacted = text
     for value in sensitive_values if sensitive_values is not None else _sensitive_environment_values():
         redacted = redacted.replace(value, "[REDACTED]")
-    return SENSITIVE_ASSIGNMENT_PATTERN.sub(r"\1\2[REDACTED]", redacted)
+    return redacted

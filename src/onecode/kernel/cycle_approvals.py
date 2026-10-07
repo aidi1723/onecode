@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import secrets
@@ -29,6 +30,7 @@ def persist_pending_approval(workspace: Path, tool_name: str, params: dict[str, 
         "params": params,
         "reason": "approval_required",
     }
+    record["signature"] = _sign_record(workspace, tool_name, params, str(record["id"]))
     path = _record_path(workspace, tool_name, params)
     _atomic_write(path, json.dumps(record, ensure_ascii=False, sort_keys=True).encode("utf-8") + b"\n")
     return record
@@ -75,6 +77,23 @@ def resume_pending_approval(workspace: Path, pending_id: str, decision: str, exe
     return execute(match["tool_name"], match["params"])
 
 
+
+def _get_approval_secret(workspace: Path) -> bytes:
+    directory = Path(workspace).resolve() / _DIRECTORY
+    directory.mkdir(parents=True, exist_ok=True)
+    secret_path = directory / ".secret"
+    if not secret_path.exists():
+        with file_lock(directory.parent / "pending-cycle.lock"):
+            if not secret_path.exists():
+                import secrets
+                secret_path.write_bytes(secrets.token_bytes(32))
+                os.chmod(secret_path, 0o600)
+    return secret_path.read_bytes()
+
+def _sign_record(workspace: Path, tool_name: str, params: dict[str, Any], record_id: str) -> str:
+    msg = json.dumps({"id": record_id, "tool": tool_name, "params": params}, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+    return hmac.new(_get_approval_secret(workspace), msg, hashlib.sha256).hexdigest()
+
 def _record_path(workspace: Path, tool_name: str, params: dict[str, Any]) -> Path:
     signature = hashlib.sha256(
         json.dumps({"tool": tool_name, "params": params}, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
@@ -92,6 +111,12 @@ def _read_record(path: Path) -> dict[str, Any] | None:
     params = payload.get("params")
     if not isinstance(params, dict) or not isinstance(payload.get("tool_name"), str):
         return None
+        
+    expected_sig = _sign_record(path.parent.parent.parent, payload["tool_name"], params, payload.get("id", ""))
+    import hmac
+    if not hmac.compare_digest(expected_sig, payload.get("signature", "")):
+        return None
+        
     return payload
 
 
