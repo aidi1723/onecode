@@ -284,10 +284,10 @@ def _payload_sha256(payload: dict[str, Any]) -> str:
 
 def _atomic_write(path: Path, content: bytes) -> None:
     with NamedTemporaryFile("wb", dir=path.parent, prefix=f".{path.name}.", delete=False) as handle:
-        temp = Path(handle.name)
+        temp = handle.name
         handle.write(content)
         handle.flush()
-    temp.replace(path)
+    os.replace(temp, path)
 
 
 def _bounded_result_summary(result: dict[str, Any]) -> dict[str, Any]:

@@ -65,11 +65,11 @@ def atomic_write_json(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     encoded = json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     with NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
-        temp_path = Path(handle.name)
+        temp_path = handle.name
         handle.write(encoded)
         handle.flush()
         os.fsync(handle.fileno())
-    temp_path.replace(path)
+    os.replace(temp_path, path)
 
 
 def ensure_private_file(path: Path) -> None:

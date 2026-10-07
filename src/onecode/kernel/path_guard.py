@@ -31,13 +31,13 @@ class PathGuard:
         temp_path: Path | None = None
         try:
             with NamedTemporaryFile("w", encoding="utf-8", dir=target.parent, prefix=f".{target.name}.", delete=False) as handle:
-                temp_path = Path(handle.name)
+                temp_path = handle.name
                 handle.write(content)
                 handle.flush()
                 os.fsync(handle.fileno())
             if target.exists():
                 os.chmod(temp_path, target.stat().st_mode & 0o777)
-            temp_path.replace(target)
+            os.replace(temp_path, target)
             temp_path = None
         finally:
             if temp_path is not None:

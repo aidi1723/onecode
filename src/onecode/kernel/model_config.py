@@ -94,7 +94,7 @@ def normalize_endpoint_url(endpoint: str) -> str:
 
 def write_private_text(path: Path, content: str) -> None:
     fd, tmp_name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", text=True)
-    tmp_path = Path(tmp_name)
+    tmp_path = tmp_name
     try:
         os.chmod(tmp_path, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as handle:

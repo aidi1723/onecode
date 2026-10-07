@@ -101,13 +101,16 @@ def _atomic_write(path: Path, content: bytes) -> None:
     with file_lock(path.parent.parent / "pending-cycle.lock"):
         try:
             with NamedTemporaryFile("wb", dir=path.parent, prefix=f".{path.name}.", delete=False) as handle:
-                temporary = Path(handle.name)
+                temporary = handle.name
                 handle.write(content)
                 handle.flush()
                 os.fsync(handle.fileno())
             os.chmod(temporary, 0o600)
-            temporary.replace(path)
+            os.replace(temporary, path)
             temporary = None
         finally:
             if temporary is not None:
-                temporary.unlink(missing_ok=True)
+                try:
+                    os.unlink(temporary)
+                except OSError:
+                    pass
