@@ -24,9 +24,9 @@
 - **Secondary Analysis**: The remaining `Path` constructions in `cycle_approvals.py` (which deduplicate via stable SHA-256) and `path_guard.py` (which only inspect existing files) do not generate the ~3600 new unique strings seen every 2 minutes. Furthermore, the 3.2 MB `pathlib` overhead represents only a fraction of the 11.6 MB total RSS delta, proving that a purely code-level `os.path.join` mitigation is both insufficient and fundamentally dodging a compiler-level flaw.
 - **Success Criteria / Next Steps**: ✅ **RESOLVED**. The `n100` Python environment was upgraded to 3.12.7 via `uv`. The 12-minute soak test was rerun. The RSS climbed slightly from 29.9 MB (t=0) to 30.2 MB (t=120) and then **completely flatlined at 30.2 MB** for the rest of the run. The thousands of `pathlib.py` allocations vanished from the tracemalloc diff. The memory leak is mathematically closed.
 
-### 1.5 ARM64 Container Host Support (已缓解，待验证)
+### 1.5 ARM64 Container Host Support (✅ Verified)
 - **Host Configuration**: Installed `qemu-user-static` and `binfmt-support` at the OS level on `n100`.
-- **Success Criteria Pending**: We must explicitly run a `linux/arm64` container on the `n100` host and record its successful launch.
+- **Success Criteria**: ✅ **RESOLVED**. Successfully executed `docker run --rm --platform linux/arm64 python:3.12.3-slim python3 -c 'import platform; print(platform.machine())'` via SSH on `n100`, which correctly output `aarch64`. The host perfectly emulates ARM64 containers.
 
 ## 2. Unresolved & Next Steps
 - **External Scanning**: The project has not yet passed third-party penetration/security scanning.
