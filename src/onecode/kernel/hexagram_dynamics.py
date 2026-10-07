@@ -20,25 +20,6 @@ class IchingDynamicsMixin:
     ROLLBACK_STATUS: ClassVar[int]
 
     @classmethod
-    def polarity_index(cls, status_code: int) -> float: raise NotImplementedError
-    @classmethod
-    def change_mask_for_event(cls, status_code: int, event: str) -> int: raise NotImplementedError
-    @classmethod
-    def yin_yang_profile_for_bits(cls, value: int, width: int) -> dict[str, int | str]: raise NotImplementedError
-    @classmethod
-    def element_for_trigram(cls, trigram: int) -> str: raise NotImplementedError
-    @classmethod
-    def aggregate_status(cls, status_codes: list[int]) -> int: raise NotImplementedError
-    @classmethod
-    def transition(cls, status_code: int) -> Any: raise NotImplementedError
-    @classmethod
-    def lyapunov_energy(cls, status_code: int) -> float: raise NotImplementedError
-    @classmethod
-    def classify_resume_audit(cls, status: str, reason: str | None) -> int: raise NotImplementedError
-    @classmethod
-    def classify_outcome(cls, status: str, reason: str | None) -> int: raise NotImplementedError
-
-    @classmethod
     def balance_mask(cls, status_code: int, threshold: float | None = None) -> int:
         polarity = cls.polarity_index(status_code)
         active_threshold = cls.POLARITY_THRESHOLD if threshold is None else threshold

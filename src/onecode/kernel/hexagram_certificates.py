@@ -23,68 +23,6 @@ class IchingCertificatesMixin:
     LI: ClassVar[int]
 
     @classmethod
-    def yin_yang_profile(cls, status_code: int) -> dict[str, Any]: raise NotImplementedError
-    @classmethod
-    def transition(cls, status_code: int) -> Any: raise NotImplementedError
-    @classmethod
-    def execution_bandwidth(cls, status_code: int) -> float: raise NotImplementedError
-    @classmethod
-    def element_for_trigram(cls, trigram: int) -> str: raise NotImplementedError
-    @classmethod
-    def element_relation(cls, source: str, target: str) -> str: raise NotImplementedError
-    @classmethod
-    def element_cross_relation(cls, source: str, target: str) -> str: raise NotImplementedError
-    @classmethod
-    def yin_yang_cross_profile(cls, status_code: int) -> dict[str, Any]: raise NotImplementedError
-    @classmethod
-    def runtime_relation_policy(cls, relation: str, modulation: str) -> tuple[str, str | None]: raise NotImplementedError
-    @classmethod
-    def dispatch_decision(cls, transition: Any) -> str: raise NotImplementedError
-    @classmethod
-    def element_matrix(cls) -> dict[tuple[str, str], str]: raise NotImplementedError
-    @classmethod
-    def evolved_element_modulation(cls, status_code: int) -> dict[str, Any]: raise NotImplementedError
-    @classmethod
-    def harmony_score(cls, status_code: int) -> dict[str, Any]: raise NotImplementedError
-    @classmethod
-    def four_symbols(cls, status_code: int) -> list[dict[str, Any]]: raise NotImplementedError
-    @classmethod
-    def overlapping_four_symbols(cls, status_code: int) -> list[dict[str, Any]]: raise NotImplementedError
-    @classmethod
-    def four_symbol_balance_vector(cls, status_code: int) -> dict[str, Any]: raise NotImplementedError
-    @classmethod
-    def rule_layers(cls) -> dict[str, list[str]]: raise NotImplementedError
-
-    @classmethod
-    def liangyi_values(cls) -> tuple[int, int]: raise NotImplementedError
-    @classmethod
-    def dimension_profile(cls, width: int) -> dict[str, Any]: raise NotImplementedError
-    @classmethod
-    def triadic_profile(cls, status_code: int) -> dict[str, Any]: raise NotImplementedError
-    @classmethod
-    def line_position_profile(cls, status_code: int) -> dict[str, Any]: raise NotImplementedError
-    @classmethod
-    def correspondence_profile(cls, status_code: int) -> dict[str, Any]: raise NotImplementedError
-    @classmethod
-    def line_records(cls, status_code: int) -> list[dict[str, Any]]: raise NotImplementedError
-    @classmethod
-    def liangyi_bits(cls, status_code: int) -> list[dict[str, Any]]: raise NotImplementedError
-    @classmethod
-    def trigram_record(cls, status_code: int, scope: str) -> dict[str, Any]: raise NotImplementedError
-    @classmethod
-    def trigram_virtue_record(cls, trigram: int) -> dict[str, Any]: raise NotImplementedError
-    @classmethod
-    def trigram_records(cls) -> dict[int, dict[str, Any]]: raise NotImplementedError
-    @classmethod
-    def element_records(cls) -> dict[str, dict[str, Any]]: raise NotImplementedError
-    @classmethod
-    def bits_for_state(cls, value: int, width: int) -> list[int]: raise NotImplementedError
-    @classmethod
-    def state_for_bits(cls, bits: list[int]) -> int: raise NotImplementedError
-    @classmethod
-    def compute_status(cls, outer_trigram: int, inner_trigram: int) -> int: raise NotImplementedError
-
-    @classmethod
     def lyapunov_energy(cls, status_code: int) -> float:
         normalized = status_code & 0b111111
         profile = cls.yin_yang_profile(normalized)

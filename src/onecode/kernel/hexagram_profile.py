@@ -26,9 +26,6 @@ class IchingProfileMixin:
     KUN: ClassVar[int]
 
     @classmethod
-    def balance_mask(cls, status_code: int, threshold: float | None = None) -> int: raise NotImplementedError
-
-    @classmethod
     def compute_status(cls, outer_trigram: int, inner_trigram: int) -> int:
         return ((outer_trigram & 0b111) << 3) | (inner_trigram & 0b111)
     @classmethod
@@ -313,7 +310,7 @@ class IchingProfileMixin:
             "global": global_profile,
             "pressure": cls.balance_pressure(cast(str, global_profile["balance"])),
             "polarity_index": cls.polarity_index(normalized),
-            "balance_mask": cls.balance_mask(normalized),
+            "balance_mask": getattr(cls, "balance_mask")(normalized),
             "lines": lines,
             "four_symbol_windows": [
                 cast(dict[str, int | str], {"pair_index": pair_index})
