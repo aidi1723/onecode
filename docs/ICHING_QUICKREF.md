@@ -18,6 +18,9 @@ A practical guide for debugging and understanding OneCode's I Ching-based state 
 
 ## Trigram Reference
 
+
+> **Note on Binary Endianness**: All binary mappings in OneCode follow a strict **Bottom-to-Top** coordinate system. The bottom line (初爻) is always **bit 0** (LSB), and the top line (上爻) is **bit 5** (MSB). For trigrams, the bottom line is bit 0 and the top line is bit 2.
+
 ### The Eight Trigrams (Ba Gua 八卦)
 
 | Symbol | Name | Chinese | Binary | Element | Nature | Position |
