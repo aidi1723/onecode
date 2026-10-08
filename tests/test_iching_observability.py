@@ -439,6 +439,7 @@ class IchingObservabilityTests(unittest.TestCase):
         # Actually bottom up: Yang(1) Yin(0) Yang(1) Yin(0) Yang(1) Yin(0) -> 010101 in binary is 21!
         jiji_relations = IchingKernel.micro_relations(21)
         self.assertEqual(jiji_relations["ying"], 3, "Ji Ji must have ying=3 (all 3 resonant pairs are opposite)")
+        self.assertEqual(jiji_relations["bi"], 0, "Ji Ji must have bi=0 (no adjacent lines are the same)")
 
     def test_real_checkpoint_contains_second_round_moving_lines_and_manifest(self) -> None:
         # User requested: "最后读一次真实检查点，断言第二轮的 moving_lines" AND manifest

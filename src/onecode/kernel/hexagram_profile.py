@@ -460,7 +460,8 @@ class IchingProfileMixin:
                 cheng += 1
             if lower == 1 and upper == 0:
                 sheng += 1
-            bi += 1
+            if lower == upper:
+                bi += 1
         for i in range(3):
             lower = (normalized >> i) & 1
             upper = (normalized >> (i + 3)) & 1
