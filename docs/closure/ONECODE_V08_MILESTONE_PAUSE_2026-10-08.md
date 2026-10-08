@@ -3,7 +3,7 @@
 **Date**: 2026-10-08
 **Status**: Milestone Paused / Boundary Sealed
 
-This document serves as the formal delivery note for the current iteration. The codebase has been sealed at its current boundaries.
+This document serves as a milestone pause record for the current iteration. The codebase is paused at its currently established boundaries.
 
 ## 1. Established Boundaries (Implemented & Enforced)
 
