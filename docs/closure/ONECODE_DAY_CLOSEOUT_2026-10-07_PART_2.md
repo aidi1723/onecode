@@ -29,6 +29,6 @@
 - **Success Criteria**: ✅ **RESOLVED**. Successfully executed `docker run --rm --platform linux/arm64 python:3.12.3-slim python3 -c 'import platform; print(platform.machine())'` via SSH on `n100`, which correctly output `aarch64`. The host perfectly emulates ARM64 containers.
 
 ## 2. Unresolved & Next Steps
-- **External Scanning**: Edge-case sandbox escapes have been sealed (host fallback warnings enforced, on-disk approval HMAC signature, and comprehensive Docker container termination on timeout). The project has not yet passed third-party penetration/security scanning.
+- **External Scanning**: Edge-case sandbox escapes have been sealed (host fallback warnings enforced, on-disk approval HMAC signature, comprehensive Docker container termination on timeout, disabled pre-approval MCP tool registration process launch, and removed verifier un-sandboxed host fallback). The project has not yet passed third-party penetration/security scanning.
 - **Dual-Machine Orchestration**: Active deployment switching between the Mac and n100 environments is pending.
 - **Mainstream Parity**: The variable `claims_mainstream_parity` remains rigorously held at `false` until the above deployment criteria are met.
