@@ -1,4 +1,4 @@
-# OneCode Delivery Note (Iteration Closure)
+# OneCode Milestone Pause Note (v0.8.0)
 
 **Date**: 2026-10-08
 **Status**: Milestone Paused / Boundary Sealed
@@ -17,7 +17,7 @@ This document serves as the formal delivery note for the current iteration. The 
 * `sandbox.py`、`verifier.py`、`execution_engine.py` 和 `runner.py` 内部的分支**绝对不可**读取它们，绝不能因为偏离大衍基线而去改写解码、模型计划或触发停机。
 
 ### 1.3 System Stability
-* **Memory Leak Eradicated**: Upgraded the `n100` environment to Python 3.12.7. Soaking for 12 minutes (8,000 rounds of `execute_plan`) showed RSS stabilizing at 22.20 MB without the linear `pathlib` growth seen in 3.12.3.
+* **Memory Baseline Observation**: Upgraded the `n100` environment to Python 3.12.7. Soaking for 12 minutes (8,000 rounds of `execute_plan`) showed RSS stabilizing at 22.20 MB without the linear `pathlib` growth seen in 3.12.3.
 * **ARM64 Emulation**: Validated `qemu-user-static` and `binfmt-support` on the `n100` host, natively supporting ARM64 container emulation without architectural mismatches.
 
 ## 2. Unresolved & Pending Items (Next Phase)
@@ -25,6 +25,6 @@ This document serves as the formal delivery note for the current iteration. The 
 The following items are intentionally left unaddressed in this iteration and are carried forward as pending tasks:
 
 1. **Third-Party Security Scanning**: The codebase has fortified edge-cases but has not yet undergone or passed external/third-party penetration and security scanning. No pre-emptive code changes are being made for this at this time.
-2. **API Key Revocation**: The `approval-secret.key` remains in a suspended state. Permanent revocation from the OpenAI console remains a pending manual action for the user.
+2. **API Key Revocation**: The leaked API key in `.env.local` remains suspended. Permanent revocation from the OpenAI console remains a pending manual action for the user. (Note: `~/.onecode/approval-secret.key` is the local approval signing file and is in active use).
 3. **Dual-Machine Sync & Orchestration**: The `scripts/sync_deployment.sh` script is functional but currently inactive. Active deployment toggling between the Mac and `n100` is paused. The cross-signed `echo test` command on `n100` remains permanently suspended as `PENDING_APPROVAL`.
 4. **Mainstream Parity**: The variable `claims_mainstream_parity` remains rigorously held at `false` until the above deployment criteria are fully satisfied.
