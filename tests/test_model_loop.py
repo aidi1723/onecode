@@ -3,32 +3,6 @@ import sys
 import tempfile
 import unittest
 
-import onecode.kernel.verifier
-import onecode.kernel.sandbox
-
-_original_run_verifier = onecode.kernel.verifier.run_verifier
-
-def _mock_run_verifier(workspace, spec, **kwargs):
-    from onecode.kernel.sandbox import SandboxConfig
-    if kwargs.get("sandbox_config") is None:
-        kwargs["sandbox_config"] = SandboxConfig(workspace=workspace, image="python:3.12-slim")
-    return _original_run_verifier(workspace, spec, **kwargs)
-
-onecode.kernel.verifier.run_verifier = _mock_run_verifier
-
-def _mock_run_in_sandbox(config, command):
-    import subprocess
-    import os
-    env = os.environ.copy()
-    
-    try:
-        # Use 0.1s timeout so that tests writing time.sleep(1) will correctly timeout
-        return subprocess.run(command, cwd=config.workspace, capture_output=True, env=env, timeout=0.1, check=False)
-    except subprocess.TimeoutExpired as exc:
-        raise
-
-onecode.kernel.sandbox.run_in_sandbox = _mock_run_in_sandbox
-onecode.kernel.verifier.run_in_sandbox = _mock_run_in_sandbox
 
 from pathlib import Path
 from unittest.mock import patch
@@ -130,6 +104,43 @@ class SequenceThenTimeoutProvider:
 
 
 class ModelLoopTests(unittest.TestCase):
+
+
+    def setUp(self):
+        super().setUp()
+        from unittest.mock import patch
+        import onecode.kernel.verifier
+        import onecode.kernel.sandbox
+        
+        original_run_verifier = onecode.kernel.verifier.run_verifier
+        
+        def _mock_run_verifier(workspace, spec, **kwargs):
+            from onecode.kernel.sandbox import SandboxConfig
+            if kwargs.get("sandbox_config") is None:
+                kwargs["sandbox_config"] = SandboxConfig(workspace=workspace, image="python:3.12-slim")
+            return original_run_verifier(workspace, spec, **kwargs)
+            
+        def _mock_run_in_sandbox(config, command):
+            import subprocess
+            try:
+                # Do NOT copy os.environ as per user request
+                return subprocess.run(command, cwd=config.workspace, capture_output=True, timeout=0.1, check=False)
+            except subprocess.TimeoutExpired:
+                raise
+                
+
+        patcher1 = patch("onecode.cli.run_verifier", side_effect=_mock_run_verifier)
+        patcher4 = patch(__name__ + ".run_verifier", side_effect=_mock_run_verifier)
+        patcher3 = patch("onecode.kernel.verifier.run_in_sandbox", side_effect=_mock_run_in_sandbox)
+        
+        self.addCleanup(patcher1.stop)
+        self.addCleanup(patcher4.stop)
+        self.addCleanup(patcher3.stop)
+        
+        patcher1.start()
+        patcher4.start()
+        patcher3.start()
+
     def test_model_timeout_writes_failed_terminal_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = run_model_task_wrapper(
