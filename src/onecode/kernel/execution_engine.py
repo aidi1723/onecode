@@ -20,6 +20,7 @@ from onecode.kernel.execution_guardrails import (
     validate_plan,
 )
 from onecode.kernel.execution_tools import ToolRegistry, default_tool_registry
+from onecode.kernel.mcp_client import load_mcp_servers
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.checkpoint import write_ledger
 from onecode.kernel.context import create_context
@@ -258,6 +259,7 @@ def execute_plan(
 ) -> ExecutionTrace:
     config = guardrails or GuardrailConfig()
     registry = tool_registry or default_tool_registry()
+    load_mcp_servers(registry, workspace)
     validation = validate_plan(plan, config)
     if not validation.valid:
         return ExecutionTrace(

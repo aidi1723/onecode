@@ -274,3 +274,23 @@ def register_mcp_list_tools_action(
             registry=registry,
         )
     )
+
+
+def load_mcp_servers(registry: ToolRegistry, workspace: Path) -> None:
+    config_path = workspace / ".onecode" / "mcp_servers.json"
+    if not config_path.is_file():
+        return
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+        mcp_servers = data.get("mcpServers", {})
+        if not isinstance(mcp_servers, dict):
+            return
+        for server_name, server_config in mcp_servers.items():
+            if isinstance(server_config, dict) and isinstance(server_config.get("command"), list):
+                register_mcp_list_tools_action(
+                    registry,
+                    server_name=server_name,
+                    command=server_config["command"]
+                )
+    except Exception:
+        pass
