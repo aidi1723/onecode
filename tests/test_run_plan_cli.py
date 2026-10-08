@@ -1221,5 +1221,43 @@ class RunPlanCliTests(unittest.TestCase):
             self.assertNotIn("Traceback", completed.stderr)
 
 
+    def test_cli_run_plan_verifier_halts_when_docker_missing(self):
+        # Temporarily override the subprocess.run mock to raise FileNotFoundError
+        from unittest.mock import patch
+        import subprocess
+        
+        with patch("onecode.kernel.sandbox.subprocess.run", side_effect=FileNotFoundError("No docker")):
+            with tempfile.TemporaryDirectory() as tmp:
+                workspace = Path(tmp)
+                plan_path = self.write_plan(workspace)
+                policy_path = self.write_policy(
+                    workspace,
+                    [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+                )
+                
+                with patch("builtins.print") as printed:
+                    exit_code = main([
+                        "run-plan",
+                        "--workspace",
+                        str(workspace),
+                        "--plan",
+                        str(plan_path),
+                        "--verifier-policy",
+                        str(policy_path),
+                        "--verifier",
+                        "python-unittest",
+                    ])
+                
+                result = json.loads(printed.call_args.args[0])
+                self.assertNotEqual(exit_code, 0)
+                self.assertEqual(result["status"], "halted")
+                self.assertEqual(result["reason"], "sandbox_required")
+                self.assertEqual(result["delivery_status"], "blocked")
+                self.assertEqual(result["verifier_results"][0]["status"], "failed")
+                self.assertEqual(result["verifier_results"][0]["reason"], "sandbox_required")
+                self.assertIn("Docker is not installed", result["verifier_results"][0]["stderr_tail"])
+
 if __name__ == "__main__":
     unittest.main()
+
+

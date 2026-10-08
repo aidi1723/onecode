@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from onecode.kernel.hexagram import IchingKernel
-from onecode.kernel.sandbox import SandboxConfig, run_in_sandbox
+from onecode.kernel.sandbox import SandboxConfig, run_in_sandbox, _docker_daemon_unavailable
 from onecode.kernel.trace import TraceEvent, write_trace_event
 
 
@@ -264,13 +264,31 @@ def run_verifier(
     stderr = b""
     try:
         if sandbox_config is not None:
-            completed = run_in_sandbox(sandbox_config, spec.command)
-            stdout = completed.stdout.encode("utf-8") if isinstance(completed.stdout, str) else completed.stdout
-            stderr = completed.stderr.encode("utf-8") if isinstance(completed.stderr, str) else completed.stderr
-            status: VerifierStatus = "passed" if completed.returncode == 0 else "failed"
-            reason = None if completed.returncode == 0 else "verifier_failed"
-            failure_kind: VerifierFailureKind | None = None if completed.returncode == 0 else "command_failed"
-            exit_code: int | None = completed.returncode
+            try:
+                completed = run_in_sandbox(sandbox_config, spec.command)
+                stderr_str = completed.stderr if isinstance(completed.stderr, str) else completed.stderr.decode("utf-8", errors="replace")
+                
+                if completed.returncode != 0 and _docker_daemon_unavailable(stderr_str):
+                    stdout = b""
+                    stderr = b"Sandbox required but Docker daemon is unavailable."
+                    status: VerifierStatus = "failed"
+                    reason: str | None = "sandbox_required"
+                    failure_kind: VerifierFailureKind | None = "exception"
+                    exit_code: int | None = None
+                else:
+                    stdout = completed.stdout.encode("utf-8") if isinstance(completed.stdout, str) else completed.stdout
+                    stderr = stderr_str.encode("utf-8")
+                    status = "passed" if completed.returncode == 0 else "failed"
+                    reason = None if completed.returncode == 0 else "verifier_failed"
+                    failure_kind = None if completed.returncode == 0 else "command_failed"
+                    exit_code = completed.returncode
+            except FileNotFoundError:
+                stdout = b""
+                stderr = b"Sandbox required but Docker is not installed on host system."
+                status = "failed"
+                reason = "sandbox_required"
+                failure_kind = "exception"
+                exit_code = None
         else:
             stdout = b""
             stderr = b"Verifier execution halted: Sandbox configuration is required to execute verifier checks safely. Execution on the bare host is prohibited."
