@@ -309,6 +309,8 @@ def build_parser() -> argparse.ArgumentParser:
     run_plan_parser.add_argument("--resume-from", default=None)
     run_plan_parser.add_argument("--verifier-policy", default=None)
     run_plan_parser.add_argument("--verifier", action="append", default=None)
+    run_plan_parser.add_argument("--sandbox-image", default="python:3.12-slim")
+    run_plan_parser.add_argument("--sandbox-network", default="none")
     run_plan_parser.add_argument("--repair-model", default=None)
     run_plan_parser.add_argument("--repair-provider", default="responses")
     run_plan_parser.add_argument("--repair-endpoint", default=None)
@@ -327,6 +329,8 @@ def build_parser() -> argparse.ArgumentParser:
     run_model_parser.add_argument("--http-timeout-seconds", type=float, default=60)
     run_model_parser.add_argument("--run-id", default=None)
     run_model_parser.add_argument("--resume-from", default=None)
+    run_model_parser.add_argument("--sandbox-image", default="python:3.12-slim")
+    run_model_parser.add_argument("--sandbox-network", default="none")
     run_model_parser.add_argument("--model", default=None)
     run_model_parser.add_argument("--api-key", default=None)
     run_model_parser.add_argument(
@@ -429,6 +433,7 @@ def apply_run_plan_repair(
     verifier_specs: list,
     planned_asset_paths: list[str],
     args: Any,
+    sandbox_config: SandboxConfig | None = None,
 ) -> dict:
     initial_verifiers = verifier_dicts(result.get("verifier_results", []))
     if verifier_failure(initial_verifiers) is None or args.max_repair_attempts <= 0:
@@ -477,7 +482,7 @@ def apply_run_plan_repair(
             run_metadata={"repair_attempt": attempt},
         )
         repair_results.append(repair_result)
-        latest_verifiers = verifier_dicts([run_verifier(workspace, spec) for spec in verifier_specs])
+        latest_verifiers = verifier_dicts([run_verifier(workspace, spec, sandbox_config=sandbox_config) for spec in verifier_specs])
         repair_verifier_results.append(latest_verifiers)
         current_result = apply_verifier_evidence_from_dicts(current_result, workspace, latest_verifiers)
         current_verifiers = latest_verifiers
@@ -815,6 +820,11 @@ def dispatch_yizijue_command(args: Any, parser: argparse.ArgumentParser) -> int 
 
 def dispatch_run_command(args: Any, parser: argparse.ArgumentParser) -> int | None:
     if args.subcommand == "run-plan":
+        sandbox_config = SandboxConfig(
+            workspace=Path(args.workspace),
+            image=args.sandbox_image,
+            network=args.sandbox_network,
+        )
         try:
             task, write_texts, plan_evidence = load_task_plan(Path(args.plan))
             if args.max_repair_attempts < 0:
@@ -857,7 +867,7 @@ def dispatch_run_command(args: Any, parser: argparse.ArgumentParser) -> int | No
                 run_metadata=plan_evidence,
             )
             if verifier_specs and result["status"] == "completed":
-                verifier_results = [run_verifier(Path(args.workspace), spec) for spec in verifier_specs]
+                verifier_results = [run_verifier(Path(args.workspace), spec, sandbox_config=sandbox_config) for spec in verifier_specs]
                 result = apply_verifier_evidence(result, Path(args.workspace), verifier_results)
                 result = apply_run_plan_repair(
                     result=result,
@@ -866,6 +876,7 @@ def dispatch_run_command(args: Any, parser: argparse.ArgumentParser) -> int | No
                     http_timeout_seconds=args.http_timeout_seconds,
                     verifier_specs=verifier_specs,
                     planned_asset_paths=[write_text.partition("=")[0] for write_text in write_texts],
+                    sandbox_config=sandbox_config,
                     args=args,
                 )
             result = apply_task_resume_evidence(result, Path(args.workspace), resume_summary)
@@ -889,6 +900,11 @@ def dispatch_run_command(args: Any, parser: argparse.ArgumentParser) -> int | No
         return 0 if trace.success else 1
 
     if args.subcommand == "run-model":
+        sandbox_config = SandboxConfig(
+            workspace=Path(args.workspace),
+            image=args.sandbox_image,
+            network=args.sandbox_network,
+        )
         try:
             verifier_specs = []
             if args.verifier:
@@ -907,7 +923,7 @@ def dispatch_run_command(args: Any, parser: argparse.ArgumentParser) -> int | No
                 endpoint=args.endpoint,
             )
             if verifier_specs and result["status"] == "completed":
-                verifier_results = [run_verifier(Path(args.workspace), spec) for spec in verifier_specs]
+                verifier_results = [run_verifier(Path(args.workspace), spec, sandbox_config=sandbox_config) for spec in verifier_specs]
                 result = apply_verifier_evidence(result, Path(args.workspace), verifier_results)
         except ValueError as exc:
             parser.error(str(exc))

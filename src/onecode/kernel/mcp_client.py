@@ -7,7 +7,7 @@ import os
 import select
 import subprocess
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -225,4 +225,52 @@ def _valid_command(command: object) -> bool:
         isinstance(command, list)
         and 0 < len(command) <= 32
         and all(isinstance(item, str) and item and len(item) <= 4_096 for item in command)
+    )
+
+@dataclass(frozen=True)
+class McpListToolsAction(ToolDefinition):
+    command: tuple[str, ...] = ()
+    server_name: str = ""
+    registry: ToolRegistry | None = field(default=None, compare=False, hash=False)
+
+    def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
+        return {"action_type": self.name, "arguments": {}}
+
+    def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
+        try:
+            with McpStdioClient(list(self.command), cwd=workspace) as client:
+                remote_names = client.list_tools()
+        except (OSError, subprocess.SubprocessError, McpClientError) as exc:
+            return {"status": "halted", "reason": "action_exception", "content": f"Failed to list MCP tools: {exc}"}
+            
+        if self.registry is not None:
+            register_mcp_tools(
+                self.registry,
+                server_name=self.server_name,
+                command=list(self.command),
+                remote_names=remote_names,
+            )
+            
+        return {
+            "status": "completed", 
+            "content": f"Successfully listed and registered MCP tools from {self.server_name}: {', '.join(remote_names)}"
+        }
+
+def register_mcp_list_tools_action(
+    registry: ToolRegistry,
+    *,
+    server_name: str,
+    command: list[str],
+) -> None:
+    if not _safe_segment(server_name) or not _valid_command(command):
+        return
+    registry.register(
+        McpListToolsAction(
+            name=f"mcp.{server_name}.list_tools",
+            requires_approval=True,
+            runner_managed=False,
+            command=tuple(command),
+            server_name=server_name,
+            registry=registry,
+        )
     )
