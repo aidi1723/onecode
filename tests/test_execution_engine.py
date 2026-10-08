@@ -629,5 +629,44 @@ class ExecutionEngineTests(unittest.TestCase):
             self.assertEqual(payload["runner_results"][0]["shell_projection"]["severity"], "ok")
 
 
+
+    def test_mcp_list_tools_halts_when_no_approval_callback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            config_dir = workspace / ".onecode"
+            config_dir.mkdir(parents=True, exist_ok=True)
+            config_path = config_dir / "mcp_servers.json"
+            config_path.write_text(json.dumps({
+                "mcpServers": {
+                    "fixture": {
+                        "command": ["python", "server.py"]
+                    }
+                }
+            }), encoding="utf-8")
+            
+            plan = ExecutionPlan(
+                task="test mcp",
+                steps=[
+                    ExecutionStep(
+                        id="list",
+                        description="list tools",
+                        tool_calls=[ToolCallSpec(tool_name="mcp.fixture.list_tools", params={})],
+                    )
+                ]
+            )
+            
+            with patch("subprocess.Popen") as mock_popen:
+                trace = execute_plan(
+                    plan=plan,
+                    workspace=workspace,
+                    run_id="test",
+                    require_explicit_approval=False,
+                )
+                
+            self.assertEqual(mock_popen.call_count, 0)
+            self.assertEqual(len(trace.step_results), 1)
+            self.assertEqual(trace.step_results[0].status, "failed")
+            self.assertEqual(trace.step_results[0].reason, "approval_required")
+
 if __name__ == "__main__":
     unittest.main()

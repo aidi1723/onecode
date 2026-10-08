@@ -294,7 +294,8 @@ def execute_plan(
         approved_layer: list[ExecutionStep] = []
         for step in layer:
             if should_require_approval(step, config):
-                if approval_callback is None and require_explicit_approval:
+                has_mcp = any(tc.tool_name.startswith("mcp.") for tc in step.tool_calls)
+                if approval_callback is None and (require_explicit_approval or has_mcp):
                     step_results.append(StepResult(step_id=step.id, status="failed", reason="approval_required"))
                     processed_step_ids.add(step.id)
                     continue
