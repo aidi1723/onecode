@@ -1,7 +1,6 @@
 import unittest
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, MagicMock
 from pathlib import Path
-import json
 
 from onecode.web.api import (
     handle_onecode_project_status,
@@ -23,7 +22,6 @@ from onecode.web.api import (
     handle_onecode_run_evidence,
     read_json_document,
     model_timeout_seconds_from_env,
-    query_workspace_param,
     parse_limit,
     parse_window_seconds,
     direct_chat_completion,

@@ -178,7 +178,7 @@ class DeepSeekDistillationTests(unittest.TestCase):
             timeout_seconds=7,
             max_tokens=192,
         )
-        with patch("urllib.request.urlopen", fake_urlopen):
+        with patch("onecode.kernel.deepseek_distillation._SAFE_OPENER.open", fake_urlopen):
             content = client.generate("只输出 JSON")
 
         self.assertEqual(content, '{"ok":true}')
@@ -210,7 +210,7 @@ class DeepSeekDistillationTests(unittest.TestCase):
             base_url="http://example.test/api",
             chat_completions_path="/chat/completions",
         )
-        with patch("urllib.request.urlopen", fake_urlopen):
+        with patch("onecode.kernel.deepseek_distillation._SAFE_OPENER.open", fake_urlopen):
             client.generate("只输出 JSON")
 
         self.assertEqual(captured["url"], "http://example.test/api/chat/completions")
@@ -222,7 +222,7 @@ class DeepSeekDistillationTests(unittest.TestCase):
             raise TimeoutError("timed out")
 
         client = DeepSeekChatClient(api_key="test-key", base_url="http://example.test")
-        with patch("urllib.request.urlopen", fake_urlopen):
+        with patch("onecode.kernel.deepseek_distillation._SAFE_OPENER.open", fake_urlopen):
             with self.assertRaisesRegex(RuntimeError, "DeepSeek request failed"):
                 client.generate("只输出 JSON")
 
@@ -233,7 +233,7 @@ class DeepSeekDistillationTests(unittest.TestCase):
             raise ConnectionResetError("connection reset by peer")
 
         client = DeepSeekChatClient(api_key="test-key", base_url="http://example.test")
-        with patch("urllib.request.urlopen", fake_urlopen):
+        with patch("onecode.kernel.deepseek_distillation._SAFE_OPENER.open", fake_urlopen):
             with self.assertRaisesRegex(RuntimeError, "DeepSeek request failed"):
                 client.generate("只输出 JSON")
 

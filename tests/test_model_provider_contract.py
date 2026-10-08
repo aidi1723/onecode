@@ -64,7 +64,7 @@ class ModelProviderContractTests(unittest.TestCase):
 class ModelProviderTimeoutTests(unittest.TestCase):
     def test_responses_timeout_is_typed(self):
         provider = OpenAIResponsesProvider("key", endpoint="http://model.test/responses")
-        with patch("urllib.request.urlopen", side_effect=TimeoutError("timed out")):
+        with patch("onecode.kernel.model_provider._SAFE_OPENER.open", side_effect=TimeoutError("timed out")):
             with self.assertRaisesRegex(ModelProviderTimeout, "model request timed out"):
                 provider.create_plan("check", model="m", http_timeout_seconds=1)
 
@@ -72,7 +72,7 @@ class ModelProviderTimeoutTests(unittest.TestCase):
         provider = OpenAIChatCompletionsProvider(
             "key", endpoint="http://model.test/chat/completions"
         )
-        with patch("urllib.request.urlopen", side_effect=TimeoutError("timed out")):
+        with patch("onecode.kernel.model_provider._SAFE_OPENER.open", side_effect=TimeoutError("timed out")):
             with self.assertRaisesRegex(ModelProviderTimeout, "model request timed out"):
                 provider.create_plan("check", model="m", http_timeout_seconds=1)
 

@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock, ANY
+from unittest.mock import patch, MagicMock
 
 from onecode.kernel.diagnostics import (
     doctor_check,

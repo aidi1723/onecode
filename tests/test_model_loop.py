@@ -9,7 +9,7 @@ from onecode.cli import main
 from onecode.kernel.execution_engine import execute_plan
 from onecode.kernel.execution_tools import default_tool_registry
 from onecode.kernel.run_inspection import apply_verifier_evidence, inspect_run
-from onecode.kernel.model_loop import run_model_task
+from onecode.kernel.model_loop import run_model_task as _run_model_task
 from onecode.kernel.model_loop import execution_plan_from_model_plan
 from onecode.kernel.model_provider import (
     DEFAULT_DOMESTIC_PROVIDER_CONFIGS,
@@ -31,6 +31,11 @@ from onecode.kernel.model_provider import (
 from onecode.kernel.verifier import VerifierSpec, run_verifier
 from onecode.kernel.safe_agent_router import SafeAgentRoute
 
+
+
+def run_model_task_wrapper(*args, **kwargs):
+    kwargs.setdefault("require_explicit_approval", False)
+    return _run_model_task(*args, **kwargs)
 
 class FakeModelProvider:
     def __init__(self, plan: ModelPlan) -> None:
@@ -99,7 +104,7 @@ class SequenceThenTimeoutProvider:
 class ModelLoopTests(unittest.TestCase):
     def test_model_timeout_writes_failed_terminal_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "check project",
                 workspace=Path(tmp),
                 run_id="model-timeout",
@@ -135,7 +140,7 @@ class ModelLoopTests(unittest.TestCase):
 
     def test_invalid_model_plan_writes_failed_terminal_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "check project",
                 workspace=Path(tmp),
                 run_id="invalid-model-plan",
@@ -198,7 +203,7 @@ class ModelLoopTests(unittest.TestCase):
                     ),
                 ],
             )
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "build module with repair",
                 workspace=workspace,
                 run_id="repair-timeout",
@@ -251,7 +256,7 @@ class ModelLoopTests(unittest.TestCase):
                 selected_skills=("code-test-regression",),
             )
 
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "检查项目",
                 workspace=Path(tmp),
                 api_key="key",
@@ -271,7 +276,7 @@ class ModelLoopTests(unittest.TestCase):
                 ModelPlan(task="unused", no_action_reason="must not be called")
             )
 
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "检查项目",
                 workspace=Path(tmp),
                 api_key="key",
@@ -297,7 +302,7 @@ class ModelLoopTests(unittest.TestCase):
                 ModelPlan(task="explain", no_action_reason="no workspace action")
             )
 
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "解释一下",
                 workspace=Path(tmp),
                 api_key="key",
@@ -333,7 +338,7 @@ class ModelLoopTests(unittest.TestCase):
                 )
             )
 
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "修改 docs/result.md",
                 workspace=workspace,
                 api_key="key",
@@ -386,7 +391,7 @@ class ModelLoopTests(unittest.TestCase):
                 )
             )
 
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "修改 docs/result.md",
                 workspace=workspace,
                 api_key="key",
@@ -430,7 +435,7 @@ class ModelLoopTests(unittest.TestCase):
                 )
             )
 
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "运行测试",
                 workspace=workspace,
                 api_key="key",
@@ -612,7 +617,7 @@ class ModelLoopTests(unittest.TestCase):
                 patch.dict("os.environ", {}, clear=True),
                 self.assertRaises(MissingModelApiKey),
             ):
-                run_model_task("build nothing", workspace=workspace, run_id="missing-key")
+                run_model_task_wrapper("build nothing", workspace=workspace, run_id="missing-key")
 
             self.assertFalse((workspace / ".onecode").exists())
 
@@ -627,7 +632,7 @@ class ModelLoopTests(unittest.TestCase):
             )
 
             with self.assertRaisesRegex(ValueError, "http_timeout_seconds must be greater than zero"):
-                run_model_task(
+                run_model_task_wrapper(
                     "build project",
                     workspace=workspace,
                     run_id="model-bool-timeout",
@@ -636,7 +641,7 @@ class ModelLoopTests(unittest.TestCase):
                     http_timeout_seconds=True,
                 )
             with self.assertRaisesRegex(ValueError, "max_repair_attempts must be a non-negative integer"):
-                run_model_task(
+                run_model_task_wrapper(
                     "build project",
                     workspace=workspace,
                     run_id="model-bool-repair",
@@ -661,7 +666,7 @@ class ModelLoopTests(unittest.TestCase):
                 )
             )
 
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "build project",
                 workspace=workspace,
                 run_id="model-run",
@@ -689,7 +694,7 @@ class ModelLoopTests(unittest.TestCase):
                 )
             )
 
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "build project",
                 workspace=workspace,
                 run_id="model-trace-run",
@@ -725,7 +730,7 @@ class ModelLoopTests(unittest.TestCase):
                 )
             )
 
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "build project",
                 workspace=workspace,
                 run_id="secret-run",
@@ -768,7 +773,7 @@ class ModelLoopTests(unittest.TestCase):
                 )
             )
 
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "patch project",
                 workspace=workspace,
                 run_id="model-patch-run",
@@ -805,6 +810,7 @@ class ModelLoopTests(unittest.TestCase):
                 workspace=workspace,
                 run_id="model-execution-plan",
                 tool_registry=default_tool_registry(),
+                require_explicit_approval=False,
             )
 
             self.assertTrue(trace.success)
@@ -848,7 +854,7 @@ class ModelLoopTests(unittest.TestCase):
                 )
             )
 
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "execute project",
                 workspace=workspace,
                 run_id="model-execution-plan-run",
@@ -885,7 +891,7 @@ class ModelLoopTests(unittest.TestCase):
                 )
             )
 
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "execute project",
                 workspace=workspace,
                 run_id="model-execution-evidence",
@@ -952,7 +958,7 @@ class ModelLoopTests(unittest.TestCase):
                 ]
             )
 
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "build module with repair",
                 workspace=workspace,
                 run_id="repair-run",
@@ -1029,7 +1035,7 @@ class ModelLoopTests(unittest.TestCase):
                 ]
             )
 
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "build module with repeated repair",
                 workspace=workspace,
                 run_id="multi-repair-run",
@@ -1089,7 +1095,7 @@ class ModelLoopTests(unittest.TestCase):
                 ]
             )
 
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "build module with unsafe repair",
                 workspace=workspace,
                 run_id="unsafe-repair-run",
@@ -1299,7 +1305,7 @@ class ModelLoopTests(unittest.TestCase):
                     assets=[ModelPlanAsset(path="src/generated.py", content="VALUE = 1\n")],
                 )
             )
-            result = run_model_task(
+            result = run_model_task_wrapper(
                 "build project",
                 workspace=workspace,
                 run_id="model-verifier-inspect",

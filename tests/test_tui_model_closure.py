@@ -125,7 +125,8 @@ class TuiModelClosureTests(unittest.TestCase):
             )
             app = OneCodeApp(workspace=workspace, model="test-model")
 
-            trace = app._execution_plan_worker(plan_path)
+            with patch('onecode.kernel.execution_engine.should_require_approval', return_value=False):
+                trace = app._execution_plan_worker(plan_path)
 
             self.assertTrue(trace["success"])
             self.assertEqual(trace["step_results"][0]["status"], "completed")

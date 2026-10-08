@@ -83,13 +83,13 @@ This maps directly to OneCode's existing six-bit `status_code` surface.
 
 In classical Zhouyi stalk divination (大衍筮法), three recursive division operations yield four line values in `{6, 7, 8, 9}`:
 - Old Yang (老阳, 9, moving yang): `P(9) = 3/16 = 0.1875`
-- Young Yin (少阴, 8, static yin): `P(8) = 5/16 = 0.3125`
+- Young Yin (少阴, 8, static yin): `P(8) = 7/16 = 0.4375`
 - Young Yang (少阳, 7, static yang): `P(7) = 5/16 = 0.3125`
-- Old Yin (老阴, 6, moving yin): `P(6) = 3/16 = 0.1875`
+- Old Yin (老阴, 6, moving yin): `P(6) = 1/16 = 0.0625`
 
 Key properties:
 - Marginal Yin/Yang balance: `P(Yang) = P(9) + P(7) = 8/16 = 0.5`, `P(Yin) = P(8) + P(6) = 8/16 = 0.5`.
-- Mutation rate: `P(Moving) = P(6) + P(9) = 6/16 = 37.5%`, `P(Static) = 62.5%`.
+- Mutation rate: `P(Moving) = P(6) + P(9) = 4/16 = 25.0%`, `P(Static) = 75.0%`.
 - In OneCode, this provides an authentic discrete prior weighting alongside the standard symmetric Bernoulli coin model.
 
 ## Wuxing Transition Matrix
