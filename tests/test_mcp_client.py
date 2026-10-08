@@ -2,6 +2,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from onecode.kernel.execution_contracts import ExecutionStep, GuardrailConfig, ToolCallSpec
@@ -53,10 +54,10 @@ class McpClientTests(unittest.TestCase):
 
         registry = default_tool_registry()
         before = registry.names()
-        result = register_mcp_tools(registry, server_name="fixture", command=["/nonexistent/onecode-mcp"])
+        result = register_mcp_tools(registry, server_name="fixture", command=["/nonexistent/onecode-mcp"], remote_names=[])
 
-        self.assertEqual(result["status"], "halted")
-        self.assertEqual(result["reason"], "action_exception")
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["tools"], [])
         self.assertEqual(result["tools"], [])
         self.assertEqual(registry.names(), before)
 
@@ -70,11 +71,14 @@ class McpClientTests(unittest.TestCase):
             script = workspace / "server.py"
             script.write_text(SERVER, encoding="utf-8")
             registry = default_tool_registry()
-            registered = register_mcp_tools(
-                registry,
-                server_name="fixture",
-                command=[sys.executable, str(script)],
-            )
+            with patch("subprocess.Popen") as mock_popen:
+                registered = register_mcp_tools(
+                    registry,
+                    server_name="fixture",
+                    command=[sys.executable, str(script)],
+                    remote_names=["echo"],
+                )
+                self.assertEqual(mock_popen.call_count, 0)
             tool = registry.get("mcp.fixture.echo")
             output = tool.execute({"arguments": {"text": "ping"}}, workspace)
 

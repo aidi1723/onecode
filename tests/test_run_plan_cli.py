@@ -4,6 +4,34 @@ import subprocess
 import sys
 import tempfile
 import unittest
+
+import onecode.kernel.verifier
+import onecode.kernel.sandbox
+
+_original_run_verifier = onecode.kernel.verifier.run_verifier
+
+def _mock_run_verifier(workspace, spec, **kwargs):
+    from onecode.kernel.sandbox import SandboxConfig
+    if kwargs.get("sandbox_config") is None:
+        kwargs["sandbox_config"] = SandboxConfig(workspace=workspace, image="python:3.12-slim")
+    return _original_run_verifier(workspace, spec, **kwargs)
+
+onecode.kernel.verifier.run_verifier = _mock_run_verifier
+
+def _mock_run_in_sandbox(config, command):
+    import subprocess
+    import os
+    env = os.environ.copy()
+    
+    try:
+        # Use 0.1s timeout so that tests writing time.sleep(1) will correctly timeout
+        return subprocess.run(command, cwd=config.workspace, capture_output=True, env=env, timeout=0.1, check=False)
+    except subprocess.TimeoutExpired as exc:
+        raise
+
+onecode.kernel.sandbox.run_in_sandbox = _mock_run_in_sandbox
+onecode.kernel.verifier.run_in_sandbox = _mock_run_in_sandbox
+
 import hashlib
 from pathlib import Path
 from unittest.mock import patch

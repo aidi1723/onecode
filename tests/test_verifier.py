@@ -1,4 +1,5 @@
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -153,7 +154,7 @@ class VerifierExecutionTests(unittest.TestCase):
         self.assertEqual(with_boolean_status["task_status_code"], without_status["task_status_code"])
         self.assertEqual(with_boolean_status["task_transition_action"], without_status["task_transition_action"])
 
-    def test_run_verifier_records_success_evidence(self):
+    def test_run_verifier_without_sandbox_halts_and_does_not_call_subprocess(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
             spec = VerifierSpec(
@@ -163,22 +164,23 @@ class VerifierExecutionTests(unittest.TestCase):
                 timeout_ms=5000,
             )
 
-            result = run_verifier(workspace, spec)
-
-            self.assertEqual(result.status, "passed")
-            self.assertIsNone(result.reason)
-            self.assertEqual(result.exit_code, 0)
-            self.assertIn("ok", result.stdout_tail)
-            self.assertEqual(result.stderr_tail, "")
-            self.assertRegex(result.stdout_sha256, r"^[0-9a-f]{64}$")
-            self.assertRegex(result.stderr_sha256, r"^[0-9a-f]{64}$")
+            with patch("onecode.kernel.verifier.subprocess.run") as mock_run:
+                result = run_verifier(workspace, spec)
+                
+            self.assertEqual(mock_run.call_count, 0)
+            self.assertEqual(result.status, "failed")
+            self.assertEqual(result.reason, "sandbox_required")
+            self.assertEqual(result.failure_kind, "exception")
+            self.assertIn("Sandbox configuration is required", result.stderr_tail)
 
     def test_run_verifier_does_not_inherit_secret_environment(self):
+        from onecode.kernel.sandbox import SandboxConfig
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
             "os.environ",
             {"OPENAI_API_KEY": "sk-secret-value"},
             clear=False,
         ):
+            workspace = Path(tmp)
             spec = VerifierSpec(
                 id="env",
                 command=["python3", "-c", "import os; print(os.environ.get('OPENAI_API_KEY', ''))"],
@@ -186,12 +188,17 @@ class VerifierExecutionTests(unittest.TestCase):
                 timeout_ms=5000,
             )
 
-            result = run_verifier(Path(tmp), spec)
+            with patch("onecode.kernel.sandbox.subprocess.run") as run_mock:
+                run_mock.return_value.stdout = b""
+                run_mock.return_value.stderr = b""
+                run_mock.return_value.returncode = 0
+                result = run_verifier(workspace, spec, sandbox_config=SandboxConfig(workspace=workspace, image="python:3.12-slim"))
 
         self.assertEqual(result.status, "passed")
         self.assertNotIn("sk-secret-value", result.stdout_tail)
 
     def test_run_verifier_records_failure_evidence(self):
+        from onecode.kernel.sandbox import SandboxConfig
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
             spec = VerifierSpec(
@@ -201,7 +208,11 @@ class VerifierExecutionTests(unittest.TestCase):
                 timeout_ms=5000,
             )
 
-            result = run_verifier(workspace, spec)
+            with patch("onecode.kernel.sandbox.subprocess.run") as run_mock:
+                run_mock.return_value.stdout = b"bad\n"
+                run_mock.return_value.stderr = b""
+                run_mock.return_value.returncode = 7
+                result = run_verifier(workspace, spec, sandbox_config=SandboxConfig(workspace=workspace, image="python:3.12-slim"))
 
             self.assertEqual(result.status, "failed")
             self.assertEqual(result.reason, "verifier_failed")
@@ -209,6 +220,7 @@ class VerifierExecutionTests(unittest.TestCase):
             self.assertIn("bad", result.stdout_tail)
 
     def test_run_verifier_records_timeout(self):
+        from onecode.kernel.sandbox import SandboxConfig
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
             spec = VerifierSpec(
@@ -218,7 +230,9 @@ class VerifierExecutionTests(unittest.TestCase):
                 timeout_ms=10,
             )
 
-            result = run_verifier(workspace, spec)
+            with patch("onecode.kernel.sandbox.subprocess.run") as run_mock:
+                run_mock.side_effect = subprocess.TimeoutExpired(cmd=["docker"], timeout=10)
+                result = run_verifier(workspace, spec, sandbox_config=SandboxConfig(workspace=workspace, image="python:3.12-slim"))
 
             self.assertEqual(result.status, "failed")
             self.assertEqual(result.reason, "verifier_timeout")
@@ -235,6 +249,7 @@ class VerifierExecutionTests(unittest.TestCase):
                 run_verifier(workspace, spec)
 
     def test_run_verifier_writes_trace_events(self):
+        from onecode.kernel.sandbox import SandboxConfig
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
             trace_path = workspace / ".onecode" / "runs" / "verifier-run" / "trace.jsonl"
@@ -245,13 +260,18 @@ class VerifierExecutionTests(unittest.TestCase):
                 timeout_ms=5000,
             )
 
-            result = run_verifier(
-                workspace,
-                spec,
-                trace_path=trace_path,
-                trace_id="verifier-run",
-                run_id="verifier-run",
-            )
+            with patch("onecode.kernel.sandbox.subprocess.run") as run_mock:
+                run_mock.return_value.stdout = b"ok\n"
+                run_mock.return_value.stderr = b""
+                run_mock.return_value.returncode = 0
+                result = run_verifier(
+                    workspace,
+                    spec,
+                    trace_path=trace_path,
+                    trace_id="verifier-run",
+                    run_id="verifier-run",
+                    sandbox_config=SandboxConfig(workspace=workspace, image="python:3.12-slim")
+                )
             events = [
                 json.loads(line)
                 for line in trace_path.read_text(encoding="utf-8").splitlines()

@@ -8,7 +8,6 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from onecode.kernel.execution_tools import _command_environment
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.sandbox import SandboxConfig, run_in_sandbox
 from onecode.kernel.trace import TraceEvent, write_trace_event
@@ -244,7 +243,7 @@ def run_verifier(
     run_id: str | None = None,
     sandbox_config: SandboxConfig | None = None,
 ) -> VerifierResult:
-    resolved_cwd = resolve_verifier_cwd(workspace, spec.cwd)
+    _ = resolve_verifier_cwd(workspace, spec.cwd)
     started_at = time.monotonic()
     resolved_trace_id = trace_id or run_id or "verifier"
     resolved_run_id = run_id or resolved_trace_id
@@ -268,21 +267,17 @@ def run_verifier(
             completed = run_in_sandbox(sandbox_config, spec.command)
             stdout = completed.stdout.encode("utf-8") if isinstance(completed.stdout, str) else completed.stdout
             stderr = completed.stderr.encode("utf-8") if isinstance(completed.stderr, str) else completed.stderr
+            status: VerifierStatus = "passed" if completed.returncode == 0 else "failed"
+            reason = None if completed.returncode == 0 else "verifier_failed"
+            failure_kind: VerifierFailureKind | None = None if completed.returncode == 0 else "command_failed"
+            exit_code: int | None = completed.returncode
         else:
-            completed = subprocess.run(  # type: ignore
-                spec.command,
-                cwd=resolved_cwd,
-                capture_output=True,
-                timeout=spec.timeout_ms / 1000,
-                check=False,
-                env=_command_environment(resolved_cwd),
-            )
-            stdout = completed.stdout  # type: ignore
-            stderr = completed.stderr  # type: ignore
-        status: VerifierStatus = "passed" if completed.returncode == 0 else "failed"
-        reason = None if completed.returncode == 0 else "verifier_failed"
-        failure_kind: VerifierFailureKind | None = None if completed.returncode == 0 else "command_failed"
-        exit_code: int | None = completed.returncode
+            stdout = b""
+            stderr = b"Verifier execution halted: Sandbox configuration is required to execute verifier checks safely. Execution on the bare host is prohibited."
+            status = "failed"
+            reason = "sandbox_required"
+            failure_kind = "exception"
+            exit_code = None
     except subprocess.TimeoutExpired as exc:
         stdout = exc.stdout if isinstance(exc.stdout, bytes) else b""
         stderr = exc.stderr if isinstance(exc.stderr, bytes) else b""

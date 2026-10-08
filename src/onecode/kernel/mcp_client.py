@@ -181,15 +181,11 @@ def register_mcp_tools(
     *,
     server_name: str,
     command: list[str],
+    remote_names: list[str],
     timeout_seconds: int = 10,
 ) -> dict[str, Any]:
     if not _safe_segment(server_name) or not _valid_command(command):
         return {"status": "halted", "reason": "malformed_input", "tools": []}
-    try:
-        with McpStdioClient(command, timeout_seconds=timeout_seconds) as client:
-            remote_names = client.list_tools()
-    except (OSError, subprocess.SubprocessError, McpClientError, ValueError):
-        return {"status": "halted", "reason": "action_exception", "tools": []}
     tools: list[str] = []
     for remote_name in remote_names:
         if not _safe_segment(remote_name):
