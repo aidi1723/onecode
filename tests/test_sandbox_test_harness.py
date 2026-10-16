@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.sandbox_test_harness import install_sandbox_docker_stub
+from tests.sandbox_test_harness import force_docker_run_timeout, install_sandbox_docker_stub
 
 
 class SandboxTestHarnessTests(unittest.TestCase):
@@ -98,6 +98,24 @@ class SandboxTestHarnessTests(unittest.TestCase):
 
         self.assertEqual(completed.returncode, 0)
         self.assertIn("host-ok", completed.stdout)
+
+    def test_force_docker_run_timeout_raises_and_keeps_shared_stub(self):
+        force_docker_run_timeout(self)
+
+        with self.assertRaises(subprocess.TimeoutExpired):
+            self._sandbox_run(["docker", "run", "--rm", "python:3.12-slim", "python", "-V"])
+
+        killed = self._sandbox_run(["docker", "kill", "onecode_ephemeral_test"], capture_output=True, text=True)
+        self.assertEqual(killed.returncode, 0)
+
+        host = self._sandbox_run(
+            [sys.executable, "-c", "print('still-host')"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(host.returncode, 0)
+        self.assertIn("still-host", host.stdout)
 
     def test_harness_source_does_not_sniff_script_or_test_text(self):
         source = Path(__file__).with_name("sandbox_test_harness.py").read_text(encoding="utf-8")

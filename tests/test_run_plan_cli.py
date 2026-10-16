@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from onecode.cli import build_run_plan_repair_prompt, is_patch_only_repair_plan, main
 from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset, ModelPlanPatch
-from tests.sandbox_test_harness import install_sandbox_docker_stub
+from tests.sandbox_test_harness import force_docker_run_timeout, install_sandbox_docker_stub
 
 
 class FakeRepairProvider:
@@ -708,44 +708,37 @@ class RunPlanCliTests(unittest.TestCase):
             self.assertEqual(provider.prompts, [])
 
     def test_cli_run_plan_blocks_delivery_when_verifier_times_out(self):
-        def _timeout_on_docker_run(command, *args, **kwargs):
-            if command and command[0] == "docker" and len(command) > 1 and command[1] == "run":
-                raise subprocess.TimeoutExpired(cmd=command, timeout=0.1)
-            if command and command[0] == "docker":
-                return subprocess.CompletedProcess(args=command, returncode=0, stdout="true\n", stderr="")
-            return subprocess.run(command, *args, **kwargs)
+        force_docker_run_timeout(self)
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan_path = self.write_plan(workspace)
+            policy_path = self.write_policy(
+                workspace,
+                [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+            )
 
-        with patch("onecode.kernel.sandbox.subprocess.run", side_effect=_timeout_on_docker_run):
-            with tempfile.TemporaryDirectory() as tmp:
-                workspace = Path(tmp)
-                plan_path = self.write_plan(workspace)
-                policy_path = self.write_policy(
-                    workspace,
-                    [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+            with patch("builtins.print") as print_mock:
+                exit_code = main(
+                    [
+                        "run-plan",
+                        "--workspace",
+                        tmp,
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "verifier-timeout",
+                        "--verifier-policy",
+                        str(policy_path),
+                        "--verifier",
+                        "python-unittest",
+                    ]
                 )
+            result = json.loads(print_mock.call_args.args[0])
 
-                with patch("builtins.print") as print_mock:
-                    exit_code = main(
-                        [
-                            "run-plan",
-                            "--workspace",
-                            tmp,
-                            "--plan",
-                            str(plan_path),
-                            "--run-id",
-                            "verifier-timeout",
-                            "--verifier-policy",
-                            str(policy_path),
-                            "--verifier",
-                            "python-unittest",
-                        ]
-                    )
-                result = json.loads(print_mock.call_args.args[0])
-
-                self.assertNotEqual(exit_code, 0)
-                self.assertEqual(result["status"], "halted")
-                self.assertEqual(result["reason"], "verifier_timeout")
-                self.assertEqual(result["verifier_results"][0]["reason"], "verifier_timeout")
+            self.assertNotEqual(exit_code, 0)
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "verifier_timeout")
+            self.assertEqual(result["verifier_results"][0]["reason"], "verifier_timeout")
 
     def test_cli_run_plan_rejects_unknown_verifier_before_writing(self):
         with tempfile.TemporaryDirectory() as tmp:

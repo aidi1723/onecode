@@ -8,6 +8,7 @@ from typing import Any, Sequence
 from unittest.mock import patch
 
 _original_subprocess_run = subprocess.run
+_STUB_CONTROLS: dict[int, dict[str, bool]] = {}
 
 
 def _workspace_from_bind_mount(command: Sequence[str]) -> Path | None:
@@ -63,13 +64,36 @@ def _stub_docker(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
     return _completed(command)
 
 
-def _sandbox_subprocess_run(command: Sequence[str], *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+def _sandbox_subprocess_run(
+    test_case: unittest.TestCase,
+    command: Sequence[str],
+    *args: Any,
+    **kwargs: Any,
+) -> subprocess.CompletedProcess[str]:
     if command and command[0] == "docker":
+        action = command[1] if len(command) > 1 else ""
+        controls = _STUB_CONTROLS.get(id(test_case), {})
+        if action == "run" and controls.get("timeout_docker_run"):
+            raise subprocess.TimeoutExpired(cmd=list(command), timeout=0.1)
         return _stub_docker(command)
     return _original_subprocess_run(command, *args, **kwargs)
 
 
 def install_sandbox_docker_stub(test_case: unittest.TestCase) -> None:
-    patcher = patch("onecode.kernel.sandbox.subprocess.run", side_effect=_sandbox_subprocess_run)
+    _STUB_CONTROLS[id(test_case)] = {"timeout_docker_run": False}
+
+    def _run(command: Sequence[str], *args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return _sandbox_subprocess_run(test_case, command, *args, **kwargs)
+
+    patcher = patch("onecode.kernel.sandbox.subprocess.run", side_effect=_run)
+    test_case.addCleanup(lambda: _STUB_CONTROLS.pop(id(test_case), None))
     test_case.addCleanup(patcher.stop)
     patcher.start()
+
+
+def force_docker_run_timeout(test_case: unittest.TestCase) -> None:
+    controls = _STUB_CONTROLS.get(id(test_case))
+    if controls is None:
+        raise RuntimeError("install_sandbox_docker_stub must be called before force_docker_run_timeout")
+    controls["timeout_docker_run"] = True
+    test_case.addCleanup(lambda: controls.update(timeout_docker_run=False))
