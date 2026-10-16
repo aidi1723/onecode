@@ -381,6 +381,21 @@ class AtomicWriteTests(unittest.TestCase):
             self.assertEqual(target.read_text(encoding="utf-8"), original)
             self.assertEqual([path.name for path in source.iterdir()], ["app.py"])
 
+    def test_cleanup_removes_temp_names_with_underscores(self):
+        from onecode.kernel.path_guard import PathGuard
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            source = workspace / "src"
+            source.mkdir()
+            (source / "app.py").write_text("x = 1\n", encoding="utf-8")
+            (source / ".app.py.k_aohonk").write_text("partial", encoding="utf-8")
+
+            removed = PathGuard.discard_interrupted_writes(workspace)
+
+            self.assertEqual(removed, ["src/.app.py.k_aohonk"])
+            self.assertEqual([path.name for path in source.iterdir()], ["app.py"])
+
 
 def _resident_bytes() -> int:
     status = Path("/proc/self/status")

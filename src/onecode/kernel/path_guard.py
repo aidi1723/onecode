@@ -10,7 +10,7 @@ class PathGuardError(ValueError):
     pass
 
 
-_INTERRUPTED_WRITE = re.compile(r"\A\..+\.[A-Za-z0-9]{8}\Z")
+_INTERRUPTED_WRITE = re.compile(r"\A\..+\.[A-Za-z0-9_]{8}\Z")
 
 
 class PathGuard:
