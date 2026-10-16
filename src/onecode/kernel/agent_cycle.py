@@ -92,6 +92,10 @@ def run_agent_cycle(
             allowed = READ_ONLY_TOOLS
         else:
             allowed = ALL_TOOLS
+    if history:
+        last_cycle = history[-1].get("cycle")
+        if isinstance(last_cycle, dict) and last_cycle.get("cycle") == "read_only_continue":
+            return _halt(history[-1].get("reason"), history)
     decision = agent_cycle_decision("halted", "resource_budget_exceeded")
     return {
         "status": "halted",
@@ -197,10 +201,35 @@ def _run_proposal(
             repeat["retry_streak"] = 0
             changed = workspace is None or _workspace_fingerprint(workspace) != before
             _note_progress(repeat, record, changed)
-        if record["status"] != "completed" or record["reason"] not in {None} | IchingKernel.SOFT_MISS_REASONS:
-            return {**record, "calls": calls}
-    last = calls[-1]
-    return {**last, "calls": calls}
+        if record["status"] != "completed" or record["reason"] is not None:
+            return {**_highest_severity(calls), "calls": calls}
+    return {**_highest_severity(calls), "calls": calls}
+
+
+def _observation_rank(record: dict[str, Any]) -> int:
+    reason = record.get("reason")
+    if reason in {"permission_denied", "approval_required", "sovereignty_breach", "repeated_action", "no_progress"}:
+        return 0
+    if reason in {"action_exception", "run_exception", "http_timeout"}:
+        return 1
+    if reason in IchingKernel.SOFT_MISS_REASONS:
+        return 2
+    if record.get("status") == "completed" and reason is None:
+        return 3
+    if record.get("status") != "completed":
+        return 1
+    return 2
+
+
+def _highest_severity(calls: list[dict[str, Any]]) -> dict[str, Any]:
+    chosen = calls[0]
+    chosen_rank = _observation_rank(chosen)
+    for call in calls[1:]:
+        rank = _observation_rank(call)
+        if rank <= chosen_rank:
+            chosen = call
+            chosen_rank = rank
+    return chosen
 
 
 def _no_progress(tool_name: str, calls: list[dict[str, Any]]) -> dict[str, Any]:

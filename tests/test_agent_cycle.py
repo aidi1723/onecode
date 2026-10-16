@@ -719,6 +719,42 @@ class AgentCycleTests(unittest.TestCase):
             self.assertEqual(calls, [])
             self.assertEqual(denied["reason"], "permission_denied")
 
+    def test_two_tool_turn_does_not_hide_later_halt_behind_earlier_success(self):
+        def propose(history, allowed):
+            return [
+                {"tool_name": "read_text", "params": {"path": "ok.txt"}},
+                {"tool_name": "run_command", "params": {"argv": ["echo", "x"]}},
+            ]
+
+        def execute(tool_name, params):
+            if tool_name == "read_text":
+                return {"status": "completed", "reason": None, "output": "ok"}
+            return {"status": "halted", "reason": "action_exception", "output": ""}
+
+        result = run_agent_cycle(
+            propose=propose,
+            execute=execute,
+            approve=lambda tool_name, params: True,
+            max_turns=1,
+        )
+        self.assertEqual(result["reason"], "action_exception")
+        self.assertEqual(result["status"], "halted")
+
+    def test_two_tool_turn_soft_miss_then_hard_halt_is_hard_halt(self):
+        def propose(history, allowed):
+            return [
+                {"tool_name": "read_text", "params": {"path": "missing.txt"}},
+                {"tool_name": "write_text", "params": {"path": "x.py", "content": "1\n"}},
+            ]
+
+        def execute(tool_name, params):
+            if tool_name == "read_text":
+                return {"status": "halted", "reason": "path_not_found", "output": ""}
+            raise AssertionError("write_text must not run after a hard stop in the same turn if the second call is not reached; if it is reached, return permission_denied")
+
+        result = run_agent_cycle(propose=propose, execute=execute, max_turns=1)
+        self.assertIn(result["reason"], {"path_not_found", "permission_denied", "no_progress"})
+
 
 if __name__ == "__main__":
     unittest.main()
