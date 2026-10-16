@@ -693,6 +693,59 @@ class ModelLoopTests(unittest.TestCase):
             self.assertEqual(halted["reason"], "approval_required")
             self.assertFalse((workspace / "src" / "generated.py").exists())
 
+    def test_rejecting_execution_approval_does_not_write_asset_plan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            rejected = run_model_task_wrapper(
+                "build project",
+                workspace=workspace,
+                run_id="rejected-asset-write",
+                model="test-model",
+                api_key="test-key",
+                provider=FakeModelProvider(
+                    ModelPlan(
+                        task="build generated project",
+                        assets=[ModelPlanAsset(path="src/generated.py", content="VALUE = 1\n")],
+                    )
+                ),
+                execution_approval=lambda step: False,
+            )
+            target = workspace / "src" / "generated.py"
+            self.assertFalse(target.exists())
+            self.assertEqual(rejected["status"], "halted")
+            self.assertEqual(rejected["reason"], "approval_rejected")
+
+    def test_rejecting_execution_approval_does_not_change_patch_plan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            target = workspace / "src" / "generated.py"
+            target.parent.mkdir()
+            original = "def status():\n    return False\n"
+            target.write_text(original, encoding="utf-8")
+            rejected = run_model_task_wrapper(
+                "patch project",
+                workspace=workspace,
+                run_id="rejected-patch",
+                model="test-model",
+                api_key="test-key",
+                provider=FakeModelProvider(
+                    ModelPlan(
+                        task="patch generated project",
+                        patches=[
+                            ModelPlanPatch(
+                                path="src/generated.py",
+                                search_block="return False",
+                                replace_block="return True",
+                            )
+                        ],
+                    )
+                ),
+                execution_approval=lambda step: False,
+            )
+            self.assertEqual(target.read_text(encoding="utf-8"), original)
+            self.assertEqual(rejected["status"], "halted")
+            self.assertEqual(rejected["reason"], "approval_rejected")
+
     def test_run_model_task_executes_mock_plan_through_runner(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

@@ -52,6 +52,25 @@ def plan_actions_from_plan(plan: ModelPlan) -> list[dict[str, str]]:
     return actions
 
 
+def asset_patch_approval_step(plan: ModelPlan) -> ExecutionStep:
+    tool_calls = [
+        ToolCallSpec(tool_name="write_text", params={"path": asset.path, "content": asset.content})
+        for asset in plan.assets
+    ]
+    tool_calls.extend(
+        ToolCallSpec(
+            tool_name="patch_text",
+            params={
+                "path": patch.path,
+                "search_block": patch.search_block,
+                "replace_block": patch.replace_block,
+            },
+        )
+        for patch in plan.patches
+    )
+    return ExecutionStep(id="asset-patch", description=plan.task, tool_calls=tool_calls)
+
+
 def execution_plan_from_model_plan(plan: ModelPlan) -> ExecutionPlan:
     if plan.execution_steps:
         return ExecutionPlan(
@@ -258,6 +277,18 @@ def execute_model_plan(
         )
         write_ledger(context, result)
         return result
+    if approval_callback is not None and not approval_callback(asset_patch_approval_step(plan)):
+        return {
+            "run_id": run_id,
+            "status": "halted",
+            "reason": "approval_rejected",
+            "partial": True,
+            "requested_count": len(plan.assets) + len(plan.patches),
+            "completed_count": 0,
+            "skipped_count": len(plan.assets) + len(plan.patches),
+            "failed_count": 0,
+            "assets": [],
+        } | run_metadata
     return run_task(
         plan.task,
         workspace=workspace,
