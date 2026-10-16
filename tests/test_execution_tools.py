@@ -42,6 +42,26 @@ class ExecutionToolsTests(unittest.TestCase):
             with self.assertRaises(PathGuardError):
                 ReadTextTool().execute({"path": "../secret"}, Path(tmp))
 
+    def test_read_text_missing_file_raises_path_not_found(self):
+        from onecode.kernel.execution_tools import ReadTextTool
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(ValueError) as caught:
+                ReadTextTool().execute({"path": "missing.txt"}, Path(tmp))
+
+        self.assertEqual(str(caught.exception), "path_not_found")
+
+    def test_read_text_directory_raises_read_target_not_file(self):
+        from onecode.kernel.execution_tools import ReadTextTool
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "docs").mkdir()
+            with self.assertRaises(ValueError) as caught:
+                ReadTextTool().execute({"path": "docs"}, workspace)
+
+        self.assertEqual(str(caught.exception), "read_target_not_file")
+
     def test_list_and_search_are_bounded(self):
         from onecode.kernel.execution_tools import ListFilesTool, SearchTextTool
 

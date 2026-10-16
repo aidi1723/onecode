@@ -12,6 +12,7 @@ from typing import Any
 from onecode.kernel.agent_memory import compact_agent_history, remember_turn
 from onecode.kernel.cycle_approvals import find_pending_approval, persist_pending_approval
 from onecode.kernel.execution_tools import tool_requires_approval
+from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.outcome_policy import agent_cycle_decision, agent_cycle_decision_for_tool
 from onecode.kernel.path_guard import PathGuard
 
@@ -196,7 +197,7 @@ def _run_proposal(
             repeat["retry_streak"] = 0
             changed = workspace is None or _workspace_fingerprint(workspace) != before
             _note_progress(repeat, record, changed)
-        if record["status"] != "completed" or record["reason"] not in {None, "search_miss", "path_not_found"}:
+        if record["status"] != "completed" or record["reason"] not in {None} | IchingKernel.SOFT_MISS_REASONS:
             return {**record, "calls": calls}
     last = calls[-1]
     return {**last, "calls": calls}
@@ -222,7 +223,7 @@ def _note_progress(repeat: dict[str, Any], record: dict[str, Any], fingerprint_c
 
 
 def _unproductive(record: dict[str, Any], fingerprint_changed: bool, previous_output: object) -> bool:
-    if record.get("reason") in {"search_miss", "path_not_found"}:
+    if record.get("reason") in IchingKernel.SOFT_MISS_REASONS:
         return True
     if record.get("tool_name") in READ_ONLY_TOOLS and record.get("output") == "" and record.get("reason") is None:
         return True
@@ -399,7 +400,7 @@ def _stop_is_success(history: list[dict[str, Any]]) -> bool:
         return False
     if last.get("returncode") not in {None, 0}:
         return False
-    return last.get("reason") in {None, "search_miss", "path_not_found"}
+    return last.get("reason") in {None} | IchingKernel.SOFT_MISS_REASONS
 
 
 def _tool_allowed(tool_name: str, allowed: frozenset[str]) -> bool:

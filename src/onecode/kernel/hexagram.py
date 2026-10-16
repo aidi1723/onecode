@@ -70,6 +70,12 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
     LI = 0b101
     XUN = 0b110
     QIAN = 0b111
+    SOFT_MISS_REASONS = frozenset({
+        "search_miss",
+        "path_not_found",
+        "read_target_not_file",
+        "list_target_not_found",
+    })
 
     TRIGRAM_NAMES = {
         KUN: "kun",
@@ -297,7 +303,7 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
             return cls.compute_status(cls.LI, cls.KUN)
         if reason == "http_timeout":
             return cls.compute_status(cls.KAN, cls.ZHEN)
-        if reason in {"search_miss", "path_not_found"}:
+        if reason in cls.SOFT_MISS_REASONS:
             return cls.compute_status(cls.KUN, cls.KUN)
         if reason in {"action_exception", "run_exception"}:
             return cls.compute_status(cls.GEN, cls.KUN)

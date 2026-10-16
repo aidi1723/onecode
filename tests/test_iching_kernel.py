@@ -116,6 +116,21 @@ class TestIchingKernel(unittest.TestCase):
             IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN),
         )
 
+    def test_soft_miss_reasons_stay_kun_and_continue_read_only(self):
+        from onecode.kernel.outcome_policy import agent_cycle_decision
+
+        kun = IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN)
+        reasons = ("search_miss", "path_not_found", "read_target_not_file", "list_target_not_found")
+        self.assertEqual(IchingKernel.SOFT_MISS_REASONS, frozenset(reasons))
+        self.assertTrue({"sovereignty_breach", "permission_denied", "approval_required"}.isdisjoint(IchingKernel.SOFT_MISS_REASONS))
+        for reason in reasons:
+            with self.subTest(reason=reason):
+                status_code = IchingKernel.classify_outcome("halted", reason)
+                self.assertEqual(status_code, kun)
+                decision = agent_cycle_decision("halted", reason)
+                self.assertEqual(decision["cycle"], "read_only_continue")
+                self.assertEqual(decision["status_code"], 0)
+
     def test_classify_skill_context_maps_valid_and_missing_skill_evidence(self):
         self.assertEqual(
             IchingKernel.classify_skill_context("ok", None),

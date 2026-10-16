@@ -121,6 +121,8 @@ class ReadTextTool(ToolDefinition):
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         action = self.plan_action(params)
         target = PathGuard.resolve_read_target(workspace, action["path"])
+        if not target.exists():
+            raise ValueError("path_not_found")
         if not target.is_file():
             raise ValueError("read_target_not_file")
         with target.open("rb") as handle:

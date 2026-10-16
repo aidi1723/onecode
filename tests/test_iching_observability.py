@@ -407,6 +407,17 @@ WEN_WANG_SEQUENCE = [
     "巽", "兑", "涣", "节", "中孚", "小过", "既济", "未济"
 ]
 
+def _control_snapshot(status_code: int) -> tuple[object, ...]:
+    transition = IchingKernel.transition(status_code)
+    return (
+        transition.status_code,
+        transition.action,
+        transition.reason,
+        IchingKernel.dispatch_decision(transition),
+        IchingKernel.execution_bandwidth(status_code),
+    )
+
+
 class IchingObservabilityTests(unittest.TestCase):
     def test_pure_read_only_telemetry_baseline_64(self) -> None:
         # User requested: "用改动前的固定结果对照全部 64 个状态的 transition、dispatch 和带宽"
@@ -426,6 +437,17 @@ class IchingObservabilityTests(unittest.TestCase):
             relations = IchingKernel.micro_relations(i)
             self.assertIsInstance(moving, list)
             self.assertIsInstance(relations, dict)
+
+    def test_soft_miss_observability_does_not_change_control(self) -> None:
+        reasons = ("search_miss", "path_not_found", "read_target_not_file", "list_target_not_found")
+        for reason in reasons:
+            with self.subTest(reason=reason):
+                status_code = IchingKernel.classify_outcome("halted", reason)
+                before = _control_snapshot(status_code)
+                IchingKernel.moving_lines(0, status_code)
+                IchingKernel.micro_relations(status_code)
+                IchingKernel.cycle_phase(1)
+                self.assertEqual(_control_snapshot(status_code), before)
 
     def test_micro_relations_qian_and_jiji(self) -> None:
         # User requested: 把比改成相邻同性、应改成对应位异性，并用乾卦（比 5、应 0）和既济（应 3）锁住

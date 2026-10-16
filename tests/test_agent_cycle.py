@@ -357,6 +357,39 @@ class AgentCycleTests(unittest.TestCase):
         self.assertEqual(len(empty_calls), 2)
         self.assertEqual(spun["reason"], "no_progress")
 
+    def test_two_missing_file_reads_stop_with_no_progress(self):
+        from onecode.kernel.execution_tools import ReadTextTool
+        from onecode.kernel.path_guard import PathGuardError
+
+        tool = ReadTextTool()
+        calls: list[str] = []
+
+        def propose(history, allowed):
+            paths = ["missing-a.txt", "missing-b.txt", "missing-c.txt"]
+            return [{"tool_name": "read_text", "params": {"path": paths[min(len(history), 2)]}}]
+
+        def execute(tool_name, params):
+            calls.append(params["path"])
+            try:
+                output = tool.execute(params, workspace)
+            except PathGuardError:
+                return {"status": "halted", "reason": "sovereignty_breach"}
+            except ValueError as exc:
+                return {"status": "halted", "reason": str(exc) or "tool_failed"}
+            return {"status": "completed", "reason": None, **output}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_agent_cycle(propose=propose, execute=execute, workspace=workspace, max_turns=8)
+
+        self.assertEqual(
+            [turn.get("reason") for turn in result["turns"]],
+            ["path_not_found", "path_not_found", "no_progress"],
+        )
+        self.assertEqual(result["reason"], "no_progress")
+        self.assertLessEqual(result["turn_count"], 3)
+        self.assertEqual(calls, ["missing-a.txt", "missing-b.txt"])
+
     def test_changed_output_is_progress_and_identical_reads_still_honor_the_budget(self):
         changed = []
 
