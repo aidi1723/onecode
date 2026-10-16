@@ -37,7 +37,6 @@ from tests.sandbox_test_harness import install_sandbox_docker_stub
 
 
 def run_model_task_wrapper(*args, **kwargs):
-    kwargs.setdefault("require_explicit_approval", False)
     return _run_model_task(*args, **kwargs)
 
 class FakeModelProvider:
@@ -218,6 +217,7 @@ class ModelLoopTests(unittest.TestCase):
                 api_key="test-key",
                 provider=SequenceThenTimeoutProvider(first_plan),
                 max_repair_attempts=1,
+                require_explicit_approval=False,
             )
             events = [
                 json.loads(line)
@@ -680,6 +680,7 @@ class ModelLoopTests(unittest.TestCase):
                 model="test-model",
                 api_key="test-key",
                 provider=provider,
+                require_explicit_approval=False,
             )
 
             self.assertEqual(result["status"], "completed")
@@ -744,6 +745,7 @@ class ModelLoopTests(unittest.TestCase):
                 model="test-model",
                 api_key=secret,
                 provider=provider,
+                require_explicit_approval=False,
             )
 
             evidence_root = Path(result["ledger_path"]).parent
@@ -787,6 +789,7 @@ class ModelLoopTests(unittest.TestCase):
                 model="test-model",
                 api_key="test-key",
                 provider=provider,
+                require_explicit_approval=False,
             )
 
             self.assertEqual(result["status"], "completed")
@@ -868,6 +871,7 @@ class ModelLoopTests(unittest.TestCase):
                 model="test-model",
                 api_key="test-key",
                 provider=provider,
+                require_explicit_approval=False,
             )
 
             self.assertEqual(result["status"], "completed")
@@ -905,6 +909,7 @@ class ModelLoopTests(unittest.TestCase):
                 model="test-model",
                 api_key="test-key",
                 provider=provider,
+                require_explicit_approval=False,
             )
 
             self.assertEqual(result["status"], "completed")
@@ -973,6 +978,7 @@ class ModelLoopTests(unittest.TestCase):
                 api_key="test-key",
                 provider=provider,
                 max_repair_attempts=1,
+                require_explicit_approval=False,
             )
 
             self.assertEqual(result["status"], "completed")
@@ -1050,6 +1056,7 @@ class ModelLoopTests(unittest.TestCase):
                 api_key="test-key",
                 provider=provider,
                 max_repair_attempts=2,
+                require_explicit_approval=False,
             )
 
             self.assertEqual(result["status"], "completed")
@@ -1110,6 +1117,7 @@ class ModelLoopTests(unittest.TestCase):
                 api_key="test-key",
                 provider=provider,
                 max_repair_attempts=1,
+                require_explicit_approval=False,
             )
 
             self.assertEqual(result["status"], "halted")
@@ -1319,6 +1327,7 @@ class ModelLoopTests(unittest.TestCase):
                 model="test-model",
                 api_key="test-key",
                 provider=provider,
+                require_explicit_approval=False,
             )
             from onecode.kernel.sandbox import SandboxConfig
             verifier = run_verifier(

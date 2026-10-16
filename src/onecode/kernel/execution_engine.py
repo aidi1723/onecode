@@ -254,7 +254,7 @@ def execute_plan(
     tool_registry: ToolRegistry | None = None,
     guardrails: GuardrailConfig | None = None,
     approval_callback: ApprovalCallback | None = None,
-    require_explicit_approval: bool = False,
+    require_explicit_approval: bool = True,
     on_turn: Callable[[dict[str, Any]], None] | None = None,
 ) -> ExecutionTrace:
     config = guardrails or GuardrailConfig()

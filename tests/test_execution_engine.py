@@ -159,6 +159,7 @@ class ExecutionEngineTests(unittest.TestCase):
                 workspace=workspace,
                 run_id="execution-plan-run",
                 tool_registry=default_tool_registry(),
+                approval_callback=lambda step: True,
             )
 
             self.assertTrue(trace.success)
@@ -206,6 +207,7 @@ class ExecutionEngineTests(unittest.TestCase):
                 workspace=workspace,
                 run_id="execution-dependency-run",
                 tool_registry=default_tool_registry(),
+                approval_callback=lambda step: True,
             )
 
             self.assertFalse(trace.success)
@@ -249,6 +251,7 @@ class ExecutionEngineTests(unittest.TestCase):
                 run_id="execution-safety-break-run",
                 tool_registry=default_tool_registry(),
                 guardrails=GuardrailConfig(max_consecutive_failures=3),
+                approval_callback=lambda step: True,
             )
 
             self.assertFalse(trace.success)
@@ -319,6 +322,7 @@ class ExecutionEngineTests(unittest.TestCase):
                     workspace=workspace,
                     run_id="parallel-run",
                     tool_registry=default_tool_registry(),
+                    approval_callback=lambda step: True,
                 )
             duration = time.monotonic() - started
 
@@ -362,7 +366,12 @@ class ExecutionEngineTests(unittest.TestCase):
                 ],
             )
 
-            trace = execute_plan(plan, workspace=workspace, run_id="parallel-evidence")
+            trace = execute_plan(
+                plan,
+                workspace=workspace,
+                run_id="parallel-evidence",
+                approval_callback=lambda step: True,
+            )
 
             run_root = workspace / ".onecode" / "runs" / "parallel-evidence"
             manifest = json.loads((run_root / "manifest.json").read_text(encoding="utf-8"))
@@ -422,6 +431,7 @@ class ExecutionEngineTests(unittest.TestCase):
                 workspace=workspace,
                 run_id="global-status-run",
                 tool_registry=default_tool_registry(),
+                approval_callback=lambda step: True,
             )
 
             expected = IchingKernel.aggregate_status(
@@ -465,7 +475,12 @@ class ExecutionEngineTests(unittest.TestCase):
                 ],
             )
 
-            trace = execute_plan(plan, workspace=workspace, run_id="entropy-success-run")
+            trace = execute_plan(
+                plan,
+                workspace=workspace,
+                run_id="entropy-success-run",
+                approval_callback=lambda step: True,
+            )
 
             self.assertTrue(trace.success)
             self.assertEqual(trace.global_status_code, IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN))
@@ -491,7 +506,12 @@ class ExecutionEngineTests(unittest.TestCase):
                 ],
             )
 
-            trace = execute_plan(plan, workspace=workspace, run_id="trace-global-run")
+            trace = execute_plan(
+                plan,
+                workspace=workspace,
+                run_id="trace-global-run",
+                approval_callback=lambda step: True,
+            )
             trace_dict = execution_trace_to_dict(trace)
 
             self.assertEqual(trace_dict["global_status_code"], trace.global_status_code)
@@ -542,6 +562,7 @@ class ExecutionEngineTests(unittest.TestCase):
                 workspace=workspace,
                 run_id="bandwidth-block-run",
                 tool_registry=default_tool_registry(),
+                approval_callback=lambda step: True,
             )
 
             self.assertFalse(trace.success)
@@ -579,6 +600,57 @@ class ExecutionEngineTests(unittest.TestCase):
             self.assertEqual(trace.step_results[0].status, "skipped")
             self.assertEqual(trace.step_results[0].reason, "approval_rejected")
             self.assertFalse((workspace / "src" / "mesh.py").exists())
+
+    def test_execute_plan_defaults_to_explicit_approval_for_write_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan = ExecutionPlan(
+                task="default approval",
+                steps=[
+                    ExecutionStep(
+                        id="write",
+                        description="create file",
+                        tool_calls=[
+                            ToolCallSpec(
+                                tool_name="write_text",
+                                params={"path": "src/mesh.py", "content": "VALUE = 1\n"},
+                            )
+                        ],
+                    )
+                ],
+            )
+            trace = execute_plan(plan, workspace=workspace, tool_registry=default_tool_registry())
+            self.assertFalse(trace.success)
+            self.assertEqual(trace.step_results[0].status, "failed")
+            self.assertEqual(trace.step_results[0].reason, "approval_required")
+            self.assertFalse((workspace / "src" / "mesh.py").exists())
+
+    def test_execute_plan_writes_after_approval_callback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan = ExecutionPlan(
+                task="approved write",
+                steps=[
+                    ExecutionStep(
+                        id="write",
+                        description="create file",
+                        tool_calls=[
+                            ToolCallSpec(
+                                tool_name="write_text",
+                                params={"path": "src/mesh.py", "content": "VALUE = 1\n"},
+                            )
+                        ],
+                    )
+                ],
+            )
+            trace = execute_plan(
+                plan,
+                workspace=workspace,
+                tool_registry=default_tool_registry(),
+                approval_callback=lambda step: True,
+            )
+            self.assertTrue(trace.success)
+            self.assertEqual((workspace / "src" / "mesh.py").read_text(encoding="utf-8"), "VALUE = 1\n")
 
     def test_cli_run_execution_plan_loads_json_and_executes_steps(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -618,15 +690,12 @@ class ExecutionEngineTests(unittest.TestCase):
                     ]
                 )
 
-            self.assertEqual(exit_code, 0)
-            self.assertEqual((workspace / "src" / "mesh.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+            self.assertNotEqual(exit_code, 0)
+            self.assertFalse((workspace / "src" / "mesh.py").exists())
             payload = json.loads(print_mock.call_args.args[0])
-            self.assertTrue(payload["success"])
-            self.assertEqual(payload["shell_projection"]["status_label"], "completed")
-            self.assertEqual(payload["shell_projection"]["severity"], "ok")
-            self.assertEqual(payload["step_results"][0]["status"], "completed")
-            self.assertEqual(payload["runner_results"][0]["shell_projection"]["run_id"], "cli-execution-plan")
-            self.assertEqual(payload["runner_results"][0]["shell_projection"]["severity"], "ok")
+            self.assertFalse(payload["success"])
+            self.assertEqual(payload["step_results"][0]["status"], "failed")
+            self.assertEqual(payload["step_results"][0]["reason"], "approval_required")
 
 
 
