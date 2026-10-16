@@ -323,6 +323,28 @@ class ModelLoopTests(unittest.TestCase):
         self.assertEqual(result["reason"], "no_actionable_plan")
         self.assertNotEqual(result.get("intent_type"), "noop")
 
+    def test_no_action_plan_stays_no_action_when_execution_approval_is_set(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            provider = ContextCapturingProvider(
+                ModelPlan(task="explain", no_action_reason="no workspace action")
+            )
+
+            result = run_model_task_wrapper(
+                "解释一下",
+                workspace=Path(tmp),
+                api_key="key",
+                provider=provider,
+                task_mode="read_task",
+                safe_agent_route=SafeAgentRoute("no_match", "no_matching_scenario", schema_version=2),
+                provider_kind="chat",
+                execution_approval=lambda step: True,
+            )
+
+        self.assertEqual(result["status"], "halted")
+        self.assertEqual(result["reason"], "no_actionable_plan")
+        self.assertEqual(result["detail"], "no workspace action")
+        self.assertEqual(result["intent_type"], "no_action")
+
     def test_guarded_model_plan_is_persisted_before_execution(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
@@ -742,6 +764,66 @@ class ModelLoopTests(unittest.TestCase):
                 ),
                 execution_approval=lambda step: False,
             )
+            self.assertEqual(target.read_text(encoding="utf-8"), original)
+            self.assertEqual(rejected["status"], "halted")
+            self.assertEqual(rejected["reason"], "approval_rejected")
+
+    def test_rejecting_second_asset_or_patch_step_writes_nothing(self):
+        def approve_unless_second(step):
+            return step.tool_calls[0].params["path"] != "src/second.py"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            rejected = run_model_task_wrapper(
+                "build two files",
+                workspace=workspace,
+                run_id="reject-second-asset",
+                model="test-model",
+                api_key="test-key",
+                provider=FakeModelProvider(
+                    ModelPlan(
+                        task="write two files",
+                        assets=[
+                            ModelPlanAsset(path="src/first.py", content="FIRST = 1\n"),
+                            ModelPlanAsset(path="src/second.py", content="SECOND = 1\n"),
+                        ],
+                    )
+                ),
+                execution_approval=approve_unless_second,
+            )
+            self.assertFalse((workspace / "src" / "first.py").exists())
+            self.assertFalse((workspace / "src" / "second.py").exists())
+            self.assertEqual(rejected["status"], "halted")
+            self.assertEqual(rejected["reason"], "approval_rejected")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            target = workspace / "src" / "existing.py"
+            target.parent.mkdir()
+            original = "VALUE = 0\n"
+            target.write_text(original, encoding="utf-8")
+            rejected = run_model_task_wrapper(
+                "write then patch",
+                workspace=workspace,
+                run_id="reject-second-patch",
+                model="test-model",
+                api_key="test-key",
+                provider=FakeModelProvider(
+                    ModelPlan(
+                        task="write and patch",
+                        assets=[ModelPlanAsset(path="src/first.py", content="FIRST = 1\n")],
+                        patches=[
+                            ModelPlanPatch(
+                                path="src/existing.py",
+                                search_block="VALUE = 0",
+                                replace_block="VALUE = 1",
+                            )
+                        ],
+                    )
+                ),
+                execution_approval=lambda step: step.tool_calls[0].params["path"] != "src/existing.py",
+            )
+            self.assertFalse((workspace / "src" / "first.py").exists())
             self.assertEqual(target.read_text(encoding="utf-8"), original)
             self.assertEqual(rejected["status"], "halted")
             self.assertEqual(rejected["reason"], "approval_rejected")

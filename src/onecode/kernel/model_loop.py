@@ -52,25 +52,6 @@ def plan_actions_from_plan(plan: ModelPlan) -> list[dict[str, str]]:
     return actions
 
 
-def asset_patch_approval_step(plan: ModelPlan) -> ExecutionStep:
-    tool_calls = [
-        ToolCallSpec(tool_name="write_text", params={"path": asset.path, "content": asset.content})
-        for asset in plan.assets
-    ]
-    tool_calls.extend(
-        ToolCallSpec(
-            tool_name="patch_text",
-            params={
-                "path": patch.path,
-                "search_block": patch.search_block,
-                "replace_block": patch.replace_block,
-            },
-        )
-        for patch in plan.patches
-    )
-    return ExecutionStep(id="asset-patch", description=plan.task, tool_calls=tool_calls)
-
-
 def execution_plan_from_model_plan(plan: ModelPlan) -> ExecutionPlan:
     if plan.execution_steps:
         return ExecutionPlan(
@@ -130,6 +111,14 @@ def execution_plan_from_model_plan(plan: ModelPlan) -> ExecutionPlan:
             )
         )
     return ExecutionPlan(task=plan.task, steps=steps)
+
+
+def asset_patch_steps_approved(plan: ModelPlan, approval_callback: Callable[[ExecutionStep], bool]) -> bool:
+    approved = True
+    for step in execution_plan_from_model_plan(plan).steps:
+        if not approval_callback(step):
+            approved = False
+    return approved
 
 
 def build_provider(api_key: str, provider_kind: str, endpoint: str | None) -> Any:
@@ -277,7 +266,7 @@ def execute_model_plan(
         )
         write_ledger(context, result)
         return result
-    if approval_callback is not None and not approval_callback(asset_patch_approval_step(plan)):
+    if approval_callback is not None and not asset_patch_steps_approved(plan, approval_callback):
         return {
             "run_id": run_id,
             "status": "halted",
@@ -797,7 +786,7 @@ def run_model_task(
     if failure is not None:
         return failed_model_result(model_context, failure)
     assert plan is not None
-    if execution_approval is None:
+    if plan.no_action_reason is not None or execution_approval is None:
         early_result = early_model_plan_result(
             require_explicit_approval=require_explicit_approval, workspace=workspace, model_context=model_context,
             trace_path=trace_path, plan=plan, provider_config=provider_config, resolved_model=resolved_model,
