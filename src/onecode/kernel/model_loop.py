@@ -766,13 +766,14 @@ def run_model_task(
     if failure is not None:
         return failed_model_result(model_context, failure)
     assert plan is not None
-    early_result = early_model_plan_result(
-        require_explicit_approval=require_explicit_approval, workspace=workspace, model_context=model_context,
-        trace_path=trace_path, plan=plan, provider_config=provider_config, resolved_model=resolved_model,
-        planning_context=planning_context,
-    )
-    if early_result is not None:
-        return early_result
+    if execution_approval is None:
+        early_result = early_model_plan_result(
+            require_explicit_approval=require_explicit_approval, workspace=workspace, model_context=model_context,
+            trace_path=trace_path, plan=plan, provider_config=provider_config, resolved_model=resolved_model,
+            planning_context=planning_context,
+        )
+        if early_result is not None:
+            return early_result
     if plan_approval is not None and not plan_approval(plan):
         return {
             "run_id": run_id,

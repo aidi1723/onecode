@@ -217,7 +217,7 @@ class ModelLoopTests(unittest.TestCase):
                 api_key="test-key",
                 provider=SequenceThenTimeoutProvider(first_plan),
                 max_repair_attempts=1,
-                require_explicit_approval=False,
+                execution_approval=lambda step: True,
             )
             events = [
                 json.loads(line)
@@ -660,6 +660,39 @@ class ModelLoopTests(unittest.TestCase):
             self.assertEqual(provider.calls, [])
             self.assertFalse((workspace / ".onecode").exists())
 
+    def test_execution_approval_callback_completes_asset_write_by_default(self):
+        plan = ModelPlan(
+            task="build generated project",
+            assets=[ModelPlanAsset(path="src/generated.py", content="VALUE = 1\n")],
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            approved = run_model_task_wrapper(
+                "build project",
+                workspace=workspace,
+                run_id="approved-asset-write",
+                model="test-model",
+                api_key="test-key",
+                provider=FakeModelProvider(plan),
+                execution_approval=lambda step: True,
+            )
+            self.assertEqual(approved["status"], "completed")
+            self.assertEqual((workspace / "src" / "generated.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            halted = run_model_task_wrapper(
+                "build project",
+                workspace=workspace,
+                run_id="unapproved-asset-write",
+                model="test-model",
+                api_key="test-key",
+                provider=FakeModelProvider(plan),
+            )
+            self.assertEqual(halted["status"], "halted")
+            self.assertEqual(halted["reason"], "approval_required")
+            self.assertFalse((workspace / "src" / "generated.py").exists())
+
     def test_run_model_task_executes_mock_plan_through_runner(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
@@ -680,7 +713,7 @@ class ModelLoopTests(unittest.TestCase):
                 model="test-model",
                 api_key="test-key",
                 provider=provider,
-                require_explicit_approval=False,
+                execution_approval=lambda step: True,
             )
 
             self.assertEqual(result["status"], "completed")
@@ -745,7 +778,7 @@ class ModelLoopTests(unittest.TestCase):
                 model="test-model",
                 api_key=secret,
                 provider=provider,
-                require_explicit_approval=False,
+                execution_approval=lambda step: True,
             )
 
             evidence_root = Path(result["ledger_path"]).parent
@@ -789,7 +822,7 @@ class ModelLoopTests(unittest.TestCase):
                 model="test-model",
                 api_key="test-key",
                 provider=provider,
-                require_explicit_approval=False,
+                execution_approval=lambda step: True,
             )
 
             self.assertEqual(result["status"], "completed")
@@ -820,7 +853,7 @@ class ModelLoopTests(unittest.TestCase):
                 workspace=workspace,
                 run_id="model-execution-plan",
                 tool_registry=default_tool_registry(),
-                require_explicit_approval=False,
+                approval_callback=lambda step: True,
             )
 
             self.assertTrue(trace.success)
@@ -871,7 +904,7 @@ class ModelLoopTests(unittest.TestCase):
                 model="test-model",
                 api_key="test-key",
                 provider=provider,
-                require_explicit_approval=False,
+                execution_approval=lambda step: True,
             )
 
             self.assertEqual(result["status"], "completed")
@@ -909,7 +942,7 @@ class ModelLoopTests(unittest.TestCase):
                 model="test-model",
                 api_key="test-key",
                 provider=provider,
-                require_explicit_approval=False,
+                execution_approval=lambda step: True,
             )
 
             self.assertEqual(result["status"], "completed")
@@ -978,7 +1011,7 @@ class ModelLoopTests(unittest.TestCase):
                 api_key="test-key",
                 provider=provider,
                 max_repair_attempts=1,
-                require_explicit_approval=False,
+                execution_approval=lambda step: True,
             )
 
             self.assertEqual(result["status"], "completed")
@@ -1056,7 +1089,7 @@ class ModelLoopTests(unittest.TestCase):
                 api_key="test-key",
                 provider=provider,
                 max_repair_attempts=2,
-                require_explicit_approval=False,
+                execution_approval=lambda step: True,
             )
 
             self.assertEqual(result["status"], "completed")
@@ -1117,7 +1150,7 @@ class ModelLoopTests(unittest.TestCase):
                 api_key="test-key",
                 provider=provider,
                 max_repair_attempts=1,
-                require_explicit_approval=False,
+                execution_approval=lambda step: True,
             )
 
             self.assertEqual(result["status"], "halted")
@@ -1327,7 +1360,7 @@ class ModelLoopTests(unittest.TestCase):
                 model="test-model",
                 api_key="test-key",
                 provider=provider,
-                require_explicit_approval=False,
+                execution_approval=lambda step: True,
             )
             from onecode.kernel.sandbox import SandboxConfig
             verifier = run_verifier(
