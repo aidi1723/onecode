@@ -591,6 +591,60 @@ class AgentCycleTests(unittest.TestCase):
         self.assertNotIn("stats.py", original_tests)
         self.assertIn("raise ValueError", business["source"])
 
+    def test_granted_approval_ids_executes_pending_tool_once(self):
+        calls: list[tuple[str, dict]] = []
+
+        def execute(tool_name: str, params: dict) -> dict:
+            calls.append((tool_name, params))
+            return {"status": "completed", "reason": None, "output": "ok"}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            first = run_agent_cycle(
+                propose=lambda history, allowed: [{"tool_name": "run_command", "params": {"argv": ["echo", "ok"]}}],
+                execute=execute,
+                workspace=workspace,
+                max_turns=1,
+            )
+            self.assertEqual(first["reason"], "approval_required")
+            self.assertEqual(calls, [])
+            pending_id = first["pending_id"]
+            self.assertTrue(pending_id)
+            second = run_agent_cycle(
+                propose=lambda history, allowed: [{"tool_name": "run_command", "params": {"argv": ["echo", "ok"]}}],
+                execute=execute,
+                workspace=workspace,
+                max_turns=1,
+                granted_approval_ids=frozenset({pending_id}),
+            )
+            self.assertEqual(calls, [("run_command", {"argv": ["echo", "ok"]})])
+            self.assertNotEqual(second.get("reason"), "approval_required")
+
+    def test_unknown_granted_approval_id_does_not_execute(self):
+        calls: list[tuple[str, dict]] = []
+
+        def execute(tool_name: str, params: dict) -> dict:
+            calls.append((tool_name, params))
+            return {"status": "completed", "reason": None, "output": "ok"}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            run_agent_cycle(
+                propose=lambda history, allowed: [{"tool_name": "run_command", "params": {"argv": ["echo", "ok"]}}],
+                execute=execute,
+                workspace=workspace,
+                max_turns=1,
+            )
+            again = run_agent_cycle(
+                propose=lambda history, allowed: [{"tool_name": "run_command", "params": {"argv": ["echo", "ok"]}}],
+                execute=execute,
+                workspace=workspace,
+                max_turns=1,
+                granted_approval_ids=frozenset({"not-the-id"}),
+            )
+            self.assertEqual(calls, [])
+            self.assertEqual(again["reason"], "approval_required")
+
 
 if __name__ == "__main__":
     unittest.main()

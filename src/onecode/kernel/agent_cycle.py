@@ -275,7 +275,9 @@ def _approval_gate(
         return None
     if workspace is not None:
         existing = find_pending_approval(workspace, tool_name, params)
-        if existing is not None and existing["id"] not in granted:
+        if existing is not None:
+            if existing["id"] in granted:
+                return None
             return _pending_result(existing, calls)
     if approve is not None and approve(tool_name, params):
         return None
