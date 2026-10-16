@@ -645,6 +645,33 @@ class AgentCycleTests(unittest.TestCase):
             self.assertEqual(calls, [])
             self.assertEqual(again["reason"], "approval_required")
 
+    def test_granted_approval_id_rejected_by_callback_does_not_execute(self):
+        calls: list[tuple[str, dict]] = []
+
+        def execute(tool_name: str, params: dict) -> dict:
+            calls.append((tool_name, params))
+            return {"status": "completed", "reason": None, "output": "ok"}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            first = run_agent_cycle(
+                propose=lambda history, allowed: [{"tool_name": "run_command", "params": {"argv": ["echo", "ok"]}}],
+                execute=execute,
+                workspace=workspace,
+                max_turns=1,
+            )
+            pending_id = first["pending_id"]
+            denied = run_agent_cycle(
+                propose=lambda history, allowed: [{"tool_name": "run_command", "params": {"argv": ["echo", "ok"]}}],
+                execute=execute,
+                workspace=workspace,
+                max_turns=1,
+                granted_approval_ids=frozenset({pending_id}),
+                approve=lambda *args: False,
+            )
+            self.assertEqual(calls, [])
+            self.assertEqual(denied["reason"], "permission_denied")
+
 
 if __name__ == "__main__":
     unittest.main()
