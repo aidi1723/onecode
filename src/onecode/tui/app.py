@@ -165,6 +165,13 @@ def format_execution_trace(trace: dict) -> str:
     return "\n".join(lines)
 
 
+def split_exec_plan_argument(argument: str) -> tuple[bool, str]:
+    stripped = argument.strip()
+    if stripped == "--approve" or stripped.startswith("--approve "):
+        return True, stripped.removeprefix("--approve").strip()
+    return False, stripped
+
+
 # --- Widgets ---
 
 class UserMessage(Static):
@@ -378,7 +385,7 @@ class OneCodeApp(App):
             "  /task <desc>       Run through OneCode kernel\n"
             "  /write path=content  Write a file\n"
             "  /plan file.json    Execute task plan\n"
-            "  /exec-plan file.json Execute multi-step plan\n"
+            "  /exec-plan [--approve] file.json Execute multi-step plan\n"
             "  /approve <plan-id> Approve a pending diff\n"
             "  /reject <plan-id>  Reject a pending diff\n"
             "  /inspect <run-id>  Inspect run evidence\n"
@@ -487,22 +494,31 @@ class OneCodeApp(App):
         return run_task(task, workspace=self.workspace, write_texts=write_texts, run_metadata=evidence)
 
     def _run_execution_plan(self, path: str) -> None:
-        if not path:
-            self._error("Usage: /exec-plan <file.json>")
+        approved, plan_path = split_exec_plan_argument(path)
+        if not plan_path:
+            self._error("Usage: /exec-plan [--approve] <file.json>")
             return
-        p = Path(path) if Path(path).is_absolute() else self.workspace / path
+        p = Path(plan_path) if Path(plan_path).is_absolute() else self.workspace / plan_path
         if not p.exists():
             self._error(f"Not found: {p}")
             return
         self._system("[dim]Executing multi-step plan...[/dim]")
-        self.run_worker(lambda: self._execution_plan_worker(p), name="execution-plan", thread=True)
+        self.run_worker(
+            lambda: self._execution_plan_worker(p, approved=approved),
+            name="execution-plan",
+            thread=True,
+        )
 
-    def _execution_plan_worker(self, plan_file: Path) -> dict:
+    def _execution_plan_worker(self, plan_file: Path, *, approved: bool = False) -> dict:
         from onecode.kernel.execution_engine import execute_plan
         from onecode.kernel.execution_plan_loader import execution_trace_to_dict, load_execution_plan
 
         plan = load_execution_plan(plan_file)
-        trace = execute_plan(plan, workspace=self.workspace)
+        trace = execute_plan(
+            plan,
+            workspace=self.workspace,
+            approval_callback=(lambda step: True) if approved else None,
+        )
         return execution_trace_to_dict(trace)
 
     def _run_doctor(self) -> None:

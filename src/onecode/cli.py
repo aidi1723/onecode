@@ -322,6 +322,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_execution_plan_parser.add_argument("--plan", required=True)
     run_execution_plan_parser.add_argument("--run-id", default=None)
     run_execution_plan_parser.add_argument("--resume-from", default=None)
+    run_execution_plan_parser.add_argument("--approve", action="store_true")
 
     run_model_parser = subparsers.add_parser("run-model")
     run_model_parser.add_argument("task")
@@ -893,6 +894,7 @@ def dispatch_run_command(args: Any, parser: argparse.ArgumentParser) -> int | No
                 workspace=Path(args.workspace),
                 run_id=args.run_id,
                 resume_from_run_id=args.resume_from,
+                approval_callback=(lambda step: True) if args.approve else None,
             )
         except ValueError as exc:
             parser.error(str(exc))

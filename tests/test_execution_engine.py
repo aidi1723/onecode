@@ -652,7 +652,7 @@ class ExecutionEngineTests(unittest.TestCase):
             self.assertTrue(trace.success)
             self.assertEqual((workspace / "src" / "mesh.py").read_text(encoding="utf-8"), "VALUE = 1\n")
 
-    def test_cli_run_execution_plan_loads_json_and_executes_steps(self):
+    def test_cli_run_execution_plan_without_approve_halts_before_write(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp) / "workspace"
             plan_path = Path(tmp) / "plan.json"
@@ -697,7 +697,54 @@ class ExecutionEngineTests(unittest.TestCase):
             self.assertEqual(payload["step_results"][0]["status"], "failed")
             self.assertEqual(payload["step_results"][0]["reason"], "approval_required")
 
+    def test_cli_run_execution_plan_with_approve_loads_json_and_executes_steps(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            plan_path = Path(tmp) / "plan.json"
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "task": "cli execution",
+                        "steps": [
+                            {
+                                "id": "write",
+                                "description": "create file",
+                                "tool_calls": [
+                                    {
+                                        "tool_name": "write_text",
+                                        "params": {"path": "src/mesh.py", "content": "VALUE = 1\n"},
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
 
+            with patch("builtins.print") as print_mock:
+                exit_code = main(
+                    [
+                        "run-execution-plan",
+                        "--workspace",
+                        str(workspace),
+                        "--plan",
+                        str(plan_path),
+                        "--run-id",
+                        "cli-execution-plan",
+                        "--approve",
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual((workspace / "src" / "mesh.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+            payload = json.loads(print_mock.call_args.args[0])
+            self.assertTrue(payload["success"])
+            self.assertEqual(payload["shell_projection"]["status_label"], "completed")
+            self.assertEqual(payload["shell_projection"]["severity"], "ok")
+            self.assertEqual(payload["step_results"][0]["status"], "completed")
+            self.assertEqual(payload["runner_results"][0]["shell_projection"]["run_id"], "cli-execution-plan")
+            self.assertEqual(payload["runner_results"][0]["shell_projection"]["severity"], "ok")
 
     def test_mcp_list_tools_halts_when_no_approval_callback(self):
         with tempfile.TemporaryDirectory() as tmp:

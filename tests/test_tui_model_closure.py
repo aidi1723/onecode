@@ -3,7 +3,13 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from onecode.kernel.execution_engine import execute_plan as execute_plan_impl
 from onecode.tui.app import OneCodeApp, format_execution_trace
+
+_EXEC_PLAN_JSON = (
+    '{"task":"tui exec","steps":[{"id":"write","description":"create file",'
+    '"tool_calls":[{"tool_name":"write_text","params":{"path":"src/mesh.py","content":"VALUE = 1\\n"}}]}]}'
+)
 
 
 class TuiModelClosureTests(unittest.TestCase):
@@ -221,6 +227,59 @@ class TuiModelClosureTests(unittest.TestCase):
         messages = [call.args[0] for call in assistant.call_args_list]
         self.assertTrue(all("shell-run" in message for message in messages))
         self.assertTrue(all("raw-run" not in message for message in messages))
+
+    def _schedule_exec_plan(self, app: OneCodeApp, argument: str):
+        captured: dict = {}
+
+        def capture(fn, **kwargs):
+            captured["worker"] = fn
+            captured["kwargs"] = kwargs
+
+        with (
+            patch.object(app, "run_worker", side_effect=capture),
+            patch.object(app, "_system"),
+            patch.object(app, "_error") as error,
+        ):
+            app._handle(f"/exec-plan {argument}")
+        return captured, error
+
+    def test_exec_plan_without_approve_does_not_write(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "plan.json").write_text(_EXEC_PLAN_JSON, encoding="utf-8")
+            app = OneCodeApp(workspace=workspace, model="test-model")
+
+            captured, error = self._schedule_exec_plan(app, "plan.json")
+
+            self.assertFalse(error.called)
+            with patch("onecode.kernel.execution_engine.execute_plan", wraps=execute_plan_impl) as execute_plan_mock:
+                trace = captured["worker"]()
+
+            self.assertFalse((workspace / "src" / "mesh.py").exists())
+            self.assertFalse(trace["success"])
+            self.assertEqual(trace["step_results"][0]["reason"], "approval_required")
+            self.assertIsNone(execute_plan_mock.call_args.kwargs["approval_callback"])
+            with patch.object(app, "_assistant") as assistant:
+                app._handle_execution_trace(trace)
+            self.assertIn("approval_required", assistant.call_args.args[0])
+
+    def test_exec_plan_with_approve_writes_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "plan.json").write_text(_EXEC_PLAN_JSON, encoding="utf-8")
+            app = OneCodeApp(workspace=workspace, model="test-model")
+
+            captured, error = self._schedule_exec_plan(app, "--approve plan.json")
+
+            self.assertFalse(error.called)
+            with patch("onecode.kernel.execution_engine.execute_plan", wraps=execute_plan_impl) as execute_plan_mock:
+                trace = captured["worker"]()
+
+            target = workspace / "src" / "mesh.py"
+            self.assertEqual(target.read_text(encoding="utf-8"), "VALUE = 1\n")
+            self.assertTrue(trace["success"])
+            approval_callback = execute_plan_mock.call_args.kwargs["approval_callback"]
+            self.assertTrue(approval_callback(object()))
 
 
 if __name__ == "__main__":
