@@ -80,8 +80,6 @@ def resume_pending_approval(workspace: Path, pending_id: str, decision: str, exe
 
 
 def _get_approval_secret(workspace: Path) -> bytes:
-    from onecode.kernel.checkpoint import file_lock
-
     root = onecode_home()
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     root.chmod(0o700)
@@ -95,12 +93,15 @@ def _get_approval_secret(workspace: Path) -> bytes:
                 if len(secret_hex) != 64:
                     raise ValueError("invalid length for approval secret")
                 return bytes.fromhex(secret_hex)
-            except Exception as exc:
+            except (OSError, ValueError) as exc:
                 raise ValueError("approval secret is corrupted or unreadable") from exc
-                
+
         new_secret = secrets.token_bytes(32)
-        key_path.write_text(new_secret.hex() + "\n", encoding="utf-8")
-        key_path.chmod(0o600)
+        descriptor = os.open(key_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        try:
+            os.write(descriptor, (new_secret.hex() + "\n").encode("utf-8"))
+        finally:
+            os.close(descriptor)
         return new_secret
 
 def _sign_record(workspace: Path, tool_name: str, params: dict[str, Any], record_id: str) -> str:

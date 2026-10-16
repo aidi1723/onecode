@@ -45,5 +45,19 @@ class TestCycleApprovals(unittest.TestCase):
             self.assertEqual((configured / "approval-secret.key").stat().st_mode & 0o777, 0o600)
             self.assertFalse((home / ".onecode" / "approval-secret.key").exists())
 
+    def test_corrupt_approval_secret_is_rejected_without_rewriting(self):
+        with TemporaryDirectory() as tmp:
+            configured = Path(tmp) / "onecode-home"
+            configured.mkdir()
+            workspace = Path(tmp) / "workspace"
+            workspace.mkdir()
+            key_path = configured / "approval-secret.key"
+            payload = b"not-hex\n"
+            key_path.write_bytes(payload)
+            with patch.dict(os.environ, {"ONECODE_HOME": str(configured)}, clear=False):
+                with self.assertRaisesRegex(ValueError, "approval secret is corrupted or unreadable"):
+                    persist_pending_approval(workspace, "run_command", {"argv": ["echo", "1"]})
+            self.assertEqual(key_path.read_bytes(), payload)
+
 if __name__ == "__main__":
     unittest.main()
