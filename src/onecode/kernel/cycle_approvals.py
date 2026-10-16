@@ -12,6 +12,7 @@ from tempfile import NamedTemporaryFile
 from typing import Any
 
 from onecode.kernel.evidence_io import file_lock
+from onecode.kernel.model_config import onecode_home
 
 
 PENDING_STATUS = "PENDING_APPROVAL"
@@ -79,12 +80,12 @@ def resume_pending_approval(workspace: Path, pending_id: str, decision: str, exe
 
 
 def _get_approval_secret(workspace: Path) -> bytes:
-    import secrets
     from onecode.kernel.checkpoint import file_lock
-    
-    root = Path.home() / ".onecode"
+
+    root = onecode_home()
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    
+    root.chmod(0o700)
+
     key_path = root / "approval-secret.key"
     with file_lock(root / ".approval-secret.lock"):
         if key_path.exists():

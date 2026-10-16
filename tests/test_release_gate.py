@@ -61,6 +61,12 @@ class ReleaseRollbackTests(unittest.TestCase):
     def test_rollback_restores_the_previous_release_and_old_task(self):
         from onecode.kernel.release_rollback import rollback_release, snapshot_release, stage_release
 
+        approval_home = tempfile.TemporaryDirectory()
+        self.addCleanup(approval_home.cleanup)
+        env = patch.dict(os.environ, {"ONECODE_HOME": approval_home.name}, clear=False)
+        env.start()
+        self.addCleanup(env.stop)
+
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "VERSION").write_text("0.8.0\n", encoding="utf-8")

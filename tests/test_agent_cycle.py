@@ -1,9 +1,20 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from onecode.kernel.agent_cycle import run_agent_cycle
 from onecode.kernel.outcome_policy import agent_cycle_decision
+
+
+def _isolate_approval_home(test: unittest.TestCase) -> str:
+    home = tempfile.TemporaryDirectory()
+    test.addCleanup(home.cleanup)
+    env = patch.dict(os.environ, {"ONECODE_HOME": home.name}, clear=False)
+    env.start()
+    test.addCleanup(env.stop)
+    return home.name
 
 
 class AgentCycleDecisionTests(unittest.TestCase):
@@ -592,6 +603,7 @@ class AgentCycleTests(unittest.TestCase):
         self.assertIn("raise ValueError", business["source"])
 
     def test_granted_approval_ids_executes_pending_tool_once(self):
+        _isolate_approval_home(self)
         calls: list[tuple[str, dict]] = []
 
         def execute(tool_name: str, params: dict) -> dict:
@@ -621,6 +633,7 @@ class AgentCycleTests(unittest.TestCase):
             self.assertNotEqual(second.get("reason"), "approval_required")
 
     def test_unknown_granted_approval_id_does_not_execute(self):
+        _isolate_approval_home(self)
         calls: list[tuple[str, dict]] = []
 
         def execute(tool_name: str, params: dict) -> dict:
@@ -646,6 +659,7 @@ class AgentCycleTests(unittest.TestCase):
             self.assertEqual(again["reason"], "approval_required")
 
     def test_granted_approval_id_rejected_by_callback_does_not_execute(self):
+        _isolate_approval_home(self)
         calls: list[tuple[str, dict]] = []
 
         def execute(tool_name: str, params: dict) -> dict:

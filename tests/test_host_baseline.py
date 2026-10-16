@@ -7,9 +7,19 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from onecode.kernel.agent_cycle import run_agent_cycle
 from onecode.kernel.cycle_approvals import load_pending_approvals, resume_pending_approval
+
+
+def _isolate_approval_home(test: unittest.TestCase) -> str:
+    home = tempfile.TemporaryDirectory()
+    test.addCleanup(home.cleanup)
+    env = patch.dict(os.environ, {"ONECODE_HOME": home.name}, clear=False)
+    env.start()
+    test.addCleanup(env.stop)
+    return home.name
 
 
 _HOLD_PENDING = """
@@ -68,6 +78,7 @@ def _time_ms(action) -> float:
 
 class HostLatencyTests(unittest.TestCase):
     def test_host_actions_stay_within_the_latency_gate(self):
+        _isolate_approval_home(self)
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
             (workspace / "note.txt").write_text("hello\n", encoding="utf-8")
@@ -175,13 +186,18 @@ class HostLatencyTests(unittest.TestCase):
 
 class ApprovalRecoveryTests(unittest.TestCase):
     def test_kill_leaves_a_pending_approval_that_restart_cannot_skip(self):
+        approval_home = _isolate_approval_home(self)
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
             target = workspace / "temp_test_dir"
             target.mkdir()
             child = subprocess.Popen(
                 [sys.executable, "-c", _HOLD_PENDING, str(workspace)],
-                env={**os.environ, "PYTHONPATH": str(Path("src").resolve())},
+                env={
+                    **os.environ,
+                    "PYTHONPATH": str(Path("src").resolve()),
+                    "ONECODE_HOME": approval_home,
+                },
             )
             deadline = time.time() + 10
             ready = workspace / "ready"
@@ -230,6 +246,7 @@ class ApprovalRecoveryTests(unittest.TestCase):
             self.assertEqual(load_pending_approvals(workspace), [])
 
     def test_explicit_approval_executes_the_stored_command_once(self):
+        _isolate_approval_home(self)
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
             calls = []
@@ -251,6 +268,7 @@ class ApprovalRecoveryTests(unittest.TestCase):
 
 class SoakTests(unittest.TestCase):
     def test_fifty_recorded_rounds_keep_memory_and_descriptors_stable(self):
+        _isolate_approval_home(self)
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
             (workspace / "note.txt").write_text("hello\n", encoding="utf-8")
