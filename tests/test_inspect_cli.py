@@ -14,81 +14,14 @@ from unittest.mock import patch
 from onecode.cli import delivery_summary, inspect_run, main, task_status_from_verifier_dicts
 from onecode.kernel.model_provider import ModelPlan, ModelPlanPatch
 from onecode.kernel.runner import run_task
+from tests.sandbox_test_harness import install_sandbox_docker_stub
 from tests.test_run_plan_cli import FakeRepairProvider
 
 
 class InspectCliTests(unittest.TestCase):
-
-
     def setUp(self):
         super().setUp()
-        from unittest.mock import patch
-        
-
-
-        import subprocess
-        _original_subprocess_run = subprocess.run
-        
-        def _mock_subprocess_run(command, *args, **kwargs):
-            from pathlib import Path
-            if command[0] == "docker":
-                if command[1] == "run":
-                    workspace_path = None
-                    for arg in command:
-                        if arg.startswith("type=bind,src=") and ",dst=/workspace" in arg:
-                            workspace_path = Path(arg.split("src=")[1].split(",")[0])
-                            break
-                    
-                    if "python" in command and "-c" in command:
-                        script_idx = command.index("-c") + 1
-                        if script_idx < len(command):
-                            script_content = command[script_idx]
-                            if "time.sleep" in script_content or "TimeoutExpired" in script_content:
-                                import subprocess as sub
-                                raise sub.TimeoutExpired(cmd=command, timeout=0.1)
-                            if "AssertionError" in script_content:
-                                return _original_subprocess_run(["echo", "AssertionError"], capture_output=True, text=True, check=False)
-                            if "sandbox-smoke.txt" in script_content:
-                                if workspace_path:
-                                    (workspace_path / "sandbox-smoke.txt").write_text("ok\\n")
-                                return _original_subprocess_run(["echo", "True\\n"], capture_output=True, text=True, check=False)
-                                
-                    if "unittest" in command and workspace_path:
-                        tests_dir = workspace_path / "tests"
-                        if tests_dir.exists():
-                            for f in tests_dir.rglob("*.py"):
-                                file_content = f.read_text(encoding="utf-8")
-                                if "time.sleep(" in file_content:
-                                    import subprocess as sub
-                                    raise sub.TimeoutExpired(cmd=command, timeout=0.1)
-                                if ".fail(" in file_content or "assertEqual(1, 2)" in file_content or "AssertionError" in file_content:
-                                    res = _original_subprocess_run(["echo", "FAILED (failures=1)\\nbad verifier"], capture_output=True, text=True, check=False)
-                                    res.returncode = 1
-                                    res.stderr = "bad verifier"
-                                    res.stdout = "FAILED (failures=1)\\nbad verifier"
-                                    return res
-                        return _original_subprocess_run(["echo", "OK"], capture_output=True, text=True, check=False)
-                        
-                    return _original_subprocess_run(["echo", "ok"], capture_output=True, text=True, check=False)
-                elif command[1] in ["kill", "restart", "create", "start"]:
-                    return _original_subprocess_run(["echo", ""], capture_output=True, text=True, check=False)
-                elif command[1] == "inspect":
-                    return _original_subprocess_run(["echo", "true\\n"], capture_output=True, text=True, check=False)
-                elif command[1] == "exec":
-                    if "python" in command and "-c" in command:
-                        script_idx = command.index("-c") + 1
-                        if script_idx < len(command):
-                            script_content = command[script_idx]
-                            if "time.sleep" in script_content or "TimeoutExpired" in script_content:
-                                import subprocess as sub
-                                raise sub.TimeoutExpired(cmd=command, timeout=0.1)
-                    return _original_subprocess_run(["echo", "OK"], capture_output=True, text=True, check=False)
-            
-            return _original_subprocess_run(command, *args, **kwargs)
-
-        patcher = patch("onecode.kernel.sandbox.subprocess.run", side_effect=_mock_subprocess_run)
-        self.addCleanup(patcher.stop)
-        patcher.start()
+        install_sandbox_docker_stub(self)
 
     def test_task_status_from_verifier_dicts_ignores_boolean_asset_status_codes(self):
         without_status = task_status_from_verifier_dicts({"assets": []}, [])

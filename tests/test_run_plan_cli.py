@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 from onecode.cli import build_run_plan_repair_prompt, is_patch_only_repair_plan, main
 from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset, ModelPlanPatch
+from tests.sandbox_test_harness import install_sandbox_docker_stub
 
 
 class FakeRepairProvider:
@@ -25,77 +26,9 @@ class FakeRepairProvider:
 
 
 class RunPlanCliTests(unittest.TestCase):
-
-
     def setUp(self):
         super().setUp()
-        from unittest.mock import patch
-        
-
-
-        import subprocess
-        _original_subprocess_run = subprocess.run
-        
-        def _mock_subprocess_run(command, *args, **kwargs):
-            from pathlib import Path
-            if command[0] == "docker":
-                if command[1] == "run":
-                    workspace_path = None
-                    for arg in command:
-                        if arg.startswith("type=bind,src=") and ",dst=/workspace" in arg:
-                            workspace_path = Path(arg.split("src=")[1].split(",")[0])
-                            break
-                    
-                    if "python" in command and "-c" in command:
-                        script_idx = command.index("-c") + 1
-                        if script_idx < len(command):
-                            script_content = command[script_idx]
-                            if "time.sleep" in script_content or "TimeoutExpired" in script_content:
-                                import subprocess as sub
-                                raise sub.TimeoutExpired(cmd=command, timeout=0.1)
-                            if "AssertionError" in script_content:
-                                return _original_subprocess_run(["echo", "AssertionError"], capture_output=True, text=True, check=False)
-                            if "sandbox-smoke.txt" in script_content:
-                                if workspace_path:
-                                    (workspace_path / "sandbox-smoke.txt").write_text("ok\\n")
-                                return _original_subprocess_run(["echo", "True\\n"], capture_output=True, text=True, check=False)
-                                
-                    if "unittest" in command and workspace_path:
-                        tests_dir = workspace_path / "tests"
-                        if tests_dir.exists():
-                            for f in tests_dir.rglob("*.py"):
-                                file_content = f.read_text(encoding="utf-8")
-                                if "time.sleep(" in file_content:
-                                    import subprocess as sub
-                                    raise sub.TimeoutExpired(cmd=command, timeout=0.1)
-                                if ".fail(" in file_content or "assertEqual(1, 2)" in file_content or "AssertionError" in file_content:
-                                    res = _original_subprocess_run(["echo", "FAILED (failures=1)\\nbad verifier"], capture_output=True, text=True, check=False)
-                                    res.returncode = 1
-                                    res.stderr = "bad verifier"
-                                    res.stdout = "FAILED (failures=1)\\nbad verifier"
-                                    return res
-                        return _original_subprocess_run(["echo", "OK"], capture_output=True, text=True, check=False)
-                        
-                    return _original_subprocess_run(["echo", "ok"], capture_output=True, text=True, check=False)
-                elif command[1] in ["kill", "restart", "create", "start"]:
-                    return _original_subprocess_run(["echo", ""], capture_output=True, text=True, check=False)
-                elif command[1] == "inspect":
-                    return _original_subprocess_run(["echo", "true\\n"], capture_output=True, text=True, check=False)
-                elif command[1] == "exec":
-                    if "python" in command and "-c" in command:
-                        script_idx = command.index("-c") + 1
-                        if script_idx < len(command):
-                            script_content = command[script_idx]
-                            if "time.sleep" in script_content or "TimeoutExpired" in script_content:
-                                import subprocess as sub
-                                raise sub.TimeoutExpired(cmd=command, timeout=0.1)
-                    return _original_subprocess_run(["echo", "OK"], capture_output=True, text=True, check=False)
-            
-            return _original_subprocess_run(command, *args, **kwargs)
-
-        patcher = patch("onecode.kernel.sandbox.subprocess.run", side_effect=_mock_subprocess_run)
-        self.addCleanup(patcher.stop)
-        patcher.start()
+        install_sandbox_docker_stub(self)
 
     def write_plan(self, workspace: Path, path: str = "task-plan.json") -> Path:
         plan_path = workspace / path
@@ -775,40 +708,44 @@ class RunPlanCliTests(unittest.TestCase):
             self.assertEqual(provider.prompts, [])
 
     def test_cli_run_plan_blocks_delivery_when_verifier_times_out(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            workspace = Path(tmp)
-            plan_path = self.write_plan(workspace)
-            policy_path = self.write_policy(
-                workspace,
-                [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
-                timeout_ms=10,
-            )
-            timeout_test = workspace / "tests" / "test_timeout_verifier.py"
-            timeout_test.parent.mkdir(parents=True, exist_ok=True)
-            timeout_test.write_text("import time\n\ntime.sleep(1)\n", encoding="utf-8")
+        def _timeout_on_docker_run(command, *args, **kwargs):
+            if command and command[0] == "docker" and len(command) > 1 and command[1] == "run":
+                raise subprocess.TimeoutExpired(cmd=command, timeout=0.1)
+            if command and command[0] == "docker":
+                return subprocess.CompletedProcess(args=command, returncode=0, stdout="true\n", stderr="")
+            return subprocess.run(command, *args, **kwargs)
 
-            with patch("builtins.print") as print_mock:
-                exit_code = main(
-                    [
-                        "run-plan",
-                        "--workspace",
-                        tmp,
-                        "--plan",
-                        str(plan_path),
-                        "--run-id",
-                        "verifier-timeout",
-                        "--verifier-policy",
-                        str(policy_path),
-                        "--verifier",
-                        "python-unittest",
-                    ]
+        with patch("onecode.kernel.sandbox.subprocess.run", side_effect=_timeout_on_docker_run):
+            with tempfile.TemporaryDirectory() as tmp:
+                workspace = Path(tmp)
+                plan_path = self.write_plan(workspace)
+                policy_path = self.write_policy(
+                    workspace,
+                    [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
                 )
-            result = json.loads(print_mock.call_args.args[0])
 
-            self.assertNotEqual(exit_code, 0)
-            self.assertEqual(result["status"], "halted")
-            self.assertEqual(result["reason"], "verifier_timeout")
-            self.assertEqual(result["verifier_results"][0]["reason"], "verifier_timeout")
+                with patch("builtins.print") as print_mock:
+                    exit_code = main(
+                        [
+                            "run-plan",
+                            "--workspace",
+                            tmp,
+                            "--plan",
+                            str(plan_path),
+                            "--run-id",
+                            "verifier-timeout",
+                            "--verifier-policy",
+                            str(policy_path),
+                            "--verifier",
+                            "python-unittest",
+                        ]
+                    )
+                result = json.loads(print_mock.call_args.args[0])
+
+                self.assertNotEqual(exit_code, 0)
+                self.assertEqual(result["status"], "halted")
+                self.assertEqual(result["reason"], "verifier_timeout")
+                self.assertEqual(result["verifier_results"][0]["reason"], "verifier_timeout")
 
     def test_cli_run_plan_rejects_unknown_verifier_before_writing(self):
         with tempfile.TemporaryDirectory() as tmp:
