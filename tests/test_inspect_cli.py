@@ -23,8 +23,6 @@ class InspectCliTests(unittest.TestCase):
     def setUp(self):
         super().setUp()
         from unittest.mock import patch
-        import onecode.kernel.verifier
-        import onecode.kernel.sandbox
         
 
 

@@ -30,8 +30,6 @@ class RunPlanCliTests(unittest.TestCase):
     def setUp(self):
         super().setUp()
         from unittest.mock import patch
-        import onecode.kernel.verifier
-        import onecode.kernel.sandbox
         
 
 
@@ -1224,7 +1222,6 @@ class RunPlanCliTests(unittest.TestCase):
     def test_cli_run_plan_verifier_halts_when_docker_missing(self):
         # Temporarily override the subprocess.run mock to raise FileNotFoundError
         from unittest.mock import patch
-        import subprocess
         
         with patch("onecode.kernel.sandbox.subprocess.run", side_effect=FileNotFoundError("No docker")):
             with tempfile.TemporaryDirectory() as tmp:
