@@ -144,6 +144,22 @@ class PathGuardTests(unittest.TestCase):
             with self.assertRaises(PathGuardError):
                 PathGuard.resolve_read_target(workspace, "nested/../.env")
 
+    def test_discard_interrupted_writes_removes_tempfile_suffix_with_underscore(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            leftover = workspace / "src" / ".mesh.py.abcd_ef1"
+            leftover.parent.mkdir()
+            leftover.write_text("partial", encoding="utf-8")
+            (workspace / "src" / "mesh.py").write_text("keep\n", encoding="utf-8")
+            (workspace / ".gitignore").write_text("ok\n", encoding="utf-8")
+
+            removed = PathGuard.discard_interrupted_writes(workspace)
+
+            self.assertEqual(removed, ["src/.mesh.py.abcd_ef1"])
+            self.assertFalse(leftover.exists())
+            self.assertTrue((workspace / "src" / "mesh.py").exists())
+            self.assertTrue((workspace / ".gitignore").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
