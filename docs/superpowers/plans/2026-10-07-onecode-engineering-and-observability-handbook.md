@@ -38,8 +38,8 @@ While the fundamental control plane (Dispatch, Transition, Bandwidth, Sovereignt
 **Acceptance Criteria (验收条件)**:
 No field may be added without an explicit test proving its isolation. For each read-only field (Moving Lines, Micro-Structural Vectors, Sequential Telemetry), there must be a test asserting that adding or removing the field leaves the output of `transition`, `dispatch`, `sovereignty_fire`, and `execution_bandwidth` **byte-for-byte identical**, and that the `agent_cycle` halt reason remains completely unchanged.
 
-**Implementation Landing Zones (待建项落点)**:
-The fields `moving_lines`, `micro_relations` (承乘比应), and `cycle_phase` currently do not exist in the source code. Because `agent_cycle.py` does not directly reference `wal.py`, these multi-turn cycle telemetry items must be injected into the evidence payload generated in `runner.py` and `execution_engine.py` before being committed to the WAL.
+**Implementation Landing Zones**:
+`moving_lines`, `micro_relations` (承乘比应), and `cycle_phase` already live in `hexagram_profile.py`. They go only into Evidence. Isolation tests are `tests/test_iching_observability.py`. Soak and ARM64 stay unfinished.
 
 ### 3.1 Base Hexagram & Moving Lines Tracking (本卦定义与动爻追踪)
 - **Input Definition (输入定义)**: The "Base Hexagram" (本卦) for any turn is derived exactly from the `status_code` of the PREVIOUS evidence record. The first round's base hexagram is explicitly defined as empty/none.

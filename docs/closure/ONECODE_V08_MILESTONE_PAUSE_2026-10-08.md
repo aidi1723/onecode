@@ -22,6 +22,8 @@ This document serves as a milestone pause record for the current iteration. The 
 
 ## 2. Unresolved & Pending Items (Next Phase)
 
+Engineering follow-up after this pause is defined by [`docs/superpowers/plans/2026-10-16-onecode-followup-development-handbook.md`](../superpowers/plans/2026-10-16-onecode-followup-development-handbook.md). Do not reopen dual-machine orchestration from this pause record.
+
 The following items are intentionally left unaddressed in this iteration and are carried forward as pending tasks:
 
 1. **Third-Party Security Scanning**: The codebase has fortified edge-cases but has not yet undergone or passed external/third-party penetration and security scanning. No pre-emptive code changes are being made for this at this time.
