@@ -42,6 +42,62 @@ class ModelProviderContractTests(unittest.TestCase):
         self.assertIn("method_only", contract)
         self.assertNotIn("API key", contract)
 
+    def test_chat_plan_accepts_json_wrapped_in_fences(self):
+        provider = OpenAIChatCompletionsProvider("key", endpoint="https://example.test/v1/chat/completions")
+        plan = provider.parse_response(
+            {
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {
+                            "content": "```json\n"
+                            '{"task": "write", "assets": [{"path": "src/a.py", "content": "x = 1\\n"}]}\n'
+                            "```"
+                        },
+                    }
+                ]
+            }
+        )
+
+        self.assertEqual(plan.task, "write")
+        self.assertEqual(plan.assets[0].content, "x = 1\n")
+
+    def test_chat_plan_reads_text_blocks(self):
+        provider = OpenAIChatCompletionsProvider("key", endpoint="https://example.test/v1/chat/completions")
+        plan = provider.parse_response(
+            {
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": '{"task": "write", "assets": [{"path": "src/a.py", "content": "y = 1\\n"}]}',
+                                }
+                            ]
+                        },
+                    }
+                ]
+            }
+        )
+
+        self.assertEqual(plan.assets[0].path, "src/a.py")
+
+    def test_truncated_chat_plan_names_the_cutoff(self):
+        provider = OpenAIChatCompletionsProvider("key", endpoint="https://example.test/v1/chat/completions")
+        with self.assertRaisesRegex(ValueError, "model response was truncated"):
+            provider.parse_response(
+                {
+                    "choices": [
+                        {
+                            "finish_reason": "length",
+                            "message": {"content": '{"task": "write", "assets": ['},
+                        }
+                    ]
+                }
+            )
+
     def test_model_plan_accepts_explicit_no_action(self):
         plan = validate_model_plan(
             {"task": "explain", "no_action": {"reason": "no workspace action"}}

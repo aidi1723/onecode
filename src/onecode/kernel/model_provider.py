@@ -436,9 +436,37 @@ def extract_response_text(response: dict[str, Any]) -> str:
     raise ModelProviderError("missing response text")
 
 
+def json_object_from_model_text(text: str) -> Any:
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        stripped = "\n".join(lines).strip()
+    return json.loads(stripped)
+
+
+def _message_text(content: Any) -> str | None:
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return None
+    parts: list[str] = []
+    for item in content:
+        if isinstance(item, str):
+            parts.append(item)
+        elif isinstance(item, dict) and isinstance(item.get("text"), str):
+            parts.append(item["text"])
+    if not parts:
+        return None
+    return "".join(parts)
+
+
 def parse_response_plan(response: dict[str, Any]) -> ModelPlan:
     try:
-        payload = json.loads(extract_response_text(response))
+        payload = json_object_from_model_text(extract_response_text(response))
     except json.JSONDecodeError as exc:
         raise ValueError("model response was not valid JSON") from exc
     if not isinstance(payload, dict):
@@ -548,11 +576,14 @@ class OpenAIChatCompletionsProvider:
         if not isinstance(first_choice, dict):
             raise ModelProviderError("invalid chat completion choice")
         message = first_choice.get("message")
-        if not isinstance(message, dict) or not isinstance(message.get("content"), str):
+        content = _message_text(message.get("content")) if isinstance(message, dict) else None
+        if content is None:
             raise ModelProviderError("missing chat completion message content")
         try:
-            payload = json.loads(message["content"])
+            payload = json_object_from_model_text(content)
         except json.JSONDecodeError as exc:
+            if first_choice.get("finish_reason") in {"length", "max_tokens"}:
+                raise ValueError("model response was truncated") from exc
             raise ValueError("model response was not valid JSON") from exc
         if not isinstance(payload, dict):
             raise ValueError("model response JSON must be an object")

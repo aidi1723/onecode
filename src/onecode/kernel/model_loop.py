@@ -703,6 +703,8 @@ def traced_provider_plan(
             reason = "model_provider_error"
         elif str(exc) == "plan must include at least one asset":
             reason = "no_actionable_plan"
+        elif str(exc) == "model response was truncated":
+            reason = "resource_budget_exceeded"
         else:
             reason = "invalid_model_plan"
         elapsed_ms = max(0, int((time.monotonic() - started_at) * 1000))

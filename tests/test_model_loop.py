@@ -92,6 +92,11 @@ class InvalidPlanProvider:
         raise ValueError("model response was not valid JSON")
 
 
+class TruncatedPlanProvider:
+    def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+        raise ValueError("model response was truncated")
+
+
 class EmptyAssetProvider:
     def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
         from onecode.kernel.model_provider import validate_model_plan
@@ -201,6 +206,24 @@ class ModelLoopTests(unittest.TestCase):
             self.assertEqual(result["reason"], "invalid_model_plan")
             self.assertIn("content must be a non-empty string", result["payload"]["detail"])
             self.assertFalse((Path(tmp) / "src" / "book.py").exists())
+
+    def test_truncated_model_plan_is_resource_budget(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_model_task_wrapper(
+                "write a large module",
+                workspace=Path(tmp),
+                run_id="truncated-plan",
+                api_key="key",
+                model="m",
+                provider=TruncatedPlanProvider(),
+            )
+
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "resource_budget_exceeded")
+            self.assertEqual(
+                IchingKernel.classify_outcome("halted", result["reason"]),
+                IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
+            )
 
     def test_repair_timeout_has_its_own_failed_terminal_event(self):
         with tempfile.TemporaryDirectory() as tmp:
