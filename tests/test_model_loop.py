@@ -97,6 +97,21 @@ class TruncatedPlanProvider:
         raise ValueError("model response was truncated")
 
 
+class NarrowThenWriteProvider:
+    def __init__(self) -> None:
+        self.tasks: list[str] = []
+
+    def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+        from onecode.kernel.model_provider import validate_model_plan
+
+        self.tasks.append(task)
+        if len(self.tasks) == 1:
+            raise ValueError("model response was truncated")
+        return validate_model_plan(
+            {"task": "write one file", "assets": [{"path": "src/one.py", "content": "VALUE = 1\n"}]}
+        )
+
+
 class EmptyAssetProvider:
     def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
         from onecode.kernel.model_provider import validate_model_plan
@@ -224,6 +239,26 @@ class ModelLoopTests(unittest.TestCase):
                 IchingKernel.classify_outcome("halted", result["reason"]),
                 IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
             )
+
+    def test_truncated_plan_replans_one_file_when_repair_is_allowed(self):
+        provider = NarrowThenWriteProvider()
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_model_task_wrapper(
+                "build the bookstore",
+                workspace=workspace,
+                run_id="narrow-replan",
+                api_key="key",
+                model="m",
+                provider=provider,
+                max_repair_attempts=1,
+                execution_approval=lambda step: True,
+            )
+
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual((workspace / "src" / "one.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+            self.assertEqual(len(provider.tasks), 2)
+            self.assertIn("exactly one", provider.tasks[1])
 
     def test_repair_timeout_has_its_own_failed_terminal_event(self):
         with tempfile.TemporaryDirectory() as tmp:

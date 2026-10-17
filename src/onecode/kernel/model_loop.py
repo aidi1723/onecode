@@ -140,6 +140,19 @@ def build_provider(api_key: str, provider_kind: str, endpoint: str | None) -> An
     return OpenAIChatCompletionsProvider(api_key, endpoint=config.endpoint)
 
 
+def narrow_plan_prompt(task: str, failure: dict[str, Any]) -> str:
+    detail = failure.get("detail") or failure.get("failure_kind") or "plan did not fit"
+    return (
+        "The previous plan did not fit in one response.\n"
+        f"Failure: {detail}\n"
+        f"Original task: {task}\n"
+        "Return JSON for exactly one new Python file. "
+        "The asset content must be complete and non-empty. "
+        "Use unittest, not pytest. No relative imports. "
+        "Do not include execution_plan or run_command."
+    )
+
+
 def repair_prompt(task: str, failed_result: dict[str, Any]) -> str:
     trace = failed_result.get("execution_trace", {})
     paths = []
@@ -810,6 +823,21 @@ def run_model_task(
         planning_context=planning_context,
         span_id="model-call",
     )
+    if failure is not None and max_repair_attempts > 0 and failure["failure_kind"] in {
+        "resource_budget_exceeded",
+        "invalid_model_plan",
+    }:
+        plan, failure = traced_provider_plan(
+            provider=active_provider,
+            task=narrow_plan_prompt(task, failure),
+            model_context=model_context,
+            trace_path=trace_path,
+            provider_config=provider_config,
+            resolved_model=resolved_model,
+            http_timeout_seconds=http_timeout_seconds,
+            planning_context=planning_context,
+            span_id="model-narrow-1",
+        )
     if failure is not None:
         return failed_model_result(model_context, failure)
     assert plan is not None
