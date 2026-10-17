@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from onecode.cli import main
 from onecode.kernel.execution_engine import execute_plan
+from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.execution_tools import default_tool_registry
 from onecode.kernel.run_inspection import apply_verifier_evidence, inspect_run
 from onecode.kernel.model_loop import run_model_task as _run_model_task
@@ -167,6 +168,11 @@ class ModelLoopTests(unittest.TestCase):
             ]
 
             self.assertEqual(result["reason"], "invalid_model_plan")
+            self.assertEqual(result["payload"]["detail"], "model response was not valid JSON")
+            self.assertEqual(
+                IchingKernel.classify_outcome("halted", "invalid_model_plan"),
+                IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
+            )
             self.assertEqual(
                 [event["event_type"] for event in terminal], ["model_call_failed"]
             )
@@ -1543,6 +1549,45 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
             self.assertEqual(result["status"], "halted")
             self.assertEqual(result["reason"], "approval_required")
             self.assertFalse((workspace / "src" / "mesh.py").exists())
+
+    def test_read_only_steps_still_apply_patches(self):
+        from onecode.kernel.model_loop import execute_model_plan
+        from onecode.kernel.model_provider import ModelExecutionStep, ModelToolCall
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            target = workspace / "src" / "claims.py"
+            target.parent.mkdir()
+            target.write_text('def add():\n    return {"status": "recorded"}\n', encoding="utf-8")
+            plan = ModelPlan(
+                task="fix the return status",
+                patches=[
+                    ModelPlanPatch(
+                        path="src/claims.py",
+                        search_block='    return {"status": "recorded"}\n',
+                        replace_block='    return {"status": "added"}\n',
+                    )
+                ],
+                execution_steps=[
+                    ModelExecutionStep(
+                        id="look",
+                        description="read the file",
+                        tool_calls=[ModelToolCall(tool_name="read_text", params={"path": "src/claims.py"})],
+                    )
+                ],
+            )
+            result = execute_model_plan(
+                plan,
+                workspace=workspace,
+                http_timeout_seconds=5,
+                run_id="read-plus-patch",
+                resume_from_run_id=None,
+                run_metadata={},
+                approval_callback=lambda step: True,
+            )
+
+            self.assertEqual(result["status"], "completed", result.get("reason"))
+            self.assertEqual(target.read_text(encoding="utf-8"), 'def add():\n    return {"status": "added"}\n')
 
 
 if __name__ == "__main__":

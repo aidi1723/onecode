@@ -210,6 +210,8 @@ def execute_step(
                 }
         except PathGuardError:
             result = {"status": "halted", "reason": "sovereignty_breach", "payload": {}, "assets": []}
+        except FileNotFoundError:
+            result = {"status": "halted", "reason": "action_exception", "payload": {}, "assets": []}
         except (OSError, ValueError, subprocess.SubprocessError) as exc:
             result = {
                 "status": "halted",

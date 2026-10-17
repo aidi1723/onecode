@@ -307,7 +307,7 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
             return cls.compute_status(cls.KUN, cls.KUN)
         if reason in {"action_exception", "run_exception"}:
             return cls.compute_status(cls.GEN, cls.KUN)
-        if reason == "invalid_intent":
+        if reason in {"invalid_intent", "invalid_model_plan"}:
             return cls.compute_status(cls.LI, cls.KUN)
         if reason == "self_audit_check_failed":
             return cls.compute_status(cls.LI, cls.KUN)

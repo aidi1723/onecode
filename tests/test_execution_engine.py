@@ -784,5 +784,35 @@ class ExecutionEngineTests(unittest.TestCase):
             self.assertEqual(trace.step_results[0].status, "failed")
             self.assertEqual(trace.step_results[0].reason, "approval_required")
 
+    def test_missing_command_uses_action_exception(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan = ExecutionPlan(
+                task="missing binary",
+                steps=[
+                    ExecutionStep(
+                        id="run",
+                        description="run a missing program",
+                        tool_calls=[
+                            ToolCallSpec(
+                                tool_name="run_command",
+                                params={"argv": ["python-not-installed-for-onecode"]},
+                            )
+                        ],
+                    )
+                ],
+            )
+            trace = execute_plan(
+                plan,
+                workspace=workspace,
+                approval_callback=lambda step: True,
+            )
+            self.assertFalse(trace.success)
+            self.assertEqual(trace.step_results[0].reason, "action_exception")
+            self.assertEqual(
+                IchingKernel.classify_outcome("halted", trace.step_results[0].reason),
+                IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.KUN),
+            )
+
 if __name__ == "__main__":
     unittest.main()

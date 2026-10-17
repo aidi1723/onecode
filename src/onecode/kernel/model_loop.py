@@ -8,6 +8,7 @@ from typing import Any, Callable
 
 from onecode.kernel.model_provider import (
     MissingModelApiKey,
+    ModelExecutionStep,
     ModelPlan,
     ModelProviderError,
     ModelProviderTimeout,
@@ -52,30 +53,40 @@ def plan_actions_from_plan(plan: ModelPlan) -> list[dict[str, str]]:
     return actions
 
 
-def execution_plan_from_model_plan(plan: ModelPlan) -> ExecutionPlan:
-    if plan.execution_steps:
-        return ExecutionPlan(
-            task=plan.task,
-            steps=[
-                ExecutionStep(
-                    id=step.id,
-                    description=step.description,
-                    depends_on=list(step.depends_on),
-                    mode=step.mode,  # type: ignore
-                    tool_calls=[
-                        ToolCallSpec(
-                            tool_name=tool.tool_name,
-                            description=tool.description,
-                            params=dict(tool.params),
-                        )
-                        for tool in step.tool_calls
-                    ],
+_MUTATING_MODEL_TOOLS = frozenset({"write_text", "patch_text", "run_command", "git_commit"})
+
+
+def _execution_steps_mutate(steps: list[ModelExecutionStep]) -> bool:
+    return any(tool.tool_name in _MUTATING_MODEL_TOOLS for step in steps for tool in step.tool_calls)
+
+
+def _declared_execution_steps(plan: ModelPlan) -> list[ExecutionStep]:
+    return [
+        ExecutionStep(
+            id=step.id,
+            description=step.description,
+            depends_on=list(step.depends_on),
+            mode=step.mode,  # type: ignore
+            tool_calls=[
+                ToolCallSpec(
+                    tool_name=tool.tool_name,
+                    description=tool.description,
+                    params=dict(tool.params),
                 )
-                for step in plan.execution_steps
+                for tool in step.tool_calls
             ],
         )
+        for step in plan.execution_steps
+    ]
 
-    steps = []
+
+def execution_plan_from_model_plan(plan: ModelPlan) -> ExecutionPlan:
+    declared = _declared_execution_steps(plan) if plan.execution_steps else []
+    if declared and _execution_steps_mutate(plan.execution_steps):
+        return ExecutionPlan(task=plan.task, steps=declared)
+
+    steps = list(declared)
+    prior_ids = [step.id for step in declared]
     asset_step_ids = []
     for index, asset in enumerate(plan.assets, start=1):
         step_id = f"asset-{index}"
@@ -84,6 +95,7 @@ def execution_plan_from_model_plan(plan: ModelPlan) -> ExecutionPlan:
             ExecutionStep(
                 id=step_id,
                 description=f"write {asset.path}",
+                depends_on=list(prior_ids),
                 tool_calls=[
                     ToolCallSpec(
                         tool_name="write_text",
@@ -97,7 +109,7 @@ def execution_plan_from_model_plan(plan: ModelPlan) -> ExecutionPlan:
             ExecutionStep(
                 id=f"patch-{index}",
                 description=f"patch {patch.path}",
-                depends_on=list(asset_step_ids),
+                depends_on=[*prior_ids, *asset_step_ids],
                 tool_calls=[
                     ToolCallSpec(
                         tool_name="patch_text",
@@ -699,6 +711,7 @@ def traced_provider_plan(
             "model": resolved_model,
             "task_sha256": hashlib.sha256(task.encode("utf-8")).hexdigest(),
             "failure_kind": reason,
+            "detail": str(exc)[:500],
             "elapsed_ms": elapsed_ms,
             "retryable": False,
             "safe_agent": planning_context["safe_agent"],
