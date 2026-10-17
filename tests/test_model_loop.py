@@ -92,6 +92,13 @@ class InvalidPlanProvider:
         raise ValueError("model response was not valid JSON")
 
 
+class EmptyAssetProvider:
+    def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+        from onecode.kernel.model_provider import validate_model_plan
+
+        return validate_model_plan({"task": task, "assets": [{"path": "src/book.py", "content": ""}]})
+
+
 class SequenceThenTimeoutProvider:
     def __init__(self, first_plan):
         self.first_plan = first_plan
@@ -178,6 +185,22 @@ class ModelLoopTests(unittest.TestCase):
             )
             self.assertTrue(Path(result["ledger_path"]).is_file())
             self.assertTrue(Path(result["manifest_path"]).is_file())
+
+    def test_empty_asset_content_halts_as_invalid_model_plan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_model_task_wrapper(
+                "write the bookstore",
+                workspace=Path(tmp),
+                run_id="empty-asset",
+                api_key="key",
+                model="m",
+                provider=EmptyAssetProvider(),
+            )
+
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "invalid_model_plan")
+            self.assertIn("content must be a non-empty string", result["payload"]["detail"])
+            self.assertFalse((Path(tmp) / "src" / "book.py").exists())
 
     def test_repair_timeout_has_its_own_failed_terminal_event(self):
         with tempfile.TemporaryDirectory() as tmp:

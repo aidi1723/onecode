@@ -304,8 +304,8 @@ def validate_model_plan(data: dict[str, Any]) -> ModelPlan:
         content = asset.get("content")
         if not isinstance(path, str) or path == "":
             raise ValueError(f"asset {index} path must be a non-empty string")
-        if not isinstance(content, str):
-            raise ValueError(f"asset {index} content must be a string")
+        if not isinstance(content, str) or content == "":
+            raise ValueError(f"asset {index} content must be a non-empty string")
         if path in seen_paths:
             raise ValueError(f"asset {index} duplicate path: {path}")
         seen_paths.add(path)
@@ -606,6 +606,8 @@ def canonical_planning_prompt(planning_context: dict[str, Any] | None = None) ->
         "Read-only tools may be planned automatically. Tools with approval=true must only be planned; "
         "the OneCode host decides approval and execution. Safe-Agent context provides method guidance only. "
         "If no valid workspace action can be planned, return no_action with a concrete reason. "
+        "Every asset content must be the complete non-empty file. "
+        "Tests must use the standard-library unittest module, not pytest. "
         "Do not include commentary or markdown fences. Contract: "
         + json.dumps(contract, ensure_ascii=False, sort_keys=True)
     )
