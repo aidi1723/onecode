@@ -6,6 +6,7 @@ from onecode.kernel.model_provider import (
     ModelProviderTimeout,
     OpenAIChatCompletionsProvider,
     OpenAIResponsesProvider,
+    json_object_from_model_text,
     validate_model_plan,
 )
 
@@ -97,6 +98,50 @@ class ModelProviderContractTests(unittest.TestCase):
                     ]
                 }
             )
+
+    def test_unclosed_plan_text_is_truncated(self):
+        with self.assertRaisesRegex(ValueError, "model response was truncated"):
+            json_object_from_model_text('{"task": "write", "assets": [')
+
+    def test_plan_json_can_follow_a_short_preface(self):
+        payload = json_object_from_model_text(
+            'plan follows\n{"task": "explain", "no_action": {"reason": "none"}}\n'
+        )
+
+        self.assertEqual(payload["task"], "explain")
+
+    def test_pytest_and_relative_imports_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "must not import pytest"):
+            validate_model_plan(
+                {"task": "test", "assets": [{"path": "tests/test_a.py", "content": "import pytest\n"}]}
+            )
+        with self.assertRaisesRegex(ValueError, "must not use a relative import"):
+            validate_model_plan(
+                {
+                    "task": "test",
+                    "assets": [{"path": "src/rooms.py", "content": "from .intervals import overlaps\n"}],
+                }
+            )
+
+    def test_src_import_requires_the_module_in_the_plan(self):
+        with self.assertRaisesRegex(ValueError, "imports missing module cart"):
+            validate_model_plan(
+                {
+                    "task": "test",
+                    "assets": [{"path": "tests/test_cart.py", "content": "from src.cart import Cart\n"}],
+                }
+            )
+        plan = validate_model_plan(
+            {
+                "task": "test",
+                "assets": [
+                    {"path": "src/cart.py", "content": "class Cart:\n    pass\n"},
+                    {"path": "tests/test_cart.py", "content": "from src.cart import Cart\n"},
+                ],
+            }
+        )
+
+        self.assertEqual(len(plan.assets), 2)
 
     def test_model_plan_accepts_explicit_no_action(self):
         plan = validate_model_plan(

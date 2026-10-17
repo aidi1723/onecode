@@ -2,6 +2,7 @@ import tempfile
 import unittest
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -262,6 +263,27 @@ class ExecutionToolsTests(unittest.TestCase):
 
         self.assertIn("src/app.py", listed["files"])
         self.assertFalse(any(".onecode" in path for path in listed["files"]))
+
+    def test_run_command_rewrites_missing_python_to_the_current_interpreter(self):
+        from onecode.kernel.execution_tools import RunCommandTool
+
+        real_which = shutil.which
+
+        def which(name: str):
+            if name == "python":
+                return None
+            return real_which(name)
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            os.environ, {"ONECODE_RUN_COMMAND_SANDBOX": "host"}
+        ), patch("onecode.kernel.execution_tools.shutil.which", side_effect=which):
+            result = RunCommandTool().execute(
+                {"argv": ["python", "-c", "print(123)"]},
+                Path(tmp),
+            )
+
+        self.assertEqual(result["returncode"], 0)
+        self.assertIn("123", result["stdout"])
 
     def test_run_command_scrubs_service_secrets_from_environment_and_evidence(self):
         from onecode.kernel.execution_tools import RunCommandTool

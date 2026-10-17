@@ -1,3 +1,4 @@
+import ast
 import json
 import os
 import urllib.error
@@ -310,6 +311,7 @@ def validate_model_plan(data: dict[str, Any]) -> ModelPlan:
             raise ValueError(f"asset {index} duplicate path: {path}")
         seen_paths.add(path)
         plan_assets.append(ModelPlanAsset(path=path, content=content))
+    _reject_unusable_python_assets(plan_assets)
 
     plan_patches: list[ModelPlanPatch] = []
     for index, patch in enumerate(patches, start=1):
@@ -337,6 +339,39 @@ def validate_model_plan(data: dict[str, Any]) -> ModelPlan:
         execution_steps=execution_steps,
         no_action_reason=no_action_reason,
     )
+
+
+def _reject_unusable_python_assets(assets: list[ModelPlanAsset]) -> None:
+    module_names = set()
+    for asset in assets:
+        if not asset.path.endswith(".py"):
+            continue
+        stem = asset.path.replace("\\", "/").rsplit("/", 1)[-1][:-3]
+        if stem and stem != "__init__":
+            module_names.add(stem)
+    for asset in assets:
+        if not asset.path.endswith(".py"):
+            continue
+        try:
+            tree = ast.parse(asset.content)
+        except SyntaxError as exc:
+            raise ValueError(f"{asset.path} is not valid Python") from exc
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name.split(".", 1)[0] == "pytest":
+                        raise ValueError(f"{asset.path} must not import pytest")
+            elif isinstance(node, ast.ImportFrom):
+                if node.level and node.level > 0:
+                    raise ValueError(f"{asset.path} must not use a relative import")
+                if not node.module:
+                    continue
+                if node.module.split(".", 1)[0] == "pytest":
+                    raise ValueError(f"{asset.path} must not import pytest")
+                parts = node.module.split(".")
+                if parts[0] == "src" and (len(parts) < 2 or parts[1] not in module_names):
+                    missing = parts[1] if len(parts) > 1 else "src"
+                    raise ValueError(f"{asset.path} imports missing module {missing}")
 
 
 def validate_no_action(value: Any) -> str:
@@ -445,7 +480,19 @@ def json_object_from_model_text(text: str) -> Any:
         if lines and lines[-1].strip() == "```":
             lines = lines[:-1]
         stripped = "\n".join(lines).strip()
-    return json.loads(stripped)
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError as exc:
+        start = stripped.find("{")
+        if start == -1:
+            raise
+        try:
+            payload, _end = json.JSONDecoder().raw_decode(stripped[start:])
+        except json.JSONDecodeError:
+            if not stripped.rstrip().endswith("}"):
+                raise ValueError("model response was truncated") from exc
+            raise
+        return payload
 
 
 def _message_text(content: Any) -> str | None:

@@ -2,6 +2,7 @@ import signal
 from dataclasses import dataclass
 import json
 import os
+import sys
 import re
 import select
 import shutil
@@ -411,6 +412,12 @@ class GitCommitTool(ToolDefinition):
 _DOCKER_READY: bool | None = None
 
 
+def _with_available_python(argv: list[str]) -> list[str]:
+    if argv and argv[0] in {"python", "python3"} and shutil.which(argv[0]) is None:
+        return [sys.executable, *argv[1:]]
+    return argv
+
+
 def _docker_daemon_ready() -> bool:
     global _DOCKER_READY
     if _DOCKER_READY is not None:
@@ -463,6 +470,7 @@ def _run_command(
     elif not explicit_host:
         fallback_used = True
 
+    argv = _with_available_python(argv)
     warning_msg = ""
     if fallback_used:
         warning_msg = "[WARNING: Docker sandbox unavailable, command executed on host fallback]\n"
