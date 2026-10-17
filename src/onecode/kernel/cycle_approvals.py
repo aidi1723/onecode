@@ -59,6 +59,10 @@ def load_pending_approvals(workspace: Path) -> list[dict[str, Any]]:
     return records
 
 
+def consume_pending_approval(workspace: Path, tool_name: str, params: dict[str, Any]) -> None:
+    _record_path(workspace, tool_name, params).unlink(missing_ok=True)
+
+
 def resume_pending_approval(workspace: Path, pending_id: str, decision: str, execute) -> dict[str, Any]:
     directory = Path(workspace).resolve() / _DIRECTORY
     with file_lock(directory.parent / "pending-cycle.lock"):

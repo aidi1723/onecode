@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from onecode.kernel.agent_memory import compact_agent_history, remember_turn
-from onecode.kernel.cycle_approvals import find_pending_approval, persist_pending_approval
+from onecode.kernel.cycle_approvals import consume_pending_approval, find_pending_approval, persist_pending_approval
 from onecode.kernel.execution_tools import tool_requires_approval
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.outcome_policy import agent_cycle_decision, agent_cycle_decision_for_tool
@@ -92,10 +92,6 @@ def run_agent_cycle(
             allowed = READ_ONLY_TOOLS
         else:
             allowed = ALL_TOOLS
-    if history:
-        last_cycle = history[-1].get("cycle")
-        if isinstance(last_cycle, dict) and last_cycle.get("cycle") == "read_only_continue":
-            return _halt(history[-1].get("reason"), history)
     decision = agent_cycle_decision("halted", "resource_budget_exceeded")
     return {
         "status": "halted",
@@ -308,6 +304,7 @@ def _approval_gate(
         if existing is not None:
             if existing["id"] not in granted:
                 return _pending_result(existing, calls)
+            consume_pending_approval(workspace, tool_name, params)
             if approve is None or approve(tool_name, params):
                 return None
             return {

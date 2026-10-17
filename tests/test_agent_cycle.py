@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from onecode.kernel.agent_cycle import run_agent_cycle
+from onecode.kernel.cycle_approvals import resume_pending_approval
 from onecode.kernel.outcome_policy import agent_cycle_decision
 
 
@@ -664,6 +665,10 @@ class AgentCycleTests(unittest.TestCase):
             )
             self.assertEqual(calls, [("run_command", {"argv": ["echo", "ok"]})])
             self.assertNotEqual(second.get("reason"), "approval_required")
+            with self.assertRaises(ValueError) as ctx:
+                resume_pending_approval(workspace, pending_id, "approved", execute)
+            self.assertEqual(str(ctx.exception), "approval_not_found")
+            self.assertEqual(calls, [("run_command", {"argv": ["echo", "ok"]})])
 
     def test_unknown_granted_approval_id_does_not_execute(self):
         _isolate_approval_home(self)
@@ -753,7 +758,9 @@ class AgentCycleTests(unittest.TestCase):
             raise AssertionError("write_text must not run after a hard stop in the same turn if the second call is not reached; if it is reached, return permission_denied")
 
         result = run_agent_cycle(propose=propose, execute=execute, max_turns=1)
-        self.assertIn(result["reason"], {"path_not_found", "permission_denied", "no_progress"})
+        self.assertEqual(result["turns"][0]["reason"], "path_not_found")
+        self.assertEqual(result["reason"], "resource_budget_exceeded")
+        self.assertEqual(result["status"], "halted")
 
 
 if __name__ == "__main__":

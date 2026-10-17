@@ -1521,5 +1521,29 @@ class ModelLoopTests(unittest.TestCase):
         self.assertEqual(summary["verifier_results"][0]["status"], "failed")
 
 
+class ExecuteModelPlanApprovalTests(unittest.TestCase):
+    def test_asset_plan_without_callback_does_not_write(self):
+        from onecode.kernel.model_loop import execute_model_plan
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan = ModelPlan(
+                task="write mesh",
+                assets=[ModelPlanAsset(path="src/mesh.py", content="VALUE = 1\n")],
+            )
+            result = execute_model_plan(
+                plan,
+                workspace=workspace,
+                http_timeout_seconds=5,
+                run_id="no-callback",
+                resume_from_run_id=None,
+                run_metadata={},
+            )
+
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "approval_required")
+            self.assertFalse((workspace / "src" / "mesh.py").exists())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -266,6 +266,18 @@ def execute_model_plan(
         )
         write_ledger(context, result)
         return result
+    if require_explicit_approval and approval_callback is None:
+        return {
+            "run_id": run_id,
+            "status": "halted",
+            "reason": "approval_required",
+            "partial": True,
+            "requested_count": len(plan.assets) + len(plan.patches),
+            "completed_count": 0,
+            "skipped_count": len(plan.assets) + len(plan.patches),
+            "failed_count": 0,
+            "assets": [],
+        } | run_metadata
     if approval_callback is not None and not asset_patch_steps_approved(plan, approval_callback):
         return {
             "run_id": run_id,

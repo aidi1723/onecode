@@ -64,6 +64,31 @@ class SandboxTestHarnessTests(unittest.TestCase):
             combined = f"{completed.stdout}\n{completed.stderr}"
             self.assertIn("FAIL", combined)
 
+    def test_docker_run_executes_the_command_after_the_image(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "write_marker.py").write_text(
+                "from pathlib import Path\nPath('marker.txt').write_text('ran\\n')\n",
+                encoding="utf-8",
+            )
+            command = [
+                "docker",
+                "run",
+                "--rm",
+                "--mount",
+                f"type=bind,src={workspace.as_posix()},dst=/workspace",
+                "--workdir",
+                "/workspace",
+                "python:3.12-slim",
+                "python",
+                "write_marker.py",
+            ]
+
+            completed = self._sandbox_run(command, capture_output=True, text=True, check=False)
+
+            self.assertEqual(completed.returncode, 0)
+            self.assertEqual((workspace / "marker.txt").read_text(encoding="utf-8"), "ran\n")
+
     def test_docker_run_python_c_executes_script_without_source_sniffing(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

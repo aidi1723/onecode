@@ -22,34 +22,55 @@ def _completed(command: Sequence[str], stdout: str = "") -> subprocess.Completed
     return subprocess.CompletedProcess(args=list(command), returncode=0, stdout=stdout, stderr="")
 
 
-def _run_host_unittest(workspace_path: Path) -> subprocess.CompletedProcess[str]:
-    return _original_subprocess_run(
-        [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
-        cwd=workspace_path,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+_DOCKER_VALUE_FLAGS = {
+    "--name",
+    "--network",
+    "--memory",
+    "--cpus",
+    "--pids-limit",
+    "--tmpfs",
+    "--user",
+    "--mount",
+    "--security-opt",
+    "--workdir",
+    "-w",
+    "--cap-drop",
+    "--env",
+    "-e",
+}
 
 
-def _run_host_python_c(workspace_path: Path, script: str) -> subprocess.CompletedProcess[str]:
-    return _original_subprocess_run(
-        [sys.executable, "-c", script],
-        cwd=workspace_path,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+def _inner_command(command: Sequence[str]) -> list[str]:
+    index = 2
+    while index < len(command):
+        arg = command[index]
+        if arg in _DOCKER_VALUE_FLAGS:
+            index += 2
+            continue
+        if arg.startswith("-"):
+            index += 1
+            continue
+        return list(command[index + 1 :])
+    return []
+
+
+def _host_argv(inner: list[str]) -> list[str]:
+    if inner and inner[0] in {"python", "python3"}:
+        return [sys.executable, *inner[1:]]
+    return inner
 
 
 def _stub_docker_run(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
     workspace_path = _workspace_from_bind_mount(command)
-    if "unittest" in command and workspace_path is not None:
-        return _run_host_unittest(workspace_path)
-    if "-c" in command and workspace_path is not None:
-        script_index = command.index("-c") + 1
-        if script_index < len(command):
-            return _run_host_python_c(workspace_path, command[script_index])
+    inner = _host_argv(_inner_command(command))
+    if workspace_path is not None and inner:
+        return _original_subprocess_run(
+            inner,
+            cwd=workspace_path,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
     return _completed(command, "ok\n")
 
 

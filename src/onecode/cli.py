@@ -474,6 +474,7 @@ def apply_run_plan_repair(
             run_id=current_result["run_id"],
             resume_from_run_id=current_result.get("resumed_from"),
             run_metadata={"repair_attempt": attempt},
+            approval_callback=lambda step: True,
         )
         repair_results.append(repair_result)
         latest_verifiers = verifier_dicts([run_verifier(workspace, spec, sandbox_config=sandbox_config) for spec in verifier_specs])
