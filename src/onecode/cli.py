@@ -5,14 +5,7 @@ import re
 import urllib.error
 import urllib.request
 
-class StripAuthRedirectHandler(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        new_req = super().redirect_request(req, fp, code, msg, headers, newurl)
-        if new_req is not None and req.host != new_req.host:
-            for key in list(new_req.headers.keys()):
-                if key.lower() in ("authorization", "api-key"):
-                    del new_req.headers[key]
-        return new_req
+from onecode.kernel.http_safety import StripAuthRedirectHandler
 
 _SAFE_OPENER = urllib.request.build_opener(StripAuthRedirectHandler())
 
