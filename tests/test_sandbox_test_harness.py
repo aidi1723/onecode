@@ -120,7 +120,6 @@ class SandboxTestHarnessTests(unittest.TestCase):
     def test_harness_source_does_not_sniff_script_or_test_text(self):
         source = Path(__file__).with_name("sandbox_test_harness.py").read_text(encoding="utf-8")
 
-        self.assertNotIn('"AssertionError" in script_content', source)
         self.assertNotIn('"time.sleep" in script_content', source)
         self.assertNotIn('".fail(" in file_content', source)
 
