@@ -143,8 +143,9 @@ A finished write is classified as Qian/Qian (63) and recorded after the yang coo
 | Reason | Code | Action | Reading |
 |--------|------|--------|---------|
 | `verifier_failed` | 40 Li/Kun | halt | The sandbox check ran and failed. |
-| `sandbox_required` | 32 Gen/Kun | checkpoint | The local executor is missing, including a Docker socket that is not there. |
-| `verifier_timeout` | 17 Kan/Zhen | checkpoint | The check timed out and can be resumed. |
+| `sandbox_required`, `docker_not_found`, `docker_daemon_unavailable` | 32 Gen/Kun | checkpoint | The local executor is missing, including a Docker socket that is not there. |
+| `verifier_timeout`, `model_provider_timeout` | 17 Kan/Zhen | checkpoint | The check or the model call timed out and can be resumed. |
+| `approval_rejected` | 40 Li/Kun | halt | The operator refused the write. |
 | `resource_budget_exceeded`, `invalid_model_plan`, `approval_required` | 40 Li/Kun | halt | The plan or the budget reached the fire boundary. |
 
 When a verifier fails, its reason replaces the write's cooled code. The entropy mix of the earlier write and the failure is evidence only. It does not choose the next action. A long circulation run on 2026-10-18 kept code 39 after three verifier failures, and the entropy reading of the same failure was continue (56) on the first round and halt (40) on the later rounds. The control code is now the named reason above. A missing Colima socket is `sandbox_required`, not `verifier_failed`.

@@ -127,6 +127,22 @@ class TestIchingKernel(unittest.TestCase):
             IchingKernel.classify_outcome(status="halted", reason="verifier_timeout"),
             IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN),
         )
+        self.assertEqual(
+            IchingKernel.classify_outcome(status="halted", reason="model_provider_timeout"),
+            IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN),
+        )
+        self.assertEqual(
+            IchingKernel.classify_outcome(status="halted", reason="approval_rejected"),
+            IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
+        )
+        self.assertEqual(
+            IchingKernel.classify_outcome(status="blocked", reason="docker_daemon_unavailable"),
+            IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.KUN),
+        )
+        self.assertEqual(
+            IchingKernel.classify_outcome(status="blocked", reason="docker_not_found"),
+            IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.KUN),
+        )
 
     def test_soft_miss_reasons_stay_kun_and_continue_read_only(self):
         from onecode.kernel.outcome_policy import agent_cycle_decision

@@ -299,13 +299,13 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
     def classify_outcome(cls, status: str, reason: str | None) -> int:
         if reason in {"sovereignty_breach", "permission_denied"}:
             return cls.compute_status(cls.LI, cls.KUN)
-        if reason in {"malformed_input", "oversized_input", "resource_budget_exceeded", "repeated_action", "approval_required", "no_progress"}:
+        if reason in {"malformed_input", "oversized_input", "resource_budget_exceeded", "repeated_action", "approval_required", "approval_rejected", "no_progress"}:
             return cls.compute_status(cls.LI, cls.KUN)
-        if reason in {"http_timeout", "verifier_timeout"}:
+        if reason in {"http_timeout", "verifier_timeout", "model_provider_timeout"}:
             return cls.compute_status(cls.KAN, cls.ZHEN)
         if reason in cls.SOFT_MISS_REASONS:
             return cls.compute_status(cls.KUN, cls.KUN)
-        if reason in {"action_exception", "run_exception", "sandbox_required"}:
+        if reason in {"action_exception", "run_exception", "sandbox_required", "docker_not_found", "docker_daemon_unavailable"}:
             return cls.compute_status(cls.GEN, cls.KUN)
         if reason in {"invalid_intent", "invalid_model_plan", "verifier_failed"}:
             return cls.compute_status(cls.LI, cls.KUN)
