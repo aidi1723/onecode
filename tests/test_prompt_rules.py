@@ -10,7 +10,7 @@ class PromptRuleTests(unittest.TestCase):
         self.assertEqual(decision["rule_id"], "legacy_dangerous")
         self.assertEqual(decision["action"], "SOVEREIGNTY_HALT")
         self.assertEqual(decision["yizijue_state"], "100001")
-        self.assertEqual(decision["symbolic_transition"]["action"], "activate")
+        self.assertEqual(decision["symbolic_transition"]["action"], "checkpoint")
 
     def test_hosts_alone_denies(self):
         decision = decide_prompt("请帮我修改hosts文件，添加127.0.0.1 localhost")

@@ -12,6 +12,7 @@ This index helps you navigate OneCode's documentation, which is organized by pur
 - [2026-09-29 agent parity closeout](closure/ONECODE_AGENT_PARITY_CLOSURE_2026-09-29.md) - Handbook phases, workflow run, and evaluation limits
 - [2026-09-29 host contract handbook](superpowers/plans/2026-09-29-host-contract-handbook.md) - Execution-gate approval, no-progress stop, transient errors, truncation
 - [2026-10-07 Engineering & Observability handbook](superpowers/plans/2026-10-07-onecode-engineering-and-observability-handbook.md) - Soak tests, ARM64 sandbox, and read-only I Ching telemetry
+- [2026-10-18 hexagram runtime closeout](closure/ONECODE_HEXAGRAM_RUNTIME_CLOSEOUT_2026-10-18.md) - One reading for yin-yang, five elements, and tagged tasks
 - [2026-10-18 long-task rule notes](closure/ONECODE_LONG_TASK_RULE_NOTES_2026-10-18.md) - Circulation rounds, missing Docker socket, and the named verifier hexagrams
 - [2026-10-07 day closeout part 2](closure/ONECODE_DAY_CLOSEOUT_2026-10-07_PART_2.md) - Memory leak mitigation and ARM64 QEMU pending validation, core audit fixes applied
 - [2026-09-29 day closeout](closure/ONECODE_DAY_CLOSEOUT_2026-09-29.md) - Mac and n100 results, and what is still running

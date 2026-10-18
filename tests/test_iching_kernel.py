@@ -219,7 +219,7 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(pure_yin.action, "discover")
         self.assertEqual(pure_yin.reason, "rule_gap_requires_discovery")
 
-        yin_excess = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.DUI))
+        yin_excess = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.GEN))
         self.assertEqual(yin_excess.action, "activate")
         self.assertEqual(yin_excess.reason, "yin_excess_requires_activation")
 
@@ -236,14 +236,14 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(prune.reason, "metal_prunes_wood_scope")
 
         dam = IchingKernel.transition(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KAN))
-        self.assertEqual(dam.action, "activate")
-        self.assertEqual(dam.reason, "yin_excess_requires_activation")
+        self.assertEqual(dam.action, "throttle")
+        self.assertEqual(dam.reason, "earth_dams_water_flow")
 
     def test_task_schedule_restores_generation_and_control_under_excess_yin(self):
         dam = IchingKernel.task_schedule(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KAN))
         self.assertEqual(dam["balance"], "yin_excess")
         self.assertEqual(dam["cross_relation"], "controls")
-        self.assertEqual(dam["transition_action"], "activate")
+        self.assertEqual(dam["transition_action"], "throttle")
         self.assertEqual(dam["schedule_action"], "throttle")
         self.assertEqual(dam["schedule_reason"], "earth_dams_water_flow")
 

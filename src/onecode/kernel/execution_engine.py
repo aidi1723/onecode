@@ -450,8 +450,9 @@ def execute_plan(
     reason = None if success else next((result.reason for result in step_results if result.reason), None)
     status_codes = [_recorded_status_code(step) for step in step_results]
     entropy_regulated = IchingKernel.entropy_regulated_status(status_codes)
-    unanimous = bool(status_codes) and all(code == status_codes[0] for code in status_codes)
-    global_status_code = status_codes[0] if unanimous else int(entropy_regulated["status_code"])
+    global_status_code = (
+        IchingKernel.aggregate_status(status_codes) if status_codes else int(entropy_regulated["status_code"])
+    )
     trace = ExecutionTrace(
         task=plan.task,
         success=success,

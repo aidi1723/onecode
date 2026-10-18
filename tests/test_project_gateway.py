@@ -62,7 +62,7 @@ class ProjectGatewayTests(unittest.TestCase):
         self.assertEqual(project_gateway(0b111111, row), project_gateway(0b111111, dict(row)))
 
     def test_kernel_oracle_stays_separate_from_gateway_actions(self):
-        self.assertEqual(IchingKernel.transition(0b100001).action, "activate")
+        self.assertEqual(IchingKernel.transition(0b100001).action, "checkpoint")
         rewritten = IchingKernel.transition(0b111111)
         self.assertEqual(rewritten.action, "cooldown")
         self.assertEqual(rewritten.status_code, 39)

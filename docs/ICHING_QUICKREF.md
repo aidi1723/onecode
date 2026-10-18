@@ -155,7 +155,7 @@ When a verifier fails, its reason replaces the write's cooled code. The entropy 
 The hexagram transition remains the safety baseline. A task step also reads yin-yang balance and the five-element relation:
 
 - Pure yang and excess yang still cool. A completed write lands on Gen/Qian (39). That landed state is earth generating metal, so the next task pressure is `accelerate` while the transition that got there stays `cooldown`.
-- Excess yin does not hide generation or control. Earth controlling water schedules `throttle` (`earth_dams_water_flow`) even though the baseline transition still says `activate`. Earth generating metal schedules `accelerate`.
+- Excess yin no longer hides generation or control. The transition and the task schedule are the same action: earth controlling water is `throttle` (`earth_dams_water_flow`), and earth generating metal is `accelerate`. Same-element excess yin still activates.
 - Outer fire, a missing local executor, and a water recovery seed keep their existing halt or checkpoint.
 - A write, patch, or command tagged with any of the 64 hexagrams asks `write_ruling`. Pure yang and excess yang cool and refuse the change, except outer fire, which still halts. Pure yin discovers and does not write. Throttle, prune, halt, and checkpoint do not change the workspace. Generation, recovery, activation, and continuation do, including when raw bandwidth is zero. A zero-bandwidth pair keeps the I Ching reason, such as fire suppressing metal or metal pruning wood, instead of a separate bandwidth label. The step records that hexagram.
 - A read or list during pure yin or yang rest is allowed. The same look during halt, control, prune, or checkpoint is refused.

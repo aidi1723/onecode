@@ -20,7 +20,7 @@ Three rounds then ran every restored pair as a real write. Throttle and checkpoi
 
 Refusal reasons now classify back to the hexagram family that produced them. `earth_dams_water_flow` is Kun/Kan throttle, not a generic Li/Kun halt. A halted task still exits nonzero. The agent cycle stops on throttle and prune.
 
-Zero bandwidth no longer replaces the I Ching reason. Fire over metal is `sovereignty_fire_suppresses_asset`. Metal pruning wood keeps the prune reason. A single tagged step's trace keeps that hexagram. Several steps of the same hexagram also keep it: two pure-yin refusals stay at 0, discover, and two earth-dam refusals stay Kun/Kan throttle. Different hexagrams in one plan still pass through the entropy record.
+Zero bandwidth no longer replaces the I Ching reason. Fire over metal is `sovereignty_fire_suppresses_asset`. Metal pruning wood keeps the prune reason. A single tagged step's trace keeps that hexagram. Several steps of the same hexagram also keep it: two pure-yin refusals stay at 0, discover, and two earth-dam refusals stay Kun/Kan throttle. Different hexagrams in one plan now combine by the I Ching aggregate. The entropy figures stay on the trace as evidence and do not replace that hexagram. Excess yin uses the same action for the transition and the task schedule.
 
 Patches and commands were then run once for every hexagram. Each matched the write ruling. Two siblings in one layer are judged apart: earth generating metal writes, and earth damming water in the same layer still refuses, without cancelling the write.
 

@@ -15,20 +15,20 @@ BASELINE_64 = {
         "bandwidth": 1.0
     },
     "1": {
-        "action": "activate",
-        "reason": "yin_excess_requires_activation",
-        "dispatch": "continue",
+        "action": "checkpoint",
+        "reason": "controlled_by_relation_requires_verifier",
+        "dispatch": "stop",
         "bandwidth": 1.0
     },
     "2": {
-        "action": "activate",
-        "reason": "yin_excess_requires_activation",
+        "action": "throttle",
+        "reason": "earth_dams_water_flow",
         "dispatch": "continue",
         "bandwidth": 1.0
     },
     "3": {
-        "action": "activate",
-        "reason": "yin_excess_requires_activation",
+        "action": "accelerate",
+        "reason": "generating_relation_accelerates_execution",
         "dispatch": "continue",
         "bandwidth": 1.0
     },
@@ -39,15 +39,15 @@ BASELINE_64 = {
         "bandwidth": 1.0
     },
     "5": {
-        "action": "activate",
-        "reason": "yin_excess_requires_activation",
+        "action": "recover",
+        "reason": "generated_by_relation_recovers_execution",
         "dispatch": "continue",
         "bandwidth": 0.0
     },
     "6": {
-        "action": "activate",
-        "reason": "yin_excess_requires_activation",
-        "dispatch": "continue",
+        "action": "checkpoint",
+        "reason": "controlled_by_relation_requires_verifier",
+        "dispatch": "stop",
         "bandwidth": 1.0
     },
     "7": {
@@ -69,8 +69,8 @@ BASELINE_64 = {
         "bandwidth": 1.0
     },
     "10": {
-        "action": "activate",
-        "reason": "yin_excess_requires_activation",
+        "action": "recover",
+        "reason": "generated_by_relation_recovers_execution",
         "dispatch": "continue",
         "bandwidth": 0.0
     },
@@ -82,7 +82,7 @@ BASELINE_64 = {
     },
     "12": {
         "action": "activate",
-        "reason": "yin_excess_requires_activation",
+        "reason": "wood_breaks_inert_ground",
         "dispatch": "continue",
         "bandwidth": 0.0
     },
@@ -129,9 +129,9 @@ BASELINE_64 = {
         "bandwidth": 0.0
     },
     "20": {
-        "action": "activate",
-        "reason": "yin_excess_requires_activation",
-        "dispatch": "continue",
+        "action": "checkpoint",
+        "reason": "controlled_by_relation_requires_verifier",
+        "dispatch": "stop",
         "bandwidth": 1.0
     },
     "21": {
@@ -207,14 +207,14 @@ BASELINE_64 = {
         "bandwidth": 1.0
     },
     "33": {
-        "action": "activate",
-        "reason": "yin_excess_requires_activation",
-        "dispatch": "continue",
+        "action": "checkpoint",
+        "reason": "controlled_by_relation_requires_verifier",
+        "dispatch": "stop",
         "bandwidth": 1.0
     },
     "34": {
-        "action": "activate",
-        "reason": "yin_excess_requires_activation",
+        "action": "throttle",
+        "reason": "earth_dams_water_flow",
         "dispatch": "continue",
         "bandwidth": 1.0
     },

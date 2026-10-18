@@ -441,6 +441,9 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
                 reason="network_water_preserves_resume_seed",
             )
         if profile["balance"] == "yin_excess" and inner != cls.KUN:
+            if dynamics["cross_relation"] in {"controls", "generates", "controlled_by", "generated_by"}:
+                action, reason = cls.runtime_relation_policy(dynamics["cross_relation"], dynamics["modulation"])
+                return IchingTransition(status_code=normalized, action=action, reason=reason)
             return IchingTransition(
                 status_code=normalized,
                 action="activate",
@@ -451,28 +454,11 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
         return IchingTransition(status_code=normalized, action=action, reason=reason)
     @classmethod
     def task_schedule(cls, status_code: int) -> dict[str, int | str | None]:
-        """Compose yin-yang balance with the five-element relation for a task step.
-
-        The hexagram transition stays the safety baseline. Excess yin no longer
-        hides generation or control: a controlling pair keeps its throttle,
-        prune, halt, or checkpoint, and a generating pair nourishes.
-        """
+        """Read the same transition the task will run, with balance and elements."""
         normalized = status_code & 0b111111
         profile = cls.yin_yang_profile(normalized)
         dynamics = cls.element_dynamics(normalized)
         transition = cls.transition(normalized)
-        schedule_action: str | None = transition.action
-        schedule_reason: str | None = transition.reason
-        if (
-            profile["balance"] == "yin_excess"
-            and transition.action == "activate"
-            and transition.reason == "yin_excess_requires_activation"
-            and dynamics["cross_relation"] in {"controls", "generates", "controlled_by", "generated_by"}
-        ):
-            schedule_action, schedule_reason = cls.runtime_relation_policy(
-                dynamics["cross_relation"],
-                dynamics["modulation"],
-            )
         return {
             "status_code": normalized,
             "balance": str(profile["balance"]),
@@ -480,8 +466,8 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
             "modulation": dynamics["modulation"],
             "transition_action": transition.action,
             "transition_reason": transition.reason,
-            "schedule_action": schedule_action,
-            "schedule_reason": schedule_reason,
+            "schedule_action": transition.action,
+            "schedule_reason": transition.reason,
         }
     @classmethod
     def write_ruling(cls, status_code: int) -> dict[str, int | float | str | None]:
