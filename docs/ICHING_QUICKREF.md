@@ -160,7 +160,7 @@ The hexagram transition remains the safety baseline. A task step also reads yin-
 - A write, patch, or command tagged with any of the 64 hexagrams asks `write_ruling`. Pure yang and excess yang cool and refuse the change, except outer fire, which still halts. Pure yin discovers and does not write. Throttle, prune, halt, and checkpoint do not change the workspace. Generation, recovery, activation, and continuation do, including when raw bandwidth is zero. A zero-bandwidth pair keeps the I Ching reason, such as fire suppressing metal or metal pruning wood, instead of a separate bandwidth label. The step records that hexagram.
 - A read or list during pure yin or yang rest is allowed. The same look during halt, control, prune, or checkpoint is refused.
 - Steps in the same layer are judged separately. A dammed sibling does not cancel a generating sibling.
-- A refused step keeps the I Ching reason and the hexagram that produced it. Classifying that reason returns the same schedule: earth damming water stays Kun/Kan throttle, fire suppressing metal stays the fire halt, and a halted task exits nonzero. A single tagged step's trace uses that hexagram. Several steps still pass through the entropy record.
+- A refused step keeps the I Ching reason and the hexagram that produced it. Classifying that reason returns the same schedule: earth damming water stays Kun/Kan throttle, fire suppressing metal stays the fire halt, and a halted task exits nonzero. One step, or several steps of the same hexagram, keep that hexagram on the trace. Different hexagrams in one plan still pass through the entropy record.
 
 ## Debugging Flowchart
 
