@@ -181,7 +181,7 @@ def _drop_restrained_steps(
         step_results.append(StepResult(step_id=step.id, status="failed", reason=reason))
         processed_step_ids.add(step.id)
         restrained = True
-    return [] if restrained else remaining, restrained
+    return remaining, restrained
 
 
 def step_blocked_by_bandwidth(step: ExecutionStep, registry: ToolRegistry) -> bool:
@@ -351,13 +351,9 @@ def execute_plan(
             step_results.append(StepResult(step_id=step.id, status="failed", reason="execution_bandwidth_zero"))
             processed_step_ids.add(step.id)
         approved_layer = [step for step in approved_layer if step.id not in {blocked.id for blocked in bandwidth_blocked}]
-        if bandwidth_blocked:
-            break
-        approved_layer, restrained = _drop_restrained_steps(
+        approved_layer, _ = _drop_restrained_steps(
             approved_layer, registry, step_results, processed_step_ids
         )
-        if restrained:
-            break
         if not approved_layer:
             continue
         path_breach_step = next(

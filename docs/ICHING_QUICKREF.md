@@ -159,6 +159,7 @@ The hexagram transition remains the safety baseline. A task step also reads yin-
 - Outer fire, a missing local executor, and a water recovery seed keep their existing halt or checkpoint.
 - A write, patch, or command tagged with any of the 64 hexagrams asks `write_ruling`. Pure yang and excess yang cool and refuse the change, except outer fire, which still halts. Pure yin discovers and does not write. Throttle, prune, halt, and checkpoint do not change the workspace. Generation, recovery, activation, and continuation do, including when raw bandwidth is zero. Any other zero-bandwidth pair stops with `execution_bandwidth_zero`.
 - A read or list during pure yin or yang rest is allowed. The same look during halt, control, prune, or checkpoint is refused.
+- Steps in the same layer are judged separately. A dammed sibling does not cancel a generating sibling.
 
 ## Debugging Flowchart
 

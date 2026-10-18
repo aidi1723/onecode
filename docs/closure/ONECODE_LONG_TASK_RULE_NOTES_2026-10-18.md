@@ -18,6 +18,8 @@ Across the 64 states, excess yin was hiding generation and control: earth dammin
 
 Three rounds then ran every restored pair as a real write. Throttle and checkpoint schedules refused the file. Accelerate, recover, and wood breaking earth wrote the file, including pairs whose raw bandwidth is zero. A following dam still stopped after a nourishing write. The cooled model write stayed at code 39, action `cooldown`, with the next pressure `accelerate`. The same signatures repeated on each round.
 
+Patches and commands were then run once for every hexagram. Each matched the write ruling. Two siblings in one layer are judged apart: earth generating metal writes, and earth damming water in the same layer still refuses, without cancelling the write.
+
 Reads and lists follow the same hexagram. Pure yin and yang rest may look; halt, control, prune, and checkpoint may not. Commands and patches use the write ruling: earth damming water does not run or patch, earth generating metal does. Every hexagram was read once under that rule.
 
 Every hexagram now has one write ruling. Pure yang and excess yang cool and refuse the tagged write, except outer fire, which still halts. Pure yin discovers and refuses. Control, checkpoint, and halt refuse. Generation, recovery, activation, and continuation write. Two rounds executed all 64 tagged writes and matched that ruling.
