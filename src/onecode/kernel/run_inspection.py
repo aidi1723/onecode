@@ -88,8 +88,28 @@ def apply_verifier_evidence_from_dicts(result: dict, workspace: Path, verifier_d
             "status": "halted",
             "reason": first_failure["reason"],
             "partial": True,
+            **_verifier_halt_fields(str(first_failure["reason"])),
         }
     return write_result_ledger(workspace, enhanced)
+
+
+def _verifier_halt_fields(reason: str) -> dict[str, Any]:
+    classified = IchingKernel.classify_outcome("halted", reason)
+    transition = IchingKernel.transition(classified)
+    dispatch = IchingKernel.dispatch_decision(transition)
+    return {
+        "iching_status_code": transition.status_code,
+        "iching_transition_action": transition.action,
+        "iching_transition_reason": transition.reason,
+        "global_status_code": classified,
+        "global_transition_action": transition.action,
+        "global_transition_reason": transition.reason,
+        "dispatch_decision": dispatch,
+        "task_status_code": transition.status_code,
+        "task_transition_action": transition.action,
+        "task_transition_reason": transition.reason,
+        "task_dispatch_decision": dispatch,
+    }
 
 
 def sync_manifest_final_status(context: Any, result: dict) -> None:

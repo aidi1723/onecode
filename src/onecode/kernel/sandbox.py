@@ -213,6 +213,7 @@ def _docker_daemon_unavailable(stderr: str) -> bool:
     return (
         "cannot connect to the docker daemon" in lowered
         or "is the docker daemon running" in lowered
+        or "failed to connect to the docker api" in lowered
         or "permission denied while trying to connect to the docker api" in lowered
     )
 

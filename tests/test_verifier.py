@@ -173,6 +173,64 @@ class VerifierExecutionTests(unittest.TestCase):
             self.assertEqual(result.failure_kind, "exception")
             self.assertIn("Sandbox configuration is required", result.stderr_tail)
 
+    def test_colima_socket_miss_is_a_local_executor_checkpoint(self):
+        from onecode.kernel.hexagram import IchingKernel
+        from onecode.kernel.run_inspection import apply_verifier_evidence
+        from onecode.kernel.sandbox import SandboxConfig
+
+        message = (
+            "failed to connect to the docker API at unix:///Users/aidi/.colima/default/docker.sock; "
+            "check if the path is correct and if the daemon is running: "
+            "dial unix /Users/aidi/.colima/default/docker.sock: connect: no such file or directory"
+        )
+
+        def docker_down(*args, **kwargs):
+            return subprocess.CompletedProcess(
+                args=args[0] if args else kwargs.get("args", []),
+                returncode=1,
+                stdout="",
+                stderr=message,
+            )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            spec = VerifierSpec(
+                id="python-unittest",
+                command=["python3", "-m", "unittest", "discover", "-s", "tests"],
+                cwd=".",
+                timeout_ms=5000,
+            )
+            with patch("onecode.kernel.sandbox.subprocess.run", side_effect=docker_down):
+                verifier = run_verifier(
+                    workspace,
+                    spec,
+                    sandbox_config=SandboxConfig(workspace=workspace, image="python:3.12-slim", network="none"),
+                )
+            enhanced = apply_verifier_evidence(
+                {
+                    "run_id": "colima-miss",
+                    "status": "completed",
+                    "reason": None,
+                    "partial": False,
+                    "requested_count": 1,
+                    "completed_count": 1,
+                    "skipped_count": 0,
+                    "failed_count": 0,
+                    "assets": [],
+                    "iching_status_code": 39,
+                    "iching_transition_action": "cooldown",
+                },
+                workspace,
+                [verifier],
+            )
+
+        transition = IchingKernel.transition(IchingKernel.classify_outcome("halted", "sandbox_required"))
+        self.assertEqual(verifier.reason, "sandbox_required")
+        self.assertEqual(enhanced["status"], "halted")
+        self.assertEqual(enhanced["iching_status_code"], transition.status_code)
+        self.assertEqual(enhanced["iching_transition_action"], "checkpoint")
+        self.assertEqual(enhanced["task_dispatch_decision"], "stop")
+
     def test_run_verifier_does_not_inherit_secret_environment(self):
         from onecode.kernel.sandbox import SandboxConfig
         with tempfile.TemporaryDirectory() as tmp, patch.dict(

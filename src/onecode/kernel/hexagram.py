@@ -301,13 +301,13 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
             return cls.compute_status(cls.LI, cls.KUN)
         if reason in {"malformed_input", "oversized_input", "resource_budget_exceeded", "repeated_action", "approval_required", "no_progress"}:
             return cls.compute_status(cls.LI, cls.KUN)
-        if reason == "http_timeout":
+        if reason in {"http_timeout", "verifier_timeout"}:
             return cls.compute_status(cls.KAN, cls.ZHEN)
         if reason in cls.SOFT_MISS_REASONS:
             return cls.compute_status(cls.KUN, cls.KUN)
-        if reason in {"action_exception", "run_exception"}:
+        if reason in {"action_exception", "run_exception", "sandbox_required"}:
             return cls.compute_status(cls.GEN, cls.KUN)
-        if reason in {"invalid_intent", "invalid_model_plan"}:
+        if reason in {"invalid_intent", "invalid_model_plan", "verifier_failed"}:
             return cls.compute_status(cls.LI, cls.KUN)
         if reason == "self_audit_check_failed":
             return cls.compute_status(cls.LI, cls.KUN)

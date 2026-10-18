@@ -115,6 +115,18 @@ class TestIchingKernel(unittest.TestCase):
             IchingKernel.classify_outcome(status="completed", reason=None),
             IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN),
         )
+        self.assertEqual(
+            IchingKernel.classify_outcome(status="halted", reason="verifier_failed"),
+            IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
+        )
+        self.assertEqual(
+            IchingKernel.classify_outcome(status="halted", reason="sandbox_required"),
+            IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.KUN),
+        )
+        self.assertEqual(
+            IchingKernel.classify_outcome(status="halted", reason="verifier_timeout"),
+            IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN),
+        )
 
     def test_soft_miss_reasons_stay_kun_and_continue_read_only(self):
         from onecode.kernel.outcome_policy import agent_cycle_decision

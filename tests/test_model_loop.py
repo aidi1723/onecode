@@ -1765,6 +1765,11 @@ class ModelLoopTests(unittest.TestCase):
 
         self.assertEqual(enhanced["status"], "halted")
         self.assertEqual(enhanced["reason"], "verifier_failed")
+        halt = IchingKernel.transition(IchingKernel.classify_outcome("halted", "verifier_failed"))
+        self.assertEqual(halt.status_code, IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN))
+        self.assertEqual(enhanced["iching_status_code"], halt.status_code)
+        self.assertEqual(enhanced["iching_transition_action"], "halt")
+        self.assertEqual(enhanced["task_dispatch_decision"], "stop")
         self.assertEqual(exit_code, 0)
         self.assertEqual(summary["status"], "halted")
         self.assertEqual(summary["reason"], "verifier_failed")
