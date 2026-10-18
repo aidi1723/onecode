@@ -239,6 +239,26 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(dam.action, "activate")
         self.assertEqual(dam.reason, "yin_excess_requires_activation")
 
+    def test_task_schedule_restores_generation_and_control_under_excess_yin(self):
+        dam = IchingKernel.task_schedule(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KAN))
+        self.assertEqual(dam["balance"], "yin_excess")
+        self.assertEqual(dam["cross_relation"], "controls")
+        self.assertEqual(dam["transition_action"], "activate")
+        self.assertEqual(dam["schedule_action"], "throttle")
+        self.assertEqual(dam["schedule_reason"], "earth_dams_water_flow")
+
+        nourished = IchingKernel.task_schedule(IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.DUI))
+        self.assertEqual(nourished["cross_relation"], "generates")
+        self.assertEqual(nourished["schedule_action"], "accelerate")
+        self.assertEqual(nourished["schedule_reason"], "generating_relation_accelerates_execution")
+
+        cooled = IchingKernel.task_schedule(IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN))
+        self.assertEqual(cooled["balance"], "pure_yang")
+        self.assertEqual(cooled["schedule_action"], "cooldown")
+
+        fire = IchingKernel.task_schedule(IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN))
+        self.assertEqual(fire["schedule_action"], "halt")
+
     def test_element_dynamics_uses_cross_relation_and_break_ground_modulation(self):
         status = IchingKernel.compute_status(IchingKernel.ZHEN, IchingKernel.KUN)
         dynamics = IchingKernel.element_dynamics(status)

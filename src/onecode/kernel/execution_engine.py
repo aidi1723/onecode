@@ -149,6 +149,43 @@ def step_has_path_breach(step: ExecutionStep, workspace: Path, registry: ToolReg
     return False
 
 
+def step_restrained_by_relation(step: ExecutionStep, registry: ToolRegistry) -> str | None:
+    for tool_call in step.tool_calls:
+        tool = registry.get(tool_call.tool_name)
+        if tool is None:
+            continue
+        action = tool.plan_action(tool_call.params)
+        if action.get("action_type") not in {"write_text", "patch_text"}:
+            continue
+        status_code = action.get("status_code")
+        if not isinstance(status_code, int) or isinstance(status_code, bool):
+            continue
+        schedule = IchingKernel.task_schedule(status_code)
+        if schedule["schedule_action"] in {"throttle", "prune", "halt", "checkpoint"}:
+            reason = schedule["schedule_reason"]
+            return reason if isinstance(reason, str) and reason else str(schedule["schedule_action"])
+    return None
+
+
+def _drop_restrained_steps(
+    layer: list[ExecutionStep],
+    registry: ToolRegistry,
+    step_results: list[StepResult],
+    processed_step_ids: set[str],
+) -> tuple[list[ExecutionStep], bool]:
+    remaining: list[ExecutionStep] = []
+    restrained = False
+    for step in layer:
+        reason = step_restrained_by_relation(step, registry)
+        if reason is None:
+            remaining.append(step)
+            continue
+        step_results.append(StepResult(step_id=step.id, status="failed", reason=reason))
+        processed_step_ids.add(step.id)
+        restrained = True
+    return [] if restrained else remaining, restrained
+
+
 def step_blocked_by_bandwidth(step: ExecutionStep, registry: ToolRegistry) -> bool:
     for tool_call in step.tool_calls:
         tool = registry.get(tool_call.tool_name)
@@ -314,6 +351,11 @@ def execute_plan(
             processed_step_ids.add(step.id)
         approved_layer = [step for step in approved_layer if step.id not in {blocked.id for blocked in bandwidth_blocked}]
         if bandwidth_blocked:
+            break
+        approved_layer, restrained = _drop_restrained_steps(
+            approved_layer, registry, step_results, processed_step_ids
+        )
+        if restrained:
             break
         if not approved_layer:
             continue

@@ -569,6 +569,57 @@ class ExecutionEngineTests(unittest.TestCase):
             self.assertEqual(trace.step_results[0].reason, "execution_bandwidth_zero")
             self.assertFalse((workspace / "src" / "blocked.py").exists())
 
+    def test_earth_damming_water_refuses_a_write_and_generation_still_writes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            plan = ExecutionPlan(
+                task="dam then nourish",
+                steps=[
+                    ExecutionStep(
+                        id="dam",
+                        description="earth dams a write",
+                        tool_calls=[
+                            ToolCallSpec(
+                                tool_name="write_text",
+                                params={
+                                    "path": "src/dam.py",
+                                    "content": "DAM = True\n",
+                                    "status_code": IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KAN),
+                                },
+                            )
+                        ],
+                    ),
+                    ExecutionStep(
+                        id="nourish",
+                        description="earth generates a write",
+                        depends_on=["dam"],
+                        tool_calls=[
+                            ToolCallSpec(
+                                tool_name="write_text",
+                                params={
+                                    "path": "src/nourish.py",
+                                    "content": "NOURISH = True\n",
+                                    "status_code": IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.DUI),
+                                },
+                            )
+                        ],
+                    ),
+                ],
+            )
+
+            trace = execute_plan(
+                plan,
+                workspace=workspace,
+                run_id="dam-write-run",
+                tool_registry=default_tool_registry(),
+                approval_callback=lambda step: True,
+            )
+
+            self.assertFalse(trace.success)
+            self.assertEqual(trace.step_results[0].reason, "earth_dams_water_flow")
+            self.assertFalse((workspace / "src" / "dam.py").exists())
+            self.assertFalse((workspace / "src" / "nourish.py").exists())
+
     def test_execute_plan_requires_approval_for_guarded_tools(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

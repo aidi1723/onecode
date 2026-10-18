@@ -25,6 +25,9 @@ class AgentCycleDecisionTests(unittest.TestCase):
         self.assertEqual(decision["cycle"], "model_continue")
         self.assertEqual(decision["transition_action"], "cooldown")
         self.assertEqual(decision["dispatch"], "continue")
+        self.assertEqual(decision["balance"], "balanced")
+        self.assertEqual(decision["cross_relation"], "generates")
+        self.assertEqual(decision["schedule_action"], "accelerate")
 
     def test_search_miss_continues_with_read_only_tools(self):
         decision = agent_cycle_decision("completed", "search_miss")

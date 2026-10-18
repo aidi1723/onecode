@@ -26,6 +26,7 @@ def agent_cycle_decision(status: str, reason: str | None) -> dict[str, object]:
     """
     transition = transition_for_result(status, reason)
     dispatch = IchingKernel.dispatch_decision(transition)
+    schedule = IchingKernel.task_schedule(transition.status_code)
     if transition.action == "halt":
         cycle = "stop"
     elif transition.action == "checkpoint":
@@ -42,6 +43,10 @@ def agent_cycle_decision(status: str, reason: str | None) -> dict[str, object]:
         "transition_reason": transition.reason,
         "dispatch": dispatch,
         "cycle": cycle,
+        "balance": schedule["balance"],
+        "cross_relation": schedule["cross_relation"],
+        "schedule_action": schedule["schedule_action"],
+        "schedule_reason": schedule["schedule_reason"],
     }
 
 

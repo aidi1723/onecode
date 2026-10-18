@@ -150,6 +150,15 @@ A finished write is classified as Qian/Qian (63) and recorded after the yang coo
 
 When a verifier fails, its reason replaces the write's cooled code. The entropy mix of the earlier write and the failure is evidence only. It does not choose the next action. A long circulation run on 2026-10-18 kept code 39 after three verifier failures, and the entropy reading of the same failure was continue (56) on the first round and halt (40) on the later rounds. The control code is now the named reason above. A missing Colima socket is `sandbox_required`, not `verifier_failed`.
 
+## Task Schedule
+
+The hexagram transition remains the safety baseline. A task step also reads yin-yang balance and the five-element relation:
+
+- Pure yang and excess yang still cool. A completed write lands on Gen/Qian (39). That landed state is earth generating metal, so the next task pressure is `accelerate` while the transition that got there stays `cooldown`.
+- Excess yin does not hide generation or control. Earth controlling water schedules `throttle` (`earth_dams_water_flow`) even though the baseline transition still says `activate`. Earth generating metal schedules `accelerate`.
+- Outer fire, a missing local executor, and a water recovery seed keep their existing halt or checkpoint.
+- A write tagged with a throttling, pruning, halting, or checkpoint schedule does not run. A generating schedule still writes.
+
 ## Debugging Flowchart
 
 ```
