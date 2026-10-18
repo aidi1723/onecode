@@ -155,12 +155,10 @@ def step_restrained_by_relation(step: ExecutionStep, registry: ToolRegistry) -> 
         if tool is None:
             continue
         action = tool.plan_action(tool_call.params)
-        if action.get("action_type") not in {"write_text", "patch_text"}:
-            continue
         status_code = action.get("status_code")
         if not isinstance(status_code, int) or isinstance(status_code, bool):
             continue
-        ruling = IchingKernel.write_ruling(status_code)
+        ruling = IchingKernel.action_ruling(status_code, str(action.get("action_type") or ""))
         if ruling["outcome"] == "refuse" and ruling["reason"] != "execution_bandwidth_zero":
             reason = ruling["reason"]
             return reason if isinstance(reason, str) else None
@@ -195,7 +193,8 @@ def step_blocked_by_bandwidth(step: ExecutionStep, registry: ToolRegistry) -> bo
         status_code = action.get("status_code")
         if not isinstance(status_code, int) or isinstance(status_code, bool):
             continue
-        if IchingKernel.write_ruling(status_code)["reason"] == "execution_bandwidth_zero":
+        ruling = IchingKernel.action_ruling(status_code, str(action.get("action_type") or ""))
+        if ruling["reason"] == "execution_bandwidth_zero":
             return True
     return False
 

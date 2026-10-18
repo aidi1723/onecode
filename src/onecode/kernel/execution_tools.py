@@ -111,13 +111,14 @@ class ReadTextTool(ToolDefinition):
     runner_managed: bool = False
 
     def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
-        _reject_unknown_params(params, {"path", "max_bytes", "max_lines"})
-        return {
+        _reject_unknown_params(params, {"path", "max_bytes", "max_lines", "status_code"})
+        action = {
             "action_type": self.name,
             "path": _required_string(params, "path"),
             "max_bytes": _bounded_int(params.get("max_bytes", 200_000), "max_bytes", 1, 1_000_000),
             "max_lines": _bounded_int(params.get("max_lines", 400), "max_lines", 1, 10_000),
         }
+        return _attach_status_code(action, params)
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         action = self.plan_action(params)
@@ -149,13 +150,14 @@ class ListFilesTool(ToolDefinition):
     runner_managed: bool = False
 
     def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
-        _reject_unknown_params(params, {"path", "max_entries", "max_depth"})
-        return {
+        _reject_unknown_params(params, {"path", "max_entries", "max_depth", "status_code"})
+        action = {
             "action_type": self.name,
             "path": _optional_path(params),
             "max_entries": _bounded_int(params.get("max_entries", 200), "max_entries", 1, 5_000),
             "max_depth": _bounded_int(params.get("max_depth", 4), "max_depth", 0, 20),
         }
+        return _attach_status_code(action, params)
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         action = self.plan_action(params)
@@ -516,12 +518,13 @@ class RunCommandTool(ToolDefinition):
             raise ValueError("argv must be a non-empty bounded string list")
         if not all(isinstance(item, str) and item and len(item) <= 4_096 for item in argv):
             raise ValueError("argv must be a non-empty bounded string list")
-        _reject_unknown_params(params, {"argv", "timeout_seconds"})
-        return {
+        _reject_unknown_params(params, {"argv", "timeout_seconds", "status_code"})
+        action = {
             "action_type": self.name,
             "argv": list(argv),
             "timeout_seconds": _bounded_int(params.get("timeout_seconds", 60), "timeout_seconds", 1, 600),
         }
+        return _attach_status_code(action, params)
 
     def execute(self, params: dict[str, Any], workspace: Path, on_output: Any | None = None) -> dict[str, Any]:
         action = self.plan_action(params)
@@ -637,6 +640,12 @@ def _optional_path(params: dict[str, Any]) -> str:
     if not isinstance(value, str) or not value:
         raise ValueError("path must be a non-empty string")
     return value
+
+
+def _attach_status_code(action: dict[str, Any], params: dict[str, Any]) -> dict[str, Any]:
+    if "status_code" in params:
+        action["status_code"] = _status_code(params["status_code"])
+    return action
 
 
 def _status_code(value: Any) -> int:

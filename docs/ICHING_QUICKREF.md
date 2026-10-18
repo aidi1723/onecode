@@ -157,7 +157,8 @@ The hexagram transition remains the safety baseline. A task step also reads yin-
 - Pure yang and excess yang still cool. A completed write lands on Gen/Qian (39). That landed state is earth generating metal, so the next task pressure is `accelerate` while the transition that got there stays `cooldown`.
 - Excess yin does not hide generation or control. Earth controlling water schedules `throttle` (`earth_dams_water_flow`) even though the baseline transition still says `activate`. Earth generating metal schedules `accelerate`.
 - Outer fire, a missing local executor, and a water recovery seed keep their existing halt or checkpoint.
-- A write tagged with any of the 64 hexagrams asks `write_ruling`. Pure yang and excess yang cool and do not write. Pure yin discovers and does not write. Throttle, prune, halt, and checkpoint do not write. Generation, recovery, activation, and continuation write, including when raw bandwidth is zero. Any other zero-bandwidth pair stops with `execution_bandwidth_zero`.
+- A write, patch, or command tagged with any of the 64 hexagrams asks `write_ruling`. Pure yang and excess yang cool and refuse the change, except outer fire, which still halts. Pure yin discovers and does not write. Throttle, prune, halt, and checkpoint do not change the workspace. Generation, recovery, activation, and continuation do, including when raw bandwidth is zero. Any other zero-bandwidth pair stops with `execution_bandwidth_zero`.
+- A read or list during pure yin or yang rest is allowed. The same look during halt, control, prune, or checkpoint is refused.
 
 ## Debugging Flowchart
 

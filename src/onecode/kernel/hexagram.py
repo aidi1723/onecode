@@ -466,6 +466,30 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
             "reason": reason,
         }
     @classmethod
+    def action_ruling(cls, status_code: int, action_type: str) -> dict[str, int | float | str | None]:
+        """Apply the write ruling to a concrete tool.
+
+        A read during pure yin or yang rest may look. A read during halt,
+        control, or checkpoint may not. Commands and patches follow the write ruling.
+        """
+        ruling = cls.write_ruling(status_code)
+        observing = action_type in {
+            "read_text",
+            "list_files",
+            "search_text",
+            "glob_files",
+            "git_status",
+            "git_diff",
+            "outline",
+        }
+        if observing and (ruling["outcome"] == "write" or ruling["schedule_action"] in {"discover", "cooldown"}):
+            return {**ruling, "outcome": "allow", "reason": None}
+        if ruling["outcome"] == "refuse":
+            return ruling
+        if observing:
+            return {**ruling, "outcome": "allow", "reason": None}
+        return ruling
+    @classmethod
     def dispatch_decision(cls, transition: IchingTransition) -> str:
         if transition.action in {"halt", "checkpoint", "discover"}:
             return "stop"
