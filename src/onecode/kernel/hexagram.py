@@ -431,6 +431,41 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
             "schedule_reason": schedule_reason,
         }
     @classmethod
+    def write_ruling(cls, status_code: int) -> dict[str, int | float | str | None]:
+        """Decide whether a tagged write runs.
+
+        Yin-yang extremes rest or discover. Control, halt, and checkpoint
+        restrain the write. Generation, recovery, activation, and continuation
+        may write even when the pair's raw bandwidth is zero. Any other
+        zero-bandwidth pair stops on the bandwidth gate.
+        """
+        schedule = cls.task_schedule(status_code)
+        action = schedule["schedule_action"]
+        bandwidth = cls.execution_bandwidth(status_code)
+        nourishing = action in {"accelerate", "recover", "activate", "continue"}
+        if bandwidth <= 0 and not nourishing:
+            outcome = "refuse"
+            reason: str | None = "execution_bandwidth_zero"
+        elif action in {"throttle", "prune", "halt", "checkpoint", "cooldown", "discover"}:
+            outcome = "refuse"
+            schedule_reason = schedule["schedule_reason"]
+            reason = schedule_reason if isinstance(schedule_reason, str) and schedule_reason else str(action)
+        else:
+            outcome = "write"
+            reason = None
+        return {
+            "status_code": schedule["status_code"],
+            "balance": schedule["balance"],
+            "cross_relation": schedule["cross_relation"],
+            "modulation": schedule["modulation"],
+            "transition_action": schedule["transition_action"],
+            "schedule_action": action,
+            "schedule_reason": schedule["schedule_reason"],
+            "bandwidth": bandwidth,
+            "outcome": outcome,
+            "reason": reason,
+        }
+    @classmethod
     def dispatch_decision(cls, transition: IchingTransition) -> str:
         if transition.action in {"halt", "checkpoint", "discover"}:
             return "stop"

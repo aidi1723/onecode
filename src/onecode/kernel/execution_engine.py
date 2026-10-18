@@ -160,10 +160,10 @@ def step_restrained_by_relation(step: ExecutionStep, registry: ToolRegistry) -> 
         status_code = action.get("status_code")
         if not isinstance(status_code, int) or isinstance(status_code, bool):
             continue
-        schedule = IchingKernel.task_schedule(status_code)
-        if schedule["schedule_action"] in {"throttle", "prune", "halt", "checkpoint"}:
-            reason = schedule["schedule_reason"]
-            return reason if isinstance(reason, str) and reason else str(schedule["schedule_action"])
+        ruling = IchingKernel.write_ruling(status_code)
+        if ruling["outcome"] == "refuse" and ruling["reason"] != "execution_bandwidth_zero":
+            reason = ruling["reason"]
+            return reason if isinstance(reason, str) else None
     return None
 
 
@@ -195,10 +195,7 @@ def step_blocked_by_bandwidth(step: ExecutionStep, registry: ToolRegistry) -> bo
         status_code = action.get("status_code")
         if not isinstance(status_code, int) or isinstance(status_code, bool):
             continue
-        if IchingKernel.execution_bandwidth(status_code) <= 0:
-            schedule = IchingKernel.task_schedule(status_code)
-            if schedule["schedule_action"] in {"accelerate", "recover", "activate", "continue"}:
-                continue
+        if IchingKernel.write_ruling(status_code)["reason"] == "execution_bandwidth_zero":
             return True
     return False
 
