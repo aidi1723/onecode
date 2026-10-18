@@ -149,6 +149,25 @@ def step_has_path_breach(step: ExecutionStep, workspace: Path, registry: ToolReg
     return False
 
 
+def _recorded_status_code(step: StepResult) -> int:
+    if isinstance(step.iching_status_code, int):
+        return step.iching_status_code
+    state = "completed" if step.status == "completed" else "halted" if step.status == "failed" else "skipped"
+    return IchingKernel.classify_outcome(state, step.reason)
+
+
+def _tagged_status_code(step: ExecutionStep, registry: ToolRegistry) -> int | None:
+    for tool_call in step.tool_calls:
+        tool = registry.get(tool_call.tool_name)
+        if tool is None:
+            continue
+        action = tool.plan_action(tool_call.params)
+        status_code = action.get("status_code")
+        if isinstance(status_code, int) and not isinstance(status_code, bool):
+            return status_code
+    return None
+
+
 def step_restrained_by_relation(step: ExecutionStep, registry: ToolRegistry) -> str | None:
     for tool_call in step.tool_calls:
         tool = registry.get(tool_call.tool_name)
@@ -178,7 +197,14 @@ def _drop_restrained_steps(
         if reason is None:
             remaining.append(step)
             continue
-        step_results.append(StepResult(step_id=step.id, status="failed", reason=reason))
+        step_results.append(
+            StepResult(
+                step_id=step.id,
+                status="failed",
+                reason=reason,
+                iching_status_code=_tagged_status_code(step, registry),
+            )
+        )
         processed_step_ids.add(step.id)
         restrained = True
     return remaining, restrained
@@ -281,6 +307,7 @@ def execute_step(
             tool_results=tool_results,
             reason=step_failed_reason,
             duration_ms=duration_ms,
+            iching_status_code=_tagged_status_code(step, registry),
         ),
         runner_results,
     )
@@ -348,7 +375,14 @@ def execute_plan(
             continue
         bandwidth_blocked = [step for step in approved_layer if step_blocked_by_bandwidth(step, registry)]
         for step in bandwidth_blocked:
-            step_results.append(StepResult(step_id=step.id, status="failed", reason="execution_bandwidth_zero"))
+            step_results.append(
+                StepResult(
+                    step_id=step.id,
+                    status="failed",
+                    reason="execution_bandwidth_zero",
+                    iching_status_code=_tagged_status_code(step, registry),
+                )
+            )
             processed_step_ids.add(step.id)
         approved_layer = [step for step in approved_layer if step.id not in {blocked.id for blocked in bandwidth_blocked}]
         approved_layer, _ = _drop_restrained_steps(
@@ -414,15 +448,9 @@ def execute_plan(
 
     success = bool(step_results) and all(result.status == "completed" for result in step_results)
     reason = None if success else next((result.reason for result in step_results if result.reason), None)
-    status_codes = [
-        IchingKernel.classify_outcome(
-            "completed" if step.status == "completed" else "halted" if step.status == "failed" else "skipped",
-            step.reason,
-        )
-        for step in step_results
-    ]
+    status_codes = [_recorded_status_code(step) for step in step_results]
     entropy_regulated = IchingKernel.entropy_regulated_status(status_codes)
-    global_status_code = int(entropy_regulated["status_code"])
+    global_status_code = status_codes[0] if len(status_codes) == 1 else int(entropy_regulated["status_code"])
     trace = ExecutionTrace(
         task=plan.task,
         success=success,

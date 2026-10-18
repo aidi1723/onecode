@@ -176,7 +176,7 @@ class RuleTaskVarietyTests(unittest.TestCase):
                 ("recover", _code(IchingKernel.KUN, IchingKernel.LI), True, None),
                 ("break_ground", _code(IchingKernel.ZHEN, IchingKernel.GEN), True, None),
                 ("controlled", _code(IchingKernel.KUN, IchingKernel.ZHEN), False, "controlled_by_relation_requires_verifier"),
-                ("fire", _code(IchingKernel.LI, IchingKernel.QIAN), False, "execution_bandwidth_zero"),
+                ("fire", _code(IchingKernel.LI, IchingKernel.QIAN), False, "sovereignty_fire_suppresses_asset"),
             ]
             for name, code, wrote, reason in cases:
                 trace, path = _tagged(workspace, name, code)

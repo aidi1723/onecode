@@ -91,6 +91,7 @@ class StepResult:
     tool_results: list[ToolResult] = field(default_factory=list)
     reason: str | None = None
     duration_ms: int = 0
+    iching_status_code: int | None = None
 
 
 @dataclass(frozen=True)

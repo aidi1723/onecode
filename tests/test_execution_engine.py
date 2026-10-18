@@ -566,7 +566,11 @@ class ExecutionEngineTests(unittest.TestCase):
             )
 
             self.assertFalse(trace.success)
-            self.assertEqual(trace.step_results[0].reason, "execution_bandwidth_zero")
+            self.assertEqual(trace.step_results[0].reason, "sovereignty_fire_suppresses_asset")
+            self.assertEqual(
+                trace.step_results[0].iching_status_code,
+                IchingKernel.compute_status(IchingKernel.LI, IchingKernel.QIAN),
+            )
             self.assertFalse((workspace / "src" / "blocked.py").exists())
 
     def test_earth_damming_water_refuses_a_write_and_generation_still_writes(self):

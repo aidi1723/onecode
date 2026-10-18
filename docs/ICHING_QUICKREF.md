@@ -157,9 +157,10 @@ The hexagram transition remains the safety baseline. A task step also reads yin-
 - Pure yang and excess yang still cool. A completed write lands on Gen/Qian (39). That landed state is earth generating metal, so the next task pressure is `accelerate` while the transition that got there stays `cooldown`.
 - Excess yin does not hide generation or control. Earth controlling water schedules `throttle` (`earth_dams_water_flow`) even though the baseline transition still says `activate`. Earth generating metal schedules `accelerate`.
 - Outer fire, a missing local executor, and a water recovery seed keep their existing halt or checkpoint.
-- A write, patch, or command tagged with any of the 64 hexagrams asks `write_ruling`. Pure yang and excess yang cool and refuse the change, except outer fire, which still halts. Pure yin discovers and does not write. Throttle, prune, halt, and checkpoint do not change the workspace. Generation, recovery, activation, and continuation do, including when raw bandwidth is zero. Any other zero-bandwidth pair stops with `execution_bandwidth_zero`.
+- A write, patch, or command tagged with any of the 64 hexagrams asks `write_ruling`. Pure yang and excess yang cool and refuse the change, except outer fire, which still halts. Pure yin discovers and does not write. Throttle, prune, halt, and checkpoint do not change the workspace. Generation, recovery, activation, and continuation do, including when raw bandwidth is zero. A zero-bandwidth pair keeps the I Ching reason, such as fire suppressing metal or metal pruning wood, instead of a separate bandwidth label. The step records that hexagram.
 - A read or list during pure yin or yang rest is allowed. The same look during halt, control, prune, or checkpoint is refused.
 - Steps in the same layer are judged separately. A dammed sibling does not cancel a generating sibling.
+- A refused step keeps the I Ching reason and the hexagram that produced it. A single tagged step's trace uses that hexagram. Several steps still pass through the entropy record.
 
 ## Debugging Flowchart
 

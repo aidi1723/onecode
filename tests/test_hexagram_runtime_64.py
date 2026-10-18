@@ -60,6 +60,8 @@ class HexagramRuntimeTests(unittest.TestCase):
                         self.assertEqual(ruling["outcome"], "refuse")
                     with tempfile.TemporaryDirectory() as tmp:
                         trace, path = _write(Path(tmp), code)
+                        if ruling["schedule_action"] in {"throttle", "prune", "halt", "checkpoint", "cooldown", "discover"}:
+                            self.assertEqual(ruling["reason"], ruling["schedule_reason"])
                         if ruling["outcome"] == "write":
                             self.assertTrue(trace.success)
                             self.assertTrue(path.is_file())
@@ -68,3 +70,5 @@ class HexagramRuntimeTests(unittest.TestCase):
                             self.assertFalse(trace.success)
                             self.assertFalse(path.exists())
                             self.assertEqual(trace.step_results[0].reason, ruling["reason"])
+                        self.assertEqual(trace.step_results[0].iching_status_code, code)
+                        self.assertEqual(trace.global_status_code, code)

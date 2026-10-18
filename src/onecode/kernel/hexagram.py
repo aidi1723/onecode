@@ -443,13 +443,13 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
         action = schedule["schedule_action"]
         bandwidth = cls.execution_bandwidth(status_code)
         nourishing = action in {"accelerate", "recover", "activate", "continue"}
-        if bandwidth <= 0 and not nourishing:
+        schedule_reason = schedule["schedule_reason"]
+        if action in {"throttle", "prune", "halt", "checkpoint", "cooldown", "discover"}:
             outcome = "refuse"
-            reason: str | None = "execution_bandwidth_zero"
-        elif action in {"throttle", "prune", "halt", "checkpoint", "cooldown", "discover"}:
+            reason: str | None = schedule_reason if isinstance(schedule_reason, str) and schedule_reason else str(action)
+        elif bandwidth <= 0 and not nourishing:
             outcome = "refuse"
-            schedule_reason = schedule["schedule_reason"]
-            reason = schedule_reason if isinstance(schedule_reason, str) and schedule_reason else str(action)
+            reason = "execution_bandwidth_zero"
         else:
             outcome = "write"
             reason = None
