@@ -260,6 +260,80 @@ class ModelLoopTests(unittest.TestCase):
             self.assertEqual(len(provider.tasks), 2)
             self.assertIn("exactly one", provider.tasks[1])
 
+    def test_repair_budget_writes_one_file_per_attempt(self):
+        class TwoFileProvider:
+            def __init__(self) -> None:
+                self.tasks: list[str] = []
+
+            def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+                from onecode.kernel.model_provider import validate_model_plan
+
+                self.tasks.append(task)
+                if len(self.tasks) == 1:
+                    raise ValueError("model response was truncated")
+                name = "one.py" if len(self.tasks) == 2 else "two.py"
+                return validate_model_plan(
+                    {
+                        "task": f"write {name}",
+                        "assets": [{"path": f"src/{name}", "content": f"VALUE = {len(self.tasks)}\n"}],
+                    }
+                )
+
+        provider = TwoFileProvider()
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_model_task_wrapper(
+                "build two modules",
+                workspace=workspace,
+                run_id="narrow-two",
+                api_key="key",
+                model="m",
+                provider=provider,
+                max_repair_attempts=2,
+                execution_approval=lambda step: True,
+            )
+
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual((workspace / "src" / "one.py").read_text(encoding="utf-8"), "VALUE = 2\n")
+            self.assertEqual((workspace / "src" / "two.py").read_text(encoding="utf-8"), "VALUE = 3\n")
+            self.assertEqual(len(provider.tasks), 3)
+            self.assertIn("src/one.py", provider.tasks[2])
+
+    def test_later_narrow_no_action_keeps_files_already_written(self):
+        class StopAfterOneProvider:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+                from onecode.kernel.model_provider import validate_model_plan
+
+                self.calls += 1
+                if self.calls == 1:
+                    raise ValueError("model response was truncated")
+                if self.calls == 2:
+                    return validate_model_plan(
+                        {"task": "write one", "assets": [{"path": "src/one.py", "content": "VALUE = 1\n"}]}
+                    )
+                return validate_model_plan({"task": "done", "no_action_reason": "already complete"})
+
+        provider = StopAfterOneProvider()
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_model_task_wrapper(
+                "build one module",
+                workspace=workspace,
+                run_id="narrow-stop",
+                api_key="key",
+                model="m",
+                provider=provider,
+                max_repair_attempts=2,
+                execution_approval=lambda step: True,
+            )
+
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual((workspace / "src" / "one.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+            self.assertEqual(provider.calls, 3)
+
     def test_repair_timeout_has_its_own_failed_terminal_event(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

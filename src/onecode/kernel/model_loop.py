@@ -140,13 +140,17 @@ def build_provider(api_key: str, provider_kind: str, endpoint: str | None) -> An
     return OpenAIChatCompletionsProvider(api_key, endpoint=config.endpoint)
 
 
-def narrow_plan_prompt(task: str, failure: dict[str, Any]) -> str:
+def narrow_plan_prompt(task: str, failure: dict[str, Any], written: list[str] | None = None) -> str:
     detail = failure.get("detail") or failure.get("failure_kind") or "plan did not fit"
+    already = ", ".join(written) if written else "none"
     return (
         "The previous plan did not fit in one response.\n"
         f"Failure: {detail}\n"
         f"Original task: {task}\n"
+        f"Already written: {already}\n"
         "Return JSON for exactly one new Python file. "
+        "Do not rewrite a file that is already written. "
+        "If the task is already complete, return no_action. "
         "The asset content must be complete and non-empty. "
         "Use unittest, not pytest. No relative imports. "
         "Do not include execution_plan or run_command."
@@ -782,6 +786,112 @@ def failed_model_result(
     )
 
 
+def _write_following_narrow_files(
+    *,
+    task: str,
+    plan: ModelPlan,
+    result: dict[str, Any],
+    max_repair_attempts: int,
+    provider: Any,
+    model_context: Any,
+    trace_path: Path,
+    provider_config: Any,
+    resolved_model: str,
+    http_timeout_seconds: float,
+    planning_context: dict[str, Any],
+    workspace: Path,
+    run_id: str | None,
+    resume_from_run_id: str | None,
+    run_metadata: dict[str, Any],
+    require_explicit_approval: bool,
+    execution_approval: Callable[[ExecutionStep], bool] | None,
+    on_turn: Callable[[dict[str, Any]], None] | None,
+) -> dict[str, Any]:
+    written = [asset.path for asset in plan.assets]
+    last = result
+    for index in range(2, max_repair_attempts + 1):
+        next_plan, failure = traced_provider_plan(
+            provider=provider,
+            task=narrow_plan_prompt(
+                task,
+                {"detail": "continue with the next file", "failure_kind": "resource_budget_exceeded"},
+                written,
+            ),
+            model_context=model_context,
+            trace_path=trace_path,
+            provider_config=provider_config,
+            resolved_model=resolved_model,
+            http_timeout_seconds=http_timeout_seconds,
+            planning_context=planning_context,
+            span_id=f"model-narrow-{index}",
+        )
+        if failure is not None or next_plan is None or next_plan.no_action_reason is not None:
+            return last
+        last = execute_model_plan(
+            next_plan,
+            workspace=workspace,
+            http_timeout_seconds=http_timeout_seconds,
+            run_id=run_id,
+            resume_from_run_id=resume_from_run_id,
+            run_metadata={
+                **run_metadata,
+                "model_plan_asset_count": len(next_plan.assets),
+                "model_plan_patch_count": len(next_plan.patches),
+                "model_plan_execution_step_count": len(next_plan.execution_steps),
+            },
+            require_explicit_approval=require_explicit_approval,
+            approval_callback=execution_approval,
+            on_turn=on_turn,
+        )
+        if last["status"] != "completed":
+            return last
+        written.extend(asset.path for asset in next_plan.assets)
+    return last
+
+
+def _initial_model_plan(
+    *,
+    task: str,
+    max_repair_attempts: int,
+    provider: Any,
+    model_context: Any,
+    trace_path: Path,
+    provider_config: Any,
+    resolved_model: str,
+    http_timeout_seconds: float,
+    planning_context: dict[str, Any],
+) -> tuple[ModelPlan | None, dict[str, Any] | None, bool]:
+    plan, failure = traced_provider_plan(
+        provider=provider,
+        task=task,
+        model_context=model_context,
+        trace_path=trace_path,
+        provider_config=provider_config,
+        resolved_model=resolved_model,
+        http_timeout_seconds=http_timeout_seconds,
+        planning_context=planning_context,
+        span_id="model-call",
+    )
+    narrowed = False
+    if failure is not None and max_repair_attempts > 0 and failure["failure_kind"] in {
+        "resource_budget_exceeded",
+        "invalid_model_plan",
+    }:
+        narrowed = True
+        plan, failure = traced_provider_plan(
+            provider=provider,
+            task=narrow_plan_prompt(task, failure),
+            model_context=model_context,
+            trace_path=trace_path,
+            provider_config=provider_config,
+            resolved_model=resolved_model,
+            http_timeout_seconds=http_timeout_seconds,
+            planning_context=planning_context,
+            span_id="model-narrow-1",
+        )
+    return plan, failure, narrowed
+
+
 def run_model_task(
     task: str,
     workspace: Path,
@@ -812,32 +922,17 @@ def run_model_task(
     trace_path = model_context.evidence_root / "trace.jsonl"
     if route is not None and route.status == "invalid":
         return invalid_safe_agent_result(model_context, trace_path, route)
-    plan, failure = traced_provider_plan(
-        provider=active_provider,
+    plan, failure, narrowed = _initial_model_plan(
         task=task,
+        max_repair_attempts=max_repair_attempts,
+        provider=active_provider,
         model_context=model_context,
         trace_path=trace_path,
         provider_config=provider_config,
         resolved_model=resolved_model,
         http_timeout_seconds=http_timeout_seconds,
         planning_context=planning_context,
-        span_id="model-call",
     )
-    if failure is not None and max_repair_attempts > 0 and failure["failure_kind"] in {
-        "resource_budget_exceeded",
-        "invalid_model_plan",
-    }:
-        plan, failure = traced_provider_plan(
-            provider=active_provider,
-            task=narrow_plan_prompt(task, failure),
-            model_context=model_context,
-            trace_path=trace_path,
-            provider_config=provider_config,
-            resolved_model=resolved_model,
-            http_timeout_seconds=http_timeout_seconds,
-            planning_context=planning_context,
-            span_id="model-narrow-1",
-        )
     if failure is not None:
         return failed_model_result(model_context, failure)
     assert plan is not None
@@ -887,6 +982,26 @@ def run_model_task(
         approval_callback=execution_approval,
         on_turn=on_turn,
     )
+    if narrowed and result["status"] == "completed" and max_repair_attempts > 1:
+        result = _write_following_narrow_files(
+            task=task, plan=plan,
+            result=result,
+            max_repair_attempts=max_repair_attempts,
+            provider=active_provider,
+            model_context=model_context,
+            trace_path=trace_path,
+            provider_config=provider_config,
+            resolved_model=resolved_model,
+            http_timeout_seconds=http_timeout_seconds,
+            planning_context=planning_context,
+            workspace=workspace,
+            run_id=run_id,
+            resume_from_run_id=resume_from_run_id,
+            run_metadata=run_metadata,
+            require_explicit_approval=require_explicit_approval,
+            execution_approval=execution_approval,
+            on_turn=on_turn,
+        )
     if result["status"] == "completed" or max_repair_attempts <= 0:
         return result
 
