@@ -346,6 +346,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_model_parser.add_argument("--endpoint", default=None)
     run_model_parser.add_argument("--max-repair-attempts", type=int, default=0)
+    run_model_parser.add_argument("--approve", action="store_true")
     run_model_parser.add_argument("--verifier-policy", default=None)
     run_model_parser.add_argument("--verifier", action="append", default=None)
 
@@ -919,6 +920,7 @@ def dispatch_run_command(args: Any, parser: argparse.ArgumentParser) -> int | No
                 provider_kind=args.provider,
                 endpoint=args.endpoint,
                 max_repair_attempts=args.max_repair_attempts,
+                execution_approval=(lambda step: True) if args.approve else None,
             )
             if verifier_specs and result["status"] == "completed":
                 verifier_results = [run_verifier(Path(args.workspace), spec, sandbox_config=sandbox_config) for spec in verifier_specs]

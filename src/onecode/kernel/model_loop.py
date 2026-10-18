@@ -23,7 +23,7 @@ from onecode.kernel.execution_tools import redact_sensitive_text
 from onecode.kernel.execution_plan_loader import execution_trace_to_dict
 from onecode.kernel.checkpoint import write_checkpoint, write_ledger
 from onecode.kernel.context import create_context
-from onecode.kernel.hexagram import COMPLETE
+from onecode.kernel.hexagram import COMPLETE, IchingKernel
 from onecode.kernel.runner import halted_result, run_task
 from onecode.kernel.trace import TraceEvent, write_trace_event
 from onecode.kernel.safe_agent_router import SafeAgentRoute, route_safe_agent_task
@@ -150,7 +150,7 @@ def narrow_plan_prompt(task: str, failure: dict[str, Any], written: list[str] | 
         f"Already written: {already}\n"
         "Return JSON for exactly one new Python file. "
         "Do not rewrite a file that is already written. "
-        "If the task is already complete, return no_action. "
+        "If the task is already complete, return no_action with a concrete reason and no assets. "
         "The asset content must be complete and non-empty. "
         "Use unittest, not pytest. No relative imports. "
         "Do not include execution_plan or run_command."
@@ -786,6 +786,66 @@ def failed_model_result(
     )
 
 
+def _merge_narrow_results(results: list[dict[str, Any]]) -> dict[str, Any]:
+    merged = dict(results[-1])
+    assets: list[Any] = []
+    requested = completed = skipped = failed = asset_count = 0
+    for result in results:
+        result_assets = result.get("assets")
+        if isinstance(result_assets, list):
+            assets.extend(result_assets)
+        requested += int(result.get("requested_count") or 0)
+        completed += int(result.get("completed_count") or 0)
+        skipped += int(result.get("skipped_count") or 0)
+        failed += int(result.get("failed_count") or 0)
+        asset_count += int(result.get("model_plan_asset_count") or 0)
+    merged["assets"] = assets
+    merged["requested_count"] = requested
+    merged["completed_count"] = completed
+    merged["skipped_count"] = skipped
+    merged["failed_count"] = failed
+    merged["model_plan_asset_count"] = asset_count
+    return merged
+
+
+def _close_narrow_sequence(
+    results: list[dict[str, Any]],
+    *,
+    status: str,
+    reason: str | None,
+    model_context: Any,
+    outstanding: bool,
+) -> dict[str, Any]:
+    merged = _merge_narrow_results(results)
+    if outstanding:
+        merged["requested_count"] = int(merged["completed_count"]) + 1
+    status_code = IchingKernel.classify_outcome(status, reason)
+    transition = IchingKernel.transition(status_code)
+    delivery = IchingKernel.delivery_decision(
+        status,
+        merged["requested_count"],
+        merged["completed_count"],
+        merged["skipped_count"],
+        merged["failed_count"],
+    )
+    closed = {
+        **merged,
+        "status": status,
+        "reason": reason,
+        "partial": status != "completed",
+        "iching_status_code": status_code,
+        "iching_transition_action": transition.action,
+        "iching_transition_reason": transition.reason,
+        "global_status_code": status_code,
+        "global_transition_action": transition.action,
+        "global_transition_reason": transition.reason,
+        "dispatch_decision": IchingKernel.dispatch_decision(transition),
+        **delivery,
+    }
+    write_ledger(model_context, closed)
+    return closed
+
+
 def _write_following_narrow_files(
     *,
     task: str,
@@ -808,7 +868,7 @@ def _write_following_narrow_files(
     on_turn: Callable[[dict[str, Any]], None] | None,
 ) -> dict[str, Any]:
     written = [asset.path for asset in plan.assets]
-    last = result
+    results = [result]
     for index in range(2, max_repair_attempts + 1):
         next_plan, failure = traced_provider_plan(
             provider=provider,
@@ -825,9 +885,23 @@ def _write_following_narrow_files(
             planning_context=planning_context,
             span_id=f"model-narrow-{index}",
         )
-        if failure is not None or next_plan is None or next_plan.no_action_reason is not None:
-            return last
-        last = execute_model_plan(
+        if failure is not None or next_plan is None:
+            return _close_narrow_sequence(
+                results,
+                status="halted",
+                reason=failure["failure_kind"] if failure is not None else "invalid_model_plan",
+                model_context=model_context,
+                outstanding=True,
+            )
+        if next_plan.no_action_reason is not None:
+            return _close_narrow_sequence(
+                results,
+                status="completed",
+                reason=None,
+                model_context=model_context,
+                outstanding=False,
+            )
+        latest = execute_model_plan(
             next_plan,
             workspace=workspace,
             http_timeout_seconds=http_timeout_seconds,
@@ -843,10 +917,23 @@ def _write_following_narrow_files(
             approval_callback=execution_approval,
             on_turn=on_turn,
         )
-        if last["status"] != "completed":
-            return last
+        results.append(latest)
+        if latest["status"] != "completed":
+            return _close_narrow_sequence(
+                results,
+                status=latest["status"],
+                reason=latest.get("reason"),
+                model_context=model_context,
+                outstanding=False,
+            )
         written.extend(asset.path for asset in next_plan.assets)
-    return last
+    return _close_narrow_sequence(
+        results,
+        status="halted",
+        reason="resource_budget_exceeded",
+        model_context=model_context,
+        outstanding=True,
+    )
 
 
 def _initial_model_plan(
@@ -982,7 +1069,7 @@ def run_model_task(
         approval_callback=execution_approval,
         on_turn=on_turn,
     )
-    if narrowed and result["status"] == "completed" and max_repair_attempts > 1:
+    if narrowed and max_repair_attempts > 1 and result["status"] == "completed":
         result = _write_following_narrow_files(
             task=task, plan=plan,
             result=result,
@@ -1002,7 +1089,7 @@ def run_model_task(
             execution_approval=execution_approval,
             on_turn=on_turn,
         )
-    if result["status"] == "completed" or max_repair_attempts <= 0:
+    if narrowed or result["status"] == "completed" or max_repair_attempts <= 0:
         return result
 
     failed_result = result

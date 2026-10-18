@@ -293,11 +293,25 @@ class ModelLoopTests(unittest.TestCase):
                 execution_approval=lambda step: True,
             )
 
-            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "resource_budget_exceeded")
+            self.assertEqual(result["completed_count"], 2)
+            self.assertEqual(result["requested_count"], 3)
+            self.assertEqual(result["model_plan_asset_count"], 2)
+            self.assertEqual(len(result["assets"]), 2)
+            self.assertEqual(
+                IchingKernel.classify_outcome(result["status"], result["reason"]),
+                IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
+            )
+            self.assertEqual(result["iching_transition_action"], "halt")
+            self.assertEqual(result["delivery_status"], "blocked")
             self.assertEqual((workspace / "src" / "one.py").read_text(encoding="utf-8"), "VALUE = 2\n")
             self.assertEqual((workspace / "src" / "two.py").read_text(encoding="utf-8"), "VALUE = 3\n")
             self.assertEqual(len(provider.tasks), 3)
             self.assertIn("src/one.py", provider.tasks[2])
+            ledger = json.loads((workspace / ".onecode" / "runs" / "narrow-two" / "ledger.json").read_text(encoding="utf-8"))
+            self.assertEqual(ledger["completed_count"], 2)
+            self.assertEqual(ledger["reason"], "resource_budget_exceeded")
 
     def test_later_narrow_no_action_keeps_files_already_written(self):
         class StopAfterOneProvider:
@@ -314,7 +328,7 @@ class ModelLoopTests(unittest.TestCase):
                     return validate_model_plan(
                         {"task": "write one", "assets": [{"path": "src/one.py", "content": "VALUE = 1\n"}]}
                     )
-                return validate_model_plan({"task": "done", "no_action_reason": "already complete"})
+                return validate_model_plan({"task": "done", "no_action": {"reason": "already complete"}})
 
         provider = StopAfterOneProvider()
         with tempfile.TemporaryDirectory() as tmp:
@@ -331,7 +345,57 @@ class ModelLoopTests(unittest.TestCase):
             )
 
             self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["reason"], None)
+            self.assertEqual(result["completed_count"], 1)
+            self.assertEqual(result["requested_count"], 1)
+            self.assertEqual(result["model_plan_asset_count"], 1)
+            self.assertEqual(
+                IchingKernel.classify_outcome(result["status"], result["reason"]),
+                IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN),
+            )
+            self.assertEqual(result["delivery_status"], "deliverable")
             self.assertEqual((workspace / "src" / "one.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+            self.assertEqual(provider.calls, 3)
+
+    def test_later_narrow_plan_failure_keeps_written_files_and_halts(self):
+        class FailAfterOneProvider:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+                from onecode.kernel.model_provider import validate_model_plan
+
+                self.calls += 1
+                if self.calls == 1:
+                    raise ValueError("model response was truncated")
+                if self.calls == 2:
+                    return validate_model_plan(
+                        {"task": "write one", "assets": [{"path": "src/one.py", "content": "VALUE = 1\n"}]}
+                    )
+                raise ValueError("asset content must be a non-empty string")
+
+        provider = FailAfterOneProvider()
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_model_task_wrapper(
+                "build one module",
+                workspace=workspace,
+                run_id="narrow-fail",
+                api_key="key",
+                model="m",
+                provider=provider,
+                max_repair_attempts=2,
+                execution_approval=lambda step: True,
+            )
+
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "invalid_model_plan")
+            self.assertEqual(result["completed_count"], 1)
+            self.assertTrue((workspace / "src" / "one.py").exists())
+            self.assertEqual(
+                IchingKernel.classify_outcome(result["status"], result["reason"]),
+                IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
+            )
             self.assertEqual(provider.calls, 3)
 
     def test_repair_timeout_has_its_own_failed_terminal_event(self):
@@ -1558,7 +1622,32 @@ class ModelLoopTests(unittest.TestCase):
         self.assertEqual(kwargs["provider_kind"], "chat")
         self.assertEqual(kwargs["endpoint"], "http://relay.test/v1/chat/completions")
         self.assertEqual(kwargs["http_timeout_seconds"], 12)
+        self.assertIsNone(kwargs["execution_approval"])
         process_exit_code.assert_called_once_with(status="completed", reason=None)
+
+    def test_cli_run_model_approve_grants_execution_consent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch(
+                "onecode.cli.run_model_task",
+                return_value={"status": "completed", "reason": None},
+            ) as run_model_task_mock, patch("onecode.cli.IchingKernel.process_exit_code", return_value=0), patch(
+                "builtins.print"
+            ):
+                main(
+                    [
+                        "run-model",
+                        "build model project",
+                        "--workspace",
+                        tmp,
+                        "--api-key",
+                        "test-key",
+                        "--approve",
+                    ]
+                )
+
+        approval = run_model_task_mock.call_args.kwargs["execution_approval"]
+        self.assertIsNotNone(approval)
+        self.assertTrue(approval(object()))
 
     def test_cli_run_model_blocks_delivery_when_selected_verifier_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
