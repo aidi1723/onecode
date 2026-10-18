@@ -193,7 +193,12 @@ def step_blocked_by_bandwidth(step: ExecutionStep, registry: ToolRegistry) -> bo
             continue
         action = tool.plan_action(tool_call.params)
         status_code = action.get("status_code")
-        if isinstance(status_code, int) and IchingKernel.execution_bandwidth(status_code) <= 0:
+        if not isinstance(status_code, int) or isinstance(status_code, bool):
+            continue
+        if IchingKernel.execution_bandwidth(status_code) <= 0:
+            schedule = IchingKernel.task_schedule(status_code)
+            if schedule["schedule_action"] in {"accelerate", "recover", "activate", "continue"}:
+                continue
             return True
     return False
 
