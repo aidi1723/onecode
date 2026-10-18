@@ -45,7 +45,7 @@ priority, mood, retry scores).
 
 """
 from dataclasses import dataclass
-from typing import cast
+from typing import Any, cast
 
 
 from onecode.kernel.hexagram_profile import IchingProfileMixin
@@ -59,6 +59,30 @@ class IchingTransition:
     status_code: int
     action: str
     reason: str | None
+
+
+def _schedule_status(kernel: Any, reason: str | None) -> int | None:
+    if reason is None:
+        return None
+    pairs = {
+        "rule_gap_requires_discovery": (kernel.KUN, kernel.KUN),
+        "earth_dams_water_flow": (kernel.KUN, kernel.KAN),
+        "controlled_by_relation_requires_verifier": (kernel.KUN, kernel.ZHEN),
+        "yang_overload_cooldown": (kernel.QIAN, kernel.QIAN),
+        "sovereignty_fire_suppresses_asset": (kernel.LI, kernel.QIAN),
+        "sovereignty_fire_boundary_halt": (kernel.LI, kernel.KUN),
+        "water_quenches_fire_boundary": (kernel.KAN, kernel.LI),
+        "metal_prunes_wood_scope": (kernel.DUI, kernel.ZHEN),
+        "network_water_preserves_resume_seed": (kernel.KAN, kernel.ZHEN),
+        "mountain_contains_local_executor_fault": (kernel.GEN, kernel.KUN),
+        "wood_breaks_inert_ground": (kernel.ZHEN, kernel.GEN),
+        "generating_relation_accelerates_execution": (kernel.KUN, kernel.DUI),
+        "generated_by_relation_recovers_execution": (kernel.KUN, kernel.LI),
+    }
+    pair = pairs.get(reason)
+    if pair is None:
+        return None
+    return kernel.compute_status(pair[0], pair[1])
 
 
 class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMixin):
@@ -299,18 +323,47 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
     def classify_outcome(cls, status: str, reason: str | None) -> int:
         if reason in {"sovereignty_breach", "permission_denied"}:
             return cls.compute_status(cls.LI, cls.KUN)
-        if reason in {"malformed_input", "oversized_input", "resource_budget_exceeded", "repeated_action", "approval_required", "approval_rejected", "no_progress"}:
+        if reason in {
+            "malformed_input",
+            "oversized_input",
+            "resource_budget_exceeded",
+            "time_budget_exceeded",
+            "repeated_action",
+            "approval_required",
+            "approval_rejected",
+            "user_rejected_diff",
+            "no_progress",
+            "no_actionable_plan",
+            "dependencies_not_met",
+        }:
             return cls.compute_status(cls.LI, cls.KUN)
         if reason in {"http_timeout", "verifier_timeout", "model_provider_timeout"}:
             return cls.compute_status(cls.KAN, cls.ZHEN)
         if reason in cls.SOFT_MISS_REASONS:
             return cls.compute_status(cls.KUN, cls.KUN)
-        if reason in {"action_exception", "run_exception", "sandbox_required", "docker_not_found", "docker_daemon_unavailable"}:
+        if reason in {
+            "action_exception",
+            "run_exception",
+            "tool_not_found",
+            "tool_failed",
+            "sandbox_required",
+            "docker_not_found",
+            "docker_daemon_unavailable",
+        }:
             return cls.compute_status(cls.GEN, cls.KUN)
-        if reason in {"invalid_intent", "invalid_model_plan", "verifier_failed"}:
+        if reason in {
+            "invalid_intent",
+            "invalid_model_plan",
+            "model_provider_error",
+            "repair_plan_must_use_patches_only",
+            "verifier_failed",
+        }:
             return cls.compute_status(cls.LI, cls.KUN)
         if reason == "self_audit_check_failed":
             return cls.compute_status(cls.LI, cls.KUN)
+        scheduled = _schedule_status(cls, reason)
+        if scheduled is not None:
+            return scheduled
         if status == "skipped":
             return cls.compute_status(cls.QIAN, cls.DUI)
         if status == "completed":
@@ -520,6 +573,8 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
         return {"delivery_status": "unknown", "next_action": "inspect"}
     @classmethod
     def process_exit_code(cls, status: str, reason: str | None) -> int:
+        if status in {"halted", "denied"}:
+            return 1
         status_code = cls.classify_outcome(status, reason)
         transition = cls.transition(status_code)
         return 1 if cls.dispatch_decision(transition) == "stop" else 0

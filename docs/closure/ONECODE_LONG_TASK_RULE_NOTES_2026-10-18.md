@@ -18,6 +18,8 @@ Across the 64 states, excess yin was hiding generation and control: earth dammin
 
 Three rounds then ran every restored pair as a real write. Throttle and checkpoint schedules refused the file. Accelerate, recover, and wood breaking earth wrote the file, including pairs whose raw bandwidth is zero. A following dam still stopped after a nourishing write. The cooled model write stayed at code 39, action `cooldown`, with the next pressure `accelerate`. The same signatures repeated on each round.
 
+Refusal reasons now classify back to the hexagram family that produced them. `earth_dams_water_flow` is Kun/Kan throttle, not a generic Li/Kun halt. A halted task still exits nonzero. The agent cycle stops on throttle and prune.
+
 Zero bandwidth no longer replaces the I Ching reason. Fire over metal is `sovereignty_fire_suppresses_asset`. Metal pruning wood keeps the prune reason. A single tagged step's trace keeps that hexagram; pure yin stays 0, discover, rather than rolling into the water checkpoint.
 
 Patches and commands were then run once for every hexagram. Each matched the write ruling. Two siblings in one layer are judged apart: earth generating metal writes, and earth damming water in the same layer still refuses, without cancelling the write.

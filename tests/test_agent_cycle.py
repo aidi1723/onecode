@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from onecode.kernel.agent_cycle import run_agent_cycle
+from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.cycle_approvals import resume_pending_approval
 from onecode.kernel.outcome_policy import agent_cycle_decision
 
@@ -41,6 +42,16 @@ class AgentCycleDecisionTests(unittest.TestCase):
 
         self.assertEqual(decision["cycle"], "stop")
         self.assertEqual(decision["transition_action"], "halt")
+
+    def test_earth_dam_reason_stops_instead_of_falling_through_to_fire(self):
+        decision = agent_cycle_decision("halted", "earth_dams_water_flow")
+
+        self.assertEqual(decision["cycle"], "stop")
+        self.assertEqual(decision["schedule_action"], "throttle")
+        self.assertEqual(
+            IchingKernel.classify_outcome("halted", "earth_dams_water_flow"),
+            IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KAN),
+        )
 
     def test_action_exception_requests_verification(self):
         decision = agent_cycle_decision("halted", "action_exception")

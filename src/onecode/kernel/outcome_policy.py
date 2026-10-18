@@ -27,7 +27,7 @@ def agent_cycle_decision(status: str, reason: str | None) -> dict[str, object]:
     transition = transition_for_result(status, reason)
     dispatch = IchingKernel.dispatch_decision(transition)
     schedule = IchingKernel.task_schedule(transition.status_code)
-    if transition.action == "halt":
+    if schedule["schedule_action"] in {"halt", "throttle", "prune"} or transition.action == "halt":
         cycle = "stop"
     elif transition.action == "checkpoint":
         cycle = "verify"

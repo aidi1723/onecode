@@ -72,3 +72,9 @@ class HexagramRuntimeTests(unittest.TestCase):
                             self.assertEqual(trace.step_results[0].reason, ruling["reason"])
                         self.assertEqual(trace.step_results[0].iching_status_code, code)
                         self.assertEqual(trace.global_status_code, code)
+                        if ruling["outcome"] == "refuse":
+                            classified = IchingKernel.classify_outcome("halted", ruling["reason"])
+                            again = IchingKernel.task_schedule(classified)
+                            self.assertEqual(again["schedule_action"], ruling["schedule_action"])
+                            self.assertEqual(again["schedule_reason"], ruling["reason"])
+                            self.assertEqual(IchingKernel.process_exit_code("halted", str(ruling["reason"])), 1)
