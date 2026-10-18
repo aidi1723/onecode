@@ -82,7 +82,7 @@ def write_execution_plan_ledger(
         "global_entropy": trace.global_entropy,
         "global_entropy_decision": trace.global_entropy_decision,
         "global_entropy_reason": trace.global_entropy_reason,
-        "iching_status_code": trace.global_status_code,
+        "iching_status_code": transition.status_code if transition is not None else trace.global_status_code,
         "iching_transition_action": transition.action if transition is not None else None,
         "iching_transition_reason": transition.reason if transition is not None else None,
         "execution_plan": {

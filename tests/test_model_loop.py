@@ -349,10 +349,11 @@ class ModelLoopTests(unittest.TestCase):
             self.assertEqual(result["completed_count"], 1)
             self.assertEqual(result["requested_count"], 1)
             self.assertEqual(result["model_plan_asset_count"], 1)
-            self.assertEqual(
-                IchingKernel.classify_outcome(result["status"], result["reason"]),
-                IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN),
-            )
+            classified = IchingKernel.classify_outcome(result["status"], result["reason"])
+            transition = IchingKernel.transition(classified)
+            self.assertEqual(classified, IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN))
+            self.assertEqual(result["iching_status_code"], transition.status_code)
+            self.assertEqual(result["iching_transition_action"], transition.action)
             self.assertEqual(result["delivery_status"], "deliverable")
             self.assertEqual((workspace / "src" / "one.py").read_text(encoding="utf-8"), "VALUE = 1\n")
             self.assertEqual(provider.calls, 3)

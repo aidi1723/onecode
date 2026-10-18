@@ -256,20 +256,34 @@ def execute_model_plan(
             on_turn=on_turn,
         )
         trace_dict = execution_trace_to_dict(trace)
+        requested_count = len(plan.execution_steps)
+        completed_count = sum(step.status == "completed" for step in trace.step_results)
+        skipped_count = sum(step.status == "skipped" for step in trace.step_results)
+        failed_count = sum(step.status == "failed" for step in trace.step_results)
+        status = "completed" if trace.success else "halted"
+        rule_fields = _execution_rule_fields(
+            trace,
+            status=status,
+            requested_count=requested_count,
+            completed_count=completed_count,
+            skipped_count=skipped_count,
+            failed_count=failed_count,
+        )
         result = {
             "run_id": context.run_id,
-            "status": "completed" if trace.success else "halted",
+            "status": status,
             "reason": trace.reason,
             "partial": not trace.success,
             "intent_type": "execution_plan",
             "manifest_path": str(context.manifest_path),
             "ledger_path": str(context.evidence_root / "ledger.json"),
-            "requested_count": len(plan.execution_steps),
-            "completed_count": sum(step.status == "completed" for step in trace.step_results),
-            "skipped_count": sum(step.status == "skipped" for step in trace.step_results),
-            "failed_count": sum(step.status == "failed" for step in trace.step_results),
+            "requested_count": requested_count,
+            "completed_count": completed_count,
+            "skipped_count": skipped_count,
+            "failed_count": failed_count,
             "assets": [],
             "execution_trace": trace_dict,
+            **rule_fields,
         } | run_metadata
         write_checkpoint(
             context=context,
@@ -280,9 +294,9 @@ def execute_model_plan(
             reason=result["reason"],
             intent_type="execution_plan",
             decision="allowed",
-            iching_status_code=trace.global_status_code,
-            iching_transition_action=trace.global_transition.action if trace.global_transition else None,
-            iching_transition_reason=trace.global_transition.reason if trace.global_transition else None,
+            iching_status_code=rule_fields.get("iching_status_code", trace.global_status_code),
+            iching_transition_action=rule_fields.get("iching_transition_action"),
+            iching_transition_reason=rule_fields.get("iching_transition_reason"),
             duration_ms=0,
             run_control={
                 "global_status_code": trace.global_status_code,
@@ -786,6 +800,34 @@ def failed_model_result(
     )
 
 
+def _execution_rule_fields(
+    trace: Any,
+    *,
+    status: str,
+    requested_count: int,
+    completed_count: int,
+    skipped_count: int,
+    failed_count: int,
+) -> dict[str, Any]:
+    transition = trace.global_transition
+    fields: dict[str, Any] = {
+        "global_status_code": trace.global_status_code,
+        "global_transition_action": transition.action if transition is not None else None,
+        "global_transition_reason": transition.reason if transition is not None else None,
+        "global_entropy": trace.global_entropy,
+        "global_entropy_decision": trace.global_entropy_decision,
+        "global_entropy_reason": trace.global_entropy_reason,
+    }
+    if transition is not None:
+        fields["iching_status_code"] = transition.status_code
+        fields["iching_transition_action"] = transition.action
+        fields["iching_transition_reason"] = transition.reason
+        fields["dispatch_decision"] = IchingKernel.dispatch_decision(transition)
+    return fields | IchingKernel.delivery_decision(
+        status, requested_count, completed_count, skipped_count, failed_count
+    )
+
+
 def _merge_narrow_results(results: list[dict[str, Any]]) -> dict[str, Any]:
     merged = dict(results[-1])
     assets: list[Any] = []
@@ -833,10 +875,10 @@ def _close_narrow_sequence(
         "status": status,
         "reason": reason,
         "partial": status != "completed",
-        "iching_status_code": status_code,
+        "iching_status_code": transition.status_code,
         "iching_transition_action": transition.action,
         "iching_transition_reason": transition.reason,
-        "global_status_code": status_code,
+        "global_status_code": transition.status_code,
         "global_transition_action": transition.action,
         "global_transition_reason": transition.reason,
         "dispatch_decision": IchingKernel.dispatch_decision(transition),
