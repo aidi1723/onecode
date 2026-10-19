@@ -1,6 +1,8 @@
 import os
 import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from onecode.kernel.deployment_boundary import _docker_daemon_ready, deployment_boundary
@@ -71,6 +73,38 @@ class TestDeploymentBoundary(unittest.TestCase):
         result = deployment_boundary()
         self.assertFalse(result["api_token_set"])
         self.assertFalse(result["production_ready"])
+
+    @patch('onecode.kernel.deployment_boundary._docker_daemon_ready')
+    @patch.dict(os.environ, {"ONECODE_RUN_COMMAND_SANDBOX": "auto", "ONECODE_ALLOW_UNAUTHENTICATED": "false"}, clear=True)
+    def test_private_token_file_counts_when_the_environment_is_unset(self, mock_docker_ready):
+        mock_docker_ready.return_value = True
+        os.environ.pop("ONECODE_API_TOKEN", None)
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ["ONECODE_HOME"] = tmp
+            secret = Path(tmp) / "shell"
+            secret.mkdir()
+            path = secret / "api-token"
+            path.write_text("local-private-token\n", encoding="utf-8")
+            path.chmod(0o600)
+            result = deployment_boundary()
+        self.assertTrue(result["api_token_set"])
+        self.assertTrue(result["production_ready"])
+        self.assertNotIn("ONECODE_API_TOKEN", os.environ)
+
+    @patch('onecode.kernel.deployment_boundary._docker_daemon_ready')
+    @patch.dict(os.environ, {"ONECODE_RUN_COMMAND_SANDBOX": "auto"}, clear=True)
+    def test_world_readable_token_file_does_not_count(self, mock_docker_ready):
+        mock_docker_ready.return_value = True
+        os.environ.pop("ONECODE_API_TOKEN", None)
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ["ONECODE_HOME"] = tmp
+            secret = Path(tmp) / "shell"
+            secret.mkdir()
+            path = secret / "api-token"
+            path.write_text("local-private-token\n", encoding="utf-8")
+            path.chmod(0o644)
+            result = deployment_boundary()
+        self.assertFalse(result["api_token_set"])
 
     @patch('onecode.kernel.deployment_boundary._docker_daemon_ready')
     @patch.dict(os.environ, {"ONECODE_RUN_COMMAND_SANDBOX": "docker", "ONECODE_ALLOW_UNAUTHENTICATED": "false", "ONECODE_API_TOKEN": "token"}, clear=True)

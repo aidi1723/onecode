@@ -1172,9 +1172,11 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
     def _authorized(self) -> bool:
         allow_unauthenticated = os.getenv("ONECODE_ALLOW_UNAUTHENTICATED", "").lower() in {"1", "true", "yes", "on"}
         host = self.server.server_address[0]  # type: ignore
+        from onecode.kernel.deployment_boundary import api_token
+
         return request_authorized(
             dict(self.headers.items()),
-            os.getenv("ONECODE_API_TOKEN"),
+            api_token() or None,
             allow_unauthenticated=allow_unauthenticated,
             host=host,
         )
@@ -1230,7 +1232,9 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
 
 def run_server(host: str = "127.0.0.1", port: int = 19080) -> None:
     # Security check: non-loopback hosts must have a token configured
-    token = os.getenv("ONECODE_API_TOKEN")
+    from onecode.kernel.deployment_boundary import api_token
+
+    token = api_token() or None
     allow_unauthenticated = os.getenv("ONECODE_ALLOW_UNAUTHENTICATED", "").lower() in {"1", "true", "yes", "on"}
 
     if host not in LOOPBACK_HOSTS and allow_unauthenticated and not token:

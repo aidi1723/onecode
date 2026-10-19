@@ -30,10 +30,10 @@ On n100, with Docker running and `ONECODE_SANDBOX_IMAGE` unset:
 - The three sandbox tests that previously assumed the Mac passed.
 - `docker_ready` is true and unauthenticated local access is off.
 
-`docker_ready` is true and unauthenticated local access is off. The API token is not in the repository. On n100 it is stored only in `~/.onecode/shell/api-token` with mode `0600`, and login shells load it through `~/.onecode/env`. With that environment loaded, `production_ready` is true.
+`docker_ready` is true and unauthenticated local access is off. The API token is not in the repository. On n100 it is stored only in `~/.onecode/shell/api-token` with mode `0600`. OneCode reads that file when `ONECODE_API_TOKEN` is unset, including a non-login command. A world-readable file does not count. With the private file present, `production_ready` is true.
 
 ## Handoff
 
-Leave `ONECODE_ALLOW_UNAUTHENTICATED` off. Do not copy the token into the source tree. A non-login command that does not read `~/.profile` still needs `~/.onecode/env` sourced first.
+Leave `ONECODE_ALLOW_UNAUTHENTICATED` off. Do not copy the token into the source tree. OneCode reads the private token file itself, so a non-login command does not need the shell to export it.
 
-Still outside this delivery: a version bump to 1.0, mainstream parity, a third-party security review, the four-hour soak, and key revocation. The delivery tag is `v0.8.0`.
+`claims_mainstream_parity` stays false. No third-party review has been contracted, so the flag is not turned on. No provider key is tracked in git. Revoking a key in the provider console remains an account-owner action. A four-hour RSS log on n100 is `~/onecode-soak-2026-10-19.log`. The delivery tag remains `v0.8.0`.
