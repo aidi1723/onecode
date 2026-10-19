@@ -337,7 +337,7 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
             "dependencies_not_met",
         }:
             return cls.compute_status(cls.LI, cls.KUN)
-        if reason in {"http_timeout", "verifier_timeout", "model_provider_timeout"}:
+        if reason in {"http_timeout", "verifier_timeout", "model_provider_timeout", "image_platform_mismatch"}:
             return cls.compute_status(cls.KAN, cls.ZHEN)
         if reason in cls.SOFT_MISS_REASONS:
             return cls.compute_status(cls.KUN, cls.KUN)
@@ -349,6 +349,7 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
             "sandbox_required",
             "docker_not_found",
             "docker_daemon_unavailable",
+            "interpreter_not_found",
         }:
             return cls.compute_status(cls.GEN, cls.KUN)
         if reason in {

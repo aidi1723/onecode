@@ -136,6 +136,14 @@ class TestIchingKernel(unittest.TestCase):
             IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN),
         )
         self.assertEqual(
+            IchingKernel.classify_outcome(status="halted", reason="interpreter_not_found"),
+            IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.KUN),
+        )
+        self.assertEqual(
+            IchingKernel.classify_outcome(status="halted", reason="image_platform_mismatch"),
+            IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN),
+        )
+        self.assertEqual(
             IchingKernel.classify_outcome(status="blocked", reason="docker_daemon_unavailable"),
             IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.KUN),
         )

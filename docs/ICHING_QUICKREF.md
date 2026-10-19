@@ -143,8 +143,8 @@ A finished write is classified as Qian/Qian (63) and recorded after the yang coo
 | Reason | Code | Action | Reading |
 |--------|------|--------|---------|
 | `verifier_failed` | 40 Li/Kun | halt | The sandbox check ran and failed. |
-| `sandbox_required`, `docker_not_found`, `docker_daemon_unavailable` | 32 Gen/Kun | checkpoint | The local executor is missing, including a Docker socket that is not there. |
-| `verifier_timeout`, `model_provider_timeout` | 17 Kan/Zhen | checkpoint | The check or the model call timed out and can be resumed. |
+| `sandbox_required`, `docker_not_found`, `docker_daemon_unavailable`, `interpreter_not_found` | 32 Gen/Kun | checkpoint | The local executor is missing, including a Docker socket that is not there or an image Python that is not there. |
+| `verifier_timeout`, `model_provider_timeout`, `image_platform_mismatch` | 17 Kan/Zhen | checkpoint | The check or the model call timed out, or the image architecture cannot run on this host and no local native sibling is present. A local `image-amd64` or `image-arm64` tag is used when it matches the host. |
 | `approval_rejected` | 40 Li/Kun | halt | The operator refused the write. |
 | `resource_budget_exceeded`, `invalid_model_plan`, `approval_required` | 40 Li/Kun | halt | The plan or the budget reached the fire boundary. |
 
@@ -160,7 +160,7 @@ The hexagram transition remains the safety baseline. A task step also reads yin-
 - A write, patch, or command tagged with any of the 64 hexagrams asks `write_ruling`. Pure yang and excess yang cool and refuse the change, except outer fire, which still halts. Pure yin discovers and does not write. Throttle, prune, halt, and checkpoint do not change the workspace. Generation, recovery, activation, and continuation do, including when raw bandwidth is zero. A zero-bandwidth pair keeps the I Ching reason, such as fire suppressing metal or metal pruning wood, instead of a separate bandwidth label. The step records that hexagram.
 - A read or list during pure yin or yang rest is allowed. The same look during halt, control, prune, or checkpoint is refused.
 - Steps in the same layer are judged separately. A dammed sibling does not cancel a generating sibling.
-- A refused step keeps the I Ching reason and the hexagram that produced it. Classifying that reason returns the same schedule: earth damming water stays Kun/Kan throttle, fire suppressing metal stays the fire halt, and a halted task exits nonzero. One step, or several steps of the same hexagram, keep that hexagram on the trace. Different hexagrams in one plan still pass through the entropy record.
+- A refused step keeps the I Ching reason and the hexagram that produced it. Classifying that reason returns the same schedule: earth damming water stays Kun/Kan throttle, fire suppressing metal stays the fire halt, and a halted task exits nonzero. One step, or several steps of the same hexagram, keep that hexagram on the trace. Different hexagrams in one plan combine by the I Ching aggregate. Entropy stays on the trace and does not replace that code.
 
 ## Debugging Flowchart
 

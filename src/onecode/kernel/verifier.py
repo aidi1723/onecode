@@ -9,7 +9,15 @@ from pathlib import Path
 from typing import Any, Literal
 
 from onecode.kernel.hexagram import IchingKernel
-from onecode.kernel.sandbox import SandboxConfig, run_in_sandbox, _docker_daemon_unavailable
+from onecode.kernel.sandbox import (
+    SandboxConfig,
+    container_argv,
+    image_platform_mismatch,
+    interpreter_missing,
+    run_in_sandbox,
+    with_runnable_image,
+    _docker_daemon_unavailable,
+)
 from onecode.kernel.trace import TraceEvent, write_trace_event
 
 
@@ -265,23 +273,38 @@ def run_verifier(
     try:
         if sandbox_config is not None:
             try:
-                completed = run_in_sandbox(sandbox_config, spec.command)
-                stderr_str = completed.stderr if isinstance(completed.stderr, str) else completed.stderr.decode("utf-8", errors="replace")
-                
-                if completed.returncode != 0 and _docker_daemon_unavailable(stderr_str):
+                sandbox_config = with_runnable_image(sandbox_config)
+                if image_platform_mismatch(sandbox_config.image):
                     stdout = b""
-                    stderr = b"Sandbox required but Docker daemon is unavailable."
+                    stderr = b"image_platform_mismatch"
                     status: VerifierStatus = "failed"
-                    reason: str | None = "sandbox_required"
+                    reason: str | None = "image_platform_mismatch"
                     failure_kind: VerifierFailureKind | None = "exception"
                     exit_code: int | None = None
                 else:
-                    stdout = completed.stdout.encode("utf-8") if isinstance(completed.stdout, str) else completed.stdout
-                    stderr = stderr_str.encode("utf-8")
-                    status = "passed" if completed.returncode == 0 else "failed"
-                    reason = None if completed.returncode == 0 else "verifier_failed"
-                    failure_kind = None if completed.returncode == 0 else "command_failed"
-                    exit_code = completed.returncode
+                    completed = run_in_sandbox(sandbox_config, container_argv(spec.command))
+                    stderr_str = completed.stderr if isinstance(completed.stderr, str) else completed.stderr.decode("utf-8", errors="replace")
+                    if completed.returncode != 0 and _docker_daemon_unavailable(stderr_str):
+                        stdout = b""
+                        stderr = b"Sandbox required but Docker daemon is unavailable."
+                        status = "failed"
+                        reason = "sandbox_required"
+                        failure_kind = "exception"
+                        exit_code = None
+                    elif interpreter_missing(completed.returncode, stderr_str):
+                        stdout = b""
+                        stderr = stderr_str.encode("utf-8")
+                        status = "failed"
+                        reason = "interpreter_not_found"
+                        failure_kind = "exception"
+                        exit_code = completed.returncode
+                    else:
+                        stdout = completed.stdout.encode("utf-8") if isinstance(completed.stdout, str) else completed.stdout
+                        stderr = stderr_str.encode("utf-8")
+                        status = "passed" if completed.returncode == 0 else "failed"
+                        reason = None if completed.returncode == 0 else "verifier_failed"
+                        failure_kind = None if completed.returncode == 0 else "command_failed"
+                        exit_code = completed.returncode
             except FileNotFoundError:
                 stdout = b""
                 stderr = b"Sandbox required but Docker is not installed on host system."

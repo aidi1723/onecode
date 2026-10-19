@@ -2,17 +2,26 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import platform
 import shutil
 import subprocess
-from dataclasses import dataclass
+import sys
+import threading
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Sequence
+
+
+def default_sandbox_image() -> str:
+    chosen = os.environ.get("ONECODE_SANDBOX_IMAGE", "").strip()
+    return chosen or "python:3.12-slim"
 
 
 @dataclass(frozen=True)
 class SandboxConfig:
     workspace: Path
-    image: str = "python:3.12-slim"
+    image: str = field(default_factory=default_sandbox_image)
     network: str = "none"
     memory: str = "512m"
     cpus: str = "1"
@@ -65,7 +74,7 @@ def build_docker_command(config: SandboxConfig, command: Sequence[str], name: st
         "--security-opt",
         "no-new-privileges",
         "--user",
-        "65534:65534",
+        f"{os.getuid()}:{os.getgid()}",
         "--mount",
         f"type=bind,src={config.workspace.as_posix()},dst=/workspace",
         "--workdir",
@@ -73,6 +82,111 @@ def build_docker_command(config: SandboxConfig, command: Sequence[str], name: st
         config.image,
         *command,
     ]
+
+
+def container_argv(command: Sequence[str]) -> list[str]:
+    """Run Python with the interpreter that exists inside the image."""
+    if not command:
+        return []
+    argv = [str(part) for part in command]
+    if _host_python(argv[0]):
+        argv[0] = "python3"
+    return argv
+
+
+def _host_python(executable: str) -> bool:
+    if "/" not in executable and "\\" not in executable:
+        return Path(executable).name in {"python", "python3"}
+    try:
+        resolved = Path(executable).resolve()
+    except OSError:
+        return False
+    if resolved == Path(sys.executable).resolve():
+        return True
+    for candidate in ("python3", "python"):
+        found = shutil.which(candidate)
+        if found and resolved == Path(found).resolve():
+            return True
+    return False
+
+
+def architectures_match(image_arch: str, host_machine: str) -> bool:
+    return _normalized_architecture(image_arch) == _normalized_architecture(host_machine)
+
+
+def _normalized_architecture(value: str) -> str:
+    lowered = value.strip().lower()
+    if lowered in {"x86_64", "amd64"}:
+        return "amd64"
+    if lowered in {"aarch64", "arm64", "arm64v8"}:
+        return "arm64"
+    return lowered
+
+
+_IMAGE_ARCH: dict[str, str | None] = {}
+
+
+def image_platform_mismatch(image: str) -> bool:
+    arch = _image_architecture(image)
+    if arch is None:
+        return False
+    return not architectures_match(arch, platform.machine())
+
+
+def runnable_sandbox_image(image: str) -> str:
+    """Use a local native sibling when the requested tag cannot run on this host."""
+    if not image_platform_mismatch(image):
+        return image
+    host = _normalized_architecture(platform.machine())
+    if host not in {"amd64", "arm64"}:
+        return image
+    candidate = f"{image}-{host}"
+    arch = _image_architecture(candidate)
+    if arch and architectures_match(arch, platform.machine()):
+        return candidate
+    return image
+
+
+def with_runnable_image(config: SandboxConfig) -> SandboxConfig:
+    image = runnable_sandbox_image(config.image)
+    if image == config.image:
+        return config
+    return replace(config, image=image)
+
+
+def _image_architecture(image: str) -> str | None:
+    if image in _IMAGE_ARCH:
+        return _IMAGE_ARCH[image]
+    if shutil.which("docker") is None:
+        _IMAGE_ARCH[image] = None
+        return None
+    try:
+        completed = subprocess.run(
+            ["docker", "image", "inspect", "--format", "{{.Architecture}}", image],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        _IMAGE_ARCH[image] = None
+        return None
+    arch = completed.stdout.strip().lower() if completed.returncode == 0 and completed.stdout.strip() else None
+    _IMAGE_ARCH[image] = arch
+    return arch
+
+
+def interpreter_missing(returncode: int | None, stderr: str) -> bool:
+    if returncode != 127:
+        return False
+    for line in stderr.lower().splitlines():
+        if "exec:" not in line:
+            continue
+        if "executable file not found" not in line and "no such file or directory" not in line:
+            continue
+        if 'exec: "python3"' in line or 'exec: "python"' in line:
+            return True
+    return False
 
 
 def workspace_container_name(workspace: Path) -> str:
@@ -93,8 +207,30 @@ def build_container_exec(config: SandboxConfig, command: Sequence[str]) -> list[
     return ["docker", "exec", "-w", "/workspace", workspace_container_name(config.workspace), *command]
 
 
+_CONTAINER_LOCKS: dict[str, threading.Lock] = {}
+_CONTAINER_LOCKS_GUARD = threading.Lock()
+
+
+def _container_lock(name: str) -> threading.Lock:
+    with _CONTAINER_LOCKS_GUARD:
+        lock = _CONTAINER_LOCKS.get(name)
+        if lock is None:
+            lock = threading.Lock()
+            _CONTAINER_LOCKS[name] = lock
+        return lock
+
+
 def run_in_reused_sandbox(config: SandboxConfig, command: Sequence[str]) -> subprocess.CompletedProcess[str]:
     name = workspace_container_name(config.workspace)
+    with _container_lock(name):
+        return _run_in_reused_sandbox(config, command, name)
+
+
+def _run_in_reused_sandbox(
+    config: SandboxConfig,
+    command: Sequence[str],
+    name: str,
+) -> subprocess.CompletedProcess[str]:
     inspected = subprocess.run(["docker", "inspect", name], capture_output=True, text=True, timeout=10, check=False)
     if inspected.returncode != 0:
         if "cannot connect to the docker daemon" in inspected.stderr.lower():

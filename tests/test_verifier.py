@@ -1,5 +1,6 @@
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -172,6 +173,103 @@ class VerifierExecutionTests(unittest.TestCase):
             self.assertEqual(result.reason, "sandbox_required")
             self.assertEqual(result.failure_kind, "exception")
             self.assertIn("Sandbox configuration is required", result.stderr_tail)
+
+    def test_host_python_is_rewritten_and_a_missing_image_python_checkpoints(self):
+        from subprocess import CompletedProcess
+
+        from onecode.kernel.hexagram import IchingKernel
+        from onecode.kernel.sandbox import SandboxConfig
+
+        seen: list[list[str]] = []
+
+        def fake_run(config, command):
+            seen.append(list(command))
+            return CompletedProcess(
+                args=command,
+                returncode=127,
+                stdout="",
+                stderr='exec: "python3": executable file not found in $PATH',
+            )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            spec = VerifierSpec(
+                id="python-unittest",
+                command=[sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+                cwd=".",
+                timeout_ms=5000,
+            )
+            with patch("onecode.kernel.verifier.image_platform_mismatch", return_value=False), patch(
+                "onecode.kernel.verifier.run_in_sandbox", side_effect=fake_run
+            ):
+                result = run_verifier(
+                    Path(tmp),
+                    spec,
+                    sandbox_config=SandboxConfig(workspace=Path(tmp), image="python:3.12-slim", network="none"),
+                )
+
+        self.assertEqual(seen[0][0], "python3")
+        self.assertEqual(result.reason, "interpreter_not_found")
+        transition = IchingKernel.transition(IchingKernel.classify_outcome("halted", result.reason))
+        self.assertEqual(transition.action, "checkpoint")
+        self.assertEqual(transition.status_code, IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.KUN))
+
+    def test_foreign_image_checkpoints_before_the_container_starts(self):
+        from onecode.kernel.hexagram import IchingKernel
+        from onecode.kernel.sandbox import SandboxConfig
+
+        with tempfile.TemporaryDirectory() as tmp:
+            spec = VerifierSpec(
+                id="python-unittest",
+                command=["python3", "-m", "unittest", "discover", "-s", "tests"],
+                cwd=".",
+                timeout_ms=5000,
+            )
+            with patch("onecode.kernel.verifier.image_platform_mismatch", return_value=True), patch(
+                "onecode.kernel.verifier.run_in_sandbox"
+            ) as sandbox:
+                result = run_verifier(
+                    Path(tmp),
+                    spec,
+                    sandbox_config=SandboxConfig(workspace=Path(tmp), image="python:3.12-slim", network="none"),
+                )
+
+        sandbox.assert_not_called()
+        self.assertEqual(result.reason, "image_platform_mismatch")
+        transition = IchingKernel.transition(IchingKernel.classify_outcome("halted", result.reason))
+        self.assertEqual(transition.action, "checkpoint")
+        self.assertEqual(transition.status_code, IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN))
+
+    def test_verifier_uses_a_local_native_image_when_the_tag_cannot_run(self):
+        from subprocess import CompletedProcess
+
+        from onecode.kernel.sandbox import SandboxConfig
+
+        seen: list[str] = []
+
+        def arch(image: str) -> str | None:
+            if image == "python:3.12-slim":
+                return "arm64"
+            if image == "python:3.12-slim-amd64":
+                return "amd64"
+            return None
+
+        def fake_run(config, command):
+            seen.append(config.image)
+            return CompletedProcess(args=command, returncode=0, stdout="ok\n", stderr="")
+
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "onecode.kernel.sandbox._image_architecture", side_effect=arch
+        ), patch("onecode.kernel.sandbox.platform.machine", return_value="x86_64"), patch(
+            "onecode.kernel.verifier.run_in_sandbox", side_effect=fake_run
+        ):
+            result = run_verifier(
+                Path(tmp),
+                VerifierSpec(id="python-unittest", command=["python3", "-c", "print(1)"], cwd=".", timeout_ms=5000),
+                sandbox_config=SandboxConfig(workspace=Path(tmp), image="python:3.12-slim", network="none"),
+            )
+
+        self.assertEqual(result.status, "passed")
+        self.assertEqual(seen, ["python:3.12-slim-amd64"])
 
     def test_colima_socket_miss_is_a_local_executor_checkpoint(self):
         from onecode.kernel.hexagram import IchingKernel

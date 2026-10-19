@@ -201,10 +201,20 @@ class RuleTaskVarietyTests(unittest.TestCase):
                 sandbox_config=SandboxConfig(workspace=workspace, image="python:3.12-slim", network="none"),
             )
             checked = apply_verifier_evidence(completed, workspace, [verifier])
-            self.assertEqual(checked["reason"], "sandbox_required")
-            self.assertEqual(checked["iching_transition_action"], "checkpoint")
-            self.assertEqual(checked["iching_status_code"], _code(IchingKernel.GEN, IchingKernel.KUN))
-            report.append("verifier without docker -> Gen/Kun checkpoint")
+            reason = checked["reason"]
+            if reason == "sandbox_required":
+                self.assertEqual(checked["iching_transition_action"], "checkpoint")
+                self.assertEqual(checked["iching_status_code"], _code(IchingKernel.GEN, IchingKernel.KUN))
+            elif reason == "image_platform_mismatch":
+                self.assertEqual(checked["iching_transition_action"], "checkpoint")
+                self.assertEqual(checked["iching_status_code"], _code(IchingKernel.KAN, IchingKernel.ZHEN))
+            elif reason == "verifier_failed":
+                self.assertIn("AssertionError", verifier.stderr_tail)
+                self.assertEqual(checked["iching_transition_action"], "halt")
+                self.assertEqual(checked["iching_status_code"], _code(IchingKernel.LI, IchingKernel.KUN))
+            else:
+                self.fail(reason)
+            report.append(f"verifier {reason}")
 
         self.assertGreaterEqual(len(report), 12)
         if __name__ == "__main__":

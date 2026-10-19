@@ -1,3 +1,5 @@
+import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -51,7 +53,7 @@ class SandboxTests(unittest.TestCase):
         self.assertIn("--security-opt", command)
         self.assertIn("no-new-privileges", command)
         self.assertIn("--user", command)
-        self.assertIn("65534:65534", command)
+        self.assertIn(f"{os.getuid()}:{os.getgid()}", command)
         self.assertTrue(any(item.startswith("type=bind,src=") and item.endswith(",dst=/workspace") for item in command))
         self.assertNotIn("--volume", command)
 
@@ -69,6 +71,52 @@ class SandboxTests(unittest.TestCase):
         self.assertEqual(first[4], second[4])
         self.assertEqual(first[4], created[3])
         self.assertTrue(first[4].startswith("onecode-"))
+
+    def test_container_argv_uses_the_image_python(self):
+        from onecode.kernel.sandbox import container_argv
+
+        rewritten = container_argv([sys.executable, "-m", "unittest", "discover", "-s", "tests"])
+        self.assertEqual(rewritten, ["python3", "-m", "unittest", "discover", "-s", "tests"])
+        self.assertEqual(container_argv(["python", "-c", "print(1)"]), ["python3", "-c", "print(1)"])
+        self.assertEqual(container_argv(["git", "status"]), ["git", "status"])
+
+    def test_sandbox_image_can_be_selected_for_the_host(self):
+        from onecode.kernel.sandbox import SandboxConfig, default_sandbox_image
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {"ONECODE_SANDBOX_IMAGE": "python:3.12-slim-amd64"}):
+            self.assertEqual(default_sandbox_image(), "python:3.12-slim-amd64")
+            self.assertEqual(SandboxConfig(workspace=Path(tmp)).image, "python:3.12-slim-amd64")
+
+    def test_image_architecture_must_match_the_host(self):
+        from onecode.kernel.sandbox import architectures_match
+
+        self.assertTrue(architectures_match("amd64", "x86_64"))
+        self.assertTrue(architectures_match("arm64", "aarch64"))
+        self.assertFalse(architectures_match("arm64", "x86_64"))
+        self.assertFalse(architectures_match("amd64", "aarch64"))
+
+    def test_foreign_image_uses_a_local_native_sibling(self):
+        from onecode.kernel.sandbox import runnable_sandbox_image
+
+        def arch(image: str) -> str | None:
+            if image == "python:3.12-slim":
+                return "arm64"
+            if image == "python:3.12-slim-amd64":
+                return "amd64"
+            return None
+
+        with patch("onecode.kernel.sandbox._image_architecture", side_effect=arch), patch(
+            "onecode.kernel.sandbox.platform.machine", return_value="x86_64"
+        ):
+            self.assertEqual(runnable_sandbox_image("python:3.12-slim"), "python:3.12-slim-amd64")
+
+        def missing_sibling(image: str) -> str | None:
+            return "arm64" if image == "python:3.12-slim" else None
+
+        with patch("onecode.kernel.sandbox._image_architecture", side_effect=missing_sibling), patch(
+            "onecode.kernel.sandbox.platform.machine", return_value="x86_64"
+        ):
+            self.assertEqual(runnable_sandbox_image("python:3.12-slim"), "python:3.12-slim")
 
     def test_reused_sandbox_creates_once_then_execs(self):
         from subprocess import CompletedProcess
@@ -97,6 +145,53 @@ class SandboxTests(unittest.TestCase):
         execs = [item for item in calls if item[:2] == ["docker", "exec"]]
         self.assertEqual(len(execs), 2)
         self.assertEqual(execs[0][4], execs[1][4])
+
+    def test_parallel_reused_sandbox_creates_the_container_once(self):
+        import threading
+        import time
+        from subprocess import CompletedProcess
+
+        from onecode.kernel.sandbox import SandboxConfig, run_in_reused_sandbox
+
+        calls: list[list[str]] = []
+        gate = threading.Lock()
+        overlap = 0
+        max_overlap = 0
+
+        def fake_run(argv, **kwargs):
+            nonlocal overlap, max_overlap
+            if argv[:2] == ["docker", "inspect"] and len(argv) == 3:
+                with gate:
+                    overlap += 1
+                    max_overlap = max(max_overlap, overlap)
+                    exists = any(item[:2] == ["docker", "create"] for item in calls)
+                time.sleep(0.05)
+                with gate:
+                    overlap -= 1
+                    exists = any(item[:2] == ["docker", "create"] for item in calls)
+                return CompletedProcess(argv, 0 if exists else 1, "", "")
+            with gate:
+                calls.append(list(argv))
+            if argv[:3] == ["docker", "inspect", "-f"]:
+                return CompletedProcess(argv, 0, "true\n", "")
+            return CompletedProcess(argv, 0, "ok\n", "")
+
+        with tempfile.TemporaryDirectory() as tmp, patch("onecode.kernel.sandbox.subprocess.run", side_effect=fake_run):
+            config = SandboxConfig(workspace=Path(tmp))
+            results: list[CompletedProcess] = []
+
+            def run() -> None:
+                results.append(run_in_reused_sandbox(config, ["python3", "-c", "print(1)"]))
+
+            threads = [threading.Thread(target=run) for _ in range(2)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+
+        self.assertEqual(max_overlap, 1)
+        self.assertEqual([item.stdout for item in results], ["ok\n", "ok\n"])
+        self.assertEqual(sum(item[:2] == ["docker", "create"] for item in calls), 1)
 
     def test_sandbox_rejects_missing_workspace(self):
         from onecode.kernel.sandbox import SandboxConfig

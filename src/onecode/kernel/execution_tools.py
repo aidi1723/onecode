@@ -448,12 +448,14 @@ def _run_command(
     explicit_host = mode in {"host", "off", "false", "0"}
     
     if use_docker:
-        from onecode.kernel.sandbox import SandboxConfig, run_in_reused_sandbox
+        from onecode.kernel import sandbox as sandbox_runtime
+        config = sandbox_runtime.with_runnable_image(
+            sandbox_runtime.SandboxConfig(workspace=workspace, timeout_seconds=timeout_seconds)
+        )
+        if sandbox_runtime.image_platform_mismatch(config.image):
+            return 1, "", "image_platform_mismatch"
         try:
-            completed = run_in_reused_sandbox(
-                SandboxConfig(workspace=workspace, timeout_seconds=timeout_seconds),
-                argv,
-            )
+            completed = sandbox_runtime.run_in_reused_sandbox(config, sandbox_runtime.container_argv(argv))
         except subprocess.TimeoutExpired:
             raise
         except (OSError, ValueError):
@@ -554,6 +556,16 @@ class RunCommandTool(ToolDefinition):
             }
         stdout = redact_sensitive_text(stdout, sensitive_values=sensitive_values)
         stderr = redact_sensitive_text(stderr, sensitive_values=sensitive_values)
+        if stderr.strip() == "image_platform_mismatch":
+            return {
+                "argv": argv,
+                "returncode": None,
+                "stdout": "",
+                "stderr": stderr,
+                "truncated": False,
+                "status": "halted",
+                "reason": "image_platform_mismatch",
+            }
         return {
             "argv": argv,
             "returncode": returncode,

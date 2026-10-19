@@ -320,6 +320,23 @@ class ExecutionToolsTests(unittest.TestCase):
         self.assertEqual(result["returncode"], 0)
         self.assertIn("ok", result["stdout"])
         sandbox.assert_called_once()
+        self.assertEqual(sandbox.call_args.args[1][0], "python3")
+
+    def test_run_command_checkpoints_a_foreign_image_without_starting_it(self):
+        from onecode.kernel import execution_tools
+        from onecode.kernel.execution_tools import RunCommandTool
+
+        execution_tools._DOCKER_READY = None
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            os.environ, {"ONECODE_RUN_COMMAND_SANDBOX": "docker"}
+        ), patch("onecode.kernel.sandbox.image_platform_mismatch", return_value=True), patch(
+            "onecode.kernel.sandbox.run_in_reused_sandbox"
+        ) as sandbox:
+            result = RunCommandTool().execute({"argv": ["python3", "-c", "print('ok')"]}, Path(tmp))
+
+        sandbox.assert_not_called()
+        self.assertEqual(result["status"], "halted")
+        self.assertEqual(result["reason"], "image_platform_mismatch")
 
     def test_run_command_streams_output_and_timeout_reports_http_timeout(self):
         from onecode.kernel.execution_tools import RunCommandTool

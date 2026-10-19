@@ -12,6 +12,6 @@ The running rule is one reading:
 - Sibling steps are judged separately. One hexagram, or several copies of it, stays on the trace. Different hexagrams combine by the I Ching aggregate. Entropy stays on the trace and does not replace the code.
 - A refusal reason classifies back to the hexagram family that produced it. A halted task exits nonzero.
 
-`bash scripts/verify.sh` is the closeout gate for this phase.
+`bash scripts/verify.sh` is the code gate for this phase.
 
-Still outside this phase: a live Docker verifier, a version bump, a tag, and a claim of mainstream parity.
+The same-day audit measured a live Docker verifier on n100. The phase seal is [ONECODE_PHASE_CLOSEOUT_2026-10-18.md](ONECODE_PHASE_CLOSEOUT_2026-10-18.md). Version bump, tag, push, and mainstream parity stay outside.
