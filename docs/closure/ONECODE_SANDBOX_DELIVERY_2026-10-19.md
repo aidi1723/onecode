@@ -19,7 +19,7 @@ A check that runs and fails stays `verifier_failed`, Li/Kun (40), halt, and bloc
 
 ## Evidence
 
-`bash scripts/verify.sh` passed with 1217 tests and 1 skipped.
+`bash scripts/verify.sh` passed with 1219 tests and 1 skipped. The skipped test is `test_global_onecode_command_points_to_project_entrypoint`, because `ONECODE_GLOBAL_COMMAND` is not set. n100 is the acceptance host for this close.
 
 On n100, with Docker running and `ONECODE_SANDBOX_IMAGE` unset:
 
@@ -36,4 +36,10 @@ On n100, with Docker running and `ONECODE_SANDBOX_IMAGE` unset:
 
 Leave `ONECODE_ALLOW_UNAUTHENTICATED` off. Do not copy the token into the source tree. OneCode reads the private token file itself, so a non-login command does not need the shell to export it.
 
-`claims_mainstream_parity` stays false. No third-party review has been contracted, so the flag is not turned on. No provider key is tracked in git. Revoking a key in the provider console remains an account-owner action. A four-hour RSS log on n100 is `~/onecode-soak-2026-10-19.log`. The delivery tag remains `v0.8.0`.
+`claims_mainstream_parity` stays false. No third-party review has been contracted, so the flag is not turned on. No provider key is tracked in git. Revoking a key in the provider console remains an account-owner action.
+
+The four-hour observation on n100 finished. The log is `~/onecode-soak-2026-10-19.log`. It ran 64156800 rounds in 14400 seconds. RSS moved from 14272 KB to 14280 KB and did not keep climbing.
+
+## Close
+
+This phase is closed. The sandbox delivery tag is `v0.8.0` at `e1adb3c`. The private-token fix is `53d09ff` on `main`. Version stays 0.8.0.
