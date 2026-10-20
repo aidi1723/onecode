@@ -2,7 +2,7 @@
 
 OneCode is a local-first agent kernel prototype. It focuses on scoped file writes, append-only run evidence, stateful resumption, and deterministic Iching-derived status profiles.
 
-Current version: **v0.8.0**, a local kernel. It is not a general coding-agent product.
+Current version: **v1.0.0**. It is a local kernel. It does not claim parity with general coding agents.
 The 30 local tasks in `benchmarks/reports/agent-local-pass-rate.json` are a scripted
 oracle record. `benchmarks/reports/swebench-lite-subset.json` records whether the
 published patches reproduce five SWE-bench Lite tests. That file is not an OneCode

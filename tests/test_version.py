@@ -11,10 +11,10 @@ class VersionTests(unittest.TestCase):
 
         project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
 
-        self.assertEqual(project["project"]["version"], "0.8.0")
-        self.assertEqual(__version__, "0.8.0")
-        self.assertEqual(APP_VERSION, "0.8.0")
-        self.assertEqual(OneCodeRequestHandler.server_version, "OneCodeHTTP/0.8")
+        self.assertEqual(project["project"]["version"], "1.0.0")
+        self.assertEqual(__version__, "1.0.0")
+        self.assertEqual(APP_VERSION, "1.0.0")
+        self.assertEqual(OneCodeRequestHandler.server_version, "OneCodeHTTP/1.0")
 
 
 if __name__ == "__main__":

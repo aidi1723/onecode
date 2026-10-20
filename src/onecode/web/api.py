@@ -904,7 +904,7 @@ def gateway_console_html() -> str:
 
 
 class OneCodeRequestHandler(BaseHTTPRequestHandler):
-    server_version = "OneCodeHTTP/0.8"
+    server_version = "OneCodeHTTP/1.0"
     timeout = 30
 
     def do_GET(self) -> None:

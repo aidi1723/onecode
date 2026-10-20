@@ -69,7 +69,7 @@ class McpStdioClient:
                 {
                     "protocolVersion": "2024-11-05",
                     "capabilities": {},
-                    "clientInfo": {"name": "onecode", "version": "0.8.0"},
+                    "clientInfo": {"name": "onecode", "version": "1.0.0"},
                 },
             )
             self._notify("notifications/initialized")

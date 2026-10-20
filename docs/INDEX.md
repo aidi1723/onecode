@@ -12,6 +12,7 @@ This index helps you navigate OneCode's documentation, which is organized by pur
 - [2026-09-29 agent parity closeout](closure/ONECODE_AGENT_PARITY_CLOSURE_2026-09-29.md) - Handbook phases, workflow run, and evaluation limits
 - [2026-09-29 host contract handbook](superpowers/plans/2026-09-29-host-contract-handbook.md) - Execution-gate approval, no-progress stop, transient errors, truncation
 - [2026-10-07 Engineering & Observability handbook](superpowers/plans/2026-10-07-onecode-engineering-and-observability-handbook.md) - Soak tests, ARM64 sandbox, and read-only I Ching telemetry
+- [2026-10-20 v1.0.0 release](closure/ONECODE_V1_0_RELEASE_2026-10-20.md) - Formal release on the n100 acceptance
 - [2026-10-19 sandbox delivery](closure/ONECODE_SANDBOX_DELIVERY_2026-10-19.md) - Phase closed on n100 at v0.8.0
 - [2026-10-18 phase closeout](closure/ONECODE_PHASE_CLOSEOUT_2026-10-18.md) - v0.8.0 sealed; not a 1.0 release
 - [2026-10-18 hexagram runtime closeout](closure/ONECODE_HEXAGRAM_RUNTIME_CLOSEOUT_2026-10-18.md) - One reading for yin-yang, five elements, and tagged tasks
@@ -106,7 +107,7 @@ OneCode uses an I Ching (易经) based state system for deterministic control fl
 ## Development History
 
 ### Current Release
-- Version: v0.8.0 (2026-07-10)
+- Version: v1.0.0 (2026-10-20)
 - [Release Checklist](RELEASE_CHECKLIST.md) - Release verification process
 
 ### Closure Reports

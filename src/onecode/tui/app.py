@@ -25,7 +25,7 @@ from onecode.kernel.shell_projection import project_run_to_shell
 
 # --- Config ---
 
-APP_VERSION = "0.8.0"
+APP_VERSION = "1.0.0"
 DEFAULT_MODEL = "gpt-5.5"
 DEFAULT_WORKSPACE = (
     Path(os.environ["ONECODE_TUI_WORKSPACE"]).expanduser()

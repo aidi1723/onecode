@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0 - 2026-10-20 - Formal release
+
+Issued from the n100 acceptance. The 64-hexagram task rules, the default sandbox path, and the four-hour observation are the release basis. `claims_mainstream_parity` stays false. No third-party security review is claimed. v0.8.0 remains the earlier sandbox tag.
+
+### Changed
+
+- Package version, TUI version, MCP client version, and HTTP server identifier are `1.0.0`.
+- A mode `0600` token file at `$ONECODE_HOME/shell/api-token` is used when `ONECODE_API_TOKEN` is unset.
+- Sandbox commands use the image Python and the invoking user. A local native image sibling runs when the requested tag cannot.
+
 ## 2026-09-28 - YiZiJue control-plane closeout
 
 The kernel can now project a hexagram code and closed facts onto one gateway
