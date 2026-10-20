@@ -399,6 +399,232 @@ class ModelLoopTests(unittest.TestCase):
             )
             self.assertEqual(provider.calls, 3)
 
+    def test_named_files_get_a_write_slot_plus_one_close(self):
+        class FourFileProvider:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+                from onecode.kernel.model_provider import validate_model_plan
+
+                self.calls += 1
+                names = ["src/workers.py", "src/jobs.py", "src/assign.py", "tests/test_scheduler.py"]
+                if self.calls == 1:
+                    raise ValueError("model response was truncated")
+                if self.calls == 6:
+                    return validate_model_plan({"task": "done", "no_action": {"reason": "files are written"}})
+                path = names[self.calls - 2]
+                return validate_model_plan(
+                    {"task": f"write {path}", "assets": [{"path": path, "content": f"VALUE = {self.calls}\n"}]}
+                )
+
+        provider = FourFileProvider()
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_model_task_wrapper(
+                "Build src/workers.py, src/jobs.py, src/assign.py, and tests/test_scheduler.py.",
+                workspace=workspace,
+                run_id="named-four",
+                api_key="key",
+                model="m",
+                provider=provider,
+                max_repair_attempts=2,
+                execution_approval=lambda step: True,
+            )
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["delivery_status"], "deliverable")
+            self.assertEqual(provider.calls, 6)
+            self.assertTrue((workspace / "src" / "assign.py").exists())
+            self.assertTrue((workspace / "tests" / "test_scheduler.py").exists())
+
+    def test_invalid_json_retries_the_same_step_without_a_file_slot(self):
+        class RetryThenWrite:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+                from onecode.kernel.model_provider import validate_model_plan
+
+                self.calls += 1
+                if self.calls == 1:
+                    raise ValueError("model response was not valid JSON")
+                return validate_model_plan(
+                    {"task": "write", "assets": [{"path": "src/one.py", "content": "VALUE = 1\n"}]}
+                )
+
+        provider = RetryThenWrite()
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_model_task_wrapper(
+                "write src/one.py",
+                workspace=workspace,
+                run_id="retry-json",
+                api_key="key",
+                model="m",
+                provider=provider,
+                execution_approval=lambda step: True,
+            )
+            self.assertEqual(provider.calls, 2)
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual((workspace / "src" / "one.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+
+    def test_second_invalid_json_halts_on_the_fire_boundary(self):
+        class AlwaysInvalid:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+                self.calls += 1
+                raise ValueError("model response was not valid JSON")
+
+        provider = AlwaysInvalid()
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_model_task_wrapper(
+                "write src/one.py",
+                workspace=Path(tmp),
+                run_id="retry-json-halt",
+                api_key="key",
+                model="m",
+                provider=provider,
+            )
+        self.assertEqual(provider.calls, 2)
+        self.assertEqual(result["status"], "halted")
+        self.assertEqual(result["reason"], "invalid_model_plan")
+        self.assertEqual(result["iching_transition_action"], "halt")
+
+    def test_completed_plan_halts_when_sandbox_unittest_fails(self):
+        from onecode.kernel.sandbox import SandboxConfig
+        from onecode.kernel.verifier import VerifierResult
+
+        plan = ModelPlan(
+            task="write a test",
+            assets=[ModelPlanAsset(path="tests/test_note.py", content="import unittest\nclass T(unittest.TestCase):\n def test_bad(self):\n  self.assertEqual(1, 0)\n")],
+        )
+        failed = VerifierResult(
+            id="python-unittest",
+            status="failed",
+            reason="verifier_failed",
+            failure_kind="command_failed",
+            exit_code=1,
+            duration_ms=1,
+            stdout_tail="",
+            stderr_tail="AssertionError",
+            stdout_sha256="0" * 64,
+            stderr_sha256="0" * 64,
+            cwd=".",
+            command=["python3", "-m", "unittest"],
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            with patch("onecode.kernel.verifier.run_verifier", return_value=failed):
+                result = run_model_task_wrapper(
+                    "write tests/test_note.py",
+                    workspace=workspace,
+                    run_id="verify-fail",
+                    api_key="key",
+                    model="m",
+                    provider=FakeModelProvider(plan),
+                    execution_approval=lambda step: True,
+                    sandbox_config=SandboxConfig(workspace=workspace, image="python:3.12-slim", network="none"),
+                )
+        self.assertEqual(result["status"], "halted")
+        self.assertEqual(result["reason"], "verifier_failed")
+        self.assertEqual(result["delivery_status"], "blocked")
+        self.assertEqual(result["iching_status_code"], IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN))
+
+    def test_failed_sandbox_check_gets_one_patch_repair_then_passes(self):
+        from onecode.kernel.sandbox import SandboxConfig
+        from onecode.kernel.verifier import VerifierResult
+
+        write_plan = ModelPlan(
+            task="write",
+            assets=[ModelPlanAsset(path="src/one.py", content="VALUE = 0\n")],
+        )
+        patch_plan = ModelPlan(
+            task="repair",
+            patches=[ModelPlanPatch(path="src/one.py", search_block="VALUE = 0\n", replace_block="VALUE = 1\n")],
+        )
+        failed = VerifierResult(
+            id="python-unittest", status="failed", reason="verifier_failed", failure_kind="command_failed",
+            exit_code=1, duration_ms=1, stdout_tail="", stderr_tail="AssertionError: 0 != 1",
+            stdout_sha256="0" * 64, stderr_sha256="0" * 64, cwd=".", command=["python3", "-m", "unittest"],
+        )
+        passed = VerifierResult(
+            id="python-unittest", status="passed", reason=None, failure_kind=None,
+            exit_code=0, duration_ms=1, stdout_tail="OK", stderr_tail="",
+            stdout_sha256="0" * 64, stderr_sha256="0" * 64, cwd=".", command=["python3", "-m", "unittest"],
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "tests").mkdir()
+            (workspace / "tests" / "test_one.py").write_text("import unittest\n", encoding="utf-8")
+            with patch("onecode.kernel.verifier.run_verifier", side_effect=[failed, passed]):
+                result = run_model_task_wrapper(
+                    "fix src/one.py",
+                    workspace=workspace,
+                    run_id="repair-after-check",
+                    api_key="key",
+                    model="m",
+                    provider=SequenceModelProvider([write_plan, patch_plan]),
+                    execution_approval=lambda step: True,
+                    max_repair_attempts=1,
+                    sandbox_config=SandboxConfig(workspace=workspace, image="python:3.12-slim", network="none"),
+                )
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["delivery_status"], "deliverable")
+            self.assertEqual((workspace / "src" / "one.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+            self.assertEqual(result["iching_status_code"], IchingKernel.transition(IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN)).status_code)
+
+    def test_patch_repair_must_not_change_tests(self):
+        from onecode.kernel.sandbox import SandboxConfig
+        from onecode.kernel.verifier import VerifierResult
+
+        write_plan = ModelPlan(
+            task="write",
+            assets=[ModelPlanAsset(path="src/one.py", content="VALUE = 0\n")],
+        )
+        bad_patch = ModelPlan(
+            task="repair",
+            patches=[ModelPlanPatch(path="tests/test_one.py", search_block="import unittest\n", replace_block="import unittest\n# changed\n")],
+        )
+        failed = VerifierResult(
+            id="python-unittest", status="failed", reason="verifier_failed", failure_kind="command_failed",
+            exit_code=1, duration_ms=1, stdout_tail="", stderr_tail="AssertionError",
+            stdout_sha256="0" * 64, stderr_sha256="0" * 64, cwd=".", command=["python3", "-m", "unittest"],
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "tests").mkdir()
+            original = "import unittest\n"
+            (workspace / "tests" / "test_one.py").write_text(original, encoding="utf-8")
+            with patch("onecode.kernel.verifier.run_verifier", return_value=failed):
+                result = run_model_task_wrapper(
+                    "fix src/one.py",
+                    workspace=workspace,
+                    run_id="repair-keeps-tests",
+                    api_key="key",
+                    model="m",
+                    provider=SequenceModelProvider([write_plan, bad_patch]),
+                    execution_approval=lambda step: True,
+                    max_repair_attempts=1,
+                    sandbox_config=SandboxConfig(workspace=workspace, image="python:3.12-slim", network="none"),
+                )
+            self.assertEqual(result["reason"], "repair_plan_must_use_patches_only")
+            self.assertEqual((workspace / "tests" / "test_one.py").read_text(encoding="utf-8"), original)
+            self.assertEqual(result["iching_transition_action"], "halt")
+
+    def test_resumable_gateway_status_is_a_checkpoint(self):
+        from onecode.kernel.model_provider import ModelProviderError, ModelProviderTimeout, resumable_model_status
+
+        self.assertTrue(resumable_model_status(429))
+        self.assertTrue(resumable_model_status(502))
+        self.assertFalse(resumable_model_status(401))
+        resumed = IchingKernel.transition(IchingKernel.classify_outcome("halted", "model_provider_timeout"))
+        refused = IchingKernel.transition(IchingKernel.classify_outcome("halted", "model_provider_error"))
+        self.assertEqual(resumed.action, "checkpoint")
+        self.assertEqual(refused.action, "halt")
+        self.assertTrue(issubclass(ModelProviderTimeout, ModelProviderError))
+
     def test_repair_timeout_has_its_own_failed_terminal_event(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

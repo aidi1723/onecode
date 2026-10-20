@@ -921,8 +921,9 @@ def dispatch_run_command(args: Any, parser: argparse.ArgumentParser) -> int | No
                 endpoint=args.endpoint,
                 max_repair_attempts=args.max_repair_attempts,
                 execution_approval=(lambda step: True) if args.approve else None,
+                sandbox_config=sandbox_config,
             )
-            if verifier_specs and result["status"] == "completed":
+            if verifier_specs and result["status"] == "completed" and not result.get("verifier_results"):
                 verifier_results = [run_verifier(Path(args.workspace), spec, sandbox_config=sandbox_config) for spec in verifier_specs]
                 result = apply_verifier_evidence(result, Path(args.workspace), verifier_results)
         except ValueError as exc:

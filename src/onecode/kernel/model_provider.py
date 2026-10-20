@@ -232,6 +232,10 @@ def normalize_chat_endpoint(endpoint_or_base_url: str) -> str:
     return f"{endpoint}/chat/completions"
 
 
+def resumable_model_status(code: int) -> bool:
+    return code in {408, 429, 502, 503, 504}
+
+
 def build_provider_config(
     provider_kind: str,
     endpoint: str | None,
@@ -578,6 +582,10 @@ class OpenAIResponsesProvider:
                 response_payload = json.loads(read_bounded_response(response).decode("utf-8"))
         except TimeoutError as exc:
             raise ModelProviderTimeout("model request timed out") from exc
+        except urllib.error.HTTPError as exc:
+            if resumable_model_status(exc.code):
+                raise ModelProviderTimeout(f"model request can be resumed: {exc.code}") from exc
+            raise ModelProviderError(f"model request failed: {exc.reason}") from exc
         except urllib.error.URLError as exc:
             raise ModelProviderError(f"model request failed: {exc.reason}") from exc
         except json.JSONDecodeError as exc:
@@ -660,6 +668,10 @@ class OpenAIChatCompletionsProvider:
                 response_payload = json.loads(read_bounded_response(response).decode("utf-8"))
         except TimeoutError as exc:
             raise ModelProviderTimeout("model request timed out") from exc
+        except urllib.error.HTTPError as exc:
+            if resumable_model_status(exc.code):
+                raise ModelProviderTimeout(f"model request can be resumed: {exc.code}") from exc
+            raise ModelProviderError(f"model request failed: {exc.reason}") from exc
         except urllib.error.URLError as exc:
             raise ModelProviderError(f"model request failed: {exc.reason}") from exc
         except json.JSONDecodeError as exc:

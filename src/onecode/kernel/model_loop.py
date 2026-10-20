@@ -2,6 +2,7 @@ from pathlib import Path
 import difflib
 import hashlib
 import inspect
+import re
 import subprocess
 import time
 from typing import Any, Callable
@@ -138,6 +139,33 @@ def build_provider(api_key: str, provider_kind: str, endpoint: str | None) -> An
     if config.provider_kind == "responses":
         return OpenAIResponsesProvider(api_key, endpoint=config.endpoint)
     return OpenAIChatCompletionsProvider(api_key, endpoint=config.endpoint)
+
+
+_NAMED_PYTHON_FILE = re.compile(r"\b(?:src|tests)/[A-Za-z0-9_./-]+\.py\b")
+
+
+def named_python_files(task: str) -> list[str]:
+    found: list[str] = []
+    for match in _NAMED_PYTHON_FILE.findall(task):
+        if match not in found:
+            found.append(match)
+    return found
+
+
+def file_write_slots(task: str, max_repair_attempts: int) -> int:
+    if max_repair_attempts <= 0:
+        return 0
+    return max(max_repair_attempts, len(named_python_files(task)))
+
+
+def _same_step_retry(failure: dict[str, Any] | None) -> bool:
+    if not isinstance(failure, dict) or failure.get("failure_kind") != "invalid_model_plan":
+        return False
+    detail = str(failure.get("detail") or "")
+    return (
+        "model response was not valid JSON" in detail
+        or "no_action cannot be combined with actions" in detail
+    )
 
 
 def narrow_plan_prompt(task: str, failure: dict[str, Any], written: list[str] | None = None) -> str:
@@ -787,6 +815,15 @@ def traced_provider_plan(
     return plan, None
 
 
+def traced_provider_plan_retrying(**kwargs: Any) -> tuple[ModelPlan | None, dict[str, Any] | None]:
+    plan, failure = traced_provider_plan(**kwargs)
+    if not _same_step_retry(failure):
+        return plan, failure
+    retry_kwargs = dict(kwargs)
+    retry_kwargs["span_id"] = f"{kwargs['span_id']}-retry"
+    return traced_provider_plan(**retry_kwargs)
+
+
 def failed_model_result(
     model_context: Any, failure: dict[str, Any]
 ) -> dict[str, Any]:
@@ -911,8 +948,9 @@ def _write_following_narrow_files(
 ) -> dict[str, Any]:
     written = [asset.path for asset in plan.assets]
     results = [result]
-    for index in range(2, max_repair_attempts + 1):
-        next_plan, failure = traced_provider_plan(
+    slots = file_write_slots(task, max_repair_attempts)
+    for index in range(2, slots + 1):
+        next_plan, failure = traced_provider_plan_retrying(
             provider=provider,
             task=narrow_plan_prompt(
                 task,
@@ -969,6 +1007,46 @@ def _write_following_narrow_files(
                 outstanding=False,
             )
         written.extend(asset.path for asset in next_plan.assets)
+    if len(named_python_files(task)) > max_repair_attempts:
+        close_plan, close_failure = traced_provider_plan_retrying(
+            provider=provider,
+            task=narrow_plan_prompt(task, {"detail": "close the finished files", "failure_kind": "resource_budget_exceeded"}, written),
+            model_context=model_context,
+            trace_path=trace_path,
+            provider_config=provider_config,
+            resolved_model=resolved_model,
+            http_timeout_seconds=http_timeout_seconds,
+            planning_context=planning_context,
+            span_id="model-narrow-close",
+        )
+        if close_failure is not None or close_plan is None:
+            return _close_narrow_sequence(
+                results,
+                status="halted",
+                reason=close_failure["failure_kind"] if close_failure is not None else "invalid_model_plan",
+                model_context=model_context,
+                outstanding=True,
+            )
+        if close_plan.no_action_reason is not None:
+            return _close_narrow_sequence(
+                results,
+                status="completed",
+                reason=None,
+                model_context=model_context,
+                outstanding=False,
+            )
+        latest = execute_model_plan(
+            close_plan,
+            workspace=workspace,
+            http_timeout_seconds=http_timeout_seconds,
+            run_id=run_id,
+            resume_from_run_id=resume_from_run_id,
+            run_metadata=run_metadata,
+            require_explicit_approval=require_explicit_approval,
+            approval_callback=execution_approval,
+            on_turn=on_turn,
+        )
+        results.append(latest)
     return _close_narrow_sequence(
         results,
         status="halted",
@@ -990,7 +1068,7 @@ def _initial_model_plan(
     http_timeout_seconds: float,
     planning_context: dict[str, Any],
 ) -> tuple[ModelPlan | None, dict[str, Any] | None, bool]:
-    plan, failure = traced_provider_plan(
+    plan, failure = traced_provider_plan_retrying(
         provider=provider,
         task=task,
         model_context=model_context,
@@ -1007,7 +1085,7 @@ def _initial_model_plan(
         "invalid_model_plan",
     }:
         narrowed = True
-        plan, failure = traced_provider_plan(
+        plan, failure = traced_provider_plan_retrying(
             provider=provider,
             task=narrow_plan_prompt(task, failure),
             model_context=model_context,
@@ -1019,6 +1097,102 @@ def _initial_model_plan(
             span_id="model-narrow-1",
         )
     return plan, failure, narrowed
+
+
+def _repair_touches_tests(plan: ModelPlan) -> bool:
+    for patch in plan.patches:
+        path = patch.path.replace("\\", "/")
+        if path == "tests" or path.startswith("tests/"):
+            return True
+    return False
+
+
+def _finish_verified_task(
+    result: dict[str, Any],
+    task: str,
+    workspace: Path,
+    sandbox_config: Any | None,
+    max_repair_attempts: int,
+    provider: Any,
+    model_context: Any,
+    trace_path: Path,
+    provider_config: Any,
+    resolved_model: str,
+    http_timeout_seconds: float,
+    planning_context: dict[str, Any],
+    run_id: str | None,
+    resume_from_run_id: str | None,
+    run_metadata: dict[str, Any],
+    require_explicit_approval: bool,
+    execution_approval: Callable[[ExecutionStep], bool] | None,
+    on_turn: Callable[[dict[str, Any]], None] | None,
+) -> dict[str, Any]:
+    checked = _with_sandbox_tests(result, workspace, sandbox_config)
+    if checked.get("reason") != "verifier_failed" or max_repair_attempts <= 0 or sandbox_config is None:
+        return checked
+    tails = [
+        str(item.get("stderr_tail"))[-400:]
+        for item in (checked.get("verifier_results") or [])
+        if isinstance(item, dict) and item.get("stderr_tail")
+    ]
+    prompt = repair_prompt(task, checked) + "\nDo not patch any path under tests/. Change the implementation so the existing tests pass."
+    if tails:
+        prompt += "\nVerifier output:\n" + "\n".join(tails)
+    plan, failure = traced_provider_plan_retrying(
+        provider=provider,
+        task=prompt,
+        model_context=model_context,
+        trace_path=trace_path,
+        provider_config=provider_config,
+        resolved_model=resolved_model,
+        http_timeout_seconds=http_timeout_seconds,
+        planning_context=planning_context,
+        span_id="model-repair-after-check",
+    )
+    if failure is not None:
+        return failed_model_result(model_context, failure)
+    if plan is None or not is_patch_only_repair_plan(plan) or _repair_touches_tests(plan):
+        rejected = repair_rejected_result(checked, run_id, "repair_plan_must_use_patches_only")
+        transition = IchingKernel.transition(IchingKernel.classify_outcome("halted", rejected["reason"]))
+        return {
+            **rejected,
+            "iching_status_code": transition.status_code,
+            "iching_transition_action": transition.action,
+            "iching_transition_reason": transition.reason,
+        }
+    repaired = execute_model_plan(
+        plan,
+        workspace=workspace,
+        http_timeout_seconds=http_timeout_seconds,
+        run_id=run_id,
+        resume_from_run_id=resume_from_run_id,
+        run_metadata=run_metadata,
+        require_explicit_approval=require_explicit_approval,
+        approval_callback=execution_approval,
+        on_turn=on_turn,
+    )
+    if repaired.get("status") != "completed":
+        return repaired
+    return _with_sandbox_tests(merge_repair_result(checked, repaired, repair_attempt_count=1), workspace, sandbox_config)
+
+
+def _with_sandbox_tests(result: dict[str, Any], workspace: Path, sandbox_config: Any | None) -> dict[str, Any]:
+    if sandbox_config is None or result.get("status") != "completed" or not (workspace / "tests").is_dir():
+        return result
+    from onecode.kernel.run_inspection import apply_verifier_evidence
+    from onecode.kernel.verifier import VerifierSpec, run_verifier
+
+    checked = run_verifier(
+        workspace,
+        VerifierSpec(
+            id="python-unittest",
+            command=["python3", "-m", "unittest", "discover", "-s", "tests"],
+            cwd=".",
+            timeout_ms=max(1000, int(sandbox_config.timeout_seconds * 1000)),
+        ),
+        sandbox_config=sandbox_config,
+    )
+    return apply_verifier_evidence(result, workspace, [checked])
 
 
 def run_model_task(
@@ -1039,12 +1213,12 @@ def run_model_task(
     require_explicit_approval: bool = True,
     execution_approval: Callable[[ExecutionStep], bool] | None = None,
     on_turn: Callable[[dict[str, Any]], None] | None = None,
+    sandbox_config: Any | None = None,
 ) -> dict[str, Any]:
     validate_model_task_limits(http_timeout_seconds, max_repair_attempts)
     provider_config, resolved_model, resolved_api_key = resolve_model_runtime(
         provider_kind, endpoint, model, api_key
     )
-
     active_provider = provider or build_provider(resolved_api_key, provider_kind, endpoint)
     route, planning_context = resolve_safe_agent_planning_context(task, task_mode, safe_agent_route)
     model_context = create_context(workspace_root=workspace, run_id=run_id, resume_from_run_id=resume_from_run_id)
@@ -1111,7 +1285,7 @@ def run_model_task(
         approval_callback=execution_approval,
         on_turn=on_turn,
     )
-    if narrowed and max_repair_attempts > 1 and result["status"] == "completed":
+    if narrowed and file_write_slots(task, max_repair_attempts) > 1 and result["status"] == "completed":
         result = _write_following_narrow_files(
             task=task, plan=plan,
             result=result,
@@ -1132,7 +1306,7 @@ def run_model_task(
             on_turn=on_turn,
         )
     if narrowed or result["status"] == "completed" or max_repair_attempts <= 0:
-        return result
+        return _finish_verified_task(result, task, workspace, sandbox_config, max_repair_attempts, active_provider, model_context, trace_path, provider_config, resolved_model, http_timeout_seconds, planning_context, run_id, resume_from_run_id, run_metadata, require_explicit_approval, execution_approval, on_turn)
 
     failed_result = result
     for attempt in range(1, max_repair_attempts + 1):
@@ -1178,7 +1352,7 @@ def run_model_task(
         )
         merged = merge_repair_result(result, repair_result, repair_attempt_count=attempt)
         if repair_result.get("status") == "completed":
-            return merged
+            return _with_sandbox_tests(merged, workspace, sandbox_config)
         failed_result = merged
     return failed_result
 
