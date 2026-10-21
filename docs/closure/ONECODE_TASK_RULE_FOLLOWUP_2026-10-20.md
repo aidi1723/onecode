@@ -46,4 +46,4 @@ On 2026-10-21, after the protected-path rules were on n100, these tasks finished
 
 ## Close
 
-Tag `v1.0.0` stays on `dd51424`. Tag `v0.8.0` stays on `e1adb3c`. The first follow-up commit is `654ddb2`. The protected-path close is the later commit on `main` that records these 2026-10-21 rounds. The 1.0.0 gate of 1219 tests and 1 skipped remains the count recorded for that tag.
+Tag `v1.0.0` stays on `dd51424`. Tag `v0.8.0` stays on `e1adb3c`. The first follow-up commit is `654ddb2`. The protected-path close is `e4a6eb4` on `main`. The 1.0.0 gate of 1219 tests and 1 skipped remains the count recorded for that tag.

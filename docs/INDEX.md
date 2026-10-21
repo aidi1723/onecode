@@ -108,7 +108,7 @@ OneCode uses an I Ching (易经) based state system for deterministic control fl
 ## Development History
 
 ### Current Release
-- Version: v1.0.0 (2026-10-20). Tag `v1.0.0` is `dd51424`. Current task rules are the 2026-10-21 close on `main` after `654ddb2`.
+- Version: v1.0.0 (2026-10-20). Tag `v1.0.0` is `dd51424`. Current task rules are `e4a6eb4` on `main`, after `654ddb2`.
 - [Release Checklist](RELEASE_CHECKLIST.md) - Release verification process
 - [Task rule follow-up](closure/ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md) - Protected paths, close into the sandbox check, one implementation repair, gateway checkpoint
 
