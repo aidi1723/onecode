@@ -32,6 +32,7 @@ from onecode.kernel.model_loop import (
     _src_files_for_repair,
     execute_model_plan,
     failed_model_result,
+    initial_asset_prompt,
     missing_required_files,
     named_python_files,
     narrow_plan_prompt,
@@ -235,7 +236,13 @@ def prepare_shell_model_call(task: str, workspace: Path, run_id: str | None = No
     survey = shell_read_survey(workspace, task)
     if survey.get("reason") in {"model_provider_timeout", "model_provider_error"}:
         return {"stop": failed_read_survey_result(workspace, task, str(survey.get("reason")), run_id)}
-    if survey.get("status") != "completed" and survey.get("reason") not in {None, "no_progress", "resource_budget_exceeded"}:
+    if survey.get("status") != "completed" and survey.get("reason") not in {
+        None,
+        "no_progress",
+        "resource_budget_exceeded",
+        "action_exception",
+        "search_miss",
+    }:
         return {"stop": _survey_stop(survey)}
     extras = shell_model_task_extras(task, workspace)
     surveyed_text = survey.get("preface")
@@ -244,10 +251,20 @@ def prepare_shell_model_call(task: str, workspace: Path, run_id: str | None = No
     named = named_text.strip() if isinstance(named_text, str) else ""
     preface = "\n".join(part for part in (surveyed, named) if part)
     extras["preface"] = preface or None
-    planned = task
-    if len(missing_required_files(task, workspace)) > 1:
-        planned = narrow_plan_prompt(task, {"detail": "start with one named file", "failure_kind": "resource_budget_exceeded"}, [])
+    planned = _shell_write_prompt(task, workspace)
     return {"task": planned, "extras": extras}
+
+
+def _shell_write_prompt(task: str, workspace: Path) -> str:
+    missing = missing_required_files(task, workspace)
+    if len(missing) > 1:
+        return narrow_plan_prompt(task, {"detail": "start with one named file", "failure_kind": "resource_budget_exceeded"}, [])
+    if len(missing) == 1:
+        return initial_asset_prompt(task, missing[0])
+    required = required_python_files(task)
+    if len(required) == 1:
+        return initial_asset_prompt(task, required[0])
+    return task
 
 
 def failed_read_survey_result(workspace: Path, task: str, reason: str, run_id: str | None) -> dict[str, Any]:

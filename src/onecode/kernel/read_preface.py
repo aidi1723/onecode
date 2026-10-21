@@ -248,7 +248,12 @@ def read_only_registry_execute(workspace: Path) -> Execute:
             outcome = tool.execute(params, workspace)
         except PathGuardError:
             return {"status": "halted", "reason": "sovereignty_breach"}
-        except (OSError, ValueError, subprocess.SubprocessError):
+        except ValueError as exc:
+            reason = str(exc)
+            if reason not in {"path_not_found", "read_target_not_file", "list_target_not_found", "search_miss"}:
+                reason = "search_miss"
+            return {"status": "completed", "reason": reason, "content": str(exc)}
+        except (OSError, subprocess.SubprocessError):
             return {"status": "halted", "reason": "action_exception"}
         if not isinstance(outcome, dict):
             return {"status": "halted", "reason": "action_exception"}

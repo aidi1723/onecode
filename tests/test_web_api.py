@@ -623,6 +623,8 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(kwargs["max_repair_attempts"], 1)
         self.assertEqual(kwargs["sandbox_config"].network, "none")
         self.assertIn("def fare_cents", kwargs["preface"])
+        self.assertIn("Do not return patches", run_model.call_args.args[0])
+        self.assertIn("src/fares.py", run_model.call_args.args[0])
 
     def test_shell_survey_preface_includes_the_matching_test(self):
         from onecode.web.api import handle_chat_completion
@@ -679,8 +681,36 @@ class OneCodeWebApiTests(unittest.TestCase):
             )
 
         self.assertIn("exactly one new Python file", run_model.call_args.args[0])
+        self.assertIn("Do not return patches", run_model.call_args.args[0])
         self.assertIn("src/one.py", run_model.call_args.args[0])
         self.assertIn("src/two.py", run_model.call_args.args[0])
+
+    def test_shell_asks_for_one_complete_asset_for_a_new_file(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task", return_value={"status": "completed", "reason": None}) as run_model:
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Write src/toll.py so fee_cents(2) is 100."}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        prompt = run_model.call_args.args[0]
+        self.assertIn("src/toll.py", prompt)
+        self.assertIn("complete", prompt)
+        self.assertIn("Do not return patches", prompt)
+        self.assertIn("Do not install packages", prompt)
 
     def test_shell_stops_before_the_write_when_the_survey_halts(self):
         from onecode.kernel.hexagram import IchingKernel
@@ -717,6 +747,41 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(payload["onecode"]["result"]["reason"], "sovereignty_breach")
         self.assertEqual(payload["onecode"]["result"]["cycle"]["cycle"], "stop")
         run_model.assert_not_called()
+
+    def test_shell_write_continues_when_the_survey_tool_fails(self):
+        from onecode.web.api import handle_chat_completion
+
+        halted = {
+            "status": "halted",
+            "reason": "action_exception",
+            "status_code": 32,
+            "preface": "",
+            "turns": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.shell_read_survey", return_value=halted), patch(
+            "onecode.web.api.run_model_task", return_value={"status": "completed", "reason": None}
+        ) as run_model:
+            payload, status = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Write src/tide.py and src/berth.py."}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["onecode"]["mode"], "model")
+        run_model.assert_called()
+        self.assertIn("src/tide.py", run_model.call_args.args[0])
 
     def test_shell_survey_reads_the_file_the_model_names(self):
         from onecode.web.api import handle_chat_completion

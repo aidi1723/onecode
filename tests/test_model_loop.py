@@ -821,6 +821,24 @@ class ModelLoopTests(unittest.TestCase):
         self.assertIn("def bill_cents(kwh):", text)
         self.assertIn("return kwh * 10", text)
         self.assertIn("patches only", text)
+        self.assertIn("Do not patch any path under tests/", text)
+
+    def test_repair_prompt_omits_test_paths(self):
+        from onecode.kernel.model_loop import repair_prompt
+
+        failed = {
+            "status": "halted",
+            "reason": "verifier_failed",
+            "execution_trace": {
+                "runner_results": [
+                    {"status": "failed", "reason": "verifier_failed", "payload": {"path": "tests/test_fares.py"}},
+                    {"status": "completed", "reason": None, "payload": {"path": "src/fares.py"}},
+                ]
+            },
+        }
+        text = repair_prompt("fix src/fares.py", failed)
+        self.assertIn("src/fares.py", text)
+        self.assertNotIn("tests/test_fares.py", text)
 
     def test_resumable_gateway_status_is_a_checkpoint(self):
         from onecode.kernel.model_provider import ModelProviderError, ModelProviderTimeout, resumable_model_status

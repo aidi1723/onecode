@@ -8,6 +8,8 @@ This index helps you navigate OneCode's documentation, which is organized by pur
 
 - [README.md](../README.md) - Installation, verification, and basic usage
 - [2026-10-16 follow-up development handbook](superpowers/plans/2026-10-16-onecode-followup-development-handbook.md) - Closed implementation contract: gates, approval, reason codes, observability boundary
+- [2026-10-21 long-task plan](closure/ONECODE_LONG_TASK_PLAN_2026-10-21.md) - Later scheme for long tasks; not implemented
+- [2026-10-21 asset-write closeout](closure/ONECODE_ASSET_WRITE_CLOSEOUT_2026-10-21.md) - Complete-file writes and the survey search-miss fix
 - [2026-10-21 shell read closeout](closure/ONECODE_SHELL_READ_CLOSEOUT_2026-10-21.md) - Chat survey, approval diff, and the n100 live tasks at 812bab7
 - [2026-10-21 shell handbook](superpowers/plans/2026-10-21-onecode-shell-v088-handbook.md) - LibreChat v0.8.8 as the chat shell, kernel rules unchanged
 - [2026-09-29 audit remediation closeout](closure/ONECODE_AUDIT_REMEDIATION_CLOSURE_2026-09-29.md) - Current security boundary and verification record
@@ -115,9 +117,11 @@ OneCode uses an I Ching (易经) based state system for deterministic control fl
 - [Task rule follow-up](closure/ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md) - Protected paths, close into the sandbox check, one implementation repair, gateway checkpoint
 
 ### Closure Reports
-All development closure and verification records live in the [closure/](closure/) directory (59 documents).
+All development closure and verification records live in the [closure/](closure/) directory (61 documents).
 
 Key closure documents:
+- [Long-task plan](closure/ONECODE_LONG_TASK_PLAN_2026-10-21.md) - Later scheme; not implemented
+- [Asset-write closeout](closure/ONECODE_ASSET_WRITE_CLOSEOUT_2026-10-21.md) - Complete-file writes and the survey search-miss fix
 - [Shell read closeout](closure/ONECODE_SHELL_READ_CLOSEOUT_2026-10-21.md) - Chat survey, approval diff, n100 live tasks at 812bab7
 - [Task rule follow-up](closure/ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md) - Current task rules after tag v1.0.0
 - [v1.0.0 release](closure/ONECODE_V1_0_RELEASE_2026-10-20.md) - Formal release on the n100 acceptance

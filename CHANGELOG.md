@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-10-21 - Asset write close
+
+Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false. The record is `docs/closure/ONECODE_ASSET_WRITE_CLOSEOUT_2026-10-21.md`. The long-task plan is `docs/closure/ONECODE_LONG_TASK_PLAN_2026-10-21.md` and is not implemented.
+
+### Changed
+
+- A chat write asks for one complete file. Patches stay on the single post-check repair.
+- The repair prompt omits `tests/` paths.
+- A bad survey tool parameter is a search miss and does not block the later write.
+
+### Verification
+
+- On n100, parking, scale, and library finished at code 39 with one asset and no patch. Preset tests stayed unchanged.
+- Wharf halted on `action_exception` when `glob_files` omitted `pattern`. The rerun finished at code 39 with both files.
+- `bash scripts/verify.sh`: 1266 tests, 1 skipped, doctor ok.
+
 ## 2026-10-21 - Shell read close
 
 Version stays 1.0.0. Commit `812bab7` on `main`. No new hexagram was added. `claims_mainstream_parity` stays false. The record is `docs/closure/ONECODE_SHELL_READ_CLOSEOUT_2026-10-21.md`.

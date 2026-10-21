@@ -147,6 +147,36 @@ class ReadPrefaceTests(unittest.TestCase):
         self.assertEqual(result["status"], "halted")
         self.assertEqual(result["reason"], "sovereignty_breach")
 
+    def test_survey_continues_after_a_glob_without_a_pattern(self):
+        from onecode.kernel.read_preface import read_only_registry_execute, survey_model_reads
+
+        calls = {"count": 0}
+
+        def complete(prompt: str) -> str:
+            calls["count"] += 1
+            if calls["count"] == 1:
+                return '{"tools":[{"tool_name":"glob_files","params":{"path":"tests/test_wharf.py"}}]}'
+            if calls["count"] == 2:
+                return '{"tools":[{"tool_name":"read_text","params":{"path":"tests/test_wharf.py"}}]}'
+            return '{"tools":[]}'
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "tests").mkdir()
+            (workspace / "tests" / "test_wharf.py").write_text(
+                "def test_day():\n    assert True\n",
+                encoding="utf-8",
+            )
+            result = survey_model_reads(
+                workspace,
+                "Write src/tide.py and src/berth.py.",
+                complete,
+                read_only_registry_execute(workspace),
+            )
+        self.assertEqual(result["status"], "completed")
+        self.assertGreaterEqual(calls["count"], 2)
+        self.assertIn("test_day", result["preface"])
+
     def test_model_survey_reads_a_file_the_task_did_not_name(self):
         from onecode.kernel.read_preface import read_only_registry_execute, survey_model_reads
 

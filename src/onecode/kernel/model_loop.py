@@ -223,8 +223,26 @@ def narrow_plan_prompt(task: str, failure: dict[str, Any], written: list[str] | 
         "Do not rewrite a file that is already written. "
         "If the task is already complete, return no_action with a concrete reason and no assets. "
         "The asset content must be complete and non-empty. "
+        "Do not return patches. "
         "Use unittest, not pytest. No relative imports. "
-        "Do not include execution_plan or run_command."
+        "Do not include execution_plan or run_command. "
+        "Do not install packages or use the network."
+        + kept
+    )
+
+
+def initial_asset_prompt(task: str, target: str) -> str:
+    protected = ", ".join(protected_python_files(task))
+    kept = f" Do not write these protected paths: {protected}." if protected else ""
+    return (
+        "Write exactly one complete Python file as a JSON asset.\n"
+        f"Target: {target}\n"
+        f"Original task: {task}\n"
+        "The asset content must be the complete non-empty file. "
+        "Do not return patches, execution_plan, or run_command. "
+        "Do not install packages or use the network. "
+        "Depend only on the standard library and files already in the workspace. "
+        "Use unittest, not pytest. No relative imports."
         + kept
     )
 
@@ -265,9 +283,9 @@ def repair_prompt(task: str, failed_result: dict[str, Any]) -> str:
     if isinstance(trace, dict):
         for runner_result in trace.get("runner_results", []):
             payload = runner_result.get("payload", {}) if isinstance(runner_result, dict) else {}
-            if isinstance(payload, dict) and isinstance(payload.get("path"), str):
+            if isinstance(payload, dict) and isinstance(payload.get("path"), str) and not _is_test_path(payload["path"]):
                 paths.append(payload["path"])
-            if isinstance(runner_result, dict):
+            if isinstance(runner_result, dict) and not _detail_mentions_tests(payload):
                 reason = runner_result.get("reason")
                 status = runner_result.get("status")
                 if reason or status:
@@ -293,8 +311,21 @@ def repair_prompt(task: str, failed_result: dict[str, Any]) -> str:
         f"Affected paths: {path_summary}\n"
         f"Failure details:\n{details}\n"
         f"{_repair_source_block(failed_result)}"
-        "Return JSON with patches only. Do not return assets or execution_plan."
+        "Return JSON with patches only. Do not return assets or execution_plan. "
+        "Do not patch any path under tests/."
     )
+
+
+def _is_test_path(path: str) -> bool:
+    normalized = path.replace("\\", "/")
+    return normalized == "tests" or normalized.startswith("tests/")
+
+
+def _detail_mentions_tests(payload: object) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    path = payload.get("path")
+    return isinstance(path, str) and _is_test_path(path)
 
 
 def _drop_protected_changes(plan: ModelPlan, task: str) -> ModelPlan:
