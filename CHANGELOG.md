@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-10-21 - Shell read close
+
+Version stays 1.0.0. Commit `812bab7` on `main`. No new hexagram was added. `claims_mainstream_parity` stays false. The record is `docs/closure/ONECODE_SHELL_READ_CLOSEOUT_2026-10-21.md`.
+
+### Changed
+
+- A chat task asks the model for read-only tools before the write plan. A write during that survey is dropped.
+- The approval message shows the diff, the patch blocks, and the verifier tail after a failed check.
+- Claiming the next named file accepts an import of a module already on disk.
+
+### Verification
+
+- On n100, baggage, shift, locker, and notes finished deliverable at code 39. Preset tests stayed unchanged. Notes kept `RATE = 8`.
+- The shift task's first claim failed on `imports missing module shift`. The rerun after this commit passed.
+- `bash scripts/verify.sh`: 1262 tests, 1 skipped, coverage 86%, doctor ok.
+
 ## 2026-10-21 - Shell task path
 
 Version stays 1.0.0. The chat shell stays LibreChat `v0.8.8` with OneCode as the only executor. `claims_mainstream_parity` stays false. Records: `docs/closure/ONECODE_N100_DEPLOY_NOTES_2026-10-21.md` and `docs/closure/ONECODE_SHELL_V088_LOCAL_TASKS.md`.

@@ -19,4 +19,4 @@ Kernel tree: `~/onecode-rule-check`. Shell tree: `~/onecode-librechat-v088`, bra
 | The launcher default directory is the sibling `../onecode-librechat`. That path does not exist next to the current project. On n100 the new tree is `~/onecode-librechat-v088`. | Open. Start with `--librechat-dir`. |
 | A chat approval executes the approved plan, then asks for the next named file that is still missing. A file that does not advance the required set stops as `no_progress`. The sandbox check runs once the named files are present. | Fixed. |
 | The full LibreChat client suite was not run. A broad API Jest invocation also executed unrelated agent specs and failed inside LibreChat's own agent mocks. | Open. Those failures are outside the OneCode routes. |
-| Kernel and shell changes are local and not pushed. | Open. |
+| Kernel and shell changes are local and not pushed. | Closed later the same day. Kernel `8d6ad91` and `812bab7` are on `origin/main`. See [ONECODE_SHELL_READ_CLOSEOUT_2026-10-21.md](ONECODE_SHELL_READ_CLOSEOUT_2026-10-21.md). |

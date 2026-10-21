@@ -8,7 +8,8 @@ This index helps you navigate OneCode's documentation, which is organized by pur
 
 - [README.md](../README.md) - Installation, verification, and basic usage
 - [2026-10-16 follow-up development handbook](superpowers/plans/2026-10-16-onecode-followup-development-handbook.md) - Closed implementation contract: gates, approval, reason codes, observability boundary
-- [2026-10-21 shell handbook](superpowers/plans/2026-10-21-onecode-shell-v088-handbook.md) - Next contract: LibreChat v0.8.8 as the chat shell, kernel rules unchanged
+- [2026-10-21 shell read closeout](closure/ONECODE_SHELL_READ_CLOSEOUT_2026-10-21.md) - Chat survey, approval diff, and the n100 live tasks at 812bab7
+- [2026-10-21 shell handbook](superpowers/plans/2026-10-21-onecode-shell-v088-handbook.md) - LibreChat v0.8.8 as the chat shell, kernel rules unchanged
 - [2026-09-29 audit remediation closeout](closure/ONECODE_AUDIT_REMEDIATION_CLOSURE_2026-09-29.md) - Current security boundary and verification record
 - [2026-09-29 agent parity closeout](closure/ONECODE_AGENT_PARITY_CLOSURE_2026-09-29.md) - Handbook phases, workflow run, and evaluation limits
 - [2026-09-29 host contract handbook](superpowers/plans/2026-09-29-host-contract-handbook.md) - Execution-gate approval, no-progress stop, transient errors, truncation
@@ -109,14 +110,15 @@ OneCode uses an I Ching (易经) based state system for deterministic control fl
 ## Development History
 
 ### Current Release
-- Version: v1.0.0 (2026-10-20). Tag `v1.0.0` is `dd51424`. Current task rules are `e4a6eb4` on `main`, after `654ddb2`.
+- Version: v1.0.0 (2026-10-20). Tag `v1.0.0` is `dd51424`. `main` is `812bab7`. Task rules remain the follow-up note. The shell read close is `812bab7`.
 - [Release Checklist](RELEASE_CHECKLIST.md) - Release verification process
 - [Task rule follow-up](closure/ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md) - Protected paths, close into the sandbox check, one implementation repair, gateway checkpoint
 
 ### Closure Reports
-All development closure and verification records live in the [closure/](closure/) directory (58 documents).
+All development closure and verification records live in the [closure/](closure/) directory (59 documents).
 
 Key closure documents:
+- [Shell read closeout](closure/ONECODE_SHELL_READ_CLOSEOUT_2026-10-21.md) - Chat survey, approval diff, n100 live tasks at 812bab7
 - [Task rule follow-up](closure/ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md) - Current task rules after tag v1.0.0
 - [v1.0.0 release](closure/ONECODE_V1_0_RELEASE_2026-10-20.md) - Formal release on the n100 acceptance
 - [Zhouyi Math Optimization Closure (Oct)](closure/ONECODE_ZHOUYI_MATH_OPTIMIZATION_CLOSURE_2026-10-07.md) - Da Yan probability asymmetry, Nuclear attractor mapping typo
