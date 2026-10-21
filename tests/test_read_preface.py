@@ -64,3 +64,158 @@ class ReadPrefaceTests(unittest.TestCase):
             )
         self.assertIn("def fare_cents", provider.seen)
         self.assertIn("fix the fare", provider.seen)
+
+    def test_survey_reads_a_file_through_the_agent_cycle(self):
+        from onecode.kernel.read_preface import survey_reads
+
+        def propose(history, allowed):
+            del allowed
+            if history:
+                return []
+            return [{"tool_name": "read_text", "params": {"path": "src/fares.py"}}]
+
+        def execute(tool_name, params):
+            self.assertEqual(tool_name, "read_text")
+            return {
+                "status": "completed",
+                "reason": None,
+                "path": params["path"],
+                "content": "def fare_cents():\n    return 0\n",
+            }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = survey_reads(workspace, "Fix src/fares.py", propose, execute)
+            self.assertFalse((workspace / ".onecode" / "memory.jsonl").exists())
+        self.assertEqual(result["status"], "completed")
+        self.assertIn("def fare_cents", result["preface"])
+
+    def test_survey_drops_a_write_tool(self):
+        from onecode.kernel.read_preface import survey_reads
+
+        def propose(history, allowed):
+            del history, allowed
+            return [{"tool_name": "write_text", "params": {"path": "src/fares.py", "content": "VALUE = 1\n"}}]
+
+        def execute(tool_name, params):
+            del tool_name, params
+            raise AssertionError("a write tool must not run during the read survey")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = survey_reads(workspace, "Fix src/fares.py", propose, execute)
+            self.assertFalse((workspace / "src" / "fares.py").exists())
+        self.assertEqual(result["status"], "halted")
+        self.assertEqual(result["reason"], "no_progress")
+
+    def test_default_survey_reads_source_and_the_matching_test(self):
+        from onecode.kernel.read_preface import default_read_proposer, read_only_registry_execute, survey_reads
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "tests").mkdir()
+            (workspace / "src" / "fares.py").write_text("def fare_cents():\n    return 0\n", encoding="utf-8")
+            (workspace / "tests" / "test_fares.py").write_text(
+                "import unittest\n\nclass FareTests(unittest.TestCase):\n    def test_zero(self):\n        self.assertEqual(1, 0)\n",
+                encoding="utf-8",
+            )
+            result = survey_reads(
+                workspace,
+                "Fix src/fares.py",
+                default_read_proposer(workspace, "Fix src/fares.py"),
+                read_only_registry_execute(workspace),
+            )
+        self.assertEqual(result["status"], "completed")
+        self.assertIn("def fare_cents", result["preface"])
+        self.assertIn("assertEqual", result["preface"])
+        self.assertNotIn("tests/test_fares.py", result["preface"])
+        self.assertIn("tests / test_fares.py", result["preface"])
+
+    def test_survey_reports_a_path_escape_as_sovereignty_breach(self):
+        from onecode.kernel.read_preface import read_only_registry_execute, survey_reads
+
+        def propose(history, allowed):
+            del allowed
+            if history:
+                return []
+            return [{"tool_name": "read_text", "params": {"path": "../outside.py"}}]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = survey_reads(workspace, "Read the notes", propose, read_only_registry_execute(workspace))
+        self.assertEqual(result["status"], "halted")
+        self.assertEqual(result["reason"], "sovereignty_breach")
+
+    def test_model_survey_reads_a_file_the_task_did_not_name(self):
+        from onecode.kernel.read_preface import read_only_registry_execute, survey_model_reads
+
+        prompts: list[str] = []
+
+        def complete(prompt: str) -> str:
+            prompts.append(prompt)
+            if len(prompts) == 1:
+                return (
+                    '{"tools":['
+                    '{"tool_name":"read_text","params":{"path":"src/rates.py"}},'
+                    '{"tool_name":"write_text","params":{"path":"src/hack.py","content":"nope"}}'
+                    "]}"
+                )
+            return '{"tools":[]}'
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "src" / "rates.py").write_text("FARE = 9\n", encoding="utf-8")
+            result = survey_model_reads(
+                workspace,
+                "where is the fare constant",
+                complete,
+                read_only_registry_execute(workspace),
+            )
+            self.assertFalse((workspace / "src" / "hack.py").exists())
+        self.assertEqual(result["status"], "completed")
+        self.assertIn("read_text", prompts[0])
+        self.assertIn("FARE = 9", result["preface"])
+
+    def test_model_survey_retries_invalid_json_once_then_reads_the_named_file(self):
+        from onecode.kernel.read_preface import read_only_registry_execute, survey_model_reads
+
+        calls = {"count": 0}
+
+        def complete(prompt: str) -> str:
+            del prompt
+            calls["count"] += 1
+            return "not json"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "src" / "fares.py").write_text("def fare_cents():\n    return 0\n", encoding="utf-8")
+            result = survey_model_reads(
+                workspace,
+                "Fix src/fares.py",
+                complete,
+                read_only_registry_execute(workspace),
+            )
+        self.assertEqual(calls["count"], 2)
+        self.assertEqual(result["status"], "completed")
+        self.assertIn("def fare_cents", result["preface"])
+
+    def test_model_survey_timeout_stops_the_read_cycle(self):
+        from onecode.kernel.model_provider import ModelProviderTimeout
+        from onecode.kernel.read_preface import read_only_registry_execute, survey_model_reads
+
+        def complete(prompt: str) -> str:
+            del prompt
+            raise ModelProviderTimeout("model request timed out")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            result = survey_model_reads(
+                Path(tmp),
+                "where is the fare constant",
+                complete,
+                read_only_registry_execute(Path(tmp)),
+            )
+        self.assertEqual(result["status"], "halted")
+        self.assertEqual(result["reason"], "model_provider_timeout")

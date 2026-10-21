@@ -35,6 +35,11 @@ def local_test_server(handler_cls):
 
 
 class OneCodeWebApiTests(unittest.TestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self._read_survey = patch("onecode.web.api.complete_read_survey", return_value='{"tools":[]}')
+        self._read_survey.start()
+        self.addCleanup(self._read_survey.stop)
     def test_models_payload_exposes_onecode_agent(self):
         from onecode.web.api import build_models_payload
 
@@ -619,6 +624,134 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(kwargs["sandbox_config"].network, "none")
         self.assertIn("def fare_cents", kwargs["preface"])
 
+    def test_shell_survey_preface_includes_the_matching_test(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task", return_value={"status": "completed", "reason": None}) as run_model:
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "tests").mkdir()
+            (workspace / "src" / "fares.py").write_text("def fare_cents():\n    return 0\n", encoding="utf-8")
+            (workspace / "tests" / "test_fares.py").write_text(
+                "import unittest\n\nclass FareTests(unittest.TestCase):\n    def test_zero(self):\n        self.assertEqual(1, 0)\n",
+                encoding="utf-8",
+            )
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Fix src/fares.py"}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        preface = run_model.call_args.kwargs["preface"]
+        self.assertIn("assertEqual", preface)
+        self.assertNotIn("tests/test_fares.py", preface)
+
+    def test_shell_asks_for_one_file_when_several_are_missing(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task", return_value={"status": "completed", "reason": None}) as run_model:
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Write src/one.py and src/two.py."}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        self.assertIn("exactly one new Python file", run_model.call_args.args[0])
+        self.assertIn("src/one.py", run_model.call_args.args[0])
+        self.assertIn("src/two.py", run_model.call_args.args[0])
+
+    def test_shell_stops_before_the_write_when_the_survey_halts(self):
+        from onecode.kernel.hexagram import IchingKernel
+        from onecode.web.api import handle_chat_completion
+
+        halted = {
+            "status": "halted",
+            "reason": "sovereignty_breach",
+            "status_code": IchingKernel.classify_outcome("halted", "sovereignty_breach"),
+            "preface": "",
+            "turns": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.shell_read_survey", return_value=halted), patch(
+            "onecode.web.api.run_model_task"
+        ) as run_model:
+            payload, status = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Fix src/fares.py"}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["onecode"]["result"]["reason"], "sovereignty_breach")
+        self.assertEqual(payload["onecode"]["result"]["cycle"]["cycle"], "stop")
+        run_model.assert_not_called()
+
+    def test_shell_survey_reads_the_file_the_model_names(self):
+        from onecode.web.api import handle_chat_completion
+
+        def complete(prompt: str) -> str:
+            if "FARE = 9" in prompt:
+                return '{"tools":[]}'
+            return '{"tools":[{"tool_name":"read_text","params":{"path":"src/rates.py"}}]}'
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.complete_read_survey", side_effect=complete), patch(
+            "onecode.web.api.run_model_task", return_value={"status": "completed", "reason": None}
+        ) as run_model:
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "src" / "rates.py").write_text("FARE = 9\n", encoding="utf-8")
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "where is the fare constant"}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        self.assertIn("FARE = 9", run_model.call_args.kwargs["preface"])
+        self.assertFalse((workspace / "src" / "hack.py").exists())
+
     def test_approved_write_checks_sandbox_and_offers_one_repair(self):
         from onecode.kernel.approval_plans import persist_approval_plan
         from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
@@ -653,6 +786,34 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertEqual(run_model.call_args.kwargs["max_repair_attempts"], 0)
         self.assertIn("patches only", run_model.call_args.args[0])
         self.assertIn("VALUE = 1", run_model.call_args.args[0])
+        self.assertIn("AssertionError", payload["verifier_tail"])
+
+    def test_approval_message_shows_the_diff_patch_and_verifier_tail(self):
+        from onecode.web.api import format_run_result
+
+        text = format_run_result(
+            {
+                "reason": "approval_required",
+                "plan_id": "a" * 32,
+                "verifier_tail": "AssertionError: 0 != 1",
+                "plan_summary": {
+                    "actions": [
+                        {
+                            "tool": "patch_text",
+                            "path": "src/fares.py",
+                            "diff": "--- a/src/fares.py\n+++ b/src/fares.py\n@@\n-return 0\n+return 1\n",
+                            "search_preview": "return 0\n",
+                            "replace_preview": "return 1\n",
+                        }
+                    ]
+                },
+            },
+            "approval_required",
+        )
+        self.assertIn("测试失败：\n```\nAssertionError: 0 != 1\n```", text)
+        self.assertIn("```diff\n--- a/src/fares.py\n+++ b/src/fares.py\n", text)
+        self.assertIn("查找：\n```\nreturn 0\n```", text)
+        self.assertIn("替换：\n```\nreturn 1\n```", text)
 
     def test_approved_write_continues_the_next_named_file(self):
         from onecode.kernel.approval_plans import persist_approval_plan
@@ -682,6 +843,42 @@ class OneCodeWebApiTests(unittest.TestCase):
             self.assertFalse((workspace / "src" / "two.py").exists())
             self.assertIn("src/two.py", run_model.call_args.args[0])
             self.assertIn("src/one.py", run_model.call_args.args[0])
+
+    def test_approved_plan_stages_host_bytes_and_a_rejection_does_not(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            rejected = persist_approval_plan(
+                workspace,
+                ModelPlan(task="write", assets=[ModelPlanAsset(path="docs/result.md", content="done\n")]),
+                model_metadata={"model": "m"},
+            )
+            _, status = handle_onecode_plan_approval(
+                rejected.plan_id,
+                {"workspace": tmp, "approved": False, "stage": {"path": "vendor/pkg.py", "content": "VALUE = 1\n"}},
+            )
+            self.assertEqual(status, 200)
+            self.assertFalse((workspace / "vendor" / "pkg.py").exists())
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(task="write", assets=[ModelPlanAsset(path="docs/result.md", content="done\n")]),
+                model_metadata={"model": "m"},
+            )
+            payload, status = handle_onecode_plan_approval(
+                stored.plan_id,
+                {"workspace": tmp, "approved": True, "stage": {"path": "vendor/pkg.py", "content": "VALUE = 1\n"}},
+            )
+            self.assertEqual(status, 200)
+            self.assertEqual(payload["status"], "completed")
+            self.assertEqual((workspace / "vendor" / "pkg.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+            self.assertEqual((workspace / "docs" / "result.md").read_text(encoding="utf-8"), "done\n")
 
     def test_general_math_question_uses_direct_chat_answer_not_run_summary(self):
         from onecode.web.api import handle_chat_completion

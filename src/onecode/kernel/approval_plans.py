@@ -14,7 +14,7 @@ from typing import Any
 
 from onecode.kernel.execution_tools import default_tool_registry
 from onecode.kernel.model_config import onecode_home
-from onecode.kernel.model_provider import ModelPlan, validate_model_plan
+from onecode.kernel.model_provider import ModelPlan, validate_model_plan, workspace_python_modules
 
 
 PLAN_ID_PATTERN = re.compile(r"[a-f0-9]{32}\Z")
@@ -139,7 +139,7 @@ def _load_approval_plan_path(
     if not isinstance(plan_payload, dict):
         raise ValueError("approval_plan_invalid")
     metadata = _validated_model_metadata(document.get("model_metadata"))
-    plan = validate_model_plan(plan_payload)
+    plan = validate_model_plan(plan_payload, known_modules=workspace_python_modules(root))
     _validate_plan_tool_parameters(plan)
     return StoredApprovalPlan(
         plan_id=plan_id,

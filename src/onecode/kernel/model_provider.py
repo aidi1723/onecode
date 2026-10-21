@@ -701,6 +701,74 @@ class OpenAIChatCompletionsProvider:
         return self.parse_response(response_payload, known_modules=known_modules)
 
 
+def complete_model_text(
+    *,
+    provider_kind: str,
+    endpoint: str | None,
+    model: str | None,
+    api_key: str | None,
+    prompt: str,
+    timeout_seconds: float,
+) -> str:
+    config = build_provider_config(provider_kind, endpoint=endpoint, model=model)
+    if api_key is None or api_key.strip() == "":
+        raise MissingModelApiKey(f"{config.env_key} is required for model-backed runs")
+    if config.provider_kind == "responses":
+        body: dict[str, Any] = {"model": config.model, "input": [{"role": "user", "content": prompt}]}
+    else:
+        body = {
+            "model": config.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "response_format": {"type": "json_object"},
+        }
+    payload = _post_model_json(config.endpoint, api_key, body, timeout_seconds)
+    if config.provider_kind == "responses":
+        return extract_response_text(payload)
+    return _chat_message_text(payload)
+
+
+def _chat_message_text(payload: dict[str, Any]) -> str:
+    choices = payload.get("choices")
+    if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+        raise ModelProviderError("missing chat completion choices")
+    message = choices[0].get("message")
+    content = _message_text(message.get("content")) if isinstance(message, dict) else None
+    if not isinstance(content, str) or content.strip() == "":
+        raise ModelProviderError("missing chat completion message content")
+    return content
+
+
+def _post_model_json(endpoint: str, api_key: str, body: dict[str, Any], timeout_seconds: float) -> dict[str, Any]:
+    request = urllib.request.Request(
+        endpoint,
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "onecode/0.8",
+        },
+        method="POST",
+    )
+    try:
+        with _SAFE_OPENER.open(request, timeout=timeout_seconds) as response:
+            payload = json.loads(read_bounded_response(response).decode("utf-8"))
+    except TimeoutError as exc:
+        raise ModelProviderTimeout("model request timed out") from exc
+    except urllib.error.HTTPError as exc:
+        if resumable_model_status(exc.code):
+            raise ModelProviderTimeout(f"model request can be resumed: {exc.code}") from exc
+        raise ModelProviderError(f"model request failed: {exc.reason}") from exc
+    except urllib.error.URLError as exc:
+        raise ModelProviderError(f"model request failed: {exc.reason}") from exc
+    except json.JSONDecodeError as exc:
+        raise ModelProviderError("model response envelope was not valid JSON") from exc
+    except ValueError as exc:
+        raise ModelProviderError("model response exceeds maximum size") from exc
+    if not isinstance(payload, dict):
+        raise ModelProviderError("model response envelope must be an object")
+    return payload
+
+
 def canonical_planning_prompt(planning_context: dict[str, Any] | None = None) -> str:
     context = planning_context if isinstance(planning_context, dict) else {}
     contract = {

@@ -48,6 +48,29 @@ class ApprovalPlanTests(unittest.TestCase):
         self.assertEqual(loaded.workspace, str(workspace.resolve()))
         self.assertEqual(loaded.plan.execution_steps[0].tool_calls[0].tool_name, "write_text")
 
+    def test_claim_accepts_an_import_of_a_module_already_on_disk(self):
+        from onecode.kernel.approval_plans import claim_approval_plan, persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+
+        workspace = Path(self.tmp.name)
+        (workspace / "src").mkdir()
+        (workspace / "src" / "shift.py").write_text("def label(hour):\n    return 'day'\n", encoding="utf-8")
+        stored = persist_approval_plan(
+            workspace,
+            ModelPlan(
+                task="write pay",
+                assets=[
+                    ModelPlanAsset(
+                        path="src/pay.py",
+                        content="from src.shift import label\n\ndef pay_cents(hour, minutes):\n    return minutes\n",
+                    )
+                ],
+            ),
+            model_metadata={"model": "m"},
+        )
+        claimed = claim_approval_plan(workspace, stored.plan_id)
+        self.assertEqual(claimed.plan.assets[0].path, "src/pay.py")
+
     def test_replacing_digest_with_plain_sha256_does_not_load(self):
         from onecode.kernel.approval_plans import load_approval_plan, persist_approval_plan
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -30,6 +31,7 @@ from onecode.kernel.run_inspection import inspect_run, list_runs
 from onecode.kernel.model_loop import (
     _src_files_for_repair,
     execute_model_plan,
+    failed_model_result,
     missing_required_files,
     named_python_files,
     narrow_plan_prompt,
@@ -37,7 +39,11 @@ from onecode.kernel.model_loop import (
     required_python_files,
     run_model_task,
 )
+from onecode.kernel.context import create_context
+from onecode.kernel.trace import TraceEvent, write_trace_event
 from onecode.kernel.read_preface import collect_preface
+from onecode.kernel.host_stage import stage_bytes
+from onecode.kernel.outcome_policy import agent_cycle_decision
 from onecode.kernel.sandbox import SandboxConfig
 from onecode.kernel.approval_plans import claim_approval_plan, finalize_approval_plan
 from onecode.kernel.model_config import (
@@ -204,6 +210,124 @@ def shell_model_task_extras(task: str, workspace: Path) -> dict[str, Any]:
     }
 
 
+def shell_read_survey(workspace: Path, task: str) -> dict[str, Any]:
+    from onecode.kernel.read_preface import read_only_registry_execute, survey_model_reads
+
+    return survey_model_reads(workspace, task, complete_read_survey, read_only_registry_execute(workspace))
+
+
+def complete_read_survey(prompt: str) -> str:
+    from onecode.kernel.model_provider import complete_model_text
+
+    stored_config = read_model_config(include_secret=True)
+    effective_model = resolve_effective_model_config(os.environ, stored_config)
+    return complete_model_text(
+        provider_kind=effective_model.provider,
+        endpoint=effective_model.endpoint,
+        model=effective_model.model,
+        api_key=effective_model.api_key,
+        prompt=prompt,
+        timeout_seconds=model_timeout_seconds_from_env(),
+    )
+
+
+def prepare_shell_model_call(task: str, workspace: Path, run_id: str | None = None) -> dict[str, Any]:
+    survey = shell_read_survey(workspace, task)
+    if survey.get("reason") in {"model_provider_timeout", "model_provider_error"}:
+        return {"stop": failed_read_survey_result(workspace, task, str(survey.get("reason")), run_id)}
+    if survey.get("status") != "completed" and survey.get("reason") not in {None, "no_progress", "resource_budget_exceeded"}:
+        return {"stop": _survey_stop(survey)}
+    extras = shell_model_task_extras(task, workspace)
+    surveyed_text = survey.get("preface")
+    named_text = extras.get("preface")
+    surveyed = surveyed_text.strip() if isinstance(surveyed_text, str) else ""
+    named = named_text.strip() if isinstance(named_text, str) else ""
+    preface = "\n".join(part for part in (surveyed, named) if part)
+    extras["preface"] = preface or None
+    planned = task
+    if len(missing_required_files(task, workspace)) > 1:
+        planned = narrow_plan_prompt(task, {"detail": "start with one named file", "failure_kind": "resource_budget_exceeded"}, [])
+    return {"task": planned, "extras": extras}
+
+
+def failed_read_survey_result(workspace: Path, task: str, reason: str, run_id: str | None) -> dict[str, Any]:
+    context = create_context(workspace_root=workspace, run_id=run_id)
+    trace_path = context.evidence_root / "trace.jsonl"
+    failure = {
+        "failure_kind": reason,
+        "task_sha256": hashlib.sha256(task.encode("utf-8")).hexdigest(),
+        "detail": reason,
+        "retryable": False,
+    }
+    write_trace_event(
+        trace_path,
+        TraceEvent(
+            trace_id=context.run_id,
+            run_id=context.run_id,
+            span_id="model-call",
+            parent_span_id="run",
+            event_type="model_call_started",
+            status="started",
+            payload={"provider": "survey"},
+        ),
+    )
+    write_trace_event(
+        trace_path,
+        TraceEvent(
+            trace_id=context.run_id,
+            run_id=context.run_id,
+            span_id="model-call",
+            parent_span_id="run",
+            event_type="model_call_failed",
+            status="halted",
+            payload=failure,
+        ),
+    )
+    return failed_model_result(context, failure)
+
+
+def shell_stop_response(stopped: dict[str, Any], model: str) -> tuple[dict[str, Any], int]:
+    code = {"model_provider_timeout": 504, "model_provider_error": 502}.get(str(stopped.get("reason")))
+    if code is None:
+        return chat_completion_payload(format_run_result(stopped, "model"), model, stopped, "model"), 200
+    payload = error_payload(str(stopped.get("reason")), "model planning failed before execution")
+    payload["onecode"] = {"mode": "model", "result": stopped}
+    return payload, code
+
+
+def _survey_stop(survey: dict[str, Any]) -> dict[str, Any]:
+    status = str(survey.get("status") or "halted")
+    reason = survey.get("reason") if isinstance(survey.get("reason"), str) else None
+    return {
+        "status": status,
+        "reason": reason,
+        "status_code": survey.get("status_code"),
+        "partial": True,
+        "requested_count": 0,
+        "completed_count": 0,
+        "skipped_count": 0,
+        "failed_count": 1,
+        "assets": [],
+        "cycle": agent_cycle_decision(status, reason),
+    }
+
+
+def _stage_approved_host_bytes(workspace: Path, body: dict[str, Any]) -> None:
+    stage = body.get("stage")
+    if stage is None:
+        return
+    if not isinstance(stage, dict):
+        raise ValueError("stage must be an object")
+    path = stage.get("path")
+    content = stage.get("content")
+    if not isinstance(path, str) or not isinstance(content, str):
+        raise ValueError("stage path and content must be strings")
+    encoded = content.encode("utf-8")
+    if len(encoded) > 100_000:
+        raise ValueError("stage content is too large")
+    stage_bytes(workspace, path, encoded, approved=True)
+
+
 def verify_shell_write(result: dict[str, Any], workspace: Path) -> dict[str, Any]:
     if result.get("status") != "completed" or not (workspace / "tests").is_dir():
         return result
@@ -326,8 +450,20 @@ def handle_onecode_run_resume(run_id: str, body: dict[str, Any]) -> tuple[dict[s
     stored_config = read_model_config(include_secret=True)
     effective_model = resolve_effective_model_config(os.environ, stored_config)
     try:
+        prepared = prepare_shell_model_call(task, workspace)
+    except MissingModelApiKey as exc:
+        return error_payload("model_configuration_missing", str(exc)), 503
+    if "stop" in prepared:
+        stopped = prepared["stop"]
+        code = {"model_provider_timeout": 504, "model_provider_error": 502}.get(str(stopped.get("reason")))
+        if code is not None:
+            payload = error_payload(str(stopped.get("reason")), "model planning failed before execution")
+            payload["onecode"] = {"mode": "model", "result": stopped}
+            return payload, code
+        return attach_shell_projection(stopped), 200
+    try:
         result = run_model_task(
-            task,
+            prepared["task"],
             workspace=workspace,
             run_id=None,
             resume_from_run_id=run_id,
@@ -336,7 +472,7 @@ def handle_onecode_run_resume(run_id: str, body: dict[str, Any]) -> tuple[dict[s
             provider_kind=effective_model.provider,
             endpoint=effective_model.endpoint,
             require_explicit_approval=True,
-            **shell_model_task_extras(task, workspace),
+            **prepared["extras"],
         )
     except MissingModelApiKey as exc:
         return error_payload("model_configuration_missing", str(exc)), 503
@@ -374,6 +510,12 @@ def handle_onecode_plan_approval(
         }
         finalize_approval_plan(stored, "rejected", result)
         return result, 200
+    if approved:
+        try:
+            _stage_approved_host_bytes(workspace, body)
+        except (ValueError, PathGuardError) as exc:
+            finalize_approval_plan(stored, "rejected", {"status": "halted", "reason": "sovereignty_breach", "assets": []})
+            return error_payload("invalid_stage", str(exc)), 400
     user_task = stored.model_metadata.get("user_task")
     user_task = user_task if isinstance(user_task, str) else ""
     written_before = set(required_python_files(user_task)) - set(missing_required_files(user_task, workspace)) if user_task else set()
@@ -415,6 +557,9 @@ def handle_onecode_plan_approval(
             )
         except (MissingModelApiKey, ModelProviderError):
             repair = result
+        tail = _verifier_tail(result)
+        if isinstance(repair, dict) and tail:
+            repair = {**repair, "verifier_tail": tail}
         finalize_approval_plan(stored, "approved", result)
         return attach_shell_projection(repair), 200
     finalize_approval_plan(stored, "approved", result)
@@ -832,8 +977,14 @@ def handle_chat_completion(
         return error_payload("invalid_model_timeout", str(exc)), 503
 
     try:
+        prepared = prepare_shell_model_call(user_message, workspace, run_id=str(run_id) if run_id else None)
+    except MissingModelApiKey as exc:
+        return error_payload("model_configuration_missing", str(exc)), 503
+    if "stop" in prepared:
+        return shell_stop_response(prepared["stop"], model)
+    try:
         result = run_model_task(
-            user_message,
+            prepared["task"],
             workspace=workspace,
             run_id=str(run_id) if run_id else None,
             model=execution_model,
@@ -844,7 +995,7 @@ def handle_chat_completion(
             require_explicit_approval=True,
             http_timeout_seconds=model_timeout_seconds,
             on_turn=on_turn,
-            **shell_model_task_extras(user_message, workspace),
+            **prepared["extras"],
         )
         failure_statuses = {
             "model_provider_timeout": 504,
@@ -973,6 +1124,9 @@ def format_run_result(result: dict[str, Any], mode: str) -> str:
         actions = summary.get("actions") if isinstance(summary, dict) else None
         if isinstance(actions, list):
             message += "\n待审批操作：\n```json\n" + json.dumps(actions, ensure_ascii=False, indent=2) + "\n```"
+        visible = _approval_visible_text(result, actions if isinstance(actions, list) else [])
+        if visible:
+            message += "\n" + visible
         return message
     if result.get("reason") == "no_actionable_plan":
         return "模型没有生成可执行计划，本次任务未执行。请补充明确目标或检查模型配置。"
@@ -993,6 +1147,39 @@ def format_run_result(result: dict[str, Any], mode: str) -> str:
     elif wal_path is not None:
         lines.append(f"Evidence WAL: `{wal_path}`.")
     return "\n".join(lines)
+
+
+def _verifier_tail(result: dict[str, Any]) -> str:
+    raw = result.get("verifier_results")
+    if not isinstance(raw, list):
+        return ""
+    tails = [
+        str(item.get("stderr_tail")).strip()[-400:]
+        for item in raw
+        if isinstance(item, dict) and isinstance(item.get("stderr_tail"), str) and str(item.get("stderr_tail")).strip()
+    ]
+    return "\n".join(tails)
+
+
+def _approval_visible_text(result: dict[str, Any], actions: list[Any]) -> str:
+    parts: list[str] = []
+    tail = result.get("verifier_tail")
+    if isinstance(tail, str) and tail.strip():
+        parts.append("测试失败：\n```\n" + tail.strip()[:4000] + "\n```")
+    for action in actions:
+        if not isinstance(action, dict):
+            continue
+        diff = action.get("diff")
+        if isinstance(diff, str) and diff.strip():
+            label = action.get("path") if isinstance(action.get("path"), str) and action.get("path") else action.get("tool")
+            parts.append(f"变更 {label}：\n```diff\n{diff.rstrip()}\n```")
+        if action.get("tool") == "patch_text":
+            search = action.get("search_preview")
+            replace = action.get("replace_preview")
+            path = action.get("path") if isinstance(action.get("path"), str) else ""
+            if isinstance(search, str) and isinstance(replace, str):
+                parts.append(f"补丁 {path}：\n查找：\n```\n{search.rstrip()}\n```\n替换：\n```\n{replace.rstrip()}\n```")
+    return "\n".join(parts)
 
 
 def gateway_console_html() -> str:

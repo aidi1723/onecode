@@ -185,6 +185,42 @@ class ModelProviderTimeoutTests(unittest.TestCase):
             with self.assertRaisesRegex(ModelProviderTimeout, "model request timed out"):
                 provider.create_plan("check", model="m", http_timeout_seconds=1)
 
+    def test_chat_text_completion_sends_the_onecode_user_agent(self):
+        from onecode.kernel.model_provider import complete_model_text
+
+        captured: dict[str, object] = {}
+
+        class Response:
+            def read(self, _size: int = -1) -> bytes:
+                return json.dumps({"choices": [{"message": {"content": "{\"tools\":[]}"}}]}).encode("utf-8")
+
+            def __enter__(self) -> "Response":
+                return self
+
+            def __exit__(self, *_args: object) -> bool:
+                return False
+
+        def opener(request, timeout):  # type: ignore
+            captured["agent"] = request.get_header("User-agent")
+            captured["timeout"] = timeout
+            captured["body"] = json.loads(request.data.decode("utf-8"))
+            return Response()
+
+        with patch("onecode.kernel.model_provider._SAFE_OPENER.open", side_effect=opener):
+            text = complete_model_text(
+                provider_kind="chat",
+                endpoint="http://model.test/v1/chat/completions",
+                model="m",
+                api_key="key",
+                prompt="read the fare",
+                timeout_seconds=0.1,
+            )
+
+        self.assertEqual(text, '{"tools":[]}')
+        self.assertEqual(captured["agent"], "onecode/0.8")
+        self.assertEqual(captured["timeout"], 0.1)
+        self.assertIn("read the fare", captured["body"]["messages"][0]["content"])
+
 
 if __name__ == "__main__":
     unittest.main()
