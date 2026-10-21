@@ -808,6 +808,20 @@ class ModelLoopTests(unittest.TestCase):
             self.assertEqual((workspace / "tests" / "test_one.py").read_text(encoding="utf-8"), original)
             self.assertEqual(result["iching_transition_action"], "halt")
 
+    def test_repair_prompt_includes_the_existing_source(self):
+        from onecode.kernel.model_loop import repair_prompt
+
+        failed = {
+            "status": "halted",
+            "reason": "verifier_failed",
+            "execution_trace": {"runner_results": [{"payload": {"path": "src/meters.py"}}]},
+            "workspace_files": {"src/meters.py": "def bill_cents(kwh):\n    return kwh * 10\n"},
+        }
+        text = repair_prompt("fix src/meters.py", failed)
+        self.assertIn("def bill_cents(kwh):", text)
+        self.assertIn("return kwh * 10", text)
+        self.assertIn("patches only", text)
+
     def test_resumable_gateway_status_is_a_checkpoint(self):
         from onecode.kernel.model_provider import ModelProviderError, ModelProviderTimeout, resumable_model_status
 

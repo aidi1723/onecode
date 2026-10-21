@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-21 - Shell task path
+
+Version stays 1.0.0. The chat shell stays LibreChat `v0.8.8` with OneCode as the only executor. `claims_mainstream_parity` stays false. Records: `docs/closure/ONECODE_N100_DEPLOY_NOTES_2026-10-21.md` and `docs/closure/ONECODE_SHELL_V088_LOCAL_TASKS.md`.
+
+### Changed
+
+- A chat task carries the existing source, a network-none sandbox, and one repair attempt.
+- After an approved write, a missing named file asks for the next plan. No progress stops as `no_progress`.
+- Direct and reused sandbox runs use the local native image sibling.
+- The launcher expects LibreChat `v0.8.8` and keeps LibreChat's own agents off.
+
+### Verification
+
+- `bash scripts/verify.sh`: 1247 tests, 1 skipped, doctor ok.
+- n100 sandbox command on `python:3.12-slim` ran as `x86_64`.
+- 30 scripted local agent tasks passed. This is not a mainstream-agent score.
+
 ## 2026-10-21 - Protected-path close
 
 Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false. The record is `docs/closure/ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md`.

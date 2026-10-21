@@ -27,7 +27,18 @@ from onecode.web.workspace import (
 from onecode.kernel.diagnostics import run_doctor
 from onecode.kernel.effective_model_config import resolve_effective_model_config
 from onecode.kernel.run_inspection import inspect_run, list_runs
-from onecode.kernel.model_loop import execute_model_plan, run_model_task
+from onecode.kernel.model_loop import (
+    _src_files_for_repair,
+    execute_model_plan,
+    missing_required_files,
+    named_python_files,
+    narrow_plan_prompt,
+    repair_prompt,
+    required_python_files,
+    run_model_task,
+)
+from onecode.kernel.read_preface import collect_preface
+from onecode.kernel.sandbox import SandboxConfig
 from onecode.kernel.approval_plans import claim_approval_plan, finalize_approval_plan
 from onecode.kernel.model_config import (
     DEFAULT_ONECODE_MODEL,
@@ -161,6 +172,57 @@ def project_status_payload(workspace: Path) -> dict[str, Any]:
     }
 
 
+def continue_named_files(user_task: str, workspace: Path, written_before: set[str]) -> dict[str, Any] | None:
+    missing = missing_required_files(user_task, workspace)
+    if not missing:
+        return None
+    written_after = set(required_python_files(user_task)) - set(missing)
+    if written_after == written_before:
+        return {"status": "halted", "reason": "no_progress", "partial": True, "requested_count": 1, "completed_count": len(written_after), "skipped_count": 0, "failed_count": 0, "assets": []}
+    stored_config = read_model_config(include_secret=True)
+    effective_model = resolve_effective_model_config(os.environ, stored_config)
+    return run_model_task(
+        narrow_plan_prompt(user_task, {"detail": "continue with the next file", "failure_kind": "resource_budget_exceeded"}, sorted(written_after)),
+        workspace=workspace,
+        model=effective_model.model,
+        api_key=effective_model.api_key,
+        provider_kind=effective_model.provider,
+        endpoint=effective_model.endpoint,
+        require_explicit_approval=True,
+        max_repair_attempts=0,
+        sandbox_config=SandboxConfig(workspace=workspace),
+    )
+
+
+def shell_model_task_extras(task: str, workspace: Path) -> dict[str, Any]:
+    paths = [path for path in named_python_files(task) if (workspace / path).is_file()]
+    preface = collect_preface(workspace, paths) if paths else ""
+    return {
+        "preface": preface or None,
+        "sandbox_config": SandboxConfig(workspace=workspace),
+        "max_repair_attempts": 1,
+    }
+
+
+def verify_shell_write(result: dict[str, Any], workspace: Path) -> dict[str, Any]:
+    if result.get("status") != "completed" or not (workspace / "tests").is_dir():
+        return result
+    from onecode.kernel.run_inspection import apply_verifier_evidence
+    from onecode.kernel.verifier import VerifierSpec, run_verifier
+
+    checked = run_verifier(
+        workspace,
+        VerifierSpec(
+            id="python-unittest",
+            command=["python3", "-m", "unittest", "discover", "-s", "tests"],
+            cwd=".",
+            timeout_ms=120000,
+        ),
+        sandbox_config=SandboxConfig(workspace=workspace),
+    )
+    return apply_verifier_evidence(result, workspace, [checked])
+
+
 def handle_onecode_project_status(params: dict[str, Any]) -> tuple[dict[str, Any], int]:
     try:
         workspace = workspace_from_value(params.get("workspace") if isinstance(params.get("workspace"), str) else None)
@@ -274,6 +336,7 @@ def handle_onecode_run_resume(run_id: str, body: dict[str, Any]) -> tuple[dict[s
             provider_kind=effective_model.provider,
             endpoint=effective_model.endpoint,
             require_explicit_approval=True,
+            **shell_model_task_extras(task, workspace),
         )
     except MissingModelApiKey as exc:
         return error_payload("model_configuration_missing", str(exc)), 503
@@ -311,6 +374,9 @@ def handle_onecode_plan_approval(
         }
         finalize_approval_plan(stored, "rejected", result)
         return result, 200
+    user_task = stored.model_metadata.get("user_task")
+    user_task = user_task if isinstance(user_task, str) else ""
+    written_before = set(required_python_files(user_task)) - set(missing_required_files(user_task, workspace)) if user_task else set()
     result = execute_model_plan(
         stored.plan,
         workspace=workspace,
@@ -321,6 +387,36 @@ def handle_onecode_plan_approval(
         approval_callback=lambda _step: True,
         on_turn=on_turn,
     )
+    if user_task and missing_required_files(user_task, workspace):
+        try:
+            continued = continue_named_files(user_task, workspace, written_before)
+        except (MissingModelApiKey, ModelProviderError):
+            continued = None
+        if continued is not None:
+            finalize_approval_plan(stored, "approved", result)
+            return attach_shell_projection(continued), 200
+    result = verify_shell_write(result, workspace)
+    patch_only = bool(stored.plan.patches) and not stored.plan.assets and not stored.plan.execution_steps
+    if result.get("reason") == "verifier_failed" and not patch_only:
+        failed = {**result, "workspace_files": _src_files_for_repair(workspace)}
+        stored_config = read_model_config(include_secret=True)
+        effective_model = resolve_effective_model_config(os.environ, stored_config)
+        try:
+            repair = run_model_task(
+                repair_prompt(stored.plan.task, failed),
+                workspace=workspace,
+                model=effective_model.model,
+                api_key=effective_model.api_key,
+                provider_kind=effective_model.provider,
+                endpoint=effective_model.endpoint,
+                require_explicit_approval=True,
+                max_repair_attempts=0,
+                sandbox_config=SandboxConfig(workspace=workspace),
+            )
+        except (MissingModelApiKey, ModelProviderError):
+            repair = result
+        finalize_approval_plan(stored, "approved", result)
+        return attach_shell_projection(repair), 200
     finalize_approval_plan(stored, "approved", result)
     return attach_shell_projection(result), 200
 
@@ -748,6 +844,7 @@ def handle_chat_completion(
             require_explicit_approval=True,
             http_timeout_seconds=model_timeout_seconds,
             on_turn=on_turn,
+            **shell_model_task_extras(user_message, workspace),
         )
         failure_statuses = {
             "model_provider_timeout": 504,

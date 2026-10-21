@@ -8,6 +8,7 @@ This index helps you navigate OneCode's documentation, which is organized by pur
 
 - [README.md](../README.md) - Installation, verification, and basic usage
 - [2026-10-16 follow-up development handbook](superpowers/plans/2026-10-16-onecode-followup-development-handbook.md) - Closed implementation contract: gates, approval, reason codes, observability boundary
+- [2026-10-21 shell handbook](superpowers/plans/2026-10-21-onecode-shell-v088-handbook.md) - Next contract: LibreChat v0.8.8 as the chat shell, kernel rules unchanged
 - [2026-09-29 audit remediation closeout](closure/ONECODE_AUDIT_REMEDIATION_CLOSURE_2026-09-29.md) - Current security boundary and verification record
 - [2026-09-29 agent parity closeout](closure/ONECODE_AGENT_PARITY_CLOSURE_2026-09-29.md) - Handbook phases, workflow run, and evaluation limits
 - [2026-09-29 host contract handbook](superpowers/plans/2026-09-29-host-contract-handbook.md) - Execution-gate approval, no-progress stop, transient errors, truncation
@@ -113,7 +114,7 @@ OneCode uses an I Ching (易经) based state system for deterministic control fl
 - [Task rule follow-up](closure/ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md) - Protected paths, close into the sandbox check, one implementation repair, gateway checkpoint
 
 ### Closure Reports
-All development closure and verification records live in the [closure/](closure/) directory (56 documents).
+All development closure and verification records live in the [closure/](closure/) directory (58 documents).
 
 Key closure documents:
 - [Task rule follow-up](closure/ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md) - Current task rules after tag v1.0.0

@@ -171,7 +171,8 @@ def _image_architecture(image: str) -> str | None:
     except (OSError, subprocess.TimeoutExpired):
         _IMAGE_ARCH[image] = None
         return None
-    arch = completed.stdout.strip().lower() if completed.returncode == 0 and completed.stdout.strip() else None
+    raw = completed.stdout.strip().lower() if completed.returncode == 0 and completed.stdout.strip() else ""
+    arch = _normalized_architecture(raw) if raw in {"x86_64", "amd64", "aarch64", "arm64", "arm64v8"} else None
     _IMAGE_ARCH[image] = arch
     return arch
 
@@ -221,6 +222,7 @@ def _container_lock(name: str) -> threading.Lock:
 
 
 def run_in_reused_sandbox(config: SandboxConfig, command: Sequence[str]) -> subprocess.CompletedProcess[str]:
+    config = with_runnable_image(config)
     name = workspace_container_name(config.workspace)
     with _container_lock(name):
         return _run_in_reused_sandbox(config, command, name)
@@ -269,6 +271,7 @@ def _run_in_reused_sandbox(
 
 
 def run_in_sandbox(config: SandboxConfig, command: Sequence[str]) -> subprocess.CompletedProcess[str]:
+    config = with_runnable_image(config)
     import secrets
     name = f"onecode_ephemeral_{secrets.token_hex(8)}"
     try:

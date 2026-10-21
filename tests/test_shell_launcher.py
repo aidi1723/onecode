@@ -113,6 +113,21 @@ class ShellLauncherConfigTests(unittest.TestCase):
 
             self.assertIn("maxRetries: 0", path.read_text(encoding="utf-8"))
 
+    def test_runtime_config_keeps_librechat_execution_off(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = build_runtime_config(
+                shell_config(runtime_state_root=Path(tmp) / "state")
+            )
+            text = path.read_text(encoding="utf-8")
+        self.assertIn("maxRetries: 0", text)
+        self.assertIn("summarize: false", text)
+        self.assertIn("agents:\n    use: false", text)
+        self.assertIn("prompts:\n    use: false", text)
+        self.assertIn("marketplace:\n    use: false", text)
+        lowered = text.lower()
+        for banned in ("scheduled", "programmatic", "background"):
+            self.assertNotIn(banned, lowered)
+
     def test_model_timeout_cli_reaches_onecode_environment(self):
         config = shell_config(model_timeout_seconds=12.5)
 
@@ -120,12 +135,22 @@ class ShellLauncherConfigTests(unittest.TestCase):
             build_onecode_env(config, {})["ONECODE_MODEL_TIMEOUT_SECONDS"], "12.5"
         )
 
-    def test_provenance_requires_v087_as_an_ancestor(self):
+    def test_provenance_rejects_the_previous_shell_version(self):
         with tempfile.TemporaryDirectory() as tmp:
             librechat_dir = Path(tmp) / "librechat"
             librechat_dir.mkdir()
             (librechat_dir / "package.json").write_text(
                 json.dumps({"version": "v0.8.7"}), encoding="utf-8"
+            )
+            with self.assertRaisesRegex(RuntimeError, "v0.8.8"):
+                librechat_provenance(shell_config(librechat_dir=librechat_dir))
+
+    def test_provenance_requires_v087_as_an_ancestor(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            librechat_dir = Path(tmp) / "librechat"
+            librechat_dir.mkdir()
+            (librechat_dir / "package.json").write_text(
+                json.dumps({"version": "v0.8.8"}), encoding="utf-8"
             )
             config = shell_config(librechat_dir=librechat_dir)
             with patch("onecode.shell_launcher.subprocess.run") as run:
@@ -477,6 +502,16 @@ class ShellLauncherConfigTests(unittest.TestCase):
             self.assertIn("127.0.0.1:18080", text)
             self.assertIn("localhost:18080", text)
             self.assertIn("baseURL: '${ONECODE_API_BASE_URL}'", text)
+
+    def test_runtime_config_has_only_the_onecode_endpoint(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = build_runtime_config(
+                shell_config(runtime_state_root=Path(tmp) / "state")
+            )
+            text = path.read_text(encoding="utf-8")
+        self.assertEqual(text.count("baseURL:"), 1)
+        self.assertIn("name: 'OneCode'", text)
+        self.assertNotIn("\n  agents:", text.split("endpoints:")[1])
 
     def test_shell_status_reports_down_when_services_are_unreachable(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -21,7 +21,7 @@ PLAN_ID_PATTERN = re.compile(r"[a-f0-9]{32}\Z")
 PLAN_STORE_VERSION = 1
 MAX_PLAN_BYTES = 500_000
 DEFAULT_MAX_PLAN_AGE_SECONDS = 3_600
-ALLOWED_MODEL_METADATA = frozenset({"model", "model_provider", "safe_agent"})
+ALLOWED_MODEL_METADATA = frozenset({"model", "model_provider", "safe_agent", "user_task"})
 GUARDED_TOOL_NAMES = frozenset({"write_text", "patch_text", "run_command", "git_commit"})
 
 

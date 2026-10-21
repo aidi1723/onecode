@@ -32,6 +32,7 @@ from onecode.kernel.safe_agent_router import SafeAgentRoute, route_safe_agent_ta
 from onecode.kernel.approval_plans import model_plan_requires_approval, persist_approval_plan
 from onecode.kernel.patching import PatchIntent, PatchRejected, apply_patch_preview
 from onecode.kernel.path_guard import PathGuard, PathGuardError
+from onecode.kernel.read_preface import with_preface
 
 
 def write_texts_from_plan(plan: ModelPlan) -> list[str]:
@@ -185,6 +186,10 @@ def file_write_slots(task: str, max_repair_attempts: int) -> int:
     return max(max_repair_attempts, len(required_python_files(task)))
 
 
+def missing_required_files(task: str, workspace: Path) -> list[str]:
+    return [path for path in required_python_files(task) if not (workspace / path).is_file()]
+
+
 def _required_files_landed(task: str, written: list[str]) -> bool:
     required = required_python_files(task)
     if not required:
@@ -224,6 +229,35 @@ def narrow_plan_prompt(task: str, failure: dict[str, Any], written: list[str] | 
     )
 
 
+def _src_files_for_repair(workspace: Path) -> dict[str, str]:
+    root = workspace / "src"
+    if not root.is_dir():
+        return {}
+    files: dict[str, str] = {}
+    for path in sorted(root.rglob("*.py")):
+        if "__pycache__" in path.parts:
+            continue
+        files[path.relative_to(workspace).as_posix()] = path.read_text(encoding="utf-8")[:4000]
+    return files
+
+
+def _repair_source_block(failed_result: dict[str, Any]) -> str:
+    files = failed_result.get("workspace_files")
+    if not isinstance(files, dict):
+        return ""
+    blocks: list[str] = []
+    for path in sorted(files):
+        if not isinstance(path, str) or not path.startswith("src/") or not path.endswith(".py"):
+            continue
+        content = files.get(path)
+        if not isinstance(content, str) or content == "":
+            continue
+        blocks.append(f"## {path}\n{content[:4000]}")
+    if not blocks:
+        return ""
+    return "Current source:\n" + "\n".join(blocks) + "\n"
+
+
 def repair_prompt(task: str, failed_result: dict[str, Any]) -> str:
     trace = failed_result.get("execution_trace", {})
     paths = []
@@ -258,6 +292,7 @@ def repair_prompt(task: str, failed_result: dict[str, Any]) -> str:
         f"Failure reason: {failed_result.get('reason')}\n"
         f"Affected paths: {path_summary}\n"
         f"Failure details:\n{details}\n"
+        f"{_repair_source_block(failed_result)}"
         "Return JSON with patches only. Do not return assets or execution_plan."
     )
 
@@ -518,6 +553,7 @@ def pending_approval_result(
     provider_config: Any,
     resolved_model: str,
     safe_agent_context: object,
+    user_task: str = "",
 ) -> dict[str, Any]:
     model_provider = "openai" if provider_config.env_key == "OPENAI_API_KEY" else provider_config.provider_kind
     stored = persist_approval_plan(
@@ -527,6 +563,7 @@ def pending_approval_result(
             "model": resolved_model,
             "model_provider": model_provider,
             "safe_agent": safe_agent_context,
+            "user_task": user_task[:4000],
         },
     )
     tool_names = [tool.tool_name for step in plan.execution_steps for tool in step.tool_calls]
@@ -711,6 +748,7 @@ def maybe_pending_approval_result(
     provider_config: Any,
     resolved_model: str,
     planning_context: dict[str, Any],
+    user_task: str = "",
 ) -> dict[str, Any] | None:
     if not required or not model_plan_requires_approval(plan):
         return None
@@ -722,6 +760,7 @@ def maybe_pending_approval_result(
         provider_config=provider_config,
         resolved_model=resolved_model,
         safe_agent_context=planning_context["safe_agent"],
+        user_task=user_task,
     )
 
 
@@ -735,6 +774,7 @@ def early_model_plan_result(
     provider_config: Any,
     resolved_model: str,
     planning_context: dict[str, Any],
+    user_task: str = "",
 ) -> dict[str, Any] | None:
     if plan.no_action_reason is not None:
         return no_action_result(
@@ -754,6 +794,7 @@ def early_model_plan_result(
         provider_config,
         resolved_model,
         planning_context,
+        user_task=user_task,
     )
 
 
@@ -1221,7 +1262,7 @@ def _finish_verified_task(
         for item in (checked.get("verifier_results") or [])
         if isinstance(item, dict) and item.get("stderr_tail")
     ]
-    prompt = repair_prompt(task, checked) + "\nDo not patch any path under tests/. Change the implementation so the existing tests pass."
+    prompt = repair_prompt(task, {**checked, "workspace_files": _src_files_for_repair(workspace)}) + "\nDo not patch any path under tests/. Change the implementation so the existing tests pass."
     if tails:
         prompt += "\nVerifier output:\n" + "\n".join(tails)
     plan, failure = traced_provider_plan_retrying(
@@ -1299,12 +1340,11 @@ def run_model_task(
     require_explicit_approval: bool = True,
     execution_approval: Callable[[ExecutionStep], bool] | None = None,
     on_turn: Callable[[dict[str, Any]], None] | None = None,
-    sandbox_config: Any | None = None,
+    sandbox_config: Any | None = None, preface: str | None = None,
 ) -> dict[str, Any]:
+    task = with_preface(task, preface)
     validate_model_task_limits(http_timeout_seconds, max_repair_attempts)
-    provider_config, resolved_model, resolved_api_key = resolve_model_runtime(
-        provider_kind, endpoint, model, api_key
-    )
+    provider_config, resolved_model, resolved_api_key = resolve_model_runtime(provider_kind, endpoint, model, api_key)
     active_provider = provider or build_provider(resolved_api_key, provider_kind, endpoint)
     route, planning_context = resolve_safe_agent_planning_context(task, task_mode, safe_agent_route)
     model_context = create_context(workspace_root=workspace, run_id=run_id, resume_from_run_id=resume_from_run_id)
@@ -1322,14 +1362,14 @@ def run_model_task(
         http_timeout_seconds=http_timeout_seconds,
         planning_context=planning_context,
     )
-    if failure is not None:
-        return failed_model_result(model_context, failure)
+    if failure is not None or plan is None:
+        return failed_model_result(model_context, failure if isinstance(failure, dict) else {"failure_kind": "invalid_model_plan"})
     plan = _drop_protected_changes(plan, task)
     if plan.no_action_reason is not None or execution_approval is None:
         early_result = early_model_plan_result(
             require_explicit_approval=require_explicit_approval, workspace=workspace, model_context=model_context,
             trace_path=trace_path, plan=plan, provider_config=provider_config, resolved_model=resolved_model,
-            planning_context=planning_context,
+            planning_context=planning_context, user_task=task,
         )
         if early_result is not None:
             return early_result
@@ -1398,7 +1438,7 @@ def run_model_task(
     for attempt in range(1, max_repair_attempts + 1):
         repair_plan, failure = traced_provider_plan(
             provider=active_provider,
-            task=repair_prompt(task, failed_result),
+            task=repair_prompt(task, {**failed_result, "workspace_files": _src_files_for_repair(workspace)}),
             model_context=model_context,
             trace_path=trace_path,
             provider_config=provider_config,

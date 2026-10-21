@@ -590,6 +590,99 @@ class OneCodeWebApiTests(unittest.TestCase):
             run_model.assert_not_called()
             chat.assert_not_called()
 
+    def test_shell_change_task_passes_preface_sandbox_and_one_repair(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task", return_value={"status": "completed", "reason": None}) as run_model:
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "src" / "fares.py").write_text("def fare_cents():\n    return 0\n", encoding="utf-8")
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Fix src/fares.py"}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        kwargs = run_model.call_args.kwargs
+        self.assertEqual(kwargs["max_repair_attempts"], 1)
+        self.assertEqual(kwargs["sandbox_config"].network, "none")
+        self.assertIn("def fare_cents", kwargs["preface"])
+
+    def test_approved_write_checks_sandbox_and_offers_one_repair(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.kernel.verifier import VerifierResult
+        from onecode.web.api import handle_onecode_plan_approval
+
+        failed = VerifierResult(
+            id="python-unittest", status="failed", reason="verifier_failed", failure_kind="command_failed",
+            exit_code=1, duration_ms=1, stdout_tail="", stderr_tail="AssertionError",
+            stdout_sha256="0" * 64, stderr_sha256="0" * 64, cwd=".", command=["python3", "-m", "unittest"],
+        )
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            (workspace / "tests").mkdir()
+            (workspace / "tests" / "test_fares.py").write_text("import unittest\n", encoding="utf-8")
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(task="fix src/fares.py", assets=[ModelPlanAsset(path="src/fares.py", content="VALUE = 1\n")]),
+                model_metadata={"model": "m"},
+            )
+            with patch("onecode.kernel.verifier.run_verifier", return_value=failed), patch(
+                "onecode.web.api.run_model_task", return_value={"status": "halted", "reason": "approval_required"}
+            ) as run_model:
+                payload, status = handle_onecode_plan_approval(stored.plan_id, {"workspace": tmp, "approved": True})
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["reason"], "approval_required")
+        self.assertEqual(run_model.call_args.kwargs["max_repair_attempts"], 0)
+        self.assertIn("patches only", run_model.call_args.args[0])
+        self.assertIn("VALUE = 1", run_model.call_args.args[0])
+
+    def test_approved_write_continues_the_next_named_file(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(task="write one", assets=[ModelPlanAsset(path="src/one.py", content="VALUE = 1\n")]),
+                model_metadata={"model": "m", "user_task": "Write src/one.py and src/two.py."},
+            )
+            with patch(
+                "onecode.web.api.run_model_task",
+                return_value={"status": "halted", "reason": "approval_required"},
+            ) as run_model:
+                payload, status = handle_onecode_plan_approval(stored.plan_id, {"workspace": tmp, "approved": True})
+
+            self.assertEqual(status, 200)
+            self.assertEqual(payload["reason"], "approval_required")
+            self.assertEqual((workspace / "src" / "one.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+            self.assertFalse((workspace / "src" / "two.py").exists())
+            self.assertIn("src/two.py", run_model.call_args.args[0])
+            self.assertIn("src/one.py", run_model.call_args.args[0])
+
     def test_general_math_question_uses_direct_chat_answer_not_run_summary(self):
         from onecode.web.api import handle_chat_completion
 

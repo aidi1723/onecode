@@ -30,8 +30,8 @@ DEFAULT_LOCAL_PASSWORD = "OneCode123!"
 DEFAULT_ONECODE_PORT = 19080
 DEFAULT_LIBRECHAT_PORT = 14080
 DEFAULT_MONGO_PORT = 39017
-EXPECTED_LIBRECHAT_VERSION = "v0.8.7"
-EXPECTED_LIBRECHAT_COMMIT = "9e74cc0e57b395926122bd4062c1fcedc48ed465"
+EXPECTED_LIBRECHAT_VERSION = "v0.8.8"
+EXPECTED_LIBRECHAT_COMMIT = "e8f3be08623663d4ad7f7241e693c94469b63bb0"
 DEFAULT_SERVICE_LOG_MAX_BYTES = 2_000_000
 
 
@@ -127,23 +127,17 @@ def build_runtime_config(config: ShellLaunchConfig) -> Path:
                 "interface:",
                 "  customWelcome: 'OneCode：可信任的工业级 AI 内核'",
                 "  modelSelect: true",
-                "  parameters: true",
-                "  presets: true",
+                "  parameters: false",
+                "  presets: false",
                 "  prompts:",
-                "    use: true",
-                "    create: true",
-                "    share: false",
-                "    public: false",
-                "  bookmarks: true",
-                "  multiConvo: true",
+                "    use: false",
+                "  bookmarks: false",
+                "  multiConvo: false",
                 "  agents:",
-                "    use: true",
-                "    create: false",
-                "    share: false",
-                "    public: false",
+                "    use: false",
                 "  marketplace:",
                 "    use: false",
-                "  fileCitations: true",
+                "  fileCitations: false",
                 "",
                 "endpoints:",
                 "  allowedAddresses:",
@@ -278,7 +272,7 @@ def librechat_provenance(config: ShellLaunchConfig) -> dict[str, object]:
         check=False,
     )
     if ancestor.returncode != 0:
-        raise RuntimeError("LibreChat v0.8.7 is not an ancestor of the shell HEAD")
+        raise RuntimeError("LibreChat v0.8.8 is not an ancestor of the shell HEAD")
     return {
         "version": version,
         "directory": str(config.librechat_dir),

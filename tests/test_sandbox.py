@@ -118,6 +118,33 @@ class SandboxTests(unittest.TestCase):
         ):
             self.assertEqual(runnable_sandbox_image("python:3.12-slim"), "python:3.12-slim")
 
+    def test_ephemeral_sandbox_uses_a_local_native_sibling(self):
+        from subprocess import CompletedProcess
+
+        from onecode.kernel.sandbox import SandboxConfig, run_in_sandbox, _IMAGE_ARCH
+
+        calls: list[list[str]] = []
+
+        def fake_run(argv, **kwargs):
+            calls.append(list(argv))
+            if argv[:3] == ["docker", "image", "inspect"]:
+                image = argv[-1]
+                arch = "arm64" if image == "python:3.12-slim" else "amd64" if image == "python:3.12-slim-amd64" else ""
+                return CompletedProcess(argv, 0 if arch else 1, f"{arch}\n", "")
+            return CompletedProcess(argv, 0, "ok\n", "")
+
+        _IMAGE_ARCH.clear()
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "onecode.kernel.sandbox.subprocess.run", side_effect=fake_run
+        ), patch("onecode.kernel.sandbox.shutil.which", return_value="/usr/bin/docker"), patch(
+            "onecode.kernel.sandbox.platform.machine", return_value="x86_64"
+        ):
+            run_in_sandbox(SandboxConfig(workspace=Path(tmp), image="python:3.12-slim"), ["python3", "-c", "print(1)"])
+        _IMAGE_ARCH.clear()
+        docker_runs = [argv for argv in calls if argv[:2] == ["docker", "run"]]
+        self.assertEqual(len(docker_runs), 1)
+        self.assertIn("python:3.12-slim-amd64", docker_runs[0])
+
     def test_reused_sandbox_creates_once_then_execs(self):
         from subprocess import CompletedProcess
 
