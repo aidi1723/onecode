@@ -42,4 +42,6 @@ The four-hour observation on n100 finished. The log is `~/onecode-soak-2026-10-1
 
 ## Close
 
-This phase is closed. The sandbox delivery tag is `v0.8.0` at `e1adb3c`. The private-token fix is `53d09ff` on `main`. Version stays 0.8.0.
+This phase is closed. The sandbox delivery tag is `v0.8.0` at `e1adb3c`. The private-token fix is `53d09ff` on `main`. Version at this close stays 0.8.0.
+
+The formal release is [ONECODE_V1_0_RELEASE_2026-10-20.md](ONECODE_V1_0_RELEASE_2026-10-20.md). On 2026-10-20, a failed check with repair attempts remaining received one implementation patch before the Li/Kun halt. That later reading is [ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md](ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md).

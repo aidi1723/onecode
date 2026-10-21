@@ -3,6 +3,7 @@ import json
 import os
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 from onecode.kernel.http_safety import StripAuthRedirectHandler
 
@@ -278,7 +279,7 @@ def api_key_from_env(env: dict[str, str] | None = None, provider_kind: str = "ch
     return value
 
 
-def validate_model_plan(data: dict[str, Any]) -> ModelPlan:
+def validate_model_plan(data: dict[str, Any], known_modules: set[str] | None = None) -> ModelPlan:
     task = data.get("task")
     if not isinstance(task, str) or task == "":
         raise ValueError("task must be a non-empty string")
@@ -315,7 +316,7 @@ def validate_model_plan(data: dict[str, Any]) -> ModelPlan:
             raise ValueError(f"asset {index} duplicate path: {path}")
         seen_paths.add(path)
         plan_assets.append(ModelPlanAsset(path=path, content=content))
-    _reject_unusable_python_assets(plan_assets)
+    _reject_unusable_python_assets(plan_assets, known_modules)
 
     plan_patches: list[ModelPlanPatch] = []
     for index, patch in enumerate(patches, start=1):
@@ -345,8 +346,8 @@ def validate_model_plan(data: dict[str, Any]) -> ModelPlan:
     )
 
 
-def _reject_unusable_python_assets(assets: list[ModelPlanAsset]) -> None:
-    module_names = set()
+def _reject_unusable_python_assets(assets: list[ModelPlanAsset], known_modules: set[str] | None = None) -> None:
+    module_names = set(known_modules or ())
     for asset in assets:
         if not asset.path.endswith(".py"):
             continue
@@ -515,14 +516,29 @@ def _message_text(content: Any) -> str | None:
     return "".join(parts)
 
 
-def parse_response_plan(response: dict[str, Any]) -> ModelPlan:
+def workspace_python_modules(workspace: Path) -> set[str]:
+    names: set[str] = set()
+    for folder in ("src", "tests"):
+        root = workspace / folder
+        if not root.is_dir():
+            continue
+        for path in root.rglob("*.py"):
+            if "__pycache__" in path.parts:
+                continue
+            stem = path.name[:-3]
+            if stem and stem != "__init__":
+                names.add(stem)
+    return names
+
+
+def parse_response_plan(response: dict[str, Any], known_modules: set[str] | None = None) -> ModelPlan:
     try:
         payload = json_object_from_model_text(extract_response_text(response))
     except json.JSONDecodeError as exc:
         raise ValueError("model response was not valid JSON") from exc
     if not isinstance(payload, dict):
         raise ValueError("model response JSON must be an object")
-    return validate_model_plan(payload)
+    return validate_model_plan(payload, known_modules=known_modules)
 
 
 class OpenAIResponsesProvider:
@@ -565,6 +581,7 @@ class OpenAIResponsesProvider:
         model: str,
         http_timeout_seconds: float,
         planning_context: dict[str, Any] | None = None,
+        known_modules: set[str] | None = None,
     ) -> ModelPlan:
         body = json.dumps(self.request_payload(task, model=model, planning_context=planning_context)).encode("utf-8")
         request = urllib.request.Request(
@@ -594,7 +611,7 @@ class OpenAIResponsesProvider:
             raise ModelProviderError("model response exceeds maximum size") from exc
         if not isinstance(response_payload, dict):
             raise ModelProviderError("model response envelope must be an object")
-        return parse_response_plan(response_payload)
+        return parse_response_plan(response_payload, known_modules=known_modules)
 
 
 class OpenAIChatCompletionsProvider:
@@ -623,7 +640,7 @@ class OpenAIChatCompletionsProvider:
             "response_format": {"type": "json_object"},
         }
 
-    def parse_response(self, response: dict[str, Any]) -> ModelPlan:
+    def parse_response(self, response: dict[str, Any], known_modules: set[str] | None = None) -> ModelPlan:
         choices = response.get("choices")
         if not isinstance(choices, list) or not choices:
             raise ModelProviderError("missing chat completion choices")
@@ -642,7 +659,7 @@ class OpenAIChatCompletionsProvider:
             raise ValueError("model response was not valid JSON") from exc
         if not isinstance(payload, dict):
             raise ValueError("model response JSON must be an object")
-        return validate_model_plan(payload)
+        return validate_model_plan(payload, known_modules=known_modules)
 
     def create_plan(
         self,
@@ -651,6 +668,7 @@ class OpenAIChatCompletionsProvider:
         model: str,
         http_timeout_seconds: float,
         planning_context: dict[str, Any] | None = None,
+        known_modules: set[str] | None = None,
     ) -> ModelPlan:
         body = json.dumps(self.request_payload(task, model=model, planning_context=planning_context)).encode("utf-8")
         request = urllib.request.Request(
@@ -680,7 +698,7 @@ class OpenAIChatCompletionsProvider:
             raise ModelProviderError("model response exceeds maximum size") from exc
         if not isinstance(response_payload, dict):
             raise ModelProviderError("model response envelope must be an object")
-        return self.parse_response(response_payload)
+        return self.parse_response(response_payload, known_modules=known_modules)
 
 
 def canonical_planning_prompt(planning_context: dict[str, Any] | None = None) -> str:

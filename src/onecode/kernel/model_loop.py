@@ -17,6 +17,7 @@ from onecode.kernel.model_provider import (
     OpenAIResponsesProvider,
     api_key_from_env,
     build_provider_config,
+    workspace_python_modules,
 )
 from onecode.kernel.execution_contracts import ExecutionPlan, ExecutionStep, ToolCallSpec
 from onecode.kernel.execution_engine import execute_plan
@@ -152,10 +153,44 @@ def named_python_files(task: str) -> list[str]:
     return found
 
 
+_DO_NOT_FILE = re.compile(
+    r"(?:do not|don't|never)\s+(?:modify|change|patch|edit|touch|rewrite)\s+((?:src|tests)/[A-Za-z0-9_./-]+\.py)",
+    re.IGNORECASE,
+)
+_ONLY_FILE = re.compile(r"\bonly\s+((?:src|tests)/[A-Za-z0-9_./-]+\.py)", re.IGNORECASE)
+
+
+def protected_python_files(task: str) -> list[str]:
+    found: list[str] = []
+    for match in _DO_NOT_FILE.findall(task):
+        if match not in found:
+            found.append(match)
+    only = _ONLY_FILE.findall(task)
+    if only:
+        allowed = set(only)
+        for path in named_python_files(task):
+            if path not in allowed and path not in found:
+                found.append(path)
+    return found
+
+
+def required_python_files(task: str) -> list[str]:
+    protected = set(protected_python_files(task))
+    return [path for path in named_python_files(task) if path not in protected]
+
+
 def file_write_slots(task: str, max_repair_attempts: int) -> int:
     if max_repair_attempts <= 0:
         return 0
-    return max(max_repair_attempts, len(named_python_files(task)))
+    return max(max_repair_attempts, len(required_python_files(task)))
+
+
+def _required_files_landed(task: str, written: list[str]) -> bool:
+    required = required_python_files(task)
+    if not required:
+        return False
+    done = {path.replace("\\", "/") for path in written}
+    return all(path in done for path in required)
 
 
 def _same_step_retry(failure: dict[str, Any] | None) -> bool:
@@ -165,12 +200,15 @@ def _same_step_retry(failure: dict[str, Any] | None) -> bool:
     return (
         "model response was not valid JSON" in detail
         or "no_action cannot be combined with actions" in detail
+        or "task must be a non-empty string" in detail
     )
 
 
 def narrow_plan_prompt(task: str, failure: dict[str, Any], written: list[str] | None = None) -> str:
     detail = failure.get("detail") or failure.get("failure_kind") or "plan did not fit"
     already = ", ".join(written) if written else "none"
+    protected = ", ".join(protected_python_files(task))
+    kept = f" Do not write these protected paths: {protected}." if protected else ""
     return (
         "The previous plan did not fit in one response.\n"
         f"Failure: {detail}\n"
@@ -182,6 +220,7 @@ def narrow_plan_prompt(task: str, failure: dict[str, Any], written: list[str] | 
         "The asset content must be complete and non-empty. "
         "Use unittest, not pytest. No relative imports. "
         "Do not include execution_plan or run_command."
+        + kept
     )
 
 
@@ -221,6 +260,25 @@ def repair_prompt(task: str, failed_result: dict[str, Any]) -> str:
         f"Failure details:\n{details}\n"
         "Return JSON with patches only. Do not return assets or execution_plan."
     )
+
+
+def _drop_protected_changes(plan: ModelPlan, task: str) -> ModelPlan:
+    protected = set(protected_python_files(task))
+    if not protected:
+        return plan
+    assets = [asset for asset in plan.assets if asset.path.replace("\\", "/") not in protected]
+    patches = [patch for patch in plan.patches if patch.path.replace("\\", "/") not in protected]
+    steps = []
+    for step in plan.execution_steps:
+        blocked = any(
+            isinstance(call.params, dict) and isinstance(call.params.get("path"), str) and call.params["path"].replace("\\", "/") in protected
+            for call in step.tool_calls
+        )
+        if not blocked:
+            steps.append(step)
+    if len(assets) == len(plan.assets) and len(patches) == len(plan.patches) and len(steps) == len(plan.execution_steps):
+        return plan
+    return ModelPlan(task=plan.task, assets=assets, patches=patches, execution_steps=steps, no_action_reason=plan.no_action_reason)
 
 
 def is_patch_only_repair_plan(plan: ModelPlan) -> bool:
@@ -754,6 +812,7 @@ def traced_provider_plan(
             model=resolved_model,
             http_timeout_seconds=http_timeout_seconds,
             planning_context=planning_context,
+            known_modules=workspace_python_modules(Path(model_context.workspace_root)),
         )
     except (ModelProviderError, ValueError) as exc:
         if isinstance(exc, ModelProviderTimeout):
@@ -950,6 +1009,14 @@ def _write_following_narrow_files(
     results = [result]
     slots = file_write_slots(task, max_repair_attempts)
     for index in range(2, slots + 1):
+        if _required_files_landed(task, written):
+            return _close_narrow_sequence(
+                results,
+                status="completed",
+                reason=None,
+                model_context=model_context,
+                outstanding=False,
+            )
         next_plan, failure = traced_provider_plan_retrying(
             provider=provider,
             task=narrow_plan_prompt(
@@ -973,13 +1040,24 @@ def _write_following_narrow_files(
                 model_context=model_context,
                 outstanding=True,
             )
-        if next_plan.no_action_reason is not None:
+        next_plan = _drop_protected_changes(next_plan, task)
+        if next_plan.no_action_reason is not None or (
+            _required_files_landed(task, written) and not next_plan.assets and not next_plan.patches and not next_plan.execution_steps
+        ):
             return _close_narrow_sequence(
                 results,
                 status="completed",
                 reason=None,
                 model_context=model_context,
                 outstanding=False,
+            )
+        if not next_plan.assets and not next_plan.patches and not next_plan.execution_steps:
+            return _close_narrow_sequence(
+                results,
+                status="halted",
+                reason="invalid_model_plan",
+                model_context=model_context,
+                outstanding=True,
             )
         latest = execute_model_plan(
             next_plan,
@@ -1007,7 +1085,7 @@ def _write_following_narrow_files(
                 outstanding=False,
             )
         written.extend(asset.path for asset in next_plan.assets)
-    if len(named_python_files(task)) > max_repair_attempts:
+    if len(required_python_files(task)) > max_repair_attempts:
         close_plan, close_failure = traced_provider_plan_retrying(
             provider=provider,
             task=narrow_plan_prompt(task, {"detail": "close the finished files", "failure_kind": "resource_budget_exceeded"}, written),
@@ -1047,6 +1125,14 @@ def _write_following_narrow_files(
             on_turn=on_turn,
         )
         results.append(latest)
+    if _required_files_landed(task, written):
+        return _close_narrow_sequence(
+            results,
+            status="completed",
+            reason=None,
+            model_context=model_context,
+            outstanding=False,
+        )
     return _close_narrow_sequence(
         results,
         status="halted",
@@ -1238,7 +1324,7 @@ def run_model_task(
     )
     if failure is not None:
         return failed_model_result(model_context, failure)
-    assert plan is not None
+    plan = _drop_protected_changes(plan, task)
     if plan.no_action_reason is not None or execution_approval is None:
         early_result = early_model_plan_result(
             require_explicit_approval=require_explicit_approval, workspace=workspace, model_context=model_context,
@@ -1364,6 +1450,7 @@ def _create_provider_plan(
     model: str,
     http_timeout_seconds: float,
     planning_context: dict[str, Any],
+    known_modules: set[str] | None = None,
 ) -> ModelPlan:
     parameters = inspect.signature(provider.create_plan).parameters
     kwargs: dict[str, Any] = {
@@ -1372,4 +1459,6 @@ def _create_provider_plan(
     }
     if "planning_context" in parameters:
         kwargs["planning_context"] = planning_context
+    if "known_modules" in parameters:
+        kwargs["known_modules"] = known_modules
     return provider.create_plan(task, **kwargs)

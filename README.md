@@ -6,8 +6,11 @@ Current version: **v1.0.0**. It is a local kernel. It does not claim parity with
 The 30 local tasks in `benchmarks/reports/agent-local-pass-rate.json` are a scripted
 oracle record. `benchmarks/reports/swebench-lite-subset.json` records whether the
 published patches reproduce five SWE-bench Lite tests. That file is not an OneCode
-solve rate and does not claim parity with general coding agents. The release closure
-and verification index is recorded in
+solve rate and does not claim parity with general coding agents. The formal release record is
+`docs/closure/ONECODE_V1_0_RELEASE_2026-10-20.md`.
+The current task-rule follow-up on that same version is
+`docs/closure/ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md`.
+The earlier v0.8 closure remains
 `docs/closure/ONECODE_V0_8_FINAL_CLOSURE_2026-07-10.md`.
 
 The core kernel has no runtime third-party dependency. Textual is an optional TUI dependency.

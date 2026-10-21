@@ -32,3 +32,5 @@ Record for `docs/superpowers/plans/2026-10-16-onecode-followup-development-handb
 - Third-party pentest.
 - `claims_mainstream_parity` stays false.
 - No tag, no push, no version bump.
+
+The n100 sandbox path, the four-hour observation, the version, the tag, and the push were closed later in [ONECODE_V1_0_RELEASE_2026-10-20.md](ONECODE_V1_0_RELEASE_2026-10-20.md). The current task rules are [ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md](ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md). Key revocation, a third-party review, and `claims_mainstream_parity` stay as listed above.

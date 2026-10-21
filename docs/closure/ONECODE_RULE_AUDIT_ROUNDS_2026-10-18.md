@@ -45,3 +45,5 @@ Three tests encode the Mac host: `test_rule_task_variety` expects `sandbox_requi
 The 64-state reading meets the closeout standard on both machines. The live sandbox on n100 meets that reading when the image is native and the verifier command is `python3`: pass stays deliverable, failure halts on Li/Kun, timeout checkpoints on Kan/Zhen, and every tagged command follows its hexagram.
 
 Three gaps stay outside that match. The default image tag on this n100 is the wrong architecture. The default verifier command points at the host interpreter, so a failed start is recorded as a failed check. A sandboxed command cannot create a file in a 755 workspace.
+
+Those three gaps were closed in the sandbox delivery. The later one-patch repair is [ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md](ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md).

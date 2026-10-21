@@ -437,6 +437,201 @@ class ModelLoopTests(unittest.TestCase):
             self.assertTrue((workspace / "src" / "assign.py").exists())
             self.assertTrue((workspace / "tests" / "test_scheduler.py").exists())
 
+    def test_empty_task_string_retries_the_same_step(self):
+        class EmptyTaskThenWrite:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+                from onecode.kernel.model_provider import validate_model_plan
+
+                self.calls += 1
+                if self.calls == 1:
+                    raise ValueError("task must be a non-empty string")
+                return validate_model_plan(
+                    {"task": "write", "assets": [{"path": "src/one.py", "content": "VALUE = 1\n"}]}
+                )
+
+        provider = EmptyTaskThenWrite()
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_model_task_wrapper(
+                "write src/one.py",
+                workspace=workspace,
+                run_id="retry-empty-task",
+                api_key="key",
+                model="m",
+                provider=provider,
+                execution_approval=lambda step: True,
+            )
+            self.assertEqual(provider.calls, 2)
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual((workspace / "src" / "one.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+
+    def test_finished_named_file_closes_into_the_check(self):
+        from onecode.kernel.sandbox import SandboxConfig
+        from onecode.kernel.verifier import VerifierResult
+
+        class WriteFareThenTest:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+                from onecode.kernel.model_provider import validate_model_plan
+
+                self.calls += 1
+                if self.calls == 1:
+                    raise ValueError("model response was truncated")
+                if self.calls == 2:
+                    return validate_model_plan(
+                        {"task": "fix fare", "assets": [{"path": "src/fares.py", "content": "VALUE = 1\n"}]}
+                    )
+                return validate_model_plan(
+                    {"task": "rewrite test", "assets": [{"path": "tests/test_fares.py", "content": "CHANGED\n"}]}
+                )
+
+        passed = VerifierResult(
+            id="python-unittest", status="passed", reason=None, failure_kind=None,
+            exit_code=0, duration_ms=1, stdout_tail="OK", stderr_tail="",
+            stdout_sha256="0" * 64, stderr_sha256="0" * 64, cwd=".", command=["python3", "-m", "unittest"],
+        )
+        provider = WriteFareThenTest()
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "tests").mkdir()
+            (workspace / "src" / "fares.py").write_text("VALUE = 0\n", encoding="utf-8")
+            original = "import unittest\n"
+            (workspace / "tests" / "test_fares.py").write_text(original, encoding="utf-8")
+            with patch("onecode.kernel.verifier.run_verifier", return_value=passed):
+                result = run_model_task_wrapper(
+                    "Fix only src/fares.py. Do not modify tests/test_fares.py.",
+                    workspace=workspace,
+                    run_id="fare-close",
+                    api_key="key",
+                    model="m",
+                    provider=provider,
+                    max_repair_attempts=2,
+                    execution_approval=lambda step: True,
+                    sandbox_config=SandboxConfig(workspace=workspace, image="python:3.12-slim", network="none"),
+                )
+            self.assertEqual(provider.calls, 2)
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["delivery_status"], "deliverable")
+            self.assertEqual((workspace / "tests" / "test_fares.py").read_text(encoding="utf-8"), original)
+            self.assertEqual((workspace / "src" / "fares.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+            self.assertEqual(
+                result["iching_status_code"],
+                IchingKernel.transition(IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN)).status_code,
+            )
+
+    def test_protected_test_in_the_same_plan_is_left_unchanged(self):
+        class WritesBoth:
+            def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+                from onecode.kernel.model_provider import validate_model_plan
+
+                return validate_model_plan(
+                    {
+                        "task": "write",
+                        "assets": [
+                            {"path": "src/fares.py", "content": "VALUE = 1\n"},
+                            {"path": "tests/test_fares.py", "content": "CHANGED\n"},
+                        ],
+                    }
+                )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "tests").mkdir()
+            original = "import unittest\n"
+            (workspace / "tests" / "test_fares.py").write_text(original, encoding="utf-8")
+            result = run_model_task_wrapper(
+                "Fix only src/fares.py. Do not modify tests/test_fares.py.",
+                workspace=workspace,
+                run_id="fare-same-plan",
+                api_key="key",
+                model="m",
+                provider=WritesBoth(),
+                execution_approval=lambda step: True,
+            )
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual((workspace / "src" / "fares.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+            self.assertEqual((workspace / "tests" / "test_fares.py").read_text(encoding="utf-8"), original)
+
+    def test_unfinished_named_files_still_halt(self):
+        class StopMidway:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+                from onecode.kernel.model_provider import validate_model_plan
+
+                self.calls += 1
+                if self.calls == 1:
+                    raise ValueError("model response was truncated")
+                if self.calls == 2:
+                    return validate_model_plan(
+                        {"task": "write one", "assets": [{"path": "src/one.py", "content": "VALUE = 1\n"}]}
+                    )
+                raise ValueError("asset content must be a non-empty string")
+
+        provider = StopMidway()
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_model_task_wrapper(
+                "Write src/one.py and src/two.py.",
+                workspace=workspace,
+                run_id="named-incomplete",
+                api_key="key",
+                model="m",
+                provider=provider,
+                max_repair_attempts=2,
+                execution_approval=lambda step: True,
+            )
+            self.assertEqual(provider.calls, 3)
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "invalid_model_plan")
+            self.assertTrue((workspace / "src" / "one.py").exists())
+            self.assertFalse((workspace / "src" / "two.py").exists())
+
+    def test_later_named_test_can_import_a_module_already_written(self):
+        class WriteThenImport:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None, known_modules=None):
+                from onecode.kernel.model_provider import validate_model_plan
+
+                self.calls += 1
+                if self.calls == 1:
+                    raise ValueError("model response was truncated")
+                if self.calls == 2:
+                    return validate_model_plan(
+                        {"task": "write cart", "assets": [{"path": "src/cart.py", "content": "class Cart:\n    pass\n"}]}
+                    )
+                return validate_model_plan(
+                    {"task": "write test", "assets": [{"path": "tests/test_cart.py", "content": "from src.cart import Cart\n"}]},
+                    known_modules=known_modules,
+                )
+
+        provider = WriteThenImport()
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = run_model_task_wrapper(
+                "Build src/cart.py and tests/test_cart.py.",
+                workspace=workspace,
+                run_id="import-existing",
+                api_key="key",
+                model="m",
+                provider=provider,
+                max_repair_attempts=2,
+                execution_approval=lambda step: True,
+            )
+            self.assertEqual(provider.calls, 3)
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["delivery_status"], "deliverable")
+            self.assertIn("from src.cart import Cart", (workspace / "tests" / "test_cart.py").read_text(encoding="utf-8"))
+
     def test_invalid_json_retries_the_same_step_without_a_file_slot(self):
         class RetryThenWrite:
             def __init__(self) -> None:

@@ -134,6 +134,14 @@ class ModelProviderContractTests(unittest.TestCase):
         plan = validate_model_plan(
             {
                 "task": "test",
+                "assets": [{"path": "tests/test_cart.py", "content": "from src.cart import Cart\n"}],
+            },
+            known_modules={"cart"},
+        )
+        self.assertEqual(plan.assets[0].path, "tests/test_cart.py")
+        plan = validate_model_plan(
+            {
+                "task": "test",
                 "assets": [
                     {"path": "src/cart.py", "content": "class Cart:\n    pass\n"},
                     {"path": "tests/test_cart.py", "content": "from src.cart import Cart\n"},

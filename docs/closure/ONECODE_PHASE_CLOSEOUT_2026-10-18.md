@@ -20,4 +20,4 @@ n100 having a healthy Docker daemon does not close the default security path.
 - The local tag `python:3.12-slim` on this n100 is arm64. The native image used for the audit is `python:3.12-slim-amd64`.
 - A version bump, a tag, a push, mainstream parity, and a third-party security review stay outside this phase.
 
-The sandbox items above were delivered on 2026-10-19. See [ONECODE_SANDBOX_DELIVERY_2026-10-19.md](ONECODE_SANDBOX_DELIVERY_2026-10-19.md).
+The sandbox items above were delivered on 2026-10-19. See [ONECODE_SANDBOX_DELIVERY_2026-10-19.md](ONECODE_SANDBOX_DELIVERY_2026-10-19.md). Version 1.0.0 is [ONECODE_V1_0_RELEASE_2026-10-20.md](ONECODE_V1_0_RELEASE_2026-10-20.md). The later named-file and repair reading is [ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md](ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md).

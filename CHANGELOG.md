@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-10-21 - Protected-path close
+
+Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false. The record is `docs/closure/ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md`.
+
+### Changed
+
+- A path the task says not to modify, or a path left outside an "only" file, is not a missing write and is not written.
+- Once the required named files are written, the sequence closes into the sandbox check. A later unusable plan does not replace that cooled write.
+- An empty task string retries once on the same step, with invalid JSON and mixed `no_action`.
+- An import of a `src` module already on disk counts as present.
+
+### Verification
+
+- On n100, fare, loans, grades, seats, meter, postage, and warehouse finished deliverable at code 39. Preset tests on the repair tasks stayed unchanged. Grades and postage each used one implementation repair.
+- Clinic halted at Li/Kun (40) after repeated invalid plans, with delivery blocked.
+
+## 2026-10-20 - Named-file task close
+
+Landed on `main` after tag `v1.0.0`, in `654ddb2`. Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false.
+
+### Changed
+
+- A task that names Python files gets a write slot for each named file when repair attempts remain. Using the slots up without `no_action` halts as `resource_budget_exceeded`.
+- Invalid JSON, or `no_action` mixed with actions, retries once on the same step. A second invalid plan halts as `invalid_model_plan`.
+- A failed sandbox check with repair attempts remaining gets one implementation patch. That patch cannot change `tests/`. A second failure is `verifier_failed` and blocks delivery.
+- Gateway statuses 408, 429, 502, 503, and 504 use the Kan/Zhen checkpoint of `model_provider_timeout`.
+
+### Verification
+
+- On n100, `page-fix`, `ballot`, and `shift` finished deliverable at code 39. `ballot` retried one invalid JSON plan on the same step. An earlier ledger repair applied the one implementation patch and passed.
+- The slot-exhaustion, second-check, and gateway-status paths are covered by `tests/test_model_loop.py`.
+
 ## 1.0.0 - 2026-10-20 - Formal release
 
 Issued from the n100 acceptance. The 64-hexagram task rules, the default sandbox path, and the four-hour observation are the release basis. `claims_mainstream_parity` stays false. No third-party security review is claimed. v0.8.0 remains the earlier sandbox tag.

@@ -18,4 +18,8 @@ The model channel User-Agent stays `onecode/0.8` so the existing gateway still a
 
 ## Tags
 
-`v0.8.0` remains at `e1adb3c`. `v1.0.0` names this release commit on `main`.
+`v0.8.0` remains at `e1adb3c`. `v1.0.0` names this release commit, `dd51424`, on `main`.
+
+## Follow-up
+
+The task-rule follow-up on the same version is [ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md](ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md). Commit `654ddb2` gives a named Python file its own write slot, retries invalid JSON once on the same step, allows one implementation patch after a failed sandbox check, and keeps that patch out of `tests/`. The 2026-10-21 close keeps a protected path unwritten, closes a finished named write into the sandbox check, retries an empty task string once, and treats a `src` module already on disk as present. A second failure still halts on Li/Kun (40). Gateway statuses 408, 429, 502, 503, and 504 checkpoint on Kan/Zhen (17). The tag above does not move.
