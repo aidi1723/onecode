@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-22 - One rewrite after a missed patch
+
+Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false.
+
+### Changed
+
+- A patch that does not match, or a patch-only check that still fails, opens one new complete-file approval. A later miss stays halted.
+- Confirmed memory is loaded into the next preface and stored only after a completed turn. A halted turn is not stored.
+- MCP server names from `.onecode/mcp_servers.json` are listed in that preface. Calling them still requires approval.
+
+### Verification
+
+- `bash scripts/verify.sh`: 1270 tests, 1 skipped, doctor ok.
+- n100 was unreachable for a fresh live rerun of this slice. Earlier n100 runs remain the ones in the asset-write closeout.
+
 ## 2026-10-21 - Asset write close
 
 Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false. The record is `docs/closure/ONECODE_ASSET_WRITE_CLOSEOUT_2026-10-21.md`. The long-task plan is `docs/closure/ONECODE_LONG_TASK_PLAN_2026-10-21.md` and is not implemented.
