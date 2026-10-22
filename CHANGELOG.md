@@ -13,7 +13,7 @@ Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays
 ### Verification
 
 - `bash scripts/verify.sh`: 1270 tests, 1 skipped, doctor ok.
-- n100 was unreachable for a fresh live rerun of this slice. Earlier n100 runs remain the ones in the asset-write closeout.
+- On n100, after `85eefbe`, the five conductor tests passed. Scale and wharf finished at code 39. The record is `docs/closure/ONECODE_CONDUCTOR_CLOSEOUT_2026-10-22.md`.
 
 ## 2026-10-21 - Asset write close
 
