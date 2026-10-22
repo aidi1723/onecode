@@ -1,6 +1,6 @@
 # Long-task plan, 2026-10-21
 
-This plan is not implemented. It does not change the kernel. `claims_mainstream_parity` stays false. Version stays 1.0.0. Tags stay where they are.
+This plan is not a permission to change sealed rules. The chat path now follows steps 2 through 4 below: one complete file at a time, one patch repair, and a new complete-file approval after a missed or failed patch. Confirmed memory is loaded into the next preface and stored only after a completed turn. MCP server names from `.onecode/mcp_servers.json` are shown in that preface; calling them still requires approval. Steps 1, 5, and 6, and every rule change in the last section, are not implemented.
 
 The current product can finish a bounded task: read the workspace, write one complete file, approve it, and run the sandbox check. A long mainstream task is a different job. The model keeps the same run open, reads the new test output, edits again, and repeats until the check passes or the budget ends. OneCode does not do that inside one run.
 

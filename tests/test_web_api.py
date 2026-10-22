@@ -783,6 +783,162 @@ class OneCodeWebApiTests(unittest.TestCase):
         run_model.assert_called()
         self.assertIn("src/tide.py", run_model.call_args.args[0])
 
+    def test_failed_patch_opens_a_new_complete_file_approval(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanPatch
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "src" / "fares.py").write_text("def fare_cents():\n    return 0\n", encoding="utf-8")
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(
+                    task="fix src/fares.py",
+                    patches=[ModelPlanPatch(path="src/fares.py", search_block="return 0\n", replace_block="return 1\n")],
+                ),
+                model_metadata={"model": "m", "user_task": "Fix src/fares.py"},
+            )
+            with patch(
+                "onecode.web.api.execute_model_plan",
+                return_value={"status": "halted", "reason": "patch_search_not_found", "assets": []},
+            ), patch(
+                "onecode.web.api.run_model_task",
+                return_value={"status": "halted", "reason": "approval_required"},
+            ) as run_model:
+                payload, status = handle_onecode_plan_approval(stored.plan_id, {"workspace": tmp, "approved": True})
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["reason"], "approval_required")
+        self.assertEqual(run_model.call_args.kwargs["max_repair_attempts"], 0)
+        self.assertIn("Do not return patches", run_model.call_args.args[0])
+        self.assertNotIn("patches only", run_model.call_args.args[0])
+
+    def test_a_second_missed_patch_does_not_open_another_rewrite(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanPatch
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "src" / "fares.py").write_text("def fare_cents():\n    return 0\n", encoding="utf-8")
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(
+                    task="rewrite",
+                    patches=[ModelPlanPatch(path="src/fares.py", search_block="return 0\n", replace_block="return 1\n")],
+                ),
+                model_metadata={
+                    "model": "m",
+                    "user_task": "Write exactly one complete Python file as a JSON asset.\nTarget: src/fares.py",
+                },
+            )
+            with patch(
+                "onecode.web.api.execute_model_plan",
+                return_value={"status": "halted", "reason": "patch_search_not_found", "assets": []},
+            ), patch("onecode.web.api.run_model_task") as run_model:
+                payload, status = handle_onecode_plan_approval(stored.plan_id, {"workspace": tmp, "approved": True})
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["reason"], "patch_search_not_found")
+        run_model.assert_not_called()
+
+    def test_shell_preface_includes_confirmed_memory_and_mcp_names(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task", return_value={"status": "completed", "reason": None}) as run_model:
+            workspace = Path(tmp)
+            memory = workspace / ".onecode"
+            memory.mkdir()
+            (memory / "memory.jsonl").write_text('{"text": "fare uses cents"}\n', encoding="utf-8")
+            (memory / "mcp_servers.json").write_text(
+                '{"mcpServers": {"docs": {"command": "echo"}}}',
+                encoding="utf-8",
+            )
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Write src/toll.py"}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        prompt = run_model.call_args.args[0] + "\n" + str(run_model.call_args.kwargs.get("preface") or "")
+        self.assertIn("fare uses cents", prompt)
+        self.assertIn("docs", prompt)
+
+    def test_confirmed_completion_is_remembered_and_a_halt_is_not(self):
+        from onecode.kernel.agent_memory import load_agent_memory
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task", return_value={"status": "halted", "reason": "verifier_failed"}):
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Write src/toll.py"}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task", "confirm_memory": True},
+                }
+            )
+            self.assertEqual(load_agent_memory(Path(tmp)), [])
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task", return_value={"status": "completed", "reason": None}):
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Write src/toll.py"}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task", "confirm_memory": True},
+                }
+            )
+            remembered = load_agent_memory(Path(tmp))
+        self.assertEqual(len(remembered), 1)
+        self.assertIn("toll", json.dumps(remembered))
+
     def test_shell_survey_reads_the_file_the_model_names(self):
         from onecode.web.api import handle_chat_completion
 

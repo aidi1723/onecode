@@ -42,6 +42,7 @@ from onecode.kernel.model_loop import (
 )
 from onecode.kernel.context import create_context
 from onecode.kernel.trace import TraceEvent, write_trace_event
+from onecode.kernel.agent_memory import load_agent_memory, remember_turn
 from onecode.kernel.read_preface import collect_preface
 from onecode.kernel.host_stage import stage_bytes
 from onecode.kernel.outcome_policy import agent_cycle_decision
@@ -249,10 +250,105 @@ def prepare_shell_model_call(task: str, workspace: Path, run_id: str | None = No
     named_text = extras.get("preface")
     surveyed = surveyed_text.strip() if isinstance(surveyed_text, str) else ""
     named = named_text.strip() if isinstance(named_text, str) else ""
-    preface = "\n".join(part for part in (surveyed, named) if part)
+    notes = _shell_context_notes(workspace)
+    preface = "\n".join(part for part in (surveyed, named, notes) if part)
     extras["preface"] = preface or None
     planned = _shell_write_prompt(task, workspace)
     return {"task": planned, "extras": extras}
+
+
+def _opens_complete_rewrite(result: dict[str, Any], patch_only: bool) -> bool:
+    reason = result.get("reason")
+    if reason == "patch_search_not_found":
+        return True
+    return reason == "verifier_failed" and patch_only
+
+
+def _rewrite_already_offered(task: str) -> bool:
+    return "Write exactly one complete Python file" in task
+
+
+def _offer_complete_rewrite(workspace: Path, task: str, failed: dict[str, Any]) -> dict[str, Any]:
+    target = _rewrite_target(task, workspace)
+    stored_config = read_model_config(include_secret=True)
+    effective_model = resolve_effective_model_config(os.environ, stored_config)
+    try:
+        return run_model_task(
+            initial_asset_prompt(task or target, target),
+            workspace=workspace,
+            model=effective_model.model,
+            api_key=effective_model.api_key,
+            provider_kind=effective_model.provider,
+            endpoint=effective_model.endpoint,
+            require_explicit_approval=True,
+            max_repair_attempts=0,
+            sandbox_config=SandboxConfig(workspace=workspace),
+        )
+    except (MissingModelApiKey, ModelProviderError):
+        return failed
+
+
+def _rewrite_target(task: str, workspace: Path) -> str:
+    required = required_python_files(task)
+    if required:
+        return required[0]
+    root = workspace / "src"
+    if root.is_dir():
+        files = [
+            path.relative_to(workspace).as_posix()
+            for path in sorted(root.rglob("*.py"))
+            if "__pycache__" not in path.parts
+        ]
+        if files:
+            return files[0]
+    return "src/app.py"
+
+
+def _shell_context_notes(workspace: Path) -> str:
+    notes = [note for note in (_memory_note(workspace), _mcp_note(workspace)) if note]
+    return "\n".join(notes)
+
+
+def _memory_note(workspace: Path) -> str:
+    lines: list[str] = []
+    for record in load_agent_memory(workspace)[-5:]:
+        text = record.get("text") or record.get("note")
+        if isinstance(text, str) and text.strip():
+            lines.append(text.strip()[:500])
+    if not lines:
+        return ""
+    return "Confirmed memory:\n" + "\n".join(lines)
+
+
+def _mcp_note(workspace: Path) -> str:
+    path = workspace / ".onecode" / "mcp_servers.json"
+    if not path.is_file():
+        return ""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ""
+    servers = data.get("mcpServers") if isinstance(data, dict) else None
+    if not isinstance(servers, dict) or not servers:
+        return ""
+    names = ", ".join(sorted(str(name) for name in servers))
+    return f"MCP servers available through approval: {names}."
+
+
+def _remember_confirmed_completion(
+    workspace: Path,
+    metadata: dict[str, Any],
+    task: str,
+    result: dict[str, Any],
+) -> None:
+    if metadata.get("confirm_memory") is not True or result.get("status") != "completed":
+        return
+    remember_turn(
+        workspace,
+        {"text": task[:500], "status": "completed"},
+        confirmed=True,
+        cycle="model_continue",
+    )
 
 
 def _shell_write_prompt(task: str, workspace: Path) -> str:
@@ -556,6 +652,10 @@ def handle_onecode_plan_approval(
             return attach_shell_projection(continued), 200
     result = verify_shell_write(result, workspace)
     patch_only = bool(stored.plan.patches) and not stored.plan.assets and not stored.plan.execution_steps
+    if _opens_complete_rewrite(result, patch_only) and not _rewrite_already_offered(user_task):
+        rewrite = _offer_complete_rewrite(workspace, user_task or stored.plan.task, result)
+        finalize_approval_plan(stored, "approved", result)
+        return attach_shell_projection(rewrite), 200
     if result.get("reason") == "verifier_failed" and not patch_only:
         failed = {**result, "workspace_files": _src_files_for_repair(workspace)}
         stored_config = read_model_config(include_secret=True)
@@ -1055,6 +1155,8 @@ def handle_chat_completion(
         return error_payload("model_provider_error", str(exc)), 502
 
     content = format_run_result(result, mode)
+    if isinstance(metadata, dict):
+        _remember_confirmed_completion(workspace, metadata, user_message, result)
     return chat_completion_payload(content, model, result, mode), 200
 
 
