@@ -776,6 +776,82 @@ class AgentCycleTests(unittest.TestCase):
         self.assertEqual(result["reason"], "resource_budget_exceeded")
         self.assertEqual(result["status"], "halted")
 
+    def test_configurable_max_read_misses_allows_multi_step_search_exploration_while_capping_write_stalls(self):
+        queries: list[str] = []
+
+        def propose_search(history, allowed):
+            if history and history[-1].get("reason") is None and "def compute_fare" in history[-1].get("output", ""):
+                return []
+            candidates = ["fare_table", "pricing_matrix", "tariff_rate", "compute_fare"]
+            idx = min(len(history), len(candidates) - 1)
+            return [{"tool_name": "search_text", "params": {"query": candidates[idx]}}]
+
+        def execute_search(tool_name, params):
+            q = params["query"]
+            queries.append(q)
+            if q != "compute_fare":
+                return {"status": "completed", "reason": "search_miss", "matches": []}
+            return {
+                "status": "completed",
+                "reason": None,
+                "matches": [{"path": "src/fares.py", "line": 12, "text": "def compute_fare(km):"}],
+            }
+
+        explored = run_agent_cycle(
+            propose=propose_search,
+            execute=execute_search,
+            max_turns=6,
+            max_read_misses=4,
+        )
+        self.assertEqual(explored["status"], "completed")
+        self.assertEqual(queries, ["fare_table", "pricing_matrix", "tariff_rate", "compute_fare"])
+
+        write_calls: list[str] = []
+
+        def propose_write(history, allowed):
+            return [{"tool_name": "write_text", "params": {"path": "note.txt", "content": f"v-{len(history)}"}}]
+
+        def execute_write(tool_name, params):
+            write_calls.append(params["path"])
+            return {"status": "completed", "reason": None, "stdout": "unchanged"}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            stalled_write = run_agent_cycle(
+                propose=propose_write,
+                execute=execute_write,
+                approve=lambda tool_name, params: True,
+                workspace=Path(tmp),
+                max_turns=8,
+                max_read_misses=6,
+            )
+        self.assertEqual(write_calls, ["note.txt", "note.txt"])
+        self.assertEqual(stalled_write["reason"], "no_progress")
+
+    def test_configurable_output_limit_expands_observation_window(self):
+        blob = "\n".join(f"line {idx:04d}: payload" for idx in range(250))
+        seen: list[list[dict]] = []
+
+        def propose(history, allowed):
+            seen.append(list(history))
+            if history:
+                return []
+            return [{"tool_name": "read_text", "params": {"path": "src/big.py"}}]
+
+        def execute(tool_name, params):
+            return {"status": "completed", "reason": None, "content": blob}
+
+        result = run_agent_cycle(
+            propose=propose,
+            execute=execute,
+            max_turns=3,
+            output_limit=8_000,
+        )
+        self.assertEqual(result["status"], "completed")
+        output = seen[1][0]["output"]
+        self.assertGreater(len(output), 3_000)
+        self.assertNotIn("truncated", output)
+        self.assertIn("line 0150: payload", output)
+
 
 if __name__ == "__main__":
     unittest.main()

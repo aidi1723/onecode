@@ -36,6 +36,32 @@ class ExecutionToolsTests(unittest.TestCase):
         self.assertEqual(result["content"], "one\ntwo\n")
         self.assertTrue(result["truncated"])
 
+    def test_read_text_supports_line_range_pagination_and_line_numbers(self):
+        from onecode.kernel.execution_tools import ReadTextTool
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "sample.py").write_text("alpha\nbeta\ngamma\ndelta\nepsilon\n", encoding="utf-8")
+
+            ranged = ReadTextTool().execute(
+                {"path": "sample.py", "start_line": 2, "end_line": 4},
+                workspace,
+            )
+            numbered = ReadTextTool().execute(
+                {"path": "sample.py", "start_line": 2, "end_line": 4, "line_numbers": True},
+                workspace,
+            )
+            with self.assertRaisesRegex(ValueError, "end_line must be >= start_line"):
+                ReadTextTool().execute({"path": "sample.py", "start_line": 4, "end_line": 2}, workspace)
+
+        self.assertEqual(ranged["content"], "beta\ngamma\ndelta\n")
+        self.assertEqual(ranged["start_line"], 2)
+        self.assertEqual(ranged["end_line"], 4)
+        self.assertEqual(ranged["total_lines"], 5)
+        self.assertEqual(ranged["line_count"], 3)
+        self.assertFalse(ranged["truncated"])
+        self.assertEqual(numbered["content"], "2: beta\n3: gamma\n4: delta\n")
+
     def test_read_text_rejects_workspace_escape(self):
         from onecode.kernel.execution_tools import ReadTextTool
 

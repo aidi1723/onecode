@@ -43,6 +43,17 @@ class SelfAuditCliTests(unittest.TestCase):
         self.assertEqual(result["checks"][1]["detail"]["shell"], "tui")
         self.assertEqual(result["checks"][2]["detail"]["providers"], ["qwen", "deepseek", "kimi", "zhipu"])
 
+    def test_missing_textual_skips_tui_bootstrap_without_failing_the_audit(self):
+        from onecode.self_audit import tui_import_is_optional
+
+        missing = ModuleNotFoundError("No module named 'textual'")
+        missing.name = "textual"
+        other = ModuleNotFoundError("No module named 'onecode'")
+        other.name = "onecode"
+        self.assertTrue(tui_import_is_optional(missing))
+        self.assertFalse(tui_import_is_optional(other))
+        self.assertFalse(tui_import_is_optional(RuntimeError("boom")))
+
     def test_audit_self_failed_check_stops_dispatch(self):
         def failed_doctor():
             return {"status": "failed", "checks": [audit_check("doctor-smoke", False)]}

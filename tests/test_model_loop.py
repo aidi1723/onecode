@@ -408,7 +408,7 @@ class ModelLoopTests(unittest.TestCase):
                 from onecode.kernel.model_provider import validate_model_plan
 
                 self.calls += 1
-                names = ["src/workers.py", "src/jobs.py", "src/assign.py", "tests/test_scheduler.py"]
+                names = ["src/workers.py", "src/jobs.py", "src/assign.py", "src/scheduler.py"]
                 if self.calls == 1:
                     raise ValueError("model response was truncated")
                 if self.calls == 6:
@@ -422,7 +422,7 @@ class ModelLoopTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
             result = run_model_task_wrapper(
-                "Build src/workers.py, src/jobs.py, src/assign.py, and tests/test_scheduler.py.",
+                "Build src/workers.py, src/jobs.py, src/assign.py, and src/scheduler.py.",
                 workspace=workspace,
                 run_id="named-four",
                 api_key="key",
@@ -435,7 +435,7 @@ class ModelLoopTests(unittest.TestCase):
             self.assertEqual(result["delivery_status"], "deliverable")
             self.assertEqual(provider.calls, 6)
             self.assertTrue((workspace / "src" / "assign.py").exists())
-            self.assertTrue((workspace / "tests" / "test_scheduler.py").exists())
+            self.assertTrue((workspace / "src" / "scheduler.py").exists())
 
     def test_empty_task_string_retries_the_same_step(self):
         class EmptyTaskThenWrite:
@@ -528,16 +528,12 @@ class ModelLoopTests(unittest.TestCase):
     def test_protected_test_in_the_same_plan_is_left_unchanged(self):
         class WritesBoth:
             def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
-                from onecode.kernel.model_provider import validate_model_plan
-
-                return validate_model_plan(
-                    {
-                        "task": "write",
-                        "assets": [
-                            {"path": "src/fares.py", "content": "VALUE = 1\n"},
-                            {"path": "tests/test_fares.py", "content": "CHANGED\n"},
-                        ],
-                    }
+                return ModelPlan(
+                    task="write",
+                    assets=[
+                        ModelPlanAsset(path="src/fares.py", content="VALUE = 1\n"),
+                        ModelPlanAsset(path="tests/test_fares.py", content="CHANGED\n"),
+                    ],
                 )
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -610,7 +606,7 @@ class ModelLoopTests(unittest.TestCase):
                         {"task": "write cart", "assets": [{"path": "src/cart.py", "content": "class Cart:\n    pass\n"}]}
                     )
                 return validate_model_plan(
-                    {"task": "write test", "assets": [{"path": "tests/test_cart.py", "content": "from src.cart import Cart\n"}]},
+                    {"task": "write checkout", "assets": [{"path": "src/checkout.py", "content": "from src.cart import Cart\n"}]},
                     known_modules=known_modules,
                 )
 
@@ -618,7 +614,7 @@ class ModelLoopTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
             result = run_model_task_wrapper(
-                "Build src/cart.py and tests/test_cart.py.",
+                "Build src/cart.py and src/checkout.py.",
                 workspace=workspace,
                 run_id="import-existing",
                 api_key="key",
@@ -630,7 +626,7 @@ class ModelLoopTests(unittest.TestCase):
             self.assertEqual(provider.calls, 3)
             self.assertEqual(result["status"], "completed")
             self.assertEqual(result["delivery_status"], "deliverable")
-            self.assertIn("from src.cart import Cart", (workspace / "tests" / "test_cart.py").read_text(encoding="utf-8"))
+            self.assertIn("from src.cart import Cart", (workspace / "src" / "checkout.py").read_text(encoding="utf-8"))
 
     def test_invalid_json_retries_the_same_step_without_a_file_slot(self):
         class RetryThenWrite:
@@ -769,6 +765,58 @@ class ModelLoopTests(unittest.TestCase):
             self.assertEqual(result["delivery_status"], "deliverable")
             self.assertEqual((workspace / "src" / "one.py").read_text(encoding="utf-8"), "VALUE = 1\n")
             self.assertEqual(result["iching_status_code"], IchingKernel.transition(IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.QIAN)).status_code)
+
+    def test_patch_repair_after_verifier_failure_supports_multiple_attempts(self):
+        from onecode.kernel.sandbox import SandboxConfig
+        from onecode.kernel.verifier import VerifierResult
+
+        write_plan = ModelPlan(
+            task="write",
+            assets=[ModelPlanAsset(path="src/one.py", content="VALUE = 0\n")],
+        )
+        patch_plan_1 = ModelPlan(
+            task="repair-1",
+            patches=[ModelPlanPatch(path="src/one.py", search_block="VALUE = 0\n", replace_block="VALUE = 0.5\n")],
+        )
+        patch_plan_2 = ModelPlan(
+            task="repair-2",
+            patches=[ModelPlanPatch(path="src/one.py", search_block="VALUE = 0.5\n", replace_block="VALUE = 1\n")],
+        )
+        failed1 = VerifierResult(
+            id="python-unittest", status="failed", reason="verifier_failed", failure_kind="command_failed",
+            exit_code=1, duration_ms=1, stdout_tail="", stderr_tail="AssertionError: 0 != 1",
+            stdout_sha256="0" * 64, stderr_sha256="0" * 64, cwd=".", command=["python3", "-m", "unittest"],
+        )
+        failed2 = VerifierResult(
+            id="python-unittest", status="failed", reason="verifier_failed", failure_kind="command_failed",
+            exit_code=1, duration_ms=1, stdout_tail="", stderr_tail="AssertionError: 0.5 != 1",
+            stdout_sha256="0" * 64, stderr_sha256="0" * 64, cwd=".", command=["python3", "-m", "unittest"],
+        )
+        passed = VerifierResult(
+            id="python-unittest", status="passed", reason=None, failure_kind=None,
+            exit_code=0, duration_ms=1, stdout_tail="OK", stderr_tail="",
+            stdout_sha256="0" * 64, stderr_sha256="0" * 64, cwd=".", command=["python3", "-m", "unittest"],
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "tests").mkdir()
+            (workspace / "tests" / "test_one.py").write_text("import unittest\n", encoding="utf-8")
+            with patch("onecode.kernel.verifier.run_verifier", side_effect=[failed1, failed2, passed]):
+                result = run_model_task_wrapper(
+                    "fix src/one.py",
+                    workspace=workspace,
+                    run_id="repair-multi-attempt",
+                    api_key="key",
+                    model="m",
+                    provider=SequenceModelProvider([write_plan, patch_plan_1, patch_plan_2]),
+                    execution_approval=lambda step: True,
+                    max_repair_attempts=2,
+                    sandbox_config=SandboxConfig(workspace=workspace, image="python:3.12-slim", network="none"),
+                )
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["delivery_status"], "deliverable")
+            self.assertEqual((workspace / "src" / "one.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+            self.assertEqual(result["repair_attempt_count"], 2)
 
     def test_patch_repair_must_not_change_tests(self):
         from onecode.kernel.sandbox import SandboxConfig
@@ -2290,7 +2338,43 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
             )
 
             self.assertEqual(result["status"], "completed", result.get("reason"))
-            self.assertEqual(target.read_text(encoding="utf-8"), 'def add():\n    return {"status": "added"}\n')
+
+    def test_run_model_task_strict_vs_scoped_auto_mode(self):
+        from onecode.kernel.model_loop import run_model_task
+
+        plan = ModelPlan(
+            task="write src/mesh.py",
+            assets=[ModelPlanAsset(path="src/mesh.py", content="VALUE = 1\n")],
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            strict_result = run_model_task(
+                "write src/mesh.py",
+                workspace=workspace,
+                run_id="strict-plan",
+                api_key="key",
+                model="m",
+                provider=SequenceModelProvider([plan]),
+                require_explicit_approval=True,
+                execution_approval=None,
+                approval_mode="strict",
+            )
+            self.assertEqual(strict_result["status"], "halted")
+            self.assertEqual(strict_result["reason"], "approval_required")
+
+            auto_result = run_model_task(
+                "write src/mesh.py",
+                workspace=workspace,
+                run_id="auto-plan",
+                api_key="key",
+                model="m",
+                provider=SequenceModelProvider([plan]),
+                require_explicit_approval=True,
+                execution_approval=None,
+                approval_mode="scoped_auto",
+            )
+            self.assertEqual(auto_result["status"], "completed")
+            self.assertEqual((workspace / "src" / "mesh.py").read_text(encoding="utf-8"), "VALUE = 1\n")
 
 
 if __name__ == "__main__":

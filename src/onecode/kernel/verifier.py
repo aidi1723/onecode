@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -45,6 +46,20 @@ ALLOWED_VERIFIER_COMMANDS = {  # type: ignore
     for preset in VERIFIER_POLICY_PRESETS.values()
 }
 PYTHON_EXECUTABLE_NAMES = {"python", "python3", Path(sys.executable).name}
+ALLOWED_UNITTEST_FLAGS = frozenset({"-v", "-q", "-f", "--failfast", "-b", "--buffer"})
+
+
+def _is_safe_test_target(target: str) -> bool:
+    if not isinstance(target, str) or not target:
+        return False
+    normalized = target.replace("\\", "/")
+    if normalized.startswith("-") or ".." in normalized:
+        return False
+    if re.match(r"^tests/[a-zA-Z0-9_./]+\.py$", normalized):
+        return True
+    if re.match(r"^tests(\.[a-zA-Z0-9_]+)+$", normalized):
+        return True
+    return False
 
 
 def _allowed_python_executables() -> set[Path]:
@@ -76,6 +91,12 @@ def verifier_command_allowed(command: list[str]) -> bool:
             continue
         if _python_executable_allowed(allowed[0]) and tuple(command[1:]) == tuple(allowed[1:]):
             return True
+    if len(command) >= 4 and command[1:3] == ["-m", "unittest"]:
+        remaining = command[3:]
+        targets = [arg for arg in remaining if arg not in ALLOWED_UNITTEST_FLAGS]
+        if targets and all(_is_safe_test_target(target) for target in targets):
+            if all(arg in ALLOWED_UNITTEST_FLAGS or not arg.startswith("-") for arg in remaining):
+                return True
     return False
 
 
@@ -370,6 +391,78 @@ def validate_selected_verifiers(workspace: Path, policy: VerifierPolicy, verifie
     for spec in specs:
         resolve_verifier_cwd(workspace, spec.cwd)
     return specs
+
+
+def targeted_test_for_path(workspace: Path, modified_path: str) -> str | None:
+    if not isinstance(modified_path, str) or not modified_path:
+        return None
+    try:
+        path_obj = Path(modified_path)
+        if path_obj.is_absolute():
+            normalized = path_obj.resolve().relative_to(workspace.resolve()).as_posix()
+        else:
+            normalized = modified_path.replace("\\", "/")
+    except ValueError:
+        return None
+    if ".." in normalized or normalized.startswith("/"):
+        return None
+    if normalized.startswith("tests/") and normalized.endswith(".py"):
+        target = workspace / normalized
+        return normalized if target.is_file() else None
+    if normalized.startswith("src/") and normalized.endswith(".py"):
+        stem = Path(normalized).stem
+        candidate = f"tests/test_{stem}.py"
+        target = workspace / candidate
+        if target.is_file():
+            return candidate
+    return None
+
+
+def run_two_stage_verifier(
+    workspace: Path,
+    targeted_test: str | None = None,
+    trace_path: Path | None = None,
+    trace_id: str | None = None,
+    run_id: str | None = None,
+    sandbox_config: SandboxConfig | None = None,
+    timeout_ms: int = 120_000,
+) -> tuple[VerifierResult, list[VerifierResult]]:
+    results: list[VerifierResult] = []
+    if targeted_test:
+        stage1_spec = VerifierSpec(
+            id="python-unittest-targeted",
+            command=["python3", "-m", "unittest", targeted_test],
+            cwd=".",
+            timeout_ms=min(30_000, timeout_ms),
+        )
+        stage1_result = run_verifier(
+            workspace,
+            stage1_spec,
+            trace_path=trace_path,
+            trace_id=trace_id,
+            run_id=run_id,
+            sandbox_config=sandbox_config,
+        )
+        results.append(stage1_result)
+        if stage1_result.status != "passed":
+            return stage1_result, results
+
+    stage2_spec = VerifierSpec(
+        id="python-unittest",
+        command=["python3", "-m", "unittest", "discover", "-s", "tests"],
+        cwd=".",
+        timeout_ms=timeout_ms,
+    )
+    stage2_result = run_verifier(
+        workspace,
+        stage2_spec,
+        trace_path=trace_path,
+        trace_id=trace_id,
+        run_id=run_id,
+        sandbox_config=sandbox_config,
+    )
+    results.append(stage2_result)
+    return stage2_result, results
 
 
 def task_status_from_results(asset_result: dict[str, Any], verifier_results: list[VerifierResult]) -> dict[str, Any]:

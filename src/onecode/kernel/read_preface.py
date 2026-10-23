@@ -45,6 +45,9 @@ def survey_reads(
     propose: Propose,
     execute: Execute,
     max_turns: int = 4,
+    *,
+    max_read_misses: int = 4,
+    output_limit: int = 4_000,
 ) -> dict[str, Any]:
     result = run_agent_cycle(
         propose=_read_only_propose(propose),
@@ -54,6 +57,8 @@ def survey_reads(
         workspace=workspace,
         remember=False,
         approve=lambda _tool_name, _params: False,
+        max_read_misses=max_read_misses,
+        output_limit=output_limit,
     )
     reason = result.get("reason") if isinstance(result.get("reason"), str) else None
     status = str(result.get("status") or "halted")

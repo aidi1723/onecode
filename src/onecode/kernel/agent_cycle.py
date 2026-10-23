@@ -42,9 +42,15 @@ def run_agent_cycle(
     verifier_runner: Callable[[Path, list[str]], dict[str, Any]] | None = None,
     write_runner: Callable[[Path, str, str], dict[str, Any]] | None = None,
     write_content: str | None = None,
+    max_read_misses: int = 2,
+    output_limit: int = OUTPUT_LIMIT,
 ) -> dict[str, Any]:
     if isinstance(max_turns, bool) or not isinstance(max_turns, int) or max_turns <= 0:
         raise ValueError("max_turns must be a positive integer")
+    if isinstance(max_read_misses, bool) or not isinstance(max_read_misses, int) or max_read_misses <= 0:
+        raise ValueError("max_read_misses must be a positive integer")
+    if isinstance(output_limit, bool) or not isinstance(output_limit, int) or output_limit < 256:
+        raise ValueError("output_limit must be an integer >= 256")
     if admission is not None:
         return _admission_halt(
             admission,
@@ -62,6 +68,9 @@ def run_agent_cycle(
         "warned": False,
         "output": "",
         "miss_streak": 0,
+        "read_miss_streak": 0,
+        "max_read_misses": max_read_misses,
+        "output_limit": output_limit,
         "progress_output": None,
         "retryable": False,
         "retry_streak": 0,
@@ -142,7 +151,7 @@ def _run_proposal(
                 "output": "",
                 "calls": calls,
             }
-        if repeat["miss_streak"] >= 2:
+        if repeat["miss_streak"] >= 2 or repeat["read_miss_streak"] >= repeat.get("max_read_misses", 2):
             return _no_progress(tool_name, calls)
         gate = _approval_gate(tool_name, params, approve, calls, workspace, granted)  # type: ignore
         if gate is not None:
@@ -169,7 +178,7 @@ def _run_proposal(
             }
         before = _workspace_fingerprint(workspace) if workspace is not None else None
         outcome = execute(tool_name, params)  # type: ignore
-        output = _tool_output(outcome)
+        output = _tool_output(outcome, limit=int(repeat.get("output_limit", OUTPUT_LIMIT)))
         record = {
             "tool_name": tool_name,
             "status": outcome.get("status", "completed"),
@@ -187,6 +196,7 @@ def _run_proposal(
             repeat["retryable"] = True
             repeat["retry_streak"] += 1
             repeat["miss_streak"] = 0
+            repeat["read_miss_streak"] = 0
             repeat["progress_output"] = output
             if repeat["retry_streak"] >= 3:
                 record["retryable"] = False
@@ -241,9 +251,13 @@ def _no_progress(tool_name: str, calls: list[dict[str, Any]]) -> dict[str, Any]:
 
 def _note_progress(repeat: dict[str, Any], record: dict[str, Any], fingerprint_changed: bool) -> None:
     if _unproductive(record, fingerprint_changed, repeat.get("progress_output")):
-        repeat["miss_streak"] += 1
+        if record.get("tool_name") in READ_ONLY_TOOLS:
+            repeat["read_miss_streak"] = int(repeat.get("read_miss_streak", 0)) + 1
+        else:
+            repeat["miss_streak"] += 1
     else:
         repeat["miss_streak"] = 0
+        repeat["read_miss_streak"] = 0
     repeat["progress_output"] = record.get("output")
 
 
@@ -357,7 +371,7 @@ def _call_signature(tool_name: str, params: dict[str, Any]) -> str:
     return json.dumps({"tool": tool_name, "params": params}, ensure_ascii=False, sort_keys=True, default=str)
 
 
-def _tool_output(outcome: dict[str, Any]) -> str:
+def _tool_output(outcome: dict[str, Any], *, limit: int = OUTPUT_LIMIT) -> str:
     chunks: list[str] = []
     for key in ("stdout", "stderr", "diff"):
         value = outcome.get(key)
@@ -387,34 +401,34 @@ def _tool_output(outcome: dict[str, Any]) -> str:
                 lines.append(str(item))
         chunks.append("\n".join(lines))
     text = "\n".join(chunks)
-    return _truncate(text)
+    return _truncate(text, limit=limit)
 
 
-def _truncate(text: str) -> str:
-    if len(text) <= OUTPUT_LIMIT:
+def _truncate(text: str, *, limit: int = OUTPUT_LIMIT) -> str:
+    if len(text) <= limit:
         return text
     tail_len = 480
     for _ in range(4):
-        omitted = len(text) - (OUTPUT_LIMIT - tail_len)
+        omitted = len(text) - (limit - tail_len)
         marker = f"\n[truncated remaining={max(omitted, 0)}]\n"
-        head_len = OUTPUT_LIMIT - len(marker) - tail_len
+        head_len = limit - len(marker) - tail_len
         if head_len < 80:
             tail_len = max(120, tail_len - 80)
             continue
         omitted = len(text) - head_len - tail_len
         marker = f"\n[truncated remaining={omitted}]\n"
-        head_len = OUTPUT_LIMIT - len(marker) - tail_len
+        head_len = limit - len(marker) - tail_len
         if omitted == len(text) - head_len - tail_len and head_len > 0:
             break
     head = text[:head_len]
     tail = text[-tail_len:]
     omitted = len(text) - len(head) - len(tail)
     marker = f"\n[truncated remaining={omitted}]\n"
-    if len(head) + len(marker) + len(tail) > OUTPUT_LIMIT:
-        head = text[: OUTPUT_LIMIT - len(marker) - len(tail)]
+    if len(head) + len(marker) + len(tail) > limit:
+        head = text[: limit - len(marker) - len(tail)]
         omitted = len(text) - len(head) - len(tail)
         marker = f"\n[truncated remaining={omitted}]\n"
-        head = text[: OUTPUT_LIMIT - len(marker) - len(tail)]
+        head = text[: limit - len(marker) - len(tail)]
     return head + marker + tail
 
 

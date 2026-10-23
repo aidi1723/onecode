@@ -150,6 +150,79 @@ class ApprovalPlanTests(unittest.TestCase):
         self.assertEqual(results.count("executing-plans"), 1)
         self.assertEqual(results.count("approval_plan_in_progress"), 1)
 
+    def test_model_plan_requires_approval_strict_and_scoped_auto_boundaries(self):
+        from onecode.kernel.approval_plans import model_plan_requires_approval
+        from onecode.kernel.model_provider import ModelExecutionStep, ModelPlan, ModelPlanAsset, ModelPlanPatch, ModelToolCall
+
+        src_asset_plan = ModelPlan(
+            task="write src/pay.py",
+            assets=[ModelPlanAsset(path="src/pay.py", content="RATE = 10\n")],
+        )
+        src_patch_plan = ModelPlan(
+            task="patch src/pay.py",
+            patches=[ModelPlanPatch(path="src/pay.py", search_block="RATE = 8\n", replace_block="RATE = 10\n")],
+        )
+        docs_asset_plan = ModelPlan(
+            task="write docs/spec.md",
+            assets=[ModelPlanAsset(path="docs/spec.md", content="# Spec\n")],
+        )
+        git_commit_plan = ModelPlan(
+            task="commit changes",
+            execution_steps=[
+                ModelExecutionStep(
+                    id="commit",
+                    description="commit",
+                    tool_calls=[ModelToolCall(tool_name="git_commit", params={"message": "ok", "paths": ["src/pay.py"]})],
+                )
+            ],
+        )
+        mcp_plan = ModelPlan(
+            task="call mcp",
+            execution_steps=[
+                ModelExecutionStep(
+                    id="mcp",
+                    description="mcp",
+                    tool_calls=[ModelToolCall(tool_name="mcp.server.query", params={})],
+                )
+            ],
+        )
+        run_command_plan = ModelPlan(
+            task="run bash",
+            execution_steps=[
+                ModelExecutionStep(
+                    id="run",
+                    description="run",
+                    tool_calls=[ModelToolCall(tool_name="run_command", params={"argv": ["ls"]})],
+                )
+            ],
+        )
+        read_only_plan = ModelPlan(
+            task="read files",
+            execution_steps=[
+                ModelExecutionStep(
+                    id="read",
+                    description="read",
+                    tool_calls=[ModelToolCall(tool_name="read_text", params={"path": "src/pay.py"})],
+                )
+            ],
+        )
+
+        self.assertTrue(model_plan_requires_approval(src_asset_plan, mode="strict"))
+        self.assertTrue(model_plan_requires_approval(src_patch_plan, mode="strict"))
+        self.assertTrue(model_plan_requires_approval(docs_asset_plan, mode="strict"))
+        self.assertFalse(model_plan_requires_approval(read_only_plan, mode="strict"))
+
+        self.assertFalse(model_plan_requires_approval(src_asset_plan, mode="scoped_auto"))
+        self.assertFalse(model_plan_requires_approval(src_patch_plan, mode="scoped_auto"))
+        self.assertTrue(model_plan_requires_approval(docs_asset_plan, mode="scoped_auto"))
+        self.assertTrue(model_plan_requires_approval(git_commit_plan, mode="scoped_auto"))
+        self.assertTrue(model_plan_requires_approval(mcp_plan, mode="scoped_auto"))
+        self.assertTrue(model_plan_requires_approval(run_command_plan, mode="scoped_auto"))
+        self.assertFalse(model_plan_requires_approval(read_only_plan, mode="scoped_auto"))
+
+        with self.assertRaises(ValueError):
+            model_plan_requires_approval(src_asset_plan, mode="unknown_mode")
+
 
 if __name__ == "__main__":
     unittest.main()

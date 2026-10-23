@@ -16,7 +16,10 @@ class TestExecutionToolsFallback(unittest.TestCase):
         mock_popen.return_value = mock_proc
         
         code, out, err = _run_command(["echo", "hi"], Path("/tmp"), 10)
-        self.assertIn("[WARNING: Docker sandbox unavailable, command executed on host fallback]", err)
+        mock_popen.assert_not_called()
+        self.assertEqual(code, 1)
+        self.assertEqual(out, "")
+        self.assertEqual(err, "sandbox_required")
 
     @patch("onecode.kernel.execution_tools._docker_daemon_ready", return_value=True)
     @patch("onecode.kernel.sandbox.run_in_reused_sandbox")
@@ -31,7 +34,10 @@ class TestExecutionToolsFallback(unittest.TestCase):
         mock_popen.return_value = mock_proc
         
         code, out, err = _run_command(["echo", "hi"], Path("/tmp"), 10)
-        self.assertIn("[WARNING: Docker sandbox unavailable, command executed on host fallback]", err)
+        mock_popen.assert_not_called()
+        self.assertEqual(code, 1)
+        self.assertEqual(out, "")
+        self.assertEqual(err, "sandbox_required")
         
     @patch("onecode.kernel.execution_tools.subprocess.Popen")
     @patch.dict(os.environ, {"ONECODE_RUN_COMMAND_SANDBOX": "host"}, clear=True)

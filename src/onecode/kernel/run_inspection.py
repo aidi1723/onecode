@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -422,6 +423,42 @@ def read_global_wal_entries(workspace: Path) -> tuple[list[dict] | None, str | N
             return None, str(wal_path), corrupt_reason
         entries.extend(segment_entries)
     return entries, None, None
+
+
+def _items_match_workspace(workspace_root: Path, items: Any, mismatch_reason: str) -> str | None:
+    if not isinstance(items, list):
+        return None
+    for item in items:
+        if not isinstance(item, dict) or not isinstance(item.get("p"), str) or not isinstance(item.get("s"), str):
+            return mismatch_reason
+        try:
+            target = PathGuard.resolve_contained(workspace_root, item["p"])
+        except PathGuardError:
+            return mismatch_reason
+        if not target.is_file() or hashlib.sha256(target.read_bytes()).hexdigest() != item["s"]:
+            return mismatch_reason
+    return None
+
+
+def ledger_matches_workspace(workspace: Path) -> str | None:
+    entries, _, corrupt_reason = read_global_wal_entries(workspace)
+    if corrupt_reason is not None or entries is None:
+        return corrupt_reason
+    target_entry = next(
+        (
+            entry
+            for entry in reversed(entries)
+            if isinstance(entry.get("th"), list) or isinstance(entry.get("as"), list)
+        ),
+        None,
+    )
+    if target_entry is None:
+        return None
+    resolved_root = workspace.resolve()
+    test_check = _items_match_workspace(resolved_root, target_entry.get("th"), "preset_test_hash_mismatch")
+    if test_check is not None:
+        return test_check
+    return _items_match_workspace(resolved_root, target_entry.get("as"), "asset_hash_mismatch")
 
 
 def read_global_wal_run_entry(workspace: Path, run_id: str) -> tuple[dict | None, str | None, str | None]:

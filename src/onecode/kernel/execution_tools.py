@@ -92,7 +92,7 @@ class PatchTextTool(ToolDefinition):
         return action
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
-        from onecode.kernel.patching import PatchIntent, commit_patch
+        from onecode.kernel.patching import PatchIntent, commit_patch, find_closest_patch_context
 
         action = self.plan_action(params)
         result = commit_patch(
@@ -100,7 +100,11 @@ class PatchTextTool(ToolDefinition):
             PatchIntent(path=action["path"], search_block=action["search_block"], replace_block=action["replace_block"]),
         )
         if result.get("reason") in {"patch_search_not_found", "patch_search_ambiguous"}:
-            return {**result, "reason": "patch_mismatch"}
+            return {
+                **result,
+                "reason": "patch_mismatch",
+                "closest_context": find_closest_patch_context(workspace, action["path"], action["search_block"]),
+            }
         return result
 
 
@@ -111,12 +115,33 @@ class ReadTextTool(ToolDefinition):
     runner_managed: bool = False
 
     def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
-        _reject_unknown_params(params, {"path", "max_bytes", "max_lines", "status_code"})
+        _reject_unknown_params(
+            params,
+            {"path", "max_bytes", "max_lines", "start_line", "end_line", "line_numbers", "status_code"},
+        )
+        start_line = (
+            _bounded_int(params["start_line"], "start_line", 1, 1_000_000)
+            if params.get("start_line") is not None
+            else None
+        )
+        end_line = (
+            _bounded_int(params["end_line"], "end_line", 1, 1_000_000)
+            if params.get("end_line") is not None
+            else None
+        )
+        if start_line is not None and end_line is not None and end_line < start_line:
+            raise ValueError("end_line must be >= start_line")
+        line_numbers = params.get("line_numbers", False)
+        if not isinstance(line_numbers, bool):
+            raise ValueError("line_numbers must be boolean")
         action = {
             "action_type": self.name,
             "path": _required_string(params, "path"),
             "max_bytes": _bounded_int(params.get("max_bytes", 200_000), "max_bytes", 1, 1_000_000),
             "max_lines": _bounded_int(params.get("max_lines", 400), "max_lines", 1, 10_000),
+            "start_line": start_line,
+            "end_line": end_line,
+            "line_numbers": line_numbers,
         }
         return _attach_status_code(action, params)
 
@@ -132,13 +157,26 @@ class ReadTextTool(ToolDefinition):
         byte_truncated = len(raw) > action["max_bytes"]
         text = raw[: action["max_bytes"]].decode("utf-8")
         lines = text.splitlines(keepends=True)
-        line_truncated = len(lines) > action["max_lines"]
-        content = "".join(lines[: action["max_lines"]])
+        total_lines = len(lines)
+        start_idx = (action["start_line"] - 1) if action["start_line"] is not None else 0
+        end_idx = action["end_line"] if action["end_line"] is not None else total_lines
+        window = lines[start_idx:end_idx]
+        line_truncated = len(window) > action["max_lines"]
+        selected = window[: action["max_lines"]]
+        if action["line_numbers"]:
+            content = "".join(f"{start_idx + i + 1}: {line}" for i, line in enumerate(selected))
+        else:
+            content = "".join(selected)
+        actual_start = (start_idx + 1) if selected else (action["start_line"] or 1)
+        actual_end = (start_idx + len(selected)) if selected else (action["end_line"] or 0)
         return {
             "path": str(target.relative_to(workspace.resolve())),
             "content": content,
             "byte_count": len(content.encode("utf-8")),
-            "line_count": min(len(lines), action["max_lines"]),
+            "line_count": len(selected),
+            "start_line": actual_start,
+            "end_line": actual_end,
+            "total_lines": total_lines,
             "truncated": byte_truncated or line_truncated,
         }
 
@@ -444,9 +482,9 @@ def _run_command(
 ) -> tuple[int, str, str]:
     mode = os.environ.get("ONECODE_RUN_COMMAND_SANDBOX", "auto").strip().lower()
     use_docker = mode in {"docker", "on", "true", "1"} or (mode not in {"host", "off", "false", "0"} and _docker_daemon_ready())
-    fallback_used = False
     explicit_host = mode in {"host", "off", "false", "0"}
-    
+    forced_docker = mode in {"docker", "on", "true", "1"}
+
     if use_docker:
         from onecode.kernel import sandbox as sandbox_runtime
         config = sandbox_runtime.with_runnable_image(
@@ -459,28 +497,22 @@ def _run_command(
         except subprocess.TimeoutExpired:
             raise
         except (OSError, ValueError):
-            if mode in {"docker", "on", "true", "1"}:
+            if forced_docker:
                 raise
-            fallback_used = True
+            return 1, "", "sandbox_required"
         else:
             stdout = completed.stdout or ""
             stderr = completed.stderr or ""
             daemon_down = "cannot connect to the docker daemon" in stderr.lower()
-            if mode in {"docker", "on", "true", "1"} or not daemon_down:
-                if on_output is not None and stdout:
-                    on_output(stdout)
-                return completed.returncode, stdout, stderr
-            fallback_used = True
-    elif not explicit_host:
-        fallback_used = True
+            if daemon_down and not forced_docker:
+                return 1, "", "sandbox_required"
+            if on_output is not None and stdout:
+                on_output(stdout)
+            return completed.returncode, stdout, stderr
+    if not explicit_host:
+        return 1, "", "sandbox_required"
 
     argv = _with_available_python(argv)
-    warning_msg = ""
-    if fallback_used:
-        warning_msg = "[WARNING: Docker sandbox unavailable, command executed on host fallback]\n"
-        if on_output is not None:
-            on_output(warning_msg)
-            
     if on_output is None:
         proc = subprocess.Popen(
             argv,
@@ -501,11 +533,10 @@ def _run_command(
                 pass
             proc.communicate()
             raise
-        stderr_val = warning_msg + err if warning_msg else err
-        return proc.returncode, out, stderr_val
-    
+        return proc.returncode, out, err
+
     code, out, err = _stream_host_command(argv, workspace, timeout_seconds, on_output)
-    return code, out, (warning_msg + err if warning_msg else err)
+    return code, out, err
 
 
 @dataclass(frozen=True)

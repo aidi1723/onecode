@@ -468,3 +468,114 @@ class VerifierExecutionTests(unittest.TestCase):
             self.assertEqual(result.status, "passed")
             self.assertIn("docker", called_command)
             self.assertIn("/workspace", called_command)
+
+    def test_verifier_command_allowed_supports_targeted_unittest(self):
+        from onecode.kernel.verifier import verifier_command_allowed
+
+        self.assertTrue(verifier_command_allowed(["python3", "-m", "unittest", "tests.test_pay"]))
+        self.assertTrue(verifier_command_allowed(["python3", "-m", "unittest", "tests/test_pay.py"]))
+        self.assertTrue(verifier_command_allowed(["python3", "-m", "unittest", "-v", "tests/test_pay.py"]))
+        self.assertTrue(verifier_command_allowed(["python3", "-m", "unittest", "-q", "tests.test_pay"]))
+        self.assertFalse(verifier_command_allowed(["python3", "-m", "unittest", "../outside.py"]))
+        self.assertFalse(verifier_command_allowed(["python3", "-m", "unittest", "src/pay.py"]))
+        self.assertFalse(verifier_command_allowed(["python3", "-m", "unittest", "tests/../evil.py"]))
+        self.assertFalse(verifier_command_allowed(["python3", "-m", "pytest", "tests/test_pay.py"]))
+
+    def test_targeted_test_for_path_resolves_corresponding_test(self):
+        from onecode.kernel.verifier import targeted_test_for_path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "tests").mkdir()
+            (workspace / "src" / "pay.py").write_text("RATE = 10\n", encoding="utf-8")
+            (workspace / "tests" / "test_pay.py").write_text("import unittest\n", encoding="utf-8")
+
+            self.assertEqual(targeted_test_for_path(workspace, "src/pay.py"), "tests/test_pay.py")
+            self.assertIsNone(targeted_test_for_path(workspace, "src/missing_test.py"))
+            self.assertIsNone(targeted_test_for_path(workspace, "../escape.py"))
+
+    def test_run_two_stage_verifier_short_circuits_on_stage1_failure(self):
+        from onecode.kernel.verifier import VerifierResult, run_two_stage_verifier
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "tests").mkdir()
+            (workspace / "tests" / "test_pay.py").write_text("import unittest\n", encoding="utf-8")
+
+            failed_stage1 = VerifierResult(
+                id="python-unittest-targeted",
+                status="failed",
+                reason="verifier_failed",
+                failure_kind="command_failed",
+                exit_code=1,
+                duration_ms=50,
+                stdout_tail="",
+                stderr_tail="AssertionError in test_pay\n",
+                stdout_sha256="",
+                stderr_sha256="",
+                cwd=".",
+                command=["python3", "-m", "unittest", "tests/test_pay.py"],
+            )
+
+            with patch("onecode.kernel.verifier.run_verifier", return_value=failed_stage1) as mock_run:
+                final, all_results = run_two_stage_verifier(
+                    workspace,
+                    targeted_test="tests/test_pay.py",
+                    sandbox_config=None,
+                )
+
+            self.assertEqual(final.status, "failed")
+            self.assertEqual(len(all_results), 1)
+            self.assertEqual(all_results[0].id, "python-unittest-targeted")
+            mock_run.assert_called_once()
+
+    def test_run_two_stage_verifier_proceeds_to_stage2_on_stage1_pass(self):
+        from onecode.kernel.verifier import VerifierResult, run_two_stage_verifier
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "tests").mkdir()
+            (workspace / "tests" / "test_pay.py").write_text("import unittest\n", encoding="utf-8")
+
+            passed_stage1 = VerifierResult(
+                id="python-unittest-targeted",
+                status="passed",
+                reason=None,
+                failure_kind=None,
+                exit_code=0,
+                duration_ms=40,
+                stdout_tail="Ran 1 test in 0.01s\nOK\n",
+                stderr_tail="",
+                stdout_sha256="",
+                stderr_sha256="",
+                cwd=".",
+                command=["python3", "-m", "unittest", "tests/test_pay.py"],
+            )
+            passed_stage2 = VerifierResult(
+                id="python-unittest",
+                status="passed",
+                reason=None,
+                failure_kind=None,
+                exit_code=0,
+                duration_ms=120,
+                stdout_tail="Ran 5 tests in 0.05s\nOK\n",
+                stderr_tail="",
+                stdout_sha256="",
+                stderr_sha256="",
+                cwd=".",
+                command=["python3", "-m", "unittest", "discover", "-s", "tests"],
+            )
+
+            with patch("onecode.kernel.verifier.run_verifier", side_effect=[passed_stage1, passed_stage2]) as mock_run:
+                final, all_results = run_two_stage_verifier(
+                    workspace,
+                    targeted_test="tests/test_pay.py",
+                    sandbox_config=None,
+                )
+
+            self.assertEqual(final.status, "passed")
+            self.assertEqual(len(all_results), 2)
+            self.assertEqual(all_results[0].id, "python-unittest-targeted")
+            self.assertEqual(all_results[1].id, "python-unittest")
+            self.assertEqual(mock_run.call_count, 2)

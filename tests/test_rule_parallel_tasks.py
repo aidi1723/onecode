@@ -1,3 +1,4 @@
+import os
 import sys
 import tempfile
 import unittest
@@ -103,8 +104,21 @@ class ParallelRuleTaskTests(unittest.TestCase):
             command_trace = _execute(workspace, "commands", command_steps)
             patch_by_id = {step.step_id: step for step in patch_trace.step_results}
             command_by_id = {step.step_id: step for step in command_trace.step_results}
+            from onecode.kernel.execution_tools import _docker_daemon_ready
+
+            host_mode = os.environ.get("ONECODE_RUN_COMMAND_SANDBOX", "auto").strip().lower() in {
+                "host",
+                "off",
+                "false",
+                "0",
+            }
+            can_execute = host_mode or _docker_daemon_ready()
             self.assertEqual(len(patch_by_id), 64)
-            self.assertEqual(len(command_by_id), 64)
+            if can_execute:
+                self.assertEqual(len(command_by_id), 64)
+            else:
+                self.assertGreater(len(command_by_id), 0)
+                self.assertLess(len(command_by_id), 64)
             for code in range(64):
                 ruling = IchingKernel.action_ruling(code, "patch_text")
                 command_ruling = IchingKernel.action_ruling(code, "run_command")
@@ -117,8 +131,16 @@ class ParallelRuleTaskTests(unittest.TestCase):
                     else:
                         self.assertEqual(patched, "VALUE = 1\n")
                         self.assertEqual(patch_by_id[f"patch-{code}"].reason, ruling["reason"])
-                    if command_ruling["outcome"] == "write":
-                        self.assertEqual(marker.read_text(encoding="utf-8"), "ran")
-                    else:
+                    recorded = command_by_id.get(f"command-{code}")
+                    if command_ruling["outcome"] != "write":
                         self.assertFalse(marker.exists())
-                        self.assertEqual(command_by_id[f"command-{code}"].reason, command_ruling["reason"])
+                        if recorded is not None:
+                            self.assertEqual(recorded.reason, command_ruling["reason"])
+                        continue
+                    if can_execute:
+                        self.assertEqual(marker.read_text(encoding="utf-8"), "ran")
+                        self.assertEqual(recorded.status, "completed")
+                        continue
+                    self.assertFalse(marker.exists())
+                    if recorded is not None:
+                        self.assertNotEqual(recorded.status, "completed")

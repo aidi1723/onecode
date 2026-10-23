@@ -263,6 +263,53 @@ class PatchingTests(unittest.TestCase):
         self.assertEqual(kwargs["replace_block"], "return True")
         process_exit_code.assert_called_once_with(status="completed", reason=None)
 
+    def test_apply_patch_preview_tolerates_trailing_whitespace_when_match_is_unique(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            target = workspace / "src" / "mesh.py"
+            target.parent.mkdir()
+            target.write_text("def status():   \n    return False\t \n", encoding="utf-8")
+
+            preview = apply_patch_preview(
+                workspace,
+                PatchIntent(
+                    path="src/mesh.py",
+                    search_block="def status():\n    return False",
+                    replace_block="def status():\n    return True",
+                ),
+            )
+            self.assertEqual(preview.status, "ready")
+            self.assertEqual(preview.content, "def status():\n    return True\n")
+
+            target.write_text("x = 1   \nx = 1\t\n", encoding="utf-8")
+            with self.assertRaisesRegex(PatchRejected, "patch_search_ambiguous"):
+                apply_patch_preview(
+                    workspace,
+                    PatchIntent(path="src/mesh.py", search_block="x = 1 ", replace_block="x = 2"),
+                )
+
+    def test_find_closest_patch_context_locates_best_matching_lines_with_line_numbers(self):
+        from onecode.kernel.patching import find_closest_patch_context
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            target = workspace / "src" / "service.py"
+            target.parent.mkdir()
+            lines = [f"def helper_{i}():\n    return {i}\n" for i in range(1, 25)]
+            lines[11] = "def calculate_discount(price_cents, tier):\n    if tier == 'gold':\n        return int(price_cents * 0.8)\n    return price_cents\n"
+            target.write_text("".join(lines), encoding="utf-8")
+
+            ctx = find_closest_patch_context(
+                workspace,
+                "src/service.py",
+                "def calculate_discount(price_cents, level):\n    if level == 'gold':\n        return int(price_cents * 0.85)",
+                context_lines=3,
+            )
+            self.assertTrue(ctx["found"])
+            self.assertGreater(ctx["similarity"], 0.6)
+            self.assertIn("def calculate_discount(price_cents, tier):", ctx["excerpt"])
+            self.assertRegex(ctx["excerpt"], r"(?m)^\d+: def calculate_discount")
+
 
 if __name__ == "__main__":
     unittest.main()

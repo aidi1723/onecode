@@ -325,7 +325,10 @@ def global_wal_entry(context: OneCodeContext, result: dict[str, Any]) -> dict[st
             entry["ssr"] = selection_reason
         if isinstance(selected_count, int) and selected_count > 0:
             entry["ssc"] = selected_count
-    if evidence_mode == "wal":
+    wal_tests = global_wal_preset_test_entries(result)
+    if wal_tests:
+        entry["th"] = wal_tests
+    if evidence_mode == "wal" or wal_tests or result.get("delivery_status") == "deliverable":
         wal_assets = global_wal_asset_entries(result)
         if wal_assets:
             entry["as"] = wal_assets
@@ -338,6 +341,21 @@ def global_wal_entry(context: OneCodeContext, result: dict[str, Any]) -> dict[st
             mutation_summary.get("latest_after_status_code"),
         ]
     return entry
+
+
+def global_wal_preset_test_entries(result: dict[str, Any]) -> list[dict[str, str]]:
+    hashes = result.get("preset_test_hashes")
+    if not isinstance(hashes, dict):
+        return []
+    normalized: list[tuple[str, str]] = []
+    for raw_path, digest in hashes.items():
+        if not isinstance(raw_path, str) or not isinstance(digest, str):
+            continue
+        posix_path = raw_path.replace("\\", "/").lstrip("./")
+        if not posix_path.startswith("tests/") or not posix_path.endswith(".py"):
+            continue
+        normalized.append((posix_path, digest))
+    return [{"p": path, "s": digest} for path, digest in sorted(normalized)]
 
 
 def global_wal_asset_entries(result: dict[str, Any]) -> list[dict[str, Any]]:

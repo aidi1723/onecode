@@ -1,3 +1,4 @@
+import os
 import sys
 import tempfile
 import unittest
@@ -76,8 +77,25 @@ class RuleActionTaskTests(unittest.TestCase):
                     "status_code": nourish,
                 },
             )
-            self.assertTrue(allowed.success)
-            self.assertEqual((workspace / "ran.txt").read_text(encoding="utf-8"), "ran")
+            from onecode.kernel.execution_tools import _docker_daemon_ready
+
+            host_mode = os.environ.get("ONECODE_RUN_COMMAND_SANDBOX", "auto").strip().lower() in {
+                "host",
+                "off",
+                "false",
+                "0",
+            }
+            can_execute = host_mode or _docker_daemon_ready()
+            if can_execute:
+                self.assertTrue(allowed.success)
+                self.assertEqual((workspace / "ran.txt").read_text(encoding="utf-8"), "ran")
+            else:
+                self.assertFalse(allowed.success)
+                self.assertFalse((workspace / "ran.txt").exists())
+                self.assertEqual(allowed.step_results[0].reason, "action_exception")
+                payload = allowed.step_results[0].tool_results[0].output["payload"]
+                self.assertEqual(payload["returncode"], 1)
+                self.assertEqual(payload["stderr"], "sandbox_required")
 
             untouched = _run(
                 workspace,

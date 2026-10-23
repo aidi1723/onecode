@@ -59,6 +59,7 @@ from onecode.kernel.gateway_engine import adjudicate_gateway_prediction, validat
 from onecode.kernel.model_provider import MissingModelApiKey, ModelProviderError, api_key_from_env, build_provider_config
 from onecode.kernel.allow_evidence import complete_allow_evidence
 from onecode.kernel.path_guard import PathGuard, PathGuardError
+from onecode.kernel.preset_tests import preset_test_hashes
 from onecode.kernel.prompt_rules import decide_prompt
 from onecode.kernel.project_context import discover_project_context
 from onecode.kernel.runner import run_task
@@ -441,23 +442,57 @@ def _stage_approved_host_bytes(workspace: Path, body: dict[str, Any]) -> None:
     stage_bytes(workspace, path, encoded, approved=True)
 
 
-def verify_shell_write(result: dict[str, Any], workspace: Path) -> dict[str, Any]:
+def verify_shell_write(
+    result: dict[str, Any],
+    workspace: Path,
+    before: dict[str, str] | None = None,
+    targeted_test: str | None = None,
+) -> dict[str, Any]:
     if result.get("status") != "completed" or not (workspace / "tests").is_dir():
         return result
+    current_tests = preset_test_hashes(workspace)
+    if before is not None and current_tests != before:
+        blocked = dict(result)
+        blocked["status"] = "halted"
+        blocked["reason"] = "verifier_failed"
+        blocked["delivery_status"] = "blocked"
+        blocked["preset_tests_changed"] = True
+        return blocked
     from onecode.kernel.run_inspection import apply_verifier_evidence
-    from onecode.kernel.verifier import VerifierSpec, run_verifier
+    from onecode.kernel.verifier import run_two_stage_verifier, targeted_test_for_path
 
-    checked = run_verifier(
+    resolved_target = targeted_test
+    if resolved_target is None:
+        for candidate_key in ("path", "target_path"):
+            val = result.get(candidate_key)
+            if isinstance(val, str):
+                resolved_target = targeted_test_for_path(workspace, val)
+                if resolved_target:
+                    break
+        if resolved_target is None and isinstance(result.get("payload"), dict):
+            payload_path = result["payload"].get("path")
+            if isinstance(payload_path, str):
+                resolved_target = targeted_test_for_path(workspace, payload_path)
+        if resolved_target is None and isinstance(result.get("assets"), list):
+            for asset in result["assets"]:
+                if isinstance(asset, dict) and isinstance(asset.get("path"), str):
+                    resolved_target = targeted_test_for_path(workspace, asset["path"])
+                    if resolved_target:
+                        break
+        if resolved_target is None and isinstance(result.get("patches"), list):
+            for patch_item in result["patches"]:
+                if isinstance(patch_item, dict) and isinstance(patch_item.get("path"), str):
+                    resolved_target = targeted_test_for_path(workspace, patch_item["path"])
+                    if resolved_target:
+                        break
+
+    checked, verifier_runs = run_two_stage_verifier(
         workspace,
-        VerifierSpec(
-            id="python-unittest",
-            command=["python3", "-m", "unittest", "discover", "-s", "tests"],
-            cwd=".",
-            timeout_ms=120000,
-        ),
+        targeted_test=resolved_target,
         sandbox_config=SandboxConfig(workspace=workspace),
     )
-    return apply_verifier_evidence(result, workspace, [checked])
+    verified = {**result, "preset_test_hashes": current_tests} if checked.status == "passed" else result
+    return apply_verifier_evidence(verified, workspace, verifier_runs)
 
 
 def handle_onecode_project_status(params: dict[str, Any]) -> tuple[dict[str, Any], int]:
@@ -629,6 +664,7 @@ def handle_onecode_plan_approval(
         except (ValueError, PathGuardError) as exc:
             finalize_approval_plan(stored, "rejected", {"status": "halted", "reason": "sovereignty_breach", "assets": []})
             return error_payload("invalid_stage", str(exc)), 400
+    before = preset_test_hashes(workspace)
     user_task = stored.model_metadata.get("user_task")
     user_task = user_task if isinstance(user_task, str) else ""
     written_before = set(required_python_files(user_task)) - set(missing_required_files(user_task, workspace)) if user_task else set()
@@ -650,7 +686,7 @@ def handle_onecode_plan_approval(
         if continued is not None:
             finalize_approval_plan(stored, "approved", result)
             return attach_shell_projection(continued), 200
-    result = verify_shell_write(result, workspace)
+    result = verify_shell_write(result, workspace, before)
     patch_only = bool(stored.plan.patches) and not stored.plan.assets and not stored.plan.execution_steps
     if _opens_complete_rewrite(result, patch_only) and not _rewrite_already_offered(user_task):
         rewrite = _offer_complete_rewrite(workspace, user_task or stored.plan.task, result)

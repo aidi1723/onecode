@@ -113,7 +113,7 @@ class ModelProviderContractTests(unittest.TestCase):
     def test_pytest_and_relative_imports_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "must not import pytest"):
             validate_model_plan(
-                {"task": "test", "assets": [{"path": "tests/test_a.py", "content": "import pytest\n"}]}
+                {"task": "test", "assets": [{"path": "src/a.py", "content": "import pytest\n"}]}
             )
         with self.assertRaisesRegex(ValueError, "must not use a relative import"):
             validate_model_plan(
@@ -128,23 +128,23 @@ class ModelProviderContractTests(unittest.TestCase):
             validate_model_plan(
                 {
                     "task": "test",
-                    "assets": [{"path": "tests/test_cart.py", "content": "from src.cart import Cart\n"}],
+                    "assets": [{"path": "src/checkout.py", "content": "from src.cart import Cart\n"}],
                 }
             )
         plan = validate_model_plan(
             {
                 "task": "test",
-                "assets": [{"path": "tests/test_cart.py", "content": "from src.cart import Cart\n"}],
+                "assets": [{"path": "src/checkout.py", "content": "from src.cart import Cart\n"}],
             },
             known_modules={"cart"},
         )
-        self.assertEqual(plan.assets[0].path, "tests/test_cart.py")
+        self.assertEqual(plan.assets[0].path, "src/checkout.py")
         plan = validate_model_plan(
             {
                 "task": "test",
                 "assets": [
                     {"path": "src/cart.py", "content": "class Cart:\n    pass\n"},
-                    {"path": "tests/test_cart.py", "content": "from src.cart import Cart\n"},
+                    {"path": "src/checkout.py", "content": "from src.cart import Cart\n"},
                 ],
             }
         )

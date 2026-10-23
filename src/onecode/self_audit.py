@@ -88,6 +88,12 @@ def audit_cli_entrypoint() -> dict:
     )
 
 
+def tui_import_is_optional(exc: BaseException) -> bool:
+    return isinstance(exc, ModuleNotFoundError) and (
+        exc.name == "textual" or (isinstance(exc.name, str) and exc.name.startswith("textual."))
+    )
+
+
 def audit_tui_bootstrap() -> dict:
     try:
         from onecode.tui.app import OneCodeApp
@@ -101,6 +107,15 @@ def audit_tui_bootstrap() -> dict:
             "provider_kind": app.provider_kind,
             "endpoint": app.endpoint,
         }
+    except ModuleNotFoundError as exc:
+        if tui_import_is_optional(exc):
+            return audit_check(
+                "tui_bootstrap",
+                True,
+                {"shell": "tui", "skipped_reason": "textual_not_installed"},
+            )
+        passed = False
+        detail = {"shell": "tui", "error": f"{type(exc).__name__}: {exc}"}
     except Exception as exc:  # pragma: no cover - exercised through audit output
         passed = False
         detail = {"shell": "tui", "error": f"{type(exc).__name__}: {exc}"}

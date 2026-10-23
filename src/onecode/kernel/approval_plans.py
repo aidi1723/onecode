@@ -206,14 +206,41 @@ def finalize_approval_plan(stored: StoredApprovalPlan, decision: str, result: di
     return path
 
 
-def model_plan_requires_approval(plan: ModelPlan) -> bool:
-    if plan.assets or plan.patches:
-        return True
-    return any(
-        tool.tool_name in GUARDED_TOOL_NAMES or tool.tool_name.startswith("mcp.")
-        for step in plan.execution_steps
-        for tool in step.tool_calls
-    )
+def _is_scoped_auto_path(path: str) -> bool:
+    if not isinstance(path, str) or not path:
+        return False
+    normalized = path.replace("\\", "/")
+    if normalized.startswith("/") or ".." in normalized:
+        return False
+    return normalized.startswith("src/")
+
+
+def model_plan_requires_approval(plan: ModelPlan, *, mode: str = "strict") -> bool:
+    if mode not in {"strict", "scoped_auto"}:
+        raise ValueError(f"unknown approval mode: {mode}")
+    if mode == "strict":
+        if plan.assets or plan.patches:
+            return True
+        return any(
+            tool.tool_name in GUARDED_TOOL_NAMES or tool.tool_name.startswith("mcp.")
+            for step in plan.execution_steps
+            for tool in step.tool_calls
+        )
+    for step in plan.execution_steps:
+        for tool in step.tool_calls:
+            if tool.tool_name in {"git_commit", "run_command"} or tool.tool_name.startswith("mcp."):
+                return True
+            if tool.tool_name in {"write_text", "patch_text"}:
+                target_path = tool.params.get("path")
+                if not isinstance(target_path, str) or not _is_scoped_auto_path(target_path):
+                    return True
+    for asset in plan.assets:
+        if not _is_scoped_auto_path(asset.path):
+            return True
+    for patch in plan.patches:
+        if not _is_scoped_auto_path(patch.path):
+            return True
+    return False
 
 
 def model_plan_to_dict(plan: ModelPlan) -> dict[str, Any]:

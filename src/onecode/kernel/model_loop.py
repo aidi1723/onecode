@@ -276,15 +276,24 @@ def _repair_source_block(failed_result: dict[str, Any]) -> str:
     return "Current source:\n" + "\n".join(blocks) + "\n"
 
 
-def repair_prompt(task: str, failed_result: dict[str, Any]) -> str:
+def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | None = None) -> str:
     trace = failed_result.get("execution_trace", {})
     paths = []
     failure_details = []
+    closest_hints = []
     if isinstance(trace, dict):
         for runner_result in trace.get("runner_results", []):
             payload = runner_result.get("payload", {}) if isinstance(runner_result, dict) else {}
             if isinstance(payload, dict) and isinstance(payload.get("path"), str) and not _is_test_path(payload["path"]):
                 paths.append(payload["path"])
+                if workspace is not None and runner_result.get("reason") in {"patch_mismatch", "patch_search_not_found", "patch_search_ambiguous"}:
+                    from onecode.kernel.patching import find_closest_patch_context
+
+                    search_block = payload.get("search_block")
+                    if isinstance(search_block, str):
+                        ctx = find_closest_patch_context(workspace, payload["path"], search_block)
+                        if ctx.get("found") and ctx.get("excerpt"):
+                            closest_hints.append(f"Closest matching lines in {payload['path']} (lines {ctx['start_line']}-{ctx['end_line']}):\n{ctx['excerpt']}")
             if isinstance(runner_result, dict) and not _detail_mentions_tests(payload):
                 reason = runner_result.get("reason")
                 status = runner_result.get("status")
@@ -303,17 +312,22 @@ def repair_prompt(task: str, failed_result: dict[str, Any]) -> str:
                     )
     path_summary = ", ".join(sorted(set(paths))) if paths else "unknown"
     details = "\n".join(f"- {detail}" for detail in failure_details[:10]) or "- unavailable"
-    return (
+    prompt = (
         "Repair the previous OneCode run using patches only.\n"
         f"Original task: {task}\n"
         f"Failure status: {failed_result.get('status')}\n"
         f"Failure reason: {failed_result.get('reason')}\n"
         f"Affected paths: {path_summary}\n"
         f"Failure details:\n{details}\n"
+    )
+    if closest_hints:
+        prompt += "Patch context hints:\n" + "\n\n".join(closest_hints) + "\n"
+    prompt += (
         f"{_repair_source_block(failed_result)}"
         "Return JSON with patches only. Do not return assets or execution_plan. "
         "Do not patch any path under tests/."
     )
+    return prompt
 
 
 def _is_test_path(path: str) -> bool:
@@ -780,8 +794,9 @@ def maybe_pending_approval_result(
     resolved_model: str,
     planning_context: dict[str, Any],
     user_task: str = "",
+    approval_mode: str = "strict",
 ) -> dict[str, Any] | None:
-    if not required or not model_plan_requires_approval(plan):
+    if not required or not model_plan_requires_approval(plan, mode=approval_mode):
         return None
     return pending_approval_result(
         workspace=workspace,
@@ -806,6 +821,7 @@ def early_model_plan_result(
     resolved_model: str,
     planning_context: dict[str, Any],
     user_task: str = "",
+    approval_mode: str = "strict",
 ) -> dict[str, Any] | None:
     if plan.no_action_reason is not None:
         return no_action_result(
@@ -826,6 +842,7 @@ def early_model_plan_result(
         resolved_model,
         planning_context,
         user_task=user_task,
+        approval_mode=approval_mode,
     )
 
 
@@ -1288,55 +1305,72 @@ def _finish_verified_task(
     checked = _with_sandbox_tests(result, workspace, sandbox_config)
     if checked.get("reason") != "verifier_failed" or max_repair_attempts <= 0 or sandbox_config is None:
         return checked
-    tails = [
-        str(item.get("stderr_tail"))[-400:]
-        for item in (checked.get("verifier_results") or [])
-        if isinstance(item, dict) and item.get("stderr_tail")
-    ]
-    prompt = repair_prompt(task, {**checked, "workspace_files": _src_files_for_repair(workspace)}) + "\nDo not patch any path under tests/. Change the implementation so the existing tests pass."
-    if tails:
-        prompt += "\nVerifier output:\n" + "\n".join(tails)
-    plan, failure = traced_provider_plan_retrying(
-        provider=provider,
-        task=prompt,
-        model_context=model_context,
-        trace_path=trace_path,
-        provider_config=provider_config,
-        resolved_model=resolved_model,
-        http_timeout_seconds=http_timeout_seconds,
-        planning_context=planning_context,
-        span_id="model-repair-after-check",
-    )
-    if failure is not None:
-        return failed_model_result(model_context, failure)
-    if plan is None or not is_patch_only_repair_plan(plan) or _repair_touches_tests(plan):
-        rejected = repair_rejected_result(checked, run_id, "repair_plan_must_use_patches_only")
-        transition = IchingKernel.transition(IchingKernel.classify_outcome("halted", rejected["reason"]))
-        return {
-            **rejected,
-            "iching_status_code": transition.status_code,
-            "iching_transition_action": transition.action,
-            "iching_transition_reason": transition.reason,
-        }
-    repaired = execute_model_plan(
-        plan,
-        workspace=workspace,
-        http_timeout_seconds=http_timeout_seconds,
-        run_id=run_id,
-        resume_from_run_id=resume_from_run_id,
-        run_metadata=run_metadata,
-        require_explicit_approval=require_explicit_approval,
-        approval_callback=execution_approval,
-        on_turn=on_turn,
-    )
-    if repaired.get("status") != "completed":
-        return repaired
-    return _with_sandbox_tests(merge_repair_result(checked, repaired, repair_attempt_count=1), workspace, sandbox_config)
+    current_checked = checked
+    current_result = result
+    for attempt in range(1, max_repair_attempts + 1):
+        tails = [
+            str(item.get("stderr_tail"))[-400:]
+            for item in (current_checked.get("verifier_results") or [])
+            if isinstance(item, dict) and item.get("stderr_tail")
+        ]
+        prompt = repair_prompt(
+            task,
+            {**current_checked, "workspace_files": _src_files_for_repair(workspace)},
+            workspace=workspace,
+        ) + "\nDo not patch any path under tests/. Change the implementation so the existing tests pass."
+        if tails:
+            prompt += "\nVerifier output:\n" + "\n".join(tails)
+        span_id = "model-repair-after-check" if attempt == 1 else f"model-repair-after-check-{attempt}"
+        plan, failure = traced_provider_plan_retrying(
+            provider=provider,
+            task=prompt,
+            model_context=model_context,
+            trace_path=trace_path,
+            provider_config=provider_config,
+            resolved_model=resolved_model,
+            http_timeout_seconds=http_timeout_seconds,
+            planning_context=planning_context,
+            span_id=span_id,
+        )
+        if failure is not None:
+            return failed_model_result(model_context, failure)
+        if plan is None or not is_patch_only_repair_plan(plan) or _repair_touches_tests(plan):
+            rejected = repair_rejected_result(current_checked, run_id, "repair_plan_must_use_patches_only", repair_attempt_count=attempt)
+            transition = IchingKernel.transition(IchingKernel.classify_outcome("halted", rejected["reason"]))
+            return {
+                **rejected,
+                "iching_status_code": transition.status_code,
+                "iching_transition_action": transition.action,
+                "iching_transition_reason": transition.reason,
+            }
+        repaired = execute_model_plan(
+            plan,
+            workspace=workspace,
+            http_timeout_seconds=http_timeout_seconds,
+            run_id=run_id,
+            resume_from_run_id=resume_from_run_id,
+            run_metadata=run_metadata,
+            require_explicit_approval=require_explicit_approval,
+            approval_callback=execution_approval,
+            on_turn=on_turn,
+        )
+        merged = merge_repair_result(current_result, repaired, repair_attempt_count=attempt)
+        if repaired.get("status") != "completed":
+            current_checked = merged
+            current_result = merged
+            continue
+        tested = _with_sandbox_tests(merged, workspace, sandbox_config)
+        if tested.get("reason") != "verifier_failed":
+            return tested
+        current_checked = tested
+        current_result = tested
+    return current_checked
 
 
 def _with_sandbox_tests(result: dict[str, Any], workspace: Path, sandbox_config: Any | None) -> dict[str, Any]:
     if sandbox_config is None or result.get("status") != "completed" or not (workspace / "tests").is_dir():
         return result
+    from onecode.kernel.preset_tests import preset_test_hashes
     from onecode.kernel.run_inspection import apply_verifier_evidence
     from onecode.kernel.verifier import VerifierSpec, run_verifier
 
@@ -1350,7 +1384,40 @@ def _with_sandbox_tests(result: dict[str, Any], workspace: Path, sandbox_config:
         ),
         sandbox_config=sandbox_config,
     )
-    return apply_verifier_evidence(result, workspace, [checked])
+    verified = {**result, "preset_test_hashes": preset_test_hashes(workspace)} if checked.status == "passed" else result
+    return apply_verifier_evidence(verified, workspace, [checked])
+
+
+def _plan_user_rejected_result(plan: ModelPlan, run_id: str | None, provider_config: Any, resolved_model: str) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "status": "cancelled",
+        "reason": "user_rejected_diff",
+        "partial": False,
+        "requested_count": len(plan.assets),
+        "completed_count": 0,
+        "skipped_count": 0,
+        "failed_count": 0,
+        "assets": [],
+        "model_provider": "openai" if provider_config.env_key == "OPENAI_API_KEY" else provider_config.provider_kind,
+        "model": resolved_model,
+        "model_plan_task": plan.task,
+        "model_plan_asset_count": len(plan.assets),
+        "model_plan_patch_count": len(plan.patches),
+        "model_plan_execution_step_count": len(plan.execution_steps),
+    }
+
+
+def _run_plan_metadata(provider_config: Any, resolved_model: str, plan: ModelPlan, safe_agent: Any) -> dict[str, Any]:
+    return {
+        "model_provider": "openai" if provider_config.env_key == "OPENAI_API_KEY" else provider_config.provider_kind,
+        "model": resolved_model,
+        "model_plan_task": plan.task,
+        "model_plan_asset_count": len(plan.assets),
+        "model_plan_patch_count": len(plan.patches),
+        "model_plan_execution_step_count": len(plan.execution_steps),
+        "safe_agent": safe_agent,
+    }
 
 
 def run_model_task(
@@ -1371,7 +1438,9 @@ def run_model_task(
     require_explicit_approval: bool = True,
     execution_approval: Callable[[ExecutionStep], bool] | None = None,
     on_turn: Callable[[dict[str, Any]], None] | None = None,
-    sandbox_config: Any | None = None, preface: str | None = None,
+    sandbox_config: Any | None = None,
+    preface: str | None = None,
+    approval_mode: str = "strict",
 ) -> dict[str, Any]:
     task = with_preface(task, preface)
     validate_model_task_limits(http_timeout_seconds, max_repair_attempts)
@@ -1401,36 +1470,16 @@ def run_model_task(
             require_explicit_approval=require_explicit_approval, workspace=workspace, model_context=model_context,
             trace_path=trace_path, plan=plan, provider_config=provider_config, resolved_model=resolved_model,
             planning_context=planning_context, user_task=task,
+            approval_mode=approval_mode,
         )
         if early_result is not None:
             return early_result
     if plan_approval is not None and not plan_approval(plan):
-        return {
-            "run_id": run_id,
-            "status": "cancelled",
-            "reason": "user_rejected_diff",
-            "partial": False,
-            "requested_count": len(plan.assets),
-            "completed_count": 0,
-            "skipped_count": 0,
-            "failed_count": 0,
-            "assets": [],
-            "model_provider": "openai" if provider_config.env_key == "OPENAI_API_KEY" else provider_config.provider_kind,
-            "model": resolved_model,
-            "model_plan_task": plan.task,
-            "model_plan_asset_count": len(plan.assets),
-            "model_plan_patch_count": len(plan.patches),
-            "model_plan_execution_step_count": len(plan.execution_steps),
-        }
-    run_metadata = {
-        "model_provider": "openai" if provider_config.env_key == "OPENAI_API_KEY" else provider_config.provider_kind,
-        "model": resolved_model,
-        "model_plan_task": plan.task,
-        "model_plan_asset_count": len(plan.assets),
-        "model_plan_patch_count": len(plan.patches),
-        "model_plan_execution_step_count": len(plan.execution_steps),
-        "safe_agent": planning_context["safe_agent"],
-    }
+        return _plan_user_rejected_result(plan, run_id, provider_config, resolved_model)
+    run_metadata = _run_plan_metadata(provider_config, resolved_model, plan, planning_context["safe_agent"])
+    callback = execution_approval
+    if callback is None and approval_mode == "scoped_auto":
+        callback = lambda _step: True
     result = execute_model_plan(
         plan,
         workspace=workspace,
@@ -1438,8 +1487,8 @@ def run_model_task(
         run_id=run_id,
         resume_from_run_id=resume_from_run_id,
         run_metadata=run_metadata,
-        require_explicit_approval=require_explicit_approval,
-        approval_callback=execution_approval,
+        require_explicit_approval=require_explicit_approval if approval_mode != "scoped_auto" else False,
+        approval_callback=callback,
         on_turn=on_turn,
     )
     if narrowed and file_write_slots(task, max_repair_attempts) > 1 and result["status"] == "completed":

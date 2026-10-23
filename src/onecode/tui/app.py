@@ -15,6 +15,8 @@ from textual.widgets import Footer, Input, Static
 from textual.binding import Binding
 from textual.worker import Worker, WorkerState
 
+from onecode import __version__
+
 from onecode.kernel.runner import run_task
 from onecode.kernel.model_loop import run_model_task
 from onecode.web.api import handle_onecode_plan_approval
@@ -25,7 +27,7 @@ from onecode.kernel.shell_projection import project_run_to_shell
 
 # --- Config ---
 
-APP_VERSION = "1.0.0"
+APP_VERSION = __version__
 DEFAULT_MODEL = "gpt-5.5"
 DEFAULT_WORKSPACE = (
     Path(os.environ["ONECODE_TUI_WORKSPACE"]).expanduser()

@@ -3,9 +3,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from onecode.kernel.checkpoint import global_wal_entry, skill_selection_sha256
+from onecode.kernel.checkpoint import append_global_wal_entry, global_wal_entry, skill_selection_sha256
 from onecode.kernel.context import create_context
 from onecode.kernel.iching_encoding import RULE_SCHEMA_V2
+from onecode.kernel.preset_tests import preset_test_hashes
+from onecode.kernel.run_inspection import ledger_matches_workspace
 from onecode.kernel.wal import (
     global_wal_evidence_metrics,
     global_wal_metrics_summary,
@@ -281,6 +283,138 @@ class GlobalWalTests(unittest.TestCase):
             self.assertEqual(summary["windows"][0]["entry_count"], 3)
             self.assertNotIn("entries", summary)
             self.assertNotIn("raw_entries", summary)
+
+    def test_global_wal_entry_records_preset_test_hashes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = create_context(Path(tmp), run_id="wal-preset-tests")
+            entry = global_wal_entry(
+                context,
+                {
+                    "run_id": "wal-preset-tests",
+                    "status": "completed",
+                    "partial": False,
+                    "reason": None,
+                    "intent_type": "write_text",
+                    "evidence_mode": "wal",
+                    "preset_test_hashes": {
+                        "tests/test_z.py": "def",
+                        "tests/test_fee.py": "abc",
+                        "src/fee.py": "ignored",
+                        "tests/notes.txt": "ignored",
+                    },
+                },
+            )
+            self.assertEqual(
+                entry["th"],
+                [
+                    {"p": "tests/test_fee.py", "s": "abc"},
+                    {"p": "tests/test_z.py", "s": "def"},
+                ],
+            )
+
+    def test_ledger_matches_workspace_returns_none_when_intact(self):
+        import hashlib
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "tests").mkdir()
+            src_file = workspace / "src" / "fee.py"
+            test_file = workspace / "tests" / "test_fee.py"
+            src_file.write_text("RATE = 8\n", encoding="utf-8")
+            test_file.write_text("import unittest\n", encoding="utf-8")
+            context = create_context(workspace, run_id="wal-match")
+            append_global_wal_entry(
+                context,
+                {
+                    "run_id": "wal-match",
+                    "status": "completed",
+                    "partial": False,
+                    "reason": None,
+                    "intent_type": "write_text",
+                    "evidence_mode": "wal",
+                    "assets": [
+                        {
+                            "index": 1,
+                            "status": "completed",
+                            "intent_type": "write_text",
+                            "payload": {
+                                "path": "src/fee.py",
+                                "sha256": hashlib.sha256(b"RATE = 8\n").hexdigest(),
+                            },
+                        }
+                    ],
+                    "preset_test_hashes": preset_test_hashes(workspace),
+                },
+            )
+            self.assertIsNone(ledger_matches_workspace(workspace))
+
+    def test_ledger_matches_workspace_detects_changed_preset_test_and_asset(self):
+        import hashlib
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "tests").mkdir()
+            src_file = workspace / "src" / "fee.py"
+            test_file = workspace / "tests" / "test_fee.py"
+            src_file.write_text("RATE = 8\n", encoding="utf-8")
+            test_file.write_text("import unittest\n", encoding="utf-8")
+            context = create_context(workspace, run_id="wal-mismatch")
+            append_global_wal_entry(
+                context,
+                {
+                    "run_id": "wal-mismatch",
+                    "status": "completed",
+                    "partial": False,
+                    "reason": None,
+                    "intent_type": "write_text",
+                    "evidence_mode": "wal",
+                    "assets": [
+                        {
+                            "index": 1,
+                            "status": "completed",
+                            "intent_type": "write_text",
+                            "payload": {
+                                "path": "src/fee.py",
+                                "sha256": hashlib.sha256(b"RATE = 8\n").hexdigest(),
+                            },
+                        }
+                    ],
+                    "preset_test_hashes": preset_test_hashes(workspace),
+                },
+            )
+            test_file.write_text("import unittest\n# tampered\n", encoding="utf-8")
+            self.assertEqual(ledger_matches_workspace(workspace), "preset_test_hash_mismatch")
+
+            test_file.write_text("import unittest\n", encoding="utf-8")
+            src_file.write_text("RATE = 9\n", encoding="utf-8")
+            self.assertEqual(ledger_matches_workspace(workspace), "asset_hash_mismatch")
+
+    def test_ledger_matches_workspace_detects_flipped_chain_hash(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "tests").mkdir()
+            test_file = workspace / "tests" / "test_fee.py"
+            test_file.write_text("import unittest\n", encoding="utf-8")
+            context = create_context(workspace, run_id="wal-chain-flip")
+            append_global_wal_entry(
+                context,
+                {
+                    "run_id": "wal-chain-flip",
+                    "status": "completed",
+                    "partial": False,
+                    "reason": None,
+                    "intent_type": "write_text",
+                    "evidence_mode": "wal",
+                    "preset_test_hashes": preset_test_hashes(workspace),
+                },
+            )
+            wal_path = workspace / ".onecode" / "global-ledger.jsonl"
+            stored = json.loads(wal_path.read_text(encoding="utf-8").strip())
+            stored["hash"] = "0" * 64
+            wal_path.write_text(json.dumps(stored, sort_keys=True) + "\n", encoding="utf-8")
+            self.assertEqual(ledger_matches_workspace(workspace), "global_wal_chain_hash_mismatch")
 
 
 if __name__ == "__main__":

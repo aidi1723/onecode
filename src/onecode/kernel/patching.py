@@ -2,7 +2,7 @@ import difflib
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from onecode.kernel.checkpoint import sha256_file
 from onecode.kernel.path_guard import PathGuard, PathGuardError
@@ -46,13 +46,15 @@ def apply_patch_preview(workspace_root: Path, intent: PatchIntent) -> PatchPrevi
     except FileNotFoundError as exc:
         raise PatchRejected("patch_target_not_found") from exc
 
+    has_trailing_ws = any(line != line.rstrip(" \t") for line in intent.search_block.splitlines())
     match_count = original.count(intent.search_block)
-    if match_count == 0:
-        raise PatchRejected("patch_search_not_found")
     if match_count > 1:
         raise PatchRejected("patch_search_ambiguous")
+    if match_count == 1 and not has_trailing_ws:
+        content = original.replace(intent.search_block, intent.replace_block, 1)
+    else:
+        content = _replace_trailing_whitespace_normalized(original, intent.search_block, intent.replace_block)
 
-    content = original.replace(intent.search_block, intent.replace_block, 1)
     diff = "".join(
         difflib.unified_diff(
             original.splitlines(keepends=True),
@@ -62,6 +64,78 @@ def apply_patch_preview(workspace_root: Path, intent: PatchIntent) -> PatchPrevi
         )
     )
     return PatchPreview(path=intent.path, content=content, pre_sha256=sha256_file(target), diff=diff)
+
+
+def _replace_trailing_whitespace_normalized(original: str, search_block: str, replace_block: str) -> str:
+    orig_keepends = original.splitlines(keepends=True)
+    orig_stripped = [line.rstrip("\r\n").rstrip(" \t") for line in orig_keepends]
+    search_stripped = [line.rstrip("\r\n").rstrip(" \t") for line in search_block.splitlines()]
+    if not search_stripped or len(search_stripped) > len(orig_stripped):
+        raise PatchRejected("patch_search_not_found")
+    k = len(search_stripped)
+    matches: list[tuple[int, str]] = []
+    for idx in range(len(orig_stripped) - k + 1):
+        if orig_stripped[idx : idx + k] == search_stripped:
+            matches.append((idx, ""))
+        elif (
+            search_stripped[0]
+            and orig_stripped[idx].endswith(search_stripped[0])
+            and orig_stripped[idx + 1 : idx + k] == search_stripped[1:]
+        ):
+            prefix = orig_stripped[idx][: len(orig_stripped[idx]) - len(search_stripped[0])]
+            matches.append((idx, prefix))
+    if not matches:
+        raise PatchRejected("patch_search_not_found")
+    if len(matches) > 1:
+        raise PatchRejected("patch_search_ambiguous")
+    start_idx, prefix = matches[0]
+    last_raw = orig_keepends[start_idx + k - 1]
+    line_ending = "\r\n" if last_raw.endswith("\r\n") else ("\n" if last_raw.endswith("\n") else "")
+    replacement = prefix + replace_block
+    if line_ending and not replacement.endswith(("\n", "\r\n")):
+        replacement += line_ending
+    return "".join(orig_keepends[:start_idx]) + replacement + "".join(orig_keepends[start_idx + k :])
+
+
+def find_closest_patch_context(
+    workspace_root: Path,
+    path: str,
+    search_block: str,
+    context_lines: int = 15,
+) -> dict[str, Any]:
+    try:
+        target = PathGuard.resolve_read_target(workspace_root, path)
+        if not target.is_file():
+            return {"path": path, "found": False, "similarity": 0.0, "start_line": 0, "end_line": 0, "excerpt": ""}
+        original = target.read_text(encoding="utf-8")
+    except (PathGuardError, OSError, UnicodeDecodeError):
+        return {"path": path, "found": False, "similarity": 0.0, "start_line": 0, "end_line": 0, "excerpt": ""}
+    orig_lines = original.splitlines()
+    search_lines = search_block.splitlines()
+    if not orig_lines or not search_lines:
+        return {"path": path, "found": False, "similarity": 0.0, "start_line": 0, "end_line": 0, "excerpt": ""}
+    window = max(1, min(len(search_lines), len(orig_lines)))
+    normalized_target = "\n".join(line.strip() for line in search_lines)
+    best_idx = 0
+    best_ratio = -1.0
+    for idx in range(len(orig_lines) - window + 1):
+        candidate = "\n".join(line.strip() for line in orig_lines[idx : idx + window])
+        ratio = difflib.SequenceMatcher(None, normalized_target, candidate).ratio()
+        if ratio > best_ratio:
+            best_ratio = ratio
+            best_idx = idx
+    pad = max(0, context_lines)
+    start_line = max(1, best_idx + 1 - pad)
+    end_line = min(len(orig_lines), best_idx + window + pad)
+    excerpt = "\n".join(f"{lineno}: {orig_lines[lineno - 1]}" for lineno in range(start_line, end_line + 1))
+    return {
+        "path": path,
+        "found": True,
+        "similarity": round(max(0.0, best_ratio), 4),
+        "start_line": start_line,
+        "end_line": end_line,
+        "excerpt": excerpt,
+    }
 
 
 def compile_patch_preview(preview: PatchPreview) -> None:
@@ -113,5 +187,4 @@ def restore_checked_text(workspace_root: Path, relative_path: str, *, expected_s
 
 
 def hashlib_sha256_text(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
     return hashlib.sha256(value.encode("utf-8")).hexdigest()

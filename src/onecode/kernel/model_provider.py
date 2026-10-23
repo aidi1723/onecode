@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from onecode.kernel.model_config import read_bounded_response
+from onecode.kernel.preset_tests import is_preset_test_path
 
 
 DEFAULT_OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
@@ -190,7 +191,17 @@ MODEL_PLAN_SCHEMA = {
 
 MODEL_TOOL_CONTRACTS = {
     "list_files": {"approval": False, "params": {"path": "string", "max_entries": "integer", "max_depth": "integer"}},
-    "read_text": {"approval": False, "params": {"path": "string", "max_bytes": "integer", "max_lines": "integer"}},
+    "read_text": {
+        "approval": False,
+        "params": {
+            "path": "string",
+            "max_bytes": "integer",
+            "max_lines": "integer",
+            "start_line": "integer",
+            "end_line": "integer",
+            "line_numbers": "boolean",
+        },
+    },
     "search_text": {
         "approval": False,
         "params": {
@@ -310,6 +321,8 @@ def validate_model_plan(data: dict[str, Any], known_modules: set[str] | None = N
         content = asset.get("content")
         if not isinstance(path, str) or path == "":
             raise ValueError(f"asset {index} path must be a non-empty string")
+        if is_preset_test_path(path):
+            raise ValueError(f"paths under tests/ are protected: {path}")
         if not isinstance(content, str) or content == "":
             raise ValueError(f"asset {index} content must be a non-empty string")
         if path in seen_paths:
@@ -330,6 +343,8 @@ def validate_model_plan(data: dict[str, Any], known_modules: set[str] | None = N
         replace_block = patch.get("replace_block")
         if not isinstance(path, str) or path == "":
             raise ValueError(f"patch {index} path must be a non-empty string")
+        if is_preset_test_path(path):
+            raise ValueError(f"paths under tests/ are protected: {path}")
         if not isinstance(search_block, str) or search_block == "":
             raise ValueError(f"patch {index} search_block must be a non-empty string")
         if not isinstance(replace_block, str):
