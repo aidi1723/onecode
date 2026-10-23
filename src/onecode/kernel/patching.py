@@ -46,14 +46,7 @@ def apply_patch_preview(workspace_root: Path, intent: PatchIntent) -> PatchPrevi
     except FileNotFoundError as exc:
         raise PatchRejected("patch_target_not_found") from exc
 
-    has_trailing_ws = any(line != line.rstrip(" \t") for line in intent.search_block.splitlines())
-    match_count = original.count(intent.search_block)
-    if match_count > 1:
-        raise PatchRejected("patch_search_ambiguous")
-    if match_count == 1 and not has_trailing_ws:
-        content = original.replace(intent.search_block, intent.replace_block, 1)
-    else:
-        content = _replace_trailing_whitespace_normalized(original, intent.search_block, intent.replace_block)
+    content = _replace_trailing_whitespace_normalized(original, intent.search_block, intent.replace_block)
 
     diff = "".join(
         difflib.unified_diff(
@@ -83,7 +76,8 @@ def _replace_trailing_whitespace_normalized(original: str, search_block: str, re
             and orig_stripped[idx + 1 : idx + k] == search_stripped[1:]
         ):
             prefix = orig_stripped[idx][: len(orig_stripped[idx]) - len(search_stripped[0])]
-            matches.append((idx, prefix))
+            if all(c in " \t" for c in prefix):
+                matches.append((idx, prefix))
     if not matches:
         raise PatchRejected("patch_search_not_found")
     if len(matches) > 1:

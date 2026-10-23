@@ -1,8 +1,13 @@
 import hashlib
+import hmac
 import json
+import os
+import secrets
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from onecode.kernel.model_config import onecode_home
 
 
 def global_wal_paths(workspace_root: Path) -> list[Path]:
@@ -47,9 +52,32 @@ def canonical_json_line(data: dict[str, Any]) -> str:
     return json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
+def _ledger_mac_key() -> bytes:
+    directory = onecode_home()
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / "approval-plan.key"
+    if path.is_file():
+        key = path.read_bytes()
+        if len(key) >= 32:
+            return key
+    key = secrets.token_bytes(32)
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        os.write(descriptor, key)
+    except OSError:
+        os.close(descriptor)
+        key = path.read_bytes()
+        if len(key) >= 32:
+            return key
+        raise
+    else:
+        os.close(descriptor)
+    return key
+
+
 def wal_entry_hash(entry: dict[str, Any]) -> str:
     encoded = canonical_json_line({key: value for key, value in entry.items() if key != "hash"})
-    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+    return hmac.new(_ledger_mac_key(), encoded.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def decode_balance_mutation_tuple(value: Any) -> dict[str, Any] | None:
@@ -96,13 +124,14 @@ def read_validated_global_wal_segment(path: Path) -> list[dict[str, Any]]:
         if not isinstance(value, dict):
             raise ValueError("invalid_global_wal_entry")
         decode_balance_mutation_tuple(value.get("bm"))
-        if "hash" in value or "prev" in value:
-            if value.get("prev") != previous_hash:
-                raise ValueError("global_wal_chain_prev_mismatch")
-            expected_hash = wal_entry_hash(value)
-            if value.get("hash") != expected_hash:
-                raise ValueError("global_wal_chain_hash_mismatch")
-            previous_hash = expected_hash
+        if "hash" not in value or not isinstance(value["hash"], str) or not value["hash"]:
+            raise ValueError("global_wal_chain_hash_missing")
+        if value.get("prev") != previous_hash:
+            raise ValueError("global_wal_chain_prev_mismatch")
+        expected_hash = wal_entry_hash(value)
+        if value.get("hash") != expected_hash:
+            raise ValueError("global_wal_chain_hash_mismatch")
+        previous_hash = expected_hash
         entries.append({**value, "_wal_path": str(path.resolve())})
     return entries
 

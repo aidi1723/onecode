@@ -1377,6 +1377,14 @@ class ModelLoopTests(unittest.TestCase):
 
             self.assertFalse((workspace / ".onecode").exists())
 
+    def test_run_model_task_halts_immediately_when_ledger_mismatches_workspace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            with patch("onecode.kernel.run_inspection.ledger_matches_workspace", return_value="preset_test_hash_mismatch"):
+                result = run_model_task_wrapper("do something", workspace=workspace, run_id="halt-mismatch", api_key="sk-test")
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "preset_test_hash_mismatch")
+
     def test_run_model_task_rejects_boolean_numeric_limits_before_provider_call(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

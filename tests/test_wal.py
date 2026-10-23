@@ -1,3 +1,4 @@
+import hashlib
 import json
 import tempfile
 import unittest
@@ -33,6 +34,29 @@ class GlobalWalTests(unittest.TestCase):
             entry["st"] = "tampered"
             wal_path.write_text(json.dumps(entry, sort_keys=True) + "\n", encoding="utf-8")
 
+            with self.assertRaisesRegex(ValueError, "global_wal_chain_hash_mismatch"):
+                read_validated_global_wal_entries(workspace)
+
+    def test_read_validated_global_wal_entries_rejects_missing_hash(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            wal_path = workspace / ".onecode" / "global-ledger.jsonl"
+            wal_path.parent.mkdir(parents=True)
+            entry = {"v": 1, "rid": "run-1", "st": "completed", "prev": None}
+            wal_path.write_text(json.dumps(entry, sort_keys=True) + "\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "global_wal_chain_hash_missing"):
+                read_validated_global_wal_entries(workspace)
+
+    def test_plain_sha256_rewrite_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            wal_path = workspace / ".onecode" / "global-ledger.jsonl"
+            wal_path.parent.mkdir(parents=True)
+            entry = {"v": 1, "rid": "run-1", "st": "completed", "prev": None}
+            encoded = json.dumps(entry, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            entry["hash"] = hashlib.sha256(encoded).hexdigest()
+            wal_path.write_text(json.dumps(entry, sort_keys=True) + "\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "global_wal_chain_hash_mismatch"):
                 read_validated_global_wal_entries(workspace)
 

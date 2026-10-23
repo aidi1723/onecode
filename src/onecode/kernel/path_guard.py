@@ -14,7 +14,18 @@ _INTERRUPTED_WRITE = re.compile(r"\A\..+\.[A-Za-z0-9_]{8}\Z")
 
 
 class PathGuard:
-    DENIED_ROOT_FILES = {"pyproject.toml", ".gitignore", ".env"}
+    DENIED_ROOT_FILES = {
+        "pyproject.toml",
+        ".gitignore",
+        ".env",
+        "unittest.py",
+        "unittest",
+        "pytest.py",
+        "pytest",
+        "conftest.py",
+        "sitecustomize.py",
+        "usercustomize.py",
+    }
     DENIED_EXECUTABLE_ROOT_FILES = {
         ".pre-commit-config.yaml",
         "Makefile",

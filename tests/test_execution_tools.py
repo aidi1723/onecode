@@ -423,6 +423,30 @@ class ExecutionToolsTests(unittest.TestCase):
         self.assertEqual(committed["status"], "completed")
         self.assertEqual(status.stdout, "")
 
+    def test_git_diff_does_not_execute_textconv_configured_in_repo(self):
+        from onecode.kernel.execution_tools import GitDiffTool
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            marker = workspace / "marker.txt"
+            subprocess.run(["git", "init"], cwd=workspace, capture_output=True, check=True)
+            subprocess.run(["git", "config", "user.email", "onecode@local.test"], cwd=workspace, check=True)
+            subprocess.run(["git", "config", "user.name", "OneCode"], cwd=workspace, check=True)
+            # Configure diff.custom.textconv to create the marker file
+            subprocess.run(
+                ["git", "config", "diff.custom.textconv", f"touch {marker.resolve().as_posix()}; echo"],
+                cwd=workspace,
+                check=True,
+            )
+            (workspace / ".gitattributes").write_text("*.custom diff=custom\n", encoding="utf-8")
+            (workspace / "sample.custom").write_text("hello\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=workspace, check=True)
+            (workspace / "sample.custom").write_text("hello modified\n", encoding="utf-8")
+
+            diff = GitDiffTool().execute({}, workspace)
+            self.assertEqual(diff["status"], "completed")
+            self.assertFalse(marker.exists(), "textconv command should not have been executed on host")
+
 
 if __name__ == "__main__":
     unittest.main()

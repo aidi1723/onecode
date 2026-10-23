@@ -16,6 +16,29 @@ from onecode.kernel.verifier import (
 
 
 class VerifierPolicyTests(unittest.TestCase):
+    def test_guarded_unittest_undoes_an_import_time_assert_patch(self):
+        from onecode.kernel.verifier import guarded_unittest_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "src").mkdir()
+            (root / "tests").mkdir()
+            (root / "src" / "fee.py").write_text(
+                "import unittest\nunittest.TestCase.assertEqual = lambda self, a, b, msg=None: None\n"
+                "def fee(value):\n    return 0\n",
+                encoding="utf-8",
+            )
+            (root / "tests" / "test_fee.py").write_text(
+                "import unittest\nfrom src.fee import fee\n"
+                "class T(unittest.TestCase):\n"
+                "    def test_fee(self):\n"
+                "        self.assertEqual(fee(1), 1)\n",
+                encoding="utf-8",
+            )
+            command = guarded_unittest_command([sys.executable, "-m", "unittest", "discover", "-s", "tests"])
+            completed = subprocess.run(command, cwd=root, capture_output=True, text=True)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("FAILED", completed.stdout + completed.stderr)
     def test_load_verifier_policy_accepts_allowlisted_command(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "verifiers.json"
@@ -212,6 +235,29 @@ class VerifierExecutionTests(unittest.TestCase):
         transition = IchingKernel.transition(IchingKernel.classify_outcome("halted", result.reason))
         self.assertEqual(transition.action, "checkpoint")
         self.assertEqual(transition.status_code, IchingKernel.compute_status(IchingKernel.GEN, IchingKernel.KUN))
+
+    def test_verifier_fails_when_unittest_exits_zero_without_running_tests_or_aborted(self):
+        from subprocess import CompletedProcess
+        from onecode.kernel.sandbox import SandboxConfig
+
+        with tempfile.TemporaryDirectory() as tmp:
+            spec = VerifierSpec(
+                id="python-unittest",
+                command=["python3", "-m", "unittest", "discover", "-s", "tests"],
+                cwd=".",
+                timeout_ms=5000,
+            )
+            fake_aborted = CompletedProcess(args=spec.command, returncode=0, stdout="", stderr="")
+            with patch("onecode.kernel.verifier.image_platform_mismatch", return_value=False), patch(
+                "onecode.kernel.verifier.run_in_sandbox", return_value=fake_aborted
+            ):
+                result = run_verifier(
+                    Path(tmp),
+                    spec,
+                    sandbox_config=SandboxConfig(workspace=Path(tmp), image="python:3.12-slim", network="none"),
+                )
+            self.assertEqual(result.status, "failed")
+            self.assertEqual(result.reason, "verifier_empty_or_aborted")
 
     def test_foreign_image_checkpoints_before_the_container_starts(self):
         from onecode.kernel.hexagram import IchingKernel

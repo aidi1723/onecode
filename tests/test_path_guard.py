@@ -42,7 +42,7 @@ class PathGuardTests(unittest.TestCase):
     def test_rejects_root_config_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
-            for path in [".env", ".env.local", ".gitignore", "pyproject.toml", ".git/config"]:
+            for path in [".env", ".env.local", ".gitignore", "pyproject.toml", ".git/config", "unittest.py", "conftest.py", "pytest.py", "sitecustomize.py", "usercustomize.py"]:
                 with self.subTest(path=path):
                     with self.assertRaises(PathGuardError):
                         PathGuard.write_text(workspace, path, "blocked")

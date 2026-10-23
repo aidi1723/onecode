@@ -288,6 +288,19 @@ class PatchingTests(unittest.TestCase):
                     PatchIntent(path="src/mesh.py", search_block="x = 1 ", replace_block="x = 2"),
                 )
 
+    def test_apply_patch_preview_rejects_subword_or_non_whitespace_prefix_match(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            target = workspace / "src" / "math.py"
+            target.parent.mkdir()
+            target.write_text("max = 1\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(PatchRejected, "patch_search_not_found"):
+                apply_patch_preview(
+                    workspace,
+                    PatchIntent(path="src/math.py", search_block="x = 1", replace_block="x = 2"),
+                )
+
     def test_find_closest_patch_context_locates_best_matching_lines_with_line_numbers(self):
         from onecode.kernel.patching import find_closest_patch_context
 

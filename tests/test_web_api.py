@@ -563,6 +563,34 @@ class OneCodeWebApiTests(unittest.TestCase):
             self.assertEqual(payload["reason"], "approval_rejected")
             self.assertFalse((workspace / "docs" / "result.md").exists())
 
+    def test_approval_handler_rejects_when_ledger_mismatches_workspace(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(task="write result", assets=[ModelPlanAsset(path="src/result.py", content="done = 1\n")]),
+                model_metadata={"model": "m"},
+            )
+
+            with patch("onecode.web.api.ledger_matches_workspace", return_value="preset_test_hash_mismatch"):
+                payload, status = handle_onecode_plan_approval(
+                    stored.plan_id,
+                    {"workspace": tmp, "approved": True},
+                )
+
+            self.assertEqual(status, 400)
+            self.assertEqual(payload["status"], "halted")
+            self.assertEqual(payload["reason"], "preset_test_hash_mismatch")
+            self.assertFalse((workspace / "src" / "result.py").exists())
+
     def test_chat_can_approve_pending_plan_without_model_call(self):
         from onecode.kernel.approval_plans import persist_approval_plan
         from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset

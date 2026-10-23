@@ -64,19 +64,33 @@ def build_docker_command(config: SandboxConfig, command: Sequence[str], name: st
         "ALL",
         "--tmpfs",
         config.tmpfs,
+        "--env",
+        "PYTHONSAFEPATH=1",
     ])
     if ":" in config.workspace.as_posix():
         raise ValueError("sandbox workspace path must not contain ':'")
     if config.read_only:
         docker_command.append("--read-only")
+    mounts = [
+        "--mount",
+        f"type=bind,src={config.workspace.as_posix()},dst=/workspace",
+    ]
+    for name in (".git", ".github", ".onecode", "tests"):
+        source = config.workspace / name
+        if source.is_dir():
+            mounts.extend(
+                [
+                    "--mount",
+                    f"type=bind,src={source.as_posix()},dst=/workspace/{name},readonly",
+                ]
+            )
     return [
         *docker_command,
         "--security-opt",
         "no-new-privileges",
         "--user",
         f"{os.getuid()}:{os.getgid()}",
-        "--mount",
-        f"type=bind,src={config.workspace.as_posix()},dst=/workspace",
+        *mounts,
         "--workdir",
         "/workspace",
         config.image,

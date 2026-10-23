@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-23 - Close the audit findings
+
+Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false. The code is not yet committed. The record is `docs/closure/ONECODE_AUDIT_REMEDIATION_CLOSEOUT_2026-10-23.md`.
+
+### Changed
+
+- Ledger lines are HMAC-SHA256 with the local approval key. Plain SHA-256 rewrites no longer validate.
+- Unittest runs under `python -I` after restoring standard assertion methods. A workspace `unittest.py` fails the check.
+- MCP commands come from `ONECODE_HOME/mcp_servers.json`. `auto` mode does not start them on the host when Docker is down.
+- `.git`, `.github`, `.onecode`, and `tests` are read-only inside the sandbox when those directories exist.
+
+### Verification
+
+- `bash scripts/verify.sh` on this Mac: `Ran 1306 tests`, `OK (skipped=1)`, coverage 86%, doctor `ok`. n100 was not re-run.
+
 ## 2026-10-23 - Correct the controlled-scope record
 
 Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false.

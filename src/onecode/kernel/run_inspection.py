@@ -76,14 +76,23 @@ def apply_verifier_evidence_from_dicts(result: dict, workspace: Path, verifier_d
     first_failure = next((verifier for verifier in verifier_dicts if verifier["status"] != "passed"), None)
     evidence = task_completion_evidence(result, verifier_dicts)
     task_status = task_status_from_verifier_dicts(result, verifier_dicts)
+    is_blocked = result.get("delivery_status") == "blocked" or result.get("status") == "halted"
     enhanced = {
         **result,
         "verifier_results": verifier_dicts,
         "task_completion_evidence": evidence,
-        "delivery_status": "deliverable" if first_failure is None and evidence["assets_complete"] else "blocked",
+        "delivery_status": "blocked" if is_blocked else ("deliverable" if first_failure is None and evidence["assets_complete"] else "blocked"),
         **task_status,
     }
-    if first_failure is not None:
+    if is_blocked:
+        enhanced = {
+            **enhanced,
+            "status": "halted",
+            "reason": result.get("reason", "verifier_failed"),
+            "partial": True,
+            **_verifier_halt_fields(str(result.get("reason", "verifier_failed"))),
+        }
+    elif first_failure is not None:
         enhanced = {
             **enhanced,
             "status": "halted",
@@ -403,13 +412,14 @@ def read_global_wal_segment(path: Path) -> tuple[list[dict] | None, str | None]:
             return None, "invalid_global_wal_json"
         if not isinstance(value, dict):
             return None, "invalid_global_wal_entry"
-        if "hash" in value or "prev" in value:
-            if value.get("prev") != previous_hash:
-                return None, "global_wal_chain_prev_mismatch"
-            expected_hash = wal_entry_hash(value)
-            if value.get("hash") != expected_hash:
-                return None, "global_wal_chain_hash_mismatch"
-            previous_hash = expected_hash
+        if "hash" not in value or not isinstance(value.get("hash"), str) or not value["hash"]:
+            return None, "global_wal_chain_hash_missing"
+        if value.get("prev") != previous_hash:
+            return None, "global_wal_chain_prev_mismatch"
+        expected_hash = wal_entry_hash(value)
+        if value.get("hash") != expected_hash:
+            return None, "global_wal_chain_hash_mismatch"
+        previous_hash = expected_hash
         value = {**value, "_wal_path": str(path)}
         entries.append(value)
     return entries, None

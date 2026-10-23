@@ -26,7 +26,7 @@ class PresetTestGuardTests(unittest.TestCase):
             self.assertEqual(before["tests/test_fee.py"], hashlib.sha256(b"VALUE = 1\n").hexdigest())
 
     def test_a_plan_that_writes_under_tests_is_invalid(self):
-        for path in ("tests/test_fee.py", "Tests/test_pay.py", "tests\\test_win.py", "tests"):
+        for path in ("tests/test_fee.py", "Tests/test_pay.py", "tests\\test_win.py", "tests", ".//tests/test_pay.py", "/tests/test_pay.py", "tests/../tests/test_pay.py"):
             with self.subTest(path=path):
                 with self.assertRaises(ValueError) as caught:
                     validate_model_plan(
@@ -36,7 +36,7 @@ class PresetTestGuardTests(unittest.TestCase):
                         }
                     )
                 self.assertIn("tests/", str(caught.exception))
-        for path in ("tests/test_fee.py", "Tests/test_pay.py"):
+        for path in ("tests/test_fee.py", "Tests/test_pay.py", ".//tests/test_pay.py"):
             with self.subTest(patch_path=path):
                 with self.assertRaises(ValueError) as caught:
                     validate_model_plan(
@@ -52,6 +52,54 @@ class PresetTestGuardTests(unittest.TestCase):
                         }
                     )
                 self.assertIn("tests/", str(caught.exception))
+        for path in ("tests/test_fee.py", ".//tests/test_pay.py"):
+            with self.subTest(execution_step_path=path):
+                with self.assertRaises(ValueError) as caught:
+                    validate_model_plan(
+                        {
+                            "task": "hack via execution step",
+                            "execution_plan": {
+                                "steps": [
+                                    {
+                                        "id": "step-1",
+                                        "description": "write test",
+                                        "tool_calls": [
+                                            {"tool_name": "write_text", "params": {"path": path, "content": "x = 1"}}
+                                        ],
+                                    }
+                                ]
+                            },
+                        }
+                    )
+                self.assertIn("tests/", str(caught.exception))
+
+    def test_plan_rejects_assets_importing_unittest_or_calling_exit(self):
+        with self.assertRaises(ValueError) as caught:
+            validate_model_plan(
+                {
+                    "task": "bad asset import",
+                    "assets": [{"path": "src/bad.py", "content": "import unittest\n"}],
+                }
+            )
+        self.assertIn("must not import unittest", str(caught.exception))
+
+        with self.assertRaises(ValueError) as caught:
+            validate_model_plan(
+                {
+                    "task": "bad dynamic import",
+                    "assets": [{"path": "src/bad.py", "content": "u=__import__('unittest')\n"}],
+                }
+            )
+        self.assertIn("must not import unittest", str(caught.exception))
+
+        with self.assertRaises(ValueError) as caught:
+            validate_model_plan(
+                {
+                    "task": "bad asset exit",
+                    "assets": [{"path": "src/bad.py", "content": "import os\nos._exit(0)\n"}],
+                }
+            )
+        self.assertIn("must not call _exit", str(caught.exception))
 
     def test_preset_test_mismatch_uses_the_existing_verifier_halt(self):
         code = IchingKernel.classify_outcome("halted", "verifier_failed")
@@ -154,6 +202,55 @@ class PresetTestGuardTests(unittest.TestCase):
 
             self.assertEqual(verified["delivery_status"], "deliverable")
             self.assertEqual(runs, ["python-unittest-targeted", "python-unittest"])
+
+    def test_verify_shell_write_records_blocked_tamper_attempt_and_preserves_authoritative_baseline(self):
+        from onecode.kernel.preset_tests import authoritative_preset_test_hashes
+        from onecode.kernel.run_inspection import read_global_wal_entries
+
+        passed = VerifierResult(
+            id="python-unittest",
+            status="passed",
+            reason=None,
+            failure_kind=None,
+            exit_code=0,
+            duration_ms=1,
+            stdout_tail="OK",
+            stderr_tail="",
+            stdout_sha256="0" * 64,
+            stderr_sha256="0" * 64,
+            cwd=".",
+            command=["python3", "-m", "unittest"],
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            test_file = workspace / "tests" / "test_fee.py"
+            test_file.parent.mkdir()
+            test_file.write_text("ORIGINAL = 1\n", encoding="utf-8")
+            before = preset_test_hashes(workspace)
+            # Run 1: Normal verified run records baseline
+            r1 = run_task("write src/a.py", workspace=workspace, run_id="r1", write_path="src/a.py", write_content="A=1\n")
+            with patch("onecode.kernel.verifier.run_verifier", return_value=passed):
+                verify_shell_write(r1, workspace, before)
+
+            # Now tamper with tests/test_fee.py
+            test_file.write_text("TAMPERED = 2\n", encoding="utf-8")
+            r2 = run_task("write src/b.py", workspace=workspace, run_id="r2", write_path="src/b.py", write_content="B=2\n")
+            blocked = verify_shell_write(r2, workspace, before)
+            self.assertEqual(blocked["status"], "halted")
+            self.assertEqual(blocked["delivery_status"], "blocked")
+
+            # Blocked attempt must be recorded in WAL
+            entries, _, _ = read_global_wal_entries(workspace)
+            r2_entry = next((e for e in reversed(entries) if e.get("rid") == "r2"), None)
+            self.assertIsNotNone(r2_entry)
+            self.assertEqual(r2_entry["st"], "halted")
+
+            # Authoritative test hashes must still reflect ORIGINAL, not TAMPERED
+            auth = authoritative_preset_test_hashes(workspace)
+            self.assertEqual(auth["tests/test_fee.py"], hashlib.sha256(b"ORIGINAL = 1\n").hexdigest())
+
+            # ledger_matches_workspace must catch the discrepancy
+            self.assertEqual(ledger_matches_workspace(workspace), "preset_test_hash_mismatch")
 
 
 if __name__ == "__main__":

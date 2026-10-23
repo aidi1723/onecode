@@ -685,6 +685,24 @@ def approval_action_summaries(plan: ModelPlan, workspace: Path) -> list[dict[str
                 )
             elif tool_call.tool_name == "git_commit":
                 actions.append(_with_change_diff(workspace, tool_call.tool_name, params, {"tool": "git_commit"}))
+            elif tool_call.tool_name.startswith("mcp."):
+                from onecode.kernel.execution_tools import default_tool_registry
+                from onecode.kernel.mcp_client import load_mcp_servers
+
+                registry = default_tool_registry()
+                load_mcp_servers(registry, workspace)
+                tool = registry.get(tool_call.tool_name)
+                command = list(tool.command) if tool is not None and hasattr(tool, "command") else []
+                from onecode.kernel.mcp_client import _mcp_host_execution
+
+                actions.append(
+                    {
+                        "tool": tool_call.tool_name,
+                        "command": command,
+                        "arguments": params.get("arguments", {}),
+                        "host_execution": _mcp_host_execution(),
+                    }
+                )
             else:
                 summary: dict[str, Any] = {"tool": tool_call.tool_name}
                 for key in ("path", "query", "max_entries", "max_matches"):
@@ -1449,6 +1467,10 @@ def run_model_task(
     route, planning_context = resolve_safe_agent_planning_context(task, task_mode, safe_agent_route)
     model_context = create_context(workspace_root=workspace, run_id=run_id, resume_from_run_id=resume_from_run_id)
     trace_path = model_context.evidence_root / "trace.jsonl"
+    from onecode.kernel.run_inspection import ledger_matches_workspace
+    ledger_mismatch = ledger_matches_workspace(workspace)
+    if ledger_mismatch is not None:
+        return failed_model_result(model_context, {"failure_kind": ledger_mismatch, "reason": ledger_mismatch})
     if route is not None and route.status == "invalid":
         return invalid_safe_agent_result(model_context, trace_path, route)
     plan, failure, narrowed = _initial_model_plan(

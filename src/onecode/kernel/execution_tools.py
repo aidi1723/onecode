@@ -406,7 +406,7 @@ class GitDiffTool(ToolDefinition):
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         self.plan_action(params)
         parts: list[str] = []
-        for args in (["diff", "--no-ext-diff"], ["diff", "--cached", "--no-ext-diff"]):
+        for args in (["diff", "--no-ext-diff", "--no-textconv"], ["diff", "--cached", "--no-ext-diff", "--no-textconv"]):
             completed = _run_git(workspace, args)
             if completed.returncode != 0:
                 return {"status": "halted", "reason": "action_exception", "diff": ""}
@@ -772,11 +772,26 @@ def _git_environment(workspace: Path) -> dict[str, str]:
 def _git_argv(args: list[str]) -> list[str]:
     return [
         "git",
+        "--no-pager",
         "--no-optional-locks",
         "-c",
         "core.fsmonitor=false",
         "-c",
         f"core.hooksPath={os.devnull}",
+        "-c",
+        f"core.attributesFile={os.devnull}",
+        "-c",
+        "diff.external=",
+        "-c",
+        "diff.tool=",
+        "-c",
+        "diff.textconv=false",
+        "-c",
+        "core.textconv=false",
+        "-c",
+        "filter.lfs.smudge=",
+        "-c",
+        "filter.lfs.clean=",
         *args,
     ]
 

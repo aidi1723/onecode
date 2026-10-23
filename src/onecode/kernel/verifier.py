@@ -47,6 +47,48 @@ ALLOWED_VERIFIER_COMMANDS = {  # type: ignore
 }
 PYTHON_EXECUTABLE_NAMES = {"python", "python3", Path(sys.executable).name}
 ALLOWED_UNITTEST_FLAGS = frozenset({"-v", "-q", "-f", "--failfast", "-b", "--buffer"})
+_UNITTEST_ASSERTIONS = (
+    "assertEqual",
+    "assertNotEqual",
+    "assertTrue",
+    "assertFalse",
+    "assertIs",
+    "assertIsNot",
+    "assertIsNone",
+    "assertIsNotNone",
+    "assertIn",
+    "assertNotIn",
+    "assertRaises",
+    "assertAlmostEqual",
+    "assertGreater",
+    "assertLess",
+    "fail",
+)
+UNITTEST_GUARD = """
+import sys
+import unittest
+from pathlib import Path
+root = Path.cwd()
+if (root / "unittest.py").is_file() or (root / "pytest.py").is_file():
+    sys.stderr.write("workspace shadow module blocked\\n")
+    sys.exit(2)
+sys.path.insert(0, str(root))
+saved = {name: getattr(unittest.TestCase, name) for name in %s if hasattr(unittest.TestCase, name)}
+loader = unittest.TestLoader()
+args = sys.argv[1:]
+if args[:2] == ["discover", "-s"] and len(args) >= 3:
+    suite = loader.discover(args[2])
+elif len(args) == 1 and args[0].endswith(".py"):
+    suite = loader.discover(str(Path(args[0]).parent), pattern=Path(args[0]).name)
+elif len(args) == 1:
+    suite = loader.loadTestsFromName(args[0])
+else:
+    suite = loader.loadTestsFromNames(args)
+for name, method in saved.items():
+    setattr(unittest.TestCase, name, method)
+result = unittest.TextTestRunner(verbosity=1).run(suite)
+sys.exit(0 if result.wasSuccessful() else 1)
+""" % (repr(_UNITTEST_ASSERTIONS),)
 
 
 def _is_safe_test_target(target: str) -> bool:
@@ -80,6 +122,15 @@ def _python_executable_allowed(executable: str) -> bool:
     return Path(executable).name in PYTHON_EXECUTABLE_NAMES
 
 
+def guarded_unittest_command(command: list[str]) -> list[str]:
+    args = list(command[1:])
+    if args and args[0] == "-P":
+        args = args[1:]
+    if args[:2] != ["-m", "unittest"]:
+        return command
+    return [command[0], "-I", "-c", UNITTEST_GUARD, *args[2:]]
+
+
 def verifier_command_allowed(command: list[str]) -> bool:
     command_tuple = tuple(command)
     if command_tuple in ALLOWED_VERIFIER_COMMANDS:
@@ -91,8 +142,11 @@ def verifier_command_allowed(command: list[str]) -> bool:
             continue
         if _python_executable_allowed(allowed[0]) and tuple(command[1:]) == tuple(allowed[1:]):
             return True
-    if len(command) >= 4 and command[1:3] == ["-m", "unittest"]:
-        remaining = command[3:]
+    args = list(command[1:])
+    if args and args[0] == "-P":
+        args = args[1:]
+    if len(args) >= 2 and args[:2] == ["-m", "unittest"]:
+        remaining = args[2:]
         targets = [arg for arg in remaining if arg not in ALLOWED_UNITTEST_FLAGS]
         if targets and all(_is_safe_test_target(target) for target in targets):
             if all(arg in ALLOWED_UNITTEST_FLAGS or not arg.startswith("-") for arg in remaining):
@@ -303,7 +357,10 @@ def run_verifier(
                     failure_kind: VerifierFailureKind | None = "exception"
                     exit_code: int | None = None
                 else:
-                    completed = run_in_sandbox(sandbox_config, container_argv(spec.command))
+                    completed = run_in_sandbox(
+                        sandbox_config,
+                        container_argv(guarded_unittest_command(list(spec.command))),
+                    )
                     stderr_str = completed.stderr if isinstance(completed.stderr, str) else completed.stderr.decode("utf-8", errors="replace")
                     if completed.returncode != 0 and _docker_daemon_unavailable(stderr_str):
                         stdout = b""
@@ -322,10 +379,27 @@ def run_verifier(
                     else:
                         stdout = completed.stdout.encode("utf-8") if isinstance(completed.stdout, str) else completed.stdout
                         stderr = stderr_str.encode("utf-8")
-                        status = "passed" if completed.returncode == 0 else "failed"
-                        reason = None if completed.returncode == 0 else "verifier_failed"
-                        failure_kind = None if completed.returncode == 0 else "command_failed"
                         exit_code = completed.returncode
+                        if completed.returncode == 0:
+                            if "-m" in spec.command and "unittest" in spec.command:
+                                stdout_str = completed.stdout if isinstance(completed.stdout, str) else completed.stdout.decode("utf-8", errors="replace")
+                                combined = stdout_str + "\n" + stderr_str
+                                if not (re.search(r"Ran ([1-9]\d*) tests?", combined) and re.search(r"\bOK\b", combined)):
+                                    status = "failed"
+                                    reason = "verifier_empty_or_aborted"
+                                    failure_kind = "command_failed"
+                                else:
+                                    status = "passed"
+                                    reason = None
+                                    failure_kind = None
+                            else:
+                                status = "passed"
+                                reason = None
+                                failure_kind = None
+                        else:
+                            status = "failed"
+                            reason = "verifier_failed"
+                            failure_kind = "command_failed"
             except FileNotFoundError:
                 stdout = b""
                 stderr = b"Sandbox required but Docker is not installed on host system."

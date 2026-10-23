@@ -18,6 +18,23 @@ class McpClientError(ValueError):
     pass
 
 
+def _mcp_host_execution() -> bool:
+    mode = os.environ.get("ONECODE_RUN_COMMAND_SANDBOX", "auto").strip().lower()
+    return mode in {"host", "off", "false", "0"}
+
+
+def _mcp_launch(command: list[str], workspace: Path) -> tuple[list[str], dict[str, str] | None, Path | None]:
+    if _mcp_host_execution():
+        return command, _command_environment(workspace), workspace
+    from onecode.kernel.execution_tools import _docker_daemon_ready
+    from onecode.kernel.sandbox import SandboxConfig, build_docker_command, container_argv
+
+    if not _docker_daemon_ready():
+        raise McpClientError("sandbox_required")
+    config = SandboxConfig(workspace=workspace, network="none")
+    return build_docker_command(config, container_argv(command)), _command_environment(workspace), None
+
+
 @dataclass(frozen=True)
 class McpProxyTool(ToolDefinition):
     command: tuple[str, ...] = ()
@@ -28,14 +45,23 @@ class McpProxyTool(ToolDefinition):
         arguments = params.get("arguments", {})
         if not isinstance(arguments, dict):
             raise ValueError("arguments must be an object")
-        return {"action_type": self.name, "arguments": arguments}
+        return {
+            "action_type": self.name,
+            "arguments": arguments,
+            "command": list(self.command),
+            "host_execution": _mcp_host_execution(),
+        }
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         action = self.plan_action(params)
         try:
             with McpStdioClient(list(self.command), cwd=workspace) as client:
                 content = client.call_tool(self.remote_name, action["arguments"])
-        except (OSError, subprocess.SubprocessError, McpClientError):
+        except McpClientError as exc:
+            if str(exc) == "sandbox_required":
+                return {"status": "halted", "reason": "sandbox_required", "content": ""}
+            return {"status": "halted", "reason": "action_exception", "content": ""}
+        except (OSError, subprocess.SubprocessError):
             return {"status": "halted", "reason": "action_exception", "content": ""}
         return {"status": "completed", "content": content}
 
@@ -54,13 +80,16 @@ class McpStdioClient:
         self._next_id = 1
 
     def __enter__(self) -> McpStdioClient:
+        if self._cwd is None:
+            raise McpClientError("mcp workspace is required")
+        argv, env, cwd = _mcp_launch(self._command, self._cwd)
         self._proc = subprocess.Popen(
-            self._command,
-            cwd=self._cwd,
+            argv,
+            cwd=cwd,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
-            env=_command_environment(self._cwd or __import__('pathlib').Path.cwd()),
+            env=env,
             shell=False,
         )
         try:
@@ -234,13 +263,20 @@ class McpListToolsAction(ToolDefinition):
     registry: ToolRegistry | None = field(default=None, compare=False, hash=False)
 
     def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
-        return {"action_type": self.name, "arguments": {}}
+        return {
+            "action_type": self.name,
+            "arguments": {},
+            "command": list(self.command),
+            "host_execution": _mcp_host_execution(),
+        }
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         try:
             with McpStdioClient(list(self.command), cwd=workspace) as client:
                 remote_names = client.list_tools()
         except (OSError, subprocess.SubprocessError, McpClientError) as exc:
+            if str(exc) == "sandbox_required":
+                return {"status": "halted", "reason": "sandbox_required", "content": "sandbox_required"}
             return {"status": "halted", "reason": "action_exception", "content": f"Failed to list MCP tools: {exc}"}
             
         if self.registry is not None:
@@ -277,7 +313,10 @@ def register_mcp_list_tools_action(
 
 
 def load_mcp_servers(registry: ToolRegistry, workspace: Path) -> None:
-    config_path = workspace / ".onecode" / "mcp_servers.json"
+    del workspace
+    from onecode.kernel.model_config import onecode_home
+
+    config_path = onecode_home() / "mcp_servers.json"
     if not config_path.is_file():
         return
     try:

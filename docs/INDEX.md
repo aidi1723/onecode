@@ -7,6 +7,7 @@ This index helps you navigate OneCode's documentation, which is organized by pur
 ## Quick Start
 
 - [README.md](../README.md) - Installation, verification, and basic usage
+- [2026-10-23 audit remediation closeout](closure/ONECODE_AUDIT_REMEDIATION_CLOSEOUT_2026-10-23.md) - Ledger HMAC, sandbox overlays, unittest guard, and MCP command source. Mac gate is 1306 tests, 1 skipped. Not yet committed.
 - [2026-10-23 controlled scope and agent evolution closeout](closure/ONECODE_CONTROLLED_SCOPE_AND_AGENT_EVOLUTION_CLOSEOUT_2026-10-23.md) - Nine tasks at e61a4b6. Mac gate is 1293 tests, 1 skipped. The n100 four-test script is not in the tree.
 - [2026-10-23 next development handbook](closure/ONECODE_NEXT_DEVELOPMENT_HANDBOOK_2026-10-23.md) - Three-phase handbook: controlled-scope closure, perception/patch foundations, and multi-turn agent evolution
 - [2026-10-16 follow-up development handbook](superpowers/plans/2026-10-16-onecode-followup-development-handbook.md) - Closed implementation contract: gates, approval, reason codes, observability boundary
@@ -121,9 +122,10 @@ OneCode uses an I Ching (易经) based state system for deterministic control fl
 - [Task rule follow-up](closure/ONECODE_TASK_RULE_FOLLOWUP_2026-10-20.md) - Protected paths, close into the sandbox check, one implementation repair, gateway checkpoint
 
 ### Closure Reports
-All development closure and verification records live in the [closure/](closure/) directory (64 documents).
+All development closure and verification records live in the [closure/](closure/) directory (66 documents).
 
 Key closure documents:
+- [Audit remediation closeout](closure/ONECODE_AUDIT_REMEDIATION_CLOSEOUT_2026-10-23.md) - Ledger HMAC, sandbox overlays, unittest guard, and MCP command source
 - [Next development handbook](closure/ONECODE_NEXT_DEVELOPMENT_HANDBOOK_2026-10-23.md) - Three-phase handbook: controlled-scope closure + agent capability evolution
 - [Conductor closeout](closure/ONECODE_CONDUCTOR_CLOSEOUT_2026-10-22.md) - One rewrite, confirmed memory, MCP names, n100 check
 - [Controlled-scope plan](closure/ONECODE_CONTROLLED_SCOPE_PLAN_2026-10-22.md) - Next work under the current approval and ledger boundary

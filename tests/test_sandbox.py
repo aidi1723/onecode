@@ -57,6 +57,18 @@ class SandboxTests(unittest.TestCase):
         self.assertTrue(any(item.startswith("type=bind,src=") and item.endswith(",dst=/workspace") for item in command))
         self.assertNotIn("--volume", command)
 
+    def test_sensitive_directories_are_mounted_readonly(self):
+        from onecode.kernel.sandbox import SandboxConfig, build_docker_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / ".git").mkdir()
+            (workspace / "tests").mkdir()
+            command = build_docker_command(SandboxConfig(workspace=workspace, image="python:3.12-slim"), ["python3", "-V"])
+        joined = " ".join(command)
+        self.assertIn("dst=/workspace/.git,readonly", joined)
+        self.assertIn("dst=/workspace/tests,readonly", joined)
+
     def test_reused_container_commands_share_one_name(self):
         from onecode.kernel.sandbox import SandboxConfig, build_container_create, build_container_exec
 

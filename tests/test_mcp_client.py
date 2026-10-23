@@ -1,3 +1,4 @@
+import os
 import sys
 import tempfile
 import textwrap
@@ -71,16 +72,17 @@ class McpClientTests(unittest.TestCase):
             script = workspace / "server.py"
             script.write_text(SERVER, encoding="utf-8")
             registry = default_tool_registry()
-            with patch("subprocess.Popen") as mock_popen:
-                registered = register_mcp_tools(
-                    registry,
-                    server_name="fixture",
-                    command=[sys.executable, str(script)],
-                    remote_names=["echo"],
-                )
-                self.assertEqual(mock_popen.call_count, 0)
-            tool = registry.get("mcp.fixture.echo")
-            output = tool.execute({"arguments": {"text": "ping"}}, workspace)
+            with patch.dict(os.environ, {"ONECODE_RUN_COMMAND_SANDBOX": "host"}, clear=False):
+                with patch("subprocess.Popen") as mock_popen:
+                    registered = register_mcp_tools(
+                        registry,
+                        server_name="fixture",
+                        command=[sys.executable, str(script)],
+                        remote_names=["echo"],
+                    )
+                    self.assertEqual(mock_popen.call_count, 0)
+                tool = registry.get("mcp.fixture.echo")
+                output = tool.execute({"arguments": {"text": "ping"}}, workspace)
 
         self.assertEqual(registered["status"], "completed")
         self.assertEqual(registered["tools"], ["mcp.fixture.echo"])
@@ -142,6 +144,75 @@ class McpClientTests(unittest.TestCase):
         self.assertEqual(denied, ["search_text"])
         self.assertEqual(completed["status"], "completed")
         self.assertEqual(allowed_calls, [("mcp.fixture.echo", {"arguments": {"text": "ping"}})])
+
+    def test_mcp_proxy_tool_plan_action_exposes_command_and_host_execution(self):
+        from onecode.kernel.mcp_client import McpProxyTool
+        from onecode.kernel.model_loop import approval_action_summaries
+        from onecode.web.api import _approval_visible_text
+
+        tool = McpProxyTool(
+            name="mcp.custom.run",
+            requires_approval=True,
+            command=("python3", "custom_mcp.py"),
+            remote_name="run",
+        )
+        with patch.dict(os.environ, {"ONECODE_RUN_COMMAND_SANDBOX": "host"}, clear=False):
+            plan_action = tool.plan_action({"arguments": {"query": "test"}})
+        self.assertEqual(plan_action["command"], ["python3", "custom_mcp.py"])
+        self.assertTrue(plan_action["host_execution"])
+
+        plan = ModelPlan(
+            task="run mcp",
+            execution_steps=[
+                ModelExecutionStep(
+                    id="step-1",
+                    description="run mcp",
+                    tool_calls=[ModelToolCall(tool_name="mcp.custom.list_tools", params={"arguments": {"query": "test"}})],
+                )
+            ],
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "home"
+            home.mkdir()
+            (home / "mcp_servers.json").write_text(
+                '{"mcpServers": {"custom": {"command": ["python3", "custom_mcp.py"]}}}',
+                encoding="utf-8",
+            )
+            workspace = Path(tmp) / "workspace"
+            workspace.mkdir()
+            planted = workspace / ".onecode"
+            planted.mkdir()
+            (planted / "mcp_servers.json").write_text(
+                '{"mcpServers": {"custom": {"command": ["touch", "marker"]}}}',
+                encoding="utf-8",
+            )
+            with patch.dict(os.environ, {"ONECODE_HOME": str(home), "ONECODE_RUN_COMMAND_SANDBOX": "host"}, clear=False):
+                actions = approval_action_summaries(plan, workspace)
+
+        self.assertEqual(len(actions), 1)
+        self.assertEqual(actions[0]["command"], ["python3", "custom_mcp.py"])
+        self.assertTrue(actions[0]["host_execution"])
+        visible = _approval_visible_text({"reason": "approval_required"}, actions)
+        self.assertIn("MCP 外部命令（将在宿主机执行）", visible)
+        self.assertNotIn("touch marker", visible)
+
+    def test_auto_mode_does_not_launch_mcp_on_the_host(self):
+        from onecode.kernel.mcp_client import McpProxyTool
+
+        tool = McpProxyTool(
+            name="mcp.custom.run",
+            requires_approval=True,
+            command=("python3", "custom_mcp.py"),
+            remote_name="run",
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict(os.environ, {"ONECODE_RUN_COMMAND_SANDBOX": "auto"}, clear=False):
+                with patch("onecode.kernel.execution_tools._docker_daemon_ready", return_value=False):
+                    with patch("subprocess.Popen") as mock_popen:
+                        output = tool.execute({"arguments": {}}, Path(tmp))
+        mock_popen.assert_not_called()
+        self.assertEqual(output["reason"], "sandbox_required")
+        self.assertFalse(tool.plan_action({"arguments": {}})["host_execution"])
 
 
 if __name__ == "__main__":

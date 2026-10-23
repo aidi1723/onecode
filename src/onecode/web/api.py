@@ -59,7 +59,8 @@ from onecode.kernel.gateway_engine import adjudicate_gateway_prediction, validat
 from onecode.kernel.model_provider import MissingModelApiKey, ModelProviderError, api_key_from_env, build_provider_config
 from onecode.kernel.allow_evidence import complete_allow_evidence
 from onecode.kernel.path_guard import PathGuard, PathGuardError
-from onecode.kernel.preset_tests import preset_test_hashes
+from onecode.kernel.preset_tests import authoritative_preset_test_hashes, preset_test_hashes
+from onecode.kernel.run_inspection import ledger_matches_workspace
 from onecode.kernel.prompt_rules import decide_prompt
 from onecode.kernel.project_context import discover_project_context
 from onecode.kernel.runner import run_task
@@ -457,6 +458,10 @@ def verify_shell_write(
         blocked["reason"] = "verifier_failed"
         blocked["delivery_status"] = "blocked"
         blocked["preset_tests_changed"] = True
+        blocked["preset_test_hashes"] = before
+        if blocked.get("run_id"):
+            from onecode.kernel.run_inspection import apply_verifier_evidence
+            return apply_verifier_evidence(blocked, workspace, [])
         return blocked
     from onecode.kernel.run_inspection import apply_verifier_evidence
     from onecode.kernel.verifier import run_two_stage_verifier, targeted_test_for_path
@@ -664,7 +669,12 @@ def handle_onecode_plan_approval(
         except (ValueError, PathGuardError) as exc:
             finalize_approval_plan(stored, "rejected", {"status": "halted", "reason": "sovereignty_breach", "assets": []})
             return error_payload("invalid_stage", str(exc)), 400
-    before = preset_test_hashes(workspace)
+        ledger_mismatch = ledger_matches_workspace(workspace)
+        if ledger_mismatch is not None:
+            halt_result = {"status": "halted", "reason": ledger_mismatch, "assets": []}
+            finalize_approval_plan(stored, "rejected", halt_result)
+            return halt_result, 400
+    before = authoritative_preset_test_hashes(workspace)
     user_task = stored.model_metadata.get("user_task")
     user_task = user_task if isinstance(user_task, str) else ""
     written_before = set(required_python_files(user_task)) - set(missing_required_files(user_task, workspace)) if user_task else set()
@@ -1334,6 +1344,13 @@ def _approval_visible_text(result: dict[str, Any], actions: list[Any]) -> str:
             path = action.get("path") if isinstance(action.get("path"), str) else ""
             if isinstance(search, str) and isinstance(replace, str):
                 parts.append(f"补丁 {path}：\n查找：\n```\n{search.rstrip()}\n```\n替换：\n```\n{replace.rstrip()}\n```")
+        if action.get("host_execution") or (isinstance(action.get("tool"), str) and action["tool"].startswith("mcp.")):
+            cmd = action.get("command")
+            cmd_str = " ".join(cmd) if isinstance(cmd, list) and cmd else "<未配置命令>"
+            args = action.get("arguments", {})
+            args_str = json.dumps(args, ensure_ascii=False) if args else "{}"
+            where = "宿主机" if action.get("host_execution") else "沙盒"
+            parts.append(f"MCP 外部命令（将在{where}执行）：`{cmd_str}`\n参数：`{args_str}`")
     return "\n".join(parts)
 
 

@@ -379,19 +379,46 @@ def _reject_unusable_python_assets(assets: list[ModelPlanAsset], known_modules: 
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    if alias.name.split(".", 1)[0] == "pytest":
+                    pkg = alias.name.split(".", 1)[0]
+                    if pkg == "pytest":
                         raise ValueError(f"{asset.path} must not import pytest")
+                    if pkg == "unittest":
+                        raise ValueError(f"{asset.path} must not import unittest")
             elif isinstance(node, ast.ImportFrom):
                 if node.level and node.level > 0:
                     raise ValueError(f"{asset.path} must not use a relative import")
                 if not node.module:
                     continue
-                if node.module.split(".", 1)[0] == "pytest":
+                pkg = node.module.split(".", 1)[0]
+                if pkg == "pytest":
                     raise ValueError(f"{asset.path} must not import pytest")
+                if pkg == "unittest":
+                    raise ValueError(f"{asset.path} must not import unittest")
                 parts = node.module.split(".")
                 if parts[0] == "src" and (len(parts) < 2 or parts[1] not in module_names):
                     missing = parts[1] if len(parts) > 1 else "src"
                     raise ValueError(f"{asset.path} imports missing module {missing}")
+            elif isinstance(node, ast.Call):
+                func = node.func
+                if isinstance(func, ast.Name) and func.id == "_exit":
+                    raise ValueError(f"{asset.path} must not call {func.id}")
+                elif isinstance(func, ast.Attribute) and func.attr == "_exit":
+                    raise ValueError(f"{asset.path} must not call {func.attr}")
+                if _imports_test_framework(node):
+                    raise ValueError(f"{asset.path} must not import unittest")
+
+
+def _imports_test_framework(node: ast.Call) -> bool:
+    func = node.func
+    if isinstance(func, ast.Name) and func.id == "__import__":
+        target = node.args[0] if node.args else None
+    elif isinstance(func, ast.Attribute) and func.attr == "import_module":
+        target = node.args[0] if node.args else None
+    else:
+        return False
+    if not isinstance(target, ast.Constant) or not isinstance(target.value, str):
+        return False
+    return target.value.split(".", 1)[0] in {"unittest", "pytest"}
 
 
 def validate_no_action(value: Any) -> str:
@@ -473,6 +500,16 @@ def validate_tool_call(step_index: int, call_index: int, tool_call: Any) -> Mode
         raise ValueError(f"execution step {step_index} tool {call_index} description must be a string")
     if not isinstance(params, dict):
         raise ValueError(f"execution step {step_index} tool {call_index} params must be an object")
+    if tool_name in {"write_text", "patch_text"}:
+        path_val = params.get("path")
+        if isinstance(path_val, str) and is_preset_test_path(path_val):
+            raise ValueError(f"paths under tests/ are protected: {path_val}")
+    elif tool_name == "git_commit":
+        paths_val = params.get("paths")
+        if isinstance(paths_val, list):
+            for p in paths_val:
+                if isinstance(p, str) and is_preset_test_path(p):
+                    raise ValueError(f"paths under tests/ are protected: {p}")
     return ModelToolCall(tool_name=tool_name, description=description, params=params)
 
 
