@@ -2,15 +2,14 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use test-driven development (`先写失败测试 -> 最小实现 -> 聚焦测试绿 -> 全量门禁 bash scripts/verify.sh -> 勾选`) while implementing. Steps use checkbox (`- [ ]`) syntax for tracking. Commit or push only when the operator explicitly asks.
 >
-> **后续会话开场白（直接粘贴）：**
-> 按 `docs/closure/ONECODE_NEXT_DEVELOPMENT_HANDBOOK_2026-10-23.md` 执行下一个未勾选的 Task。严格遵守当前 Phase 的封口边界：先写失败测试，再改业务代码，每完成一个 Task 跑聚焦单测，每完成一个 Phase 跑 `bash scripts/verify.sh`。未经操作者明确指令，不要提交、不要推送、不要跨 Phase 提前解封规则。
+> **后续会话：** 这份手册的九项任务已经记在 `e61a4b6` 和 `47cccdf`。不要把已经勾完的 Task 再实现一遍。`claims_mainstream_parity` 保持 `false`。
 
-**Goal:** 先在现有封口边界内完成「预置测试防篡改」与「本地哈希账本双向核对」的收口（Phase I），随后在不破坏 64 卦确定性状态机（$Q_6$）与 `.onecode/global-ledger.jsonl` 密码学哈希链的前提下，按阶段演进代码感知、容错补丁、多轮受控 ReAct 循环与靶向自愈能力（Phase II ~ III），稳步逼近主流 Coding Agent 的工程上限。
+**Goal:** 记录已经落地的三阶段改动：预置测试防篡改、本地哈希账本复核、只读分页、补丁的有限归一化、双阶段校验、可配置修复次数，以及默认仍为 `strict` 的审批模式。
 
 **Architecture:**
 - **Phase I（受控范围收口）**：壳层继续作为编排器（Conductor），一次批准只写一个文件，不拉长单次运行循环，不新增卦象，不修改 `IchingKernel.classify_outcome`。
 - **Phase II（感知与编辑底座）**：扩展只读工具的分页行区间能力与探索容忍度，为补丁引擎引入行尾空白归一化与定位反馈，解决大文件“看不全、改不准”的物理瓶颈。
-- **Phase III（多轮自愈与分级自治）**：将大模型接入 `agent_cycle.py` 的有界多轮循环，以水雷屯（17）承接中间态沙盒单测重试，以预设测试快照锁死防作弊底线，支持 `strict` 与 `scoped_auto` 双轨审批。
+- **Phase III（多轮自愈与分级自治）**：修复次数由 `max_repair_attempts` 传入。`run_model_task` 的默认值是 `0`，聊天路径传入 `1`。校验失败的控制原因仍是 `verifier_failed`，卦象仍是离/坤（40）。`classify_outcome` 没有把中间重试改成坎/震（17）。`scoped_auto` 是显式选项，聊天路径不传它，默认保持 `strict`。
 
 **Tech Stack:** Python 3.11+，零第三方核心运行时依赖（标准库内核），`unittest`、`bash scripts/verify.sh`、ruff (`E9,F`)、mypy (`src/`)、coverage $\ge 75\%$。验收主机为开启 Docker 的 `n100`；本地无 Docker 的 Mac 负责日常单测门禁。
 
@@ -58,19 +57,14 @@
 
 实现后续 Task 时，以此处的符号与行号为准：
 
-1. **工作区已完成的审计修改（Slice 1 已绿）**：
-   - [`src/onecode/kernel/execution_tools.py`](../src/onecode/kernel/execution_tools.py#L444-L501)：`auto` 模式无 Docker 时返回 `(1, "", "sandbox_required")`。
-   - [`src/onecode/self_audit.py`](../src/onecode/self_audit.py#L91-L120)：缺少可选依赖 `textual` 时，`tui_bootstrap` 记录 `skipped_reason: textual_not_installed` 并视为通过。
-   - [`tests/test_verify_script.py`](../src/onecode/../../tests/test_verify_script.py#L28-L52)：`test_demo_v07_script_runs_with_current_interpreter` 按当次校验结果分支判断 `completed / deliverable` 或 `halted / blocked`。
-   - [`tests/test_rule_parallel_tasks.py`](../tests/test_rule_parallel_tasks.py#L58-L95) 与 [`tests/test_rule_action_tasks.py`](../tests/test_rule_action_tasks.py#L80-L95)：已按 `host_mode` 拆分断言，Mac 本地 `bash scripts/verify.sh` 跑通 **1,271 个测试（1 skipped，覆盖率 86%）**。
-2. **计划校验器入口**：
-   - [`src/onecode/kernel/model_provider.py:validate_model_plan`](../src/onecode/kernel/model_provider.py#L282-L346)：当前校验 `assets`（303~319 行）与 `patches`（322~339 行），尚未拦截 `tests/` 路径。
-3. **壳层写校验与审批入口**：
-   - [`src/onecode/web/api.py:verify_shell_write`](../src/onecode/web/api.py#L444-L460)：当 `result.get("status") == "completed"` 且 `tests/` 存在时，调用沙盒运行 `unittest discover`。
-   - [`src/onecode/web/api.py:handle_onecode_plan_approval`](../src/onecode/web/api.py#L597-L684)：在第 635 行调用 `execute_model_plan`，第 653 行调用 `verify_shell_write`。
-4. **全局 WAL 账本与运行检查入口**：
-   - [`src/onecode/kernel/checkpoint.py:compact_completed_ledger_result`](../src/onecode/kernel/checkpoint.py#L252-L282) 与 [`global_wal_entry`](../src/onecode/kernel/checkpoint.py#L285-L340)：当 `evidence_mode == "wal"` 时，将已完成资产写入 `entry["as"]`，目前尚未记录预置测试哈希 `th`。
-   - [`src/onecode/kernel/run_inspection.py`](../src/onecode/kernel/run_inspection.py)：负责读取和验证运行证据与 WAL 段。
+1. **命令沙盒与自审**：
+   - [`src/onecode/kernel/execution_tools.py`](../src/onecode/kernel/execution_tools.py)：`auto` 模式无 Docker 时返回 `(1, "", "sandbox_required")`。步骤原因仍可能记成 `action_exception`，payload 的 `stderr` 是 `sandbox_required`。
+   - [`src/onecode/self_audit.py`](../src/onecode/self_audit.py)：缺少可选依赖 `textual` 时，`tui_bootstrap` 记录 `skipped_reason: textual_not_installed` 并视为通过。
+   - [`tests/test_verify_script.py`](../tests/test_verify_script.py)：`test_demo_v07_script_runs_with_current_interpreter` 按当次校验结果分支判断 `completed / deliverable` 或 `halted / blocked`。
+   - [`tests/test_rule_parallel_tasks.py`](../tests/test_rule_parallel_tasks.py) 与 [`tests/test_rule_action_tasks.py`](../tests/test_rule_action_tasks.py)：在显式 `host` 或 Docker 可用时断言命令落下文件；否则断言文件没有落下。
+2. **计划校验器**：[`validate_model_plan`](../src/onecode/kernel/model_provider.py) 对 `assets` 和 `patches` 调用 `is_preset_test_path`。路径先把 `\` 换成 `/`，去掉前导 `./`，再 `casefold()`。`tests`、`tests/`、`Tests/test_pay.py` 都会拒绝。
+3. **壳层写校验**：[`verify_shell_write`](../src/onecode/web/api.py) 在沙盒前比较预置测试哈希。哈希变了就返回 `verifier_failed`，`delivery_status="blocked"`，`preset_tests_changed=True`，并且不运行被改过的测试。聊天路径传入 `max_repair_attempts=1`，不传 `approval_mode`，因此审批保持 `strict`。
+4. **全局账本**：[`global_wal_entry`](../src/onecode/kernel/checkpoint.py) 把预置测试哈希写成按正斜杠路径排序的 `th`。[`ledger_matches_workspace`](../src/onecode/kernel/run_inspection.py) 对照磁盘，分别返回 `preset_test_hash_mismatch`、`asset_hash_mismatch`，或沿用链校验错误。`preset_test_hashes` 使用 `as_posix()`，跳过 `__pycache__`。
 
 ---
 
@@ -94,8 +88,8 @@
 - [x] **Step 1: 拆分 `test_rule_parallel_tasks.py` 与 `test_rule_action_tasks.py` 的 `host_mode` 断言**
 - [x] **Step 2: 运行聚焦测试确认在无 `ONECODE_RUN_COMMAND_SANDBOX` 变量时通过（12 tests OK）**
 - [x] **Step 3: 运行单次显式 `ONECODE_RUN_COMMAND_SANDBOX=host` 核对（2 tests OK）**
-- [x] **Step 4: 运行全量门禁 `bash scripts/verify.sh`（1271 tests OK, 1 skipped, coverage 86%, doctor `ok`）**
-- [ ] **Step 5: 等待操作者指令后提交（建议提交信息：`fix: refuse host commands unless the sandbox mode is explicit`）**
+- [x] **Step 4: 运行全量门禁 `bash scripts/verify.sh`（当时 1271 tests，1 skipped，coverage 86%，doctor `ok`）**
+- [x] **Step 5: 已随 `e61a4b6` 提交，并由 `47cccdf` 记录。没有按建议信息单独提交。**
 
 ---
 
@@ -124,7 +118,7 @@
 - [x] **Step 3: 实现 `src/onecode/kernel/preset_tests.py` 与拦截逻辑**
   1. 在 `src/onecode/kernel/preset_tests.py` 中实现：
      - `is_preset_test_path(path: str) -> bool`：先将 `\` 替换为 `/`，去掉前导 `./`，再 `.casefold()`；若等于 `"tests"` 或以 `"tests/"` 开头则返回 `True`。
-     - `preset_test_hashes(workspace_root: Path) -> dict[str, str]`：若 `(workspace_root / "tests").is_dir()` 不存在则返回 `{}`；否则遍历 `sorted((workspace_root / "tests").rglob("*.py"))`，跳过 `__pycache__` 与软链接，返回 `{rel_path.as_posix(): sha256_file(path)}`。
+     - `preset_test_hashes(workspace_root: Path) -> dict[str, str]`：`tests/` 不存在时返回 `{}`；否则遍历 `sorted(rglob("*.py"))`，跳过 `__pycache__`，键名使用 `relative_to(workspace).as_posix()`。
   2. 在 `src/onecode/kernel/model_provider.py:validate_model_plan` 中，对每个 `asset.path` 和 `patch.path` 检查 `is_preset_test_path(path)`，命中则 `raise ValueError(f"paths under tests/ are protected: {path}")`。
   3. 在 `src/onecode/web/api.py` 中：
      - `handle_onecode_plan_approval` 在调用 `execute_model_plan` **之前**记录 `before_tests = preset_test_hashes(workspace)`，传入 `verify_shell_write(result, workspace, before_tests=before_tests)`；
@@ -136,7 +130,7 @@
   bash scripts/verify.sh
   ```
 
-- [ ] **Step 5: 等待操作者指令后提交（建议提交信息：`fix: block delivery when a preset test changes`）**
+- [x] **Step 5: 已随 `e61a4b6` 提交，并由 `47cccdf` 记录。没有按建议信息单独提交。**
 
 ---
 
@@ -173,14 +167,12 @@
      - 找到最后一条含 `th` 或 `as` 的记录，逐一计算 `workspace / item["p"]` 的当前 SHA-256；
      - 若 `th` 中文件缺失或哈希不符，返回 `"preset_test_hash_mismatch"`；若 `as` 中文件缺失或哈希不符，返回 `"asset_hash_mismatch"`；全部一致返回 `None`。
 
-- [x] **Step 4: 本地全量门禁与 `n100` 实机验收**
-  1. [x] 在 Mac 上运行 `bash scripts/verify.sh` 确认全绿（1279 tests OK, 1 skipped, coverage 86%, doctor `ok`）；
-  2. [x] 同步代码至 `n100` (`~/onecode-rule-check`)，在 Docker 开启状态下跑一轮带预置测试的真实任务；
-  3. [x] 验证任务结果：卦象 `39`、`deliverable`、沙盒校验通过、预置测试未改动，且对该工作区调用 `ledger_matches_workspace` 返回 `None`。
+- [x] **Step 4: 本地单测覆盖账本 `th` 与 `ledger_matches_workspace`**
+  1. [x] Mac 上 `bash scripts/verify.sh`：`Ran 1293 tests`，`OK (skipped=1)`，覆盖率 86%，doctor `ok`。跳过项是 `test_global_onecode_command_points_to_project_entrypoint`。
+  2. [x] 2026-10-23 把当前 `src/`、`tests/`、`scripts/` 同步到 n100 后，`bash scripts/verify.sh` 为 `Ran 1293 tests`，`OK (skipped=2)`，覆盖率 86%，doctor `ok`，`production_ready: true`。多出的跳过项是未挂载 distilled dataset 的 `test_four_known_leaks_remain_pytest_rules`。
+  3. `test_e2e_n100.py` 不在仓库里。四项端到端结果不记入本手册。
 
-- [ ] **Step 5: 等待操作者指令后提交（建议提交信息：`fix: record preset-test hashes on the delivery ledger`）**
-
-- [ ] **Step 5: 等待操作者指令后提交（建议提交信息：`fix: record preset-test hashes on the delivery ledger`）**
+- [x] **Step 5: 已随 `e61a4b6` 提交，并由 `47cccdf` 记录。没有按建议信息单独提交。**
 
 ---
 
@@ -244,7 +236,7 @@
 ## Phase III：多轮受控 ReAct 循环与靶向自愈（Multi-Turn ReAct & Self-Healing）
 
 > **准入条件**：Phase II 全部通过门禁，且操作者决定开启长程智能体能力验证。
-> **架构原则**：打通 `agent_cycle.py` 与真实 LLM 的多步闭环，让每次校验失败通过卦象 17（水雷屯 · 留种待验）进入有界局部自愈，而不是第一次修不好就直接坍缩为 40（离坤 · 熔断）。
+> **架构原则**：修复预算由调用方传入。聊天路径仍是 1 次。最终校验失败仍是 `verifier_failed`，离/坤（40）。中间重试没有新的坎/震（17）分支。预置测试快照继续挡住改测试通过。`scoped_auto` 只在显式传入时生效。
 
 ### Task 7：支持靶向测试执行（Targeted Unittest Runner）与全量守门双阶段校验
 
@@ -262,7 +254,7 @@
 
 ### Task 8：在壳层与模型循环中引入可配置的阶梯式修复预算（Multi-Attempt Patch Repair）
 
-**Goal:** 将当前硬编码的“1 次补丁修复即熔断”升级为可配置的 `max_repair_attempts`（默认保持 `1` 以兼容所有现有封口测试；在显式开启智能体长任务模式时可设为 `3`）。每次修复前注入 Task 6 的 `find_closest_patch_context` 真实源码行切片与最新 `_verifier_tail`。
+**Goal:** `run_model_task` 的 `max_repair_attempts` 默认是 `0`。聊天路径传入 `1`。调用方传入更大的值时，循环可以按这个次数继续补丁修复。失败原因仍是 `verifier_failed`。修复提示可以带上 `find_closest_patch_context` 和校验输出尾部。
 
 **Files:**
 - Modify: `src/onecode/kernel/model_loop.py`
@@ -270,15 +262,15 @@
 - Modify: `tests/test_model_loop.py`
 
 - [x] **Step 1: 编写失败测试**
-  - 验证默认配置下仍严格执行 1 次修复即停（锁死向后兼容）；
-  - 验证当 `max_repair_attempts=3` 时，第 1 次补丁未过校验会携带更新后的文件切片与新报错进入第 2 次补丁修复，第 2 次通过后成功收敛至卦象 39（山天大畜）并交付；若 3 次均失败则收敛至卦象 40（火地晋）阻断。
+  - 默认 `max_repair_attempts=0` 时不进入修复循环；聊天路径传入 `1`。
+  - 调用方传入大于 `1` 的值时，下一次修复可以看到上一轮的源码切片和校验尾部。最终失败仍是 `verifier_failed`，离/坤（40）。成功交付仍走原来的完成卦象。没有把重试改成坎/震（17）。
 - [x] **Step 2: 实现阶梯式修复闭环并通过 `bash scripts/verify.sh`**
 
 ---
 
 ### Task 9：分级审批策略（`strict` vs `scoped_auto`）与真实公开基准端到端验收
 
-**Goal:** 在预置测试哈希锁死（Task 2/3）与 PathGuard 保护路径锁死的前提下，提供可选的 `scoped_auto` 工作区受控自动模式：对 `src/` 下的代码修改与沙盒内单测自动放行并实时记入 WAL 哈希链；对宿主暂存（`host_stage`）、MCP 调用、`git_commit` 仍强制人工审批。最后在 `n100` 上跑通 SWE-bench Lite 子集任务。
+**Goal:** 默认 `strict` 仍要求写入批准。显式 `scoped_auto` 时，`src/` 下的写入和补丁可以不再要求批准；`git_commit`、`run_command`、`mcp.*`，以及 `src/` 以外的路径仍要求批准。聊天路径没有传入 `approval_mode`。仓库里没有 SWE-bench Lite 的实跑记录。
 
 **Files:**
 - Modify: `src/onecode/kernel/approval_plans.py`
@@ -287,7 +279,7 @@
 
 - [x] **Step 1: 编写 `strict`（默认）与 `scoped_auto` 审批边界测试**
 - [x] **Step 2: 实现分级审批策略并通过本地 `bash scripts/verify.sh`**
-- [x] **Step 3: 在 `n100`（Docker 开启）上执行真实沙盒端到端两阶段单测、WAL 链比对、预置测试防篡改拦截与补丁修复全流程实机验收**
+- [x] **Step 3: 单元测试覆盖 `strict` 与 `scoped_auto`。`test_e2e_n100.py` 不在仓库中，本步不记录四项端到端结果。**
 
 ---
 
@@ -297,10 +289,10 @@
 | :---: | :---: | :--- | :--- | :--- |
 | **Phase I** | **Task 1** | 审计改动收口与无 Docker 命令测试分支 | `test_rule_parallel_tasks.py`, `test_rule_action_tasks.py` | ✅ 已完成 |
 | **Phase I** | **Task 2** | 预置测试防篡改拦截（计划拒绝 + 校验前哈希比对） | `preset_tests.py`, `model_provider.py`, `web/api.py` | ✅ 已完成 |
-| **Phase I** | **Task 3** | 全局账本写入预置测试哈希 `th` 与事后复核函数 | `checkpoint.py`, `run_inspection.py`, `test_wal.py` | ✅ 已完成（已在 `n100` 实体验收） |
+| **Phase I** | **Task 3** | 全局账本写入预置测试哈希 `th` 与事后复核函数 | `checkpoint.py`, `run_inspection.py`, `test_wal.py` | ✅ 单测已在仓库中 |
 | **Phase II** | **Task 4** | `ReadTextTool` 行区间分页读取与行号标注 | `execution_tools.py`, `model_provider.py` | ✅ 已完成 |
 | **Phase II** | **Task 5** | 探索期只读未命中解耦与观察窗口可配扩容 | `agent_cycle.py`, `test_agent_cycle.py` | ✅ 已完成 |
-| **Phase II** | **Task 6** | 补丁引擎行尾空白归一化与失配上下文定位反馈 | `patching.py`, `test_patching.py` | ✅ 已完成 |
+| **Phase II** | **Task 6** | 补丁唯一匹配时的行尾空白归一化、首行缩进前缀保留，以及失配上下文 | `patching.py`, `test_patching.py` | ✅ 已完成 |
 | **Phase III** | **Task 7** | 靶向单测快速验证 + 全量回归双阶段沙盒校验 | `verifier.py`, `web/api.py` | ✅ 已完成 |
-| **Phase III** | **Task 8** | 阶梯式多轮补丁自愈闭环（17 水雷屯重试 -> 39 交付 / 40 熔断） | `model_loop.py`, `web/api.py` | ✅ 已完成 |
-| **Phase III** | **Task 9** | `strict` / `scoped_auto` 分级审批与 `n100` 实体 Docker 端到端实测 | `approval_plans.py`, `web/api.py` | ✅ 已完成（已在 `n100` 实体验收） |
+| **Phase III** | **Task 8** | 可配置补丁修复次数；聊天路径传入 1；失败仍是 `verifier_failed` | `model_loop.py`, `web/api.py` | ✅ 已完成 |
+| **Phase III** | **Task 9** | `strict` 为默认；`scoped_auto` 为显式选项 | `approval_plans.py` | ✅ 单测已在仓库中 |

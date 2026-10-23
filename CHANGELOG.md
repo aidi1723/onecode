@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-23 - Correct the controlled-scope record
+
+Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false.
+
+### Changed
+
+- The closeout and the development handbook now use the Mac gate from this tree: `Ran 1293 tests`, `OK (skipped=1)`, coverage 86%, doctor `ok`.
+- The same gate on n100 is `Ran 1293 tests`, `OK (skipped=2)`, coverage 86%, doctor `ok`, `production_ready: true`.
+- `test_e2e_n100.py` is not part of the record. The four end-to-end results named in the first closeout draft are withdrawn.
+- The chat path still passes one repair and stays on `strict` approval. A higher repair count and `scoped_auto` exist only when a caller sets them.
+
+The record is `docs/closure/ONECODE_CONTROLLED_SCOPE_AND_AGENT_EVOLUTION_CLOSEOUT_2026-10-23.md`.
+
 ## 2026-10-22 - One rewrite after a missed patch
 
 Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false.
