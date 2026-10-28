@@ -7,7 +7,8 @@ This index helps you navigate OneCode's documentation, which is organized by pur
 ## Quick Start
 
 - [README.md](../README.md) - Installation, verification, and basic usage
-- [2026-10-28 WorkBuddy exam closeout](closure/ONECODE_WORKBUDDY_EXAM_CLOSEOUT_2026-10-28.md) - Code-subset exam on n100. 12 of 80 completed. No Harbor score and no Pass@k. Named files now enter the write preface.
+- [2026-10-28 gap optimization closeout](closure/ONECODE_GAP_OPTIMIZATION_CLOSEOUT_2026-10-28.md) - Exam gaps closed in the kernel. Mac gate is 1327 tests, 1 skipped. n100 was not rechecked.
+- [2026-10-28 gap optimization handbook](closure/ONECODE_GAP_OPTIMIZATION_HANDBOOK_2026-10-28.md) - The task list for that closeout. Surveyed files, one named JSON file, and a new test file when the task asks only for tests.
 - [2026-10-26 WorkBuddy code exam protocol](closure/ONECODE_WORKBUDDY_CODE_EXAM_PROTOCOL_2026-10-26.md) - External code-subset exam. Hidden tests stay with the grader. No Pass@k and no harness self-edit.
 - [2026-10-23 audit remediation closeout](closure/ONECODE_AUDIT_REMEDIATION_CLOSEOUT_2026-10-23.md) - Ledger HMAC, sandbox overlays, unittest guard, and MCP command source. The remediation code is `efb4447`, included in the 2026-10-28 closeout.
 - [2026-10-23 controlled scope and agent evolution closeout](closure/ONECODE_CONTROLLED_SCOPE_AND_AGENT_EVOLUTION_CLOSEOUT_2026-10-23.md) - Nine tasks at e61a4b6. Mac gate is 1293 tests, 1 skipped. The n100 four-test script is not in the tree.

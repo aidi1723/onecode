@@ -291,6 +291,43 @@ class ModelProviderTimeoutTests(unittest.TestCase):
         self.assertEqual(payload, {"ok": True})
         self.assertEqual(calls["count"], 2)
 
+    def test_origin_error_is_retried_twice(self):
+        import io
+        import urllib.error
+
+        from onecode.kernel.model_provider import _post_model_json
+
+        calls = {"count": 0}
+
+        class Response:
+            def read(self, _size: int = -1) -> bytes:
+                return b'{"ok": true}'
+
+            def __enter__(self) -> "Response":
+                return self
+
+            def __exit__(self, *_args: object) -> bool:
+                return False
+
+        def opener(_request, timeout):  # type: ignore
+            del timeout
+            calls["count"] += 1
+            if calls["count"] < 3:
+                raise urllib.error.HTTPError(
+                    "https://example.test",
+                    520,
+                    "Origin Error",
+                    hdrs=None,
+                    fp=io.BytesIO(b""),
+                )
+            return Response()
+
+        with patch("onecode.kernel.model_provider._SAFE_OPENER.open", side_effect=opener):
+            payload = _post_model_json("https://example.test/v1/responses", "key", {"model": "m"}, 1)
+
+        self.assertEqual(payload, {"ok": True})
+        self.assertEqual(calls["count"], 3)
+
 
 if __name__ == "__main__":
     unittest.main()

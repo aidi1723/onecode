@@ -101,6 +101,32 @@ class PresetTestGuardTests(unittest.TestCase):
             )
         self.assertIn("must not call _exit", str(caught.exception))
 
+    def test_a_new_test_file_is_allowed_when_it_is_not_in_the_baseline(self):
+        plan = validate_model_plan(
+            {
+                "task": "add a regression",
+                "assets": [{"path": "tests/test_router.py", "content": "import unittest\n"}],
+            },
+            existing_preset_tests=set(),
+        )
+        self.assertEqual(plan.assets[0].path, "tests/test_router.py")
+        with self.assertRaisesRegex(ValueError, "paths under tests/ are protected"):
+            validate_model_plan(
+                {
+                    "task": "rewrite a preset test",
+                    "assets": [{"path": "tests/test_fee.py", "content": "import unittest\n"}],
+                },
+                existing_preset_tests={"tests/test_fee.py"},
+            )
+
+    def test_adding_a_test_file_does_not_count_as_rewriting_the_baseline(self):
+        from onecode.kernel.preset_tests import preset_test_baseline_changed
+
+        before = {"tests/test_fee.py": "abc"}
+        current = {"tests/test_fee.py": "abc", "tests/test_router.py": "def"}
+        self.assertFalse(preset_test_baseline_changed(before, current))
+        self.assertTrue(preset_test_baseline_changed(before, {"tests/test_fee.py": "changed"}))
+
     def test_preset_test_mismatch_uses_the_existing_verifier_halt(self):
         code = IchingKernel.classify_outcome("halted", "verifier_failed")
         self.assertEqual(code, IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN))

@@ -920,6 +920,7 @@ def traced_provider_plan(
             http_timeout_seconds=http_timeout_seconds,
             planning_context=planning_context,
             known_modules=workspace_python_modules(Path(model_context.workspace_root)),
+            workspace_root=Path(model_context.workspace_root),
         )
     except (ModelProviderError, ValueError) as exc:
         if isinstance(exc, ModelProviderTimeout):
@@ -1593,6 +1594,7 @@ def _create_provider_plan(
     http_timeout_seconds: float,
     planning_context: dict[str, Any],
     known_modules: set[str] | None = None,
+    workspace_root: Path | None = None,
 ) -> ModelPlan:
     parameters = inspect.signature(provider.create_plan).parameters
     kwargs: dict[str, Any] = {
@@ -1603,4 +1605,8 @@ def _create_provider_plan(
         kwargs["planning_context"] = planning_context
     if "known_modules" in parameters:
         kwargs["known_modules"] = known_modules
+    if "existing_preset_tests" in parameters and workspace_root is not None:
+        from onecode.kernel.preset_tests import preset_test_hashes
+
+        kwargs["existing_preset_tests"] = set(preset_test_hashes(workspace_root))
     return provider.create_plan(task, **kwargs)

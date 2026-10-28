@@ -59,7 +59,12 @@ from onecode.kernel.gateway_engine import adjudicate_gateway_prediction, validat
 from onecode.kernel.model_provider import MissingModelApiKey, ModelProviderError, api_key_from_env, build_provider_config
 from onecode.kernel.allow_evidence import complete_allow_evidence
 from onecode.kernel.path_guard import PathGuard, PathGuardError
-from onecode.kernel.preset_tests import authoritative_preset_test_hashes, is_preset_test_path, preset_test_hashes
+from onecode.kernel.preset_tests import (
+    authoritative_preset_test_hashes,
+    is_preset_test_path,
+    preset_test_baseline_changed,
+    preset_test_hashes,
+)
 from onecode.kernel.run_inspection import ledger_matches_workspace
 from onecode.kernel.prompt_rules import decide_prompt
 from onecode.kernel.project_context import discover_project_context
@@ -206,12 +211,24 @@ def continue_named_files(user_task: str, workspace: Path, written_before: set[st
 
 def shell_model_task_extras(task: str, workspace: Path) -> dict[str, Any]:
     paths: list[str] = []
-    for path in [*_mentioned_existing_python_files(task, workspace), *named_python_files(task)]:
+
+    def add(path: str) -> None:
         if path in paths or is_preset_test_path(path) or not (workspace / path).is_file():
-            continue
+            return
+        if len(paths) >= 4:
+            return
         paths.append(path)
-        if len(paths) == 4:
-            break
+
+    for path in _mentioned_existing_python_files(task, workspace):
+        add(path)
+    if _asks_for_new_tests(task):
+        refused = _refused_python_files(task)
+        for match in _MENTIONED_PYTHON.findall(task):
+            relative = match.replace("\\", "/")
+            if relative in refused or Path(relative).name in refused:
+                add(relative)
+    for path in [*named_python_files(task), *_ranked_implementation_files(task, workspace)]:
+        add(path)
     preface = collect_preface(workspace, paths) if paths else ""
     return {
         "preface": preface or None,
@@ -262,7 +279,7 @@ def prepare_shell_model_call(task: str, workspace: Path, run_id: str | None = No
     notes = _shell_context_notes(workspace)
     preface = "\n".join(part for part in (surveyed, named, notes) if part)
     extras["preface"] = preface or None
-    planned = _shell_write_prompt(task, workspace)
+    planned = _shell_write_prompt(task, workspace, preface)
     return {"task": planned, "extras": extras}
 
 
@@ -330,7 +347,10 @@ def _memory_note(workspace: Path) -> str:
 
 
 def _mcp_note(workspace: Path) -> str:
-    path = workspace / ".onecode" / "mcp_servers.json"
+    del workspace
+    from onecode.kernel.model_config import onecode_home
+
+    path = onecode_home() / "mcp_servers.json"
     if not path.is_file():
         return ""
     try:
@@ -361,6 +381,9 @@ def _remember_confirmed_completion(
 
 
 _MENTIONED_PYTHON = re.compile(r"(?<![\w./-])((?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]+\.py)")
+_MENTIONED_JSON = re.compile(r"(?<![\w./-])((?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+\.json)")
+_JSON_ONLY_TASK = re.compile(r"不要改业务代码|不改业务代码|do not change (?:the )?(?:business )?code", re.IGNORECASE)
+_PREFACE_HEADING = re.compile(r"^## ([^\n]+)", re.MULTILINE)
 _REFUSED_PYTHON = re.compile(
     r"(?:别改|不要改|不修改|不得修改|do not modify|don't modify)\s*`?([A-Za-z0-9_./-]+\.py)",
     re.IGNORECASE,
@@ -390,6 +413,141 @@ def _mentioned_existing_python_files(task: str, workspace: Path) -> list[str]:
     return found
 
 
+_TASK_TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_]{3,}")
+_TESTS_ONLY = re.compile(r"只补测试|只补\s*tests|只添加测试|只新增测试|only add tests", re.IGNORECASE)
+_TOKEN_STOP = frozenset(
+    {
+        "this",
+        "that",
+        "with",
+        "from",
+        "into",
+        "your",
+        "file",
+        "files",
+        "code",
+        "task",
+        "test",
+        "tests",
+        "only",
+        "return",
+        "json",
+        "asset",
+        "python",
+        "existing",
+        "modify",
+        "change",
+        "write",
+        "patch",
+        "please",
+        "class",
+        "function",
+    }
+)
+
+
+def _task_tokens(task: str) -> list[str]:
+    found: list[str] = []
+    for token in _TASK_TOKEN.findall(task):
+        if token.casefold() in _TOKEN_STOP or token in found:
+            continue
+        found.append(token)
+        if len(found) == 12:
+            break
+    return found
+
+
+def _ranked_implementation_files(task: str, workspace: Path) -> list[str]:
+    tokens = _task_tokens(task)
+    if not tokens:
+        return []
+    denied = {"unittest.py", "pytest.py", "conftest.py", "sitecustomize.py", "usercustomize.py"}
+    scored: list[tuple[int, str]] = []
+    scanned = 0
+    for path in sorted(workspace.rglob("*.py")):
+        if scanned >= 400:
+            break
+        if "__pycache__" in path.parts or not path.is_file():
+            continue
+        relative = path.relative_to(workspace).as_posix()
+        if is_preset_test_path(relative) or Path(relative).name in denied:
+            continue
+        scanned += 1
+        try:
+            text = path.read_text(encoding="utf-8")[:12000]
+        except (OSError, UnicodeError):
+            continue
+        score = 0
+        for token in tokens:
+            if token in path.name or token in relative:
+                score += 5
+            if token in text:
+                score += 1
+        if score:
+            scored.append((score, relative))
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    return [relative for _, relative in scored[:4]]
+
+
+def _asks_for_new_tests(task: str) -> bool:
+    return _TESTS_ONLY.search(task) is not None
+
+
+def _new_test_prompt(task: str) -> str:
+    return (
+        "Add exactly one new unittest file under tests/.\n"
+        "Do not modify any file that already exists under tests/.\n"
+        "Do not modify implementation files.\n"
+        "Return one complete JSON asset. Do not return patches, execution_plan, or run_command.\n"
+        f"Task: {task}"
+    )
+
+
+def _mentioned_json_file(task: str) -> str | None:
+    if _JSON_ONLY_TASK.search(task) is None:
+        return None
+    found: list[str] = []
+    for match in _MENTIONED_JSON.findall(task):
+        relative = match.replace("\\", "/")
+        parts = relative.split("/")
+        if ".." in parts or any(part in {".git", ".github", ".onecode"} for part in parts):
+            continue
+        if is_preset_test_path(relative) or relative in found:
+            continue
+        found.append(relative)
+    if len(found) == 1:
+        return found[0]
+    return None
+
+
+def _python_files_in_preface(preface: str, workspace: Path) -> list[str]:
+    denied = {"unittest.py", "pytest.py", "conftest.py", "sitecustomize.py", "usercustomize.py"}
+    found: list[str] = []
+    for heading in _PREFACE_HEADING.findall(preface):
+        relative = heading.replace(" / ", "/").strip().replace("\\", "/")
+        if not relative.endswith(".py") or Path(relative).name in denied or is_preset_test_path(relative):
+            continue
+        if relative in found or not (workspace / relative).is_file():
+            continue
+        found.append(relative)
+        if len(found) == 4:
+            break
+    return found
+
+
+def _one_file_prompt(task: str, target: str) -> str:
+    if target.endswith(".py"):
+        return initial_asset_prompt(task, target)
+    return (
+        "Write exactly one complete file as a JSON asset.\n"
+        f"Target: {target}\n"
+        f"Original task: {task}\n"
+        "The asset content must be the complete non-empty file. "
+        "Do not return patches, execution_plan, or run_command. "
+        "Do not modify tests/."
+    )
+
+
 def _existing_implementation_files(workspace: Path) -> list[str]:
     denied = {"unittest.py", "pytest.py", "conftest.py", "sitecustomize.py", "usercustomize.py"}
     found: list[str] = []
@@ -405,7 +563,19 @@ def _existing_implementation_files(workspace: Path) -> list[str]:
     return found
 
 
-def _shell_write_prompt(task: str, workspace: Path) -> str:
+def _listed_file_prompt(task: str, paths: list[str]) -> str:
+    listed = ", ".join(paths)
+    return (
+        "Change exactly one existing Python file from this list. "
+        "Its current text is in the preface above. "
+        "Return it as one complete JSON asset. Do not return patches. "
+        "Do not include execution_plan or run_command. Do not modify tests/.\n"
+        f"Existing files: {listed}\n"
+        f"Task: {task}"
+    )
+
+
+def _shell_write_prompt(task: str, workspace: Path, preface: str = "") -> str:
     missing = missing_required_files(task, workspace)
     if len(missing) > 1:
         return narrow_plan_prompt(task, {"detail": "start with one named file", "failure_kind": "resource_budget_exceeded"}, [])
@@ -414,32 +584,31 @@ def _shell_write_prompt(task: str, workspace: Path) -> str:
     required = required_python_files(task)
     if len(required) == 1:
         return initial_asset_prompt(task, required[0])
+    json_target = _mentioned_json_file(task)
+    if json_target is not None:
+        return _one_file_prompt(task, json_target)
+    if _asks_for_new_tests(task):
+        return _new_test_prompt(task)
     mentioned = _mentioned_existing_python_files(task, workspace)
     if len(mentioned) == 1:
         return initial_asset_prompt(task, mentioned[0])
     if len(mentioned) > 1:
-        listed = ", ".join(mentioned)
-        return (
-            "Change exactly one existing Python file from this list. "
-            "Its current text is in the preface above. "
-            "Return it as one complete JSON asset. Do not return patches. "
-            "Do not include execution_plan or run_command. Do not modify tests/.\n"
-            f"Existing files: {listed}\n"
-            f"Task: {task}"
-        )
+        return _listed_file_prompt(task, mentioned)
+    surveyed = _python_files_in_preface(preface, workspace)
+    if len(surveyed) == 1:
+        return initial_asset_prompt(task, surveyed[0])
+    if len(surveyed) > 1:
+        return _listed_file_prompt(task, surveyed)
+    ranked = _ranked_implementation_files(task, workspace)
+    if len(ranked) == 1:
+        return initial_asset_prompt(task, ranked[0])
+    if len(ranked) > 1:
+        return _listed_file_prompt(task, ranked)
     existing = _existing_implementation_files(workspace)
     if len(existing) == 1:
         return initial_asset_prompt(task, existing[0])
     if existing:
-        listed = ", ".join(existing)
-        return (
-            "Change exactly one existing Python file. "
-            "Prefer a file whose current text is in the preface above. "
-            "Return it as one complete JSON asset. Do not return patches. "
-            "Do not include execution_plan or run_command. Do not modify tests/.\n"
-            f"Candidate files: {listed}\n"
-            f"Task: {task}"
-        )
+        return _listed_file_prompt(task, existing)
     return task
 
 
@@ -505,6 +674,21 @@ def _survey_stop(survey: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _reject_existing_preset_test_stage(workspace: Path, body: dict[str, Any], before: dict[str, str]) -> None:
+    stage = body.get("stage")
+    if not isinstance(stage, dict):
+        return
+    path = stage.get("path")
+    if not isinstance(path, str) or not is_preset_test_path(path):
+        return
+    from onecode.kernel.preset_tests import normalized_preset_test_path
+
+    normalized = normalized_preset_test_path(path)
+    existing = {normalized_preset_test_path(item).casefold() for item in before}
+    if normalized.casefold() in existing or (workspace / normalized).is_file():
+        raise ValueError("preset tests cannot be staged")
+
+
 def _stage_approved_host_bytes(workspace: Path, body: dict[str, Any]) -> None:
     stage = body.get("stage")
     if stage is None:
@@ -530,7 +714,7 @@ def verify_shell_write(
     if result.get("status") != "completed" or not (workspace / "tests").is_dir():
         return result
     current_tests = preset_test_hashes(workspace)
-    if before is not None and current_tests != before:
+    if before is not None and preset_test_baseline_changed(before, current_tests):
         blocked = dict(result)
         blocked["status"] = "halted"
         blocked["reason"] = "verifier_failed"
@@ -743,18 +927,18 @@ def handle_onecode_plan_approval(
         }
         finalize_approval_plan(stored, "rejected", result)
         return result, 200
-    if approved:
-        try:
-            _stage_approved_host_bytes(workspace, body)
-        except (ValueError, PathGuardError) as exc:
-            finalize_approval_plan(stored, "rejected", {"status": "halted", "reason": "sovereignty_breach", "assets": []})
-            return error_payload("invalid_stage", str(exc)), 400
-        ledger_mismatch = ledger_matches_workspace(workspace)
-        if ledger_mismatch is not None:
-            halt_result = {"status": "halted", "reason": ledger_mismatch, "assets": []}
-            finalize_approval_plan(stored, "rejected", halt_result)
-            return halt_result, 400
     before = authoritative_preset_test_hashes(workspace)
+    try:
+        _reject_existing_preset_test_stage(workspace, body, before)
+        _stage_approved_host_bytes(workspace, body)
+    except (ValueError, PathGuardError) as exc:
+        finalize_approval_plan(stored, "rejected", {"status": "halted", "reason": "sovereignty_breach", "assets": []})
+        return error_payload("invalid_stage", str(exc)), 400
+    ledger_mismatch = ledger_matches_workspace(workspace)
+    if ledger_mismatch is not None:
+        halt_result = {"status": "halted", "reason": ledger_mismatch, "assets": []}
+        finalize_approval_plan(stored, "rejected", halt_result)
+        return halt_result, 400
     user_task = stored.model_metadata.get("user_task")
     user_task = user_task if isinstance(user_task, str) else ""
     written_before = set(required_python_files(user_task)) - set(missing_required_files(user_task, workspace)) if user_task else set()

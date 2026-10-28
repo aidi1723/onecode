@@ -25,6 +25,18 @@ class ReadPrefaceTests(unittest.TestCase):
         self.assertIn("src/fares.py", text)
         self.assertIn("def fare_cents", text)
 
+    def test_survey_queue_reads_a_ranked_file_outside_src(self):
+        from onecode.kernel.read_preface import _survey_queue
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ("a.py", "b.py", "c.py"):
+                (root / name).write_text("A = 1\n", encoding="utf-8")
+            (root / "pkg").mkdir()
+            (root / "pkg" / "query_utils.py").write_text("class FilteredRelation:\n    pass\n", encoding="utf-8")
+            queue = _survey_queue(root, "FilteredRelation 放进查询后会崩")
+        self.assertEqual(queue[0]["params"]["path"], "pkg/query_utils.py")
+
     def test_collect_preface_reads_workspace_files(self):
         from onecode.kernel.read_preface import collect_preface
 

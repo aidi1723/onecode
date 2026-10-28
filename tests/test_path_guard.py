@@ -48,6 +48,13 @@ class PathGuardTests(unittest.TestCase):
                         PathGuard.write_text(workspace, path, "blocked")
                     self.assertFalse((workspace / path).exists())
 
+    def test_rejects_shadow_modules_below_the_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            with self.assertRaises(PathGuardError):
+                PathGuard.write_text(workspace, "src/unittest.py", "blocked")
+            self.assertFalse((workspace / "src" / "unittest.py").exists())
+
     def test_rejects_executable_configuration_surfaces(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

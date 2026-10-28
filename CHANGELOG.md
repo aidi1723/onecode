@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-10-28 - Close the gap optimization phase
+
+Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false. The record is `docs/closure/ONECODE_GAP_OPTIMIZATION_CLOSEOUT_2026-10-28.md`. n100 was offline and was not rechecked.
+
+## 2026-10-28 - Start the gap optimization
+
+Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false. The record is `docs/closure/ONECODE_GAP_OPTIMIZATION_HANDBOOK_2026-10-28.md`.
+
+### Changed
+
+- A Python file already read into the preface outranks the first eight alphabetical paths.
+- A task that names one JSON file and says not to change business code targets that JSON file.
+- Identifiers in the task select up to four implementation files and place their text in the preface.
+- A task that asks only for tests may add one new `tests/*.py` file. Existing preset tests stay immutable.
+- An HTTP 520 from the model gateway is retried twice.
+- Preset-test hashes are captured before host staging. An existing test file cannot be staged over.
+- MCP names in the preface come from `ONECODE_HOME/mcp_servers.json`.
+- Shadow modules such as `src/unittest.py` cannot be written.
+- The default read survey starts with the implementation file matched by task tokens.
+
+### Verification
+
+- `bash scripts/verify.sh` on this Mac: `Ran 1327 tests`, `OK (skipped=1)`, coverage 86%, doctor `ok`. n100 was offline and was not re-run.
+
 ## 2026-10-28 - Close the WorkBuddy code exam
 
 Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false. The record is `docs/closure/ONECODE_WORKBUDDY_EXAM_CLOSEOUT_2026-10-28.md`.

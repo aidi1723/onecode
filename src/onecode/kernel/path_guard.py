@@ -157,6 +157,9 @@ class PathGuard:
         if ".onecode" in folded:
             raise PathGuardError("paths under .onecode are not allowed")
         denied_root = {name.casefold() for name in cls.DENIED_ROOT_FILES | cls.DENIED_EXECUTABLE_ROOT_FILES}
+        shadow_names = {"unittest.py", "pytest.py", "conftest.py", "sitecustomize.py", "usercustomize.py"}
+        if folded[-1] in shadow_names:
+            raise PathGuardError("shadow module writes are not allowed")
         if len(folded) == 1 and (folded[0] in denied_root or folded[0].startswith(".env.")):
             raise PathGuardError("root configuration writes are not allowed")
 

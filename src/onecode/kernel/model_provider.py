@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from onecode.kernel.model_config import read_bounded_response
-from onecode.kernel.preset_tests import is_preset_test_path
+from onecode.kernel.preset_tests import is_preset_test_path, new_test_asset_allowed
 
 
 DEFAULT_OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
@@ -290,7 +290,11 @@ def api_key_from_env(env: dict[str, str] | None = None, provider_kind: str = "ch
     return value
 
 
-def validate_model_plan(data: dict[str, Any], known_modules: set[str] | None = None) -> ModelPlan:
+def validate_model_plan(
+    data: dict[str, Any],
+    known_modules: set[str] | None = None,
+    existing_preset_tests: set[str] | None = None,
+) -> ModelPlan:
     task = data.get("task")
     if not isinstance(task, str) or task == "":
         raise ValueError("task must be a non-empty string")
@@ -321,7 +325,7 @@ def validate_model_plan(data: dict[str, Any], known_modules: set[str] | None = N
         content = asset.get("content")
         if not isinstance(path, str) or path == "":
             raise ValueError(f"asset {index} path must be a non-empty string")
-        if is_preset_test_path(path):
+        if is_preset_test_path(path) and not new_test_asset_allowed(path, existing_preset_tests):
             raise ValueError(f"paths under tests/ are protected: {path}")
         if not isinstance(content, str) or content == "":
             raise ValueError(f"asset {index} content must be a non-empty string")
@@ -382,7 +386,7 @@ def _reject_unusable_python_assets(assets: list[ModelPlanAsset], known_modules: 
                     pkg = alias.name.split(".", 1)[0]
                     if pkg == "pytest":
                         raise ValueError(f"{asset.path} must not import pytest")
-                    if pkg == "unittest":
+                    if pkg == "unittest" and not is_preset_test_path(asset.path):
                         raise ValueError(f"{asset.path} must not import unittest")
             elif isinstance(node, ast.ImportFrom):
                 if node.level and node.level > 0:
@@ -392,7 +396,7 @@ def _reject_unusable_python_assets(assets: list[ModelPlanAsset], known_modules: 
                 pkg = node.module.split(".", 1)[0]
                 if pkg == "pytest":
                     raise ValueError(f"{asset.path} must not import pytest")
-                if pkg == "unittest":
+                if pkg == "unittest" and not is_preset_test_path(asset.path):
                     raise ValueError(f"{asset.path} must not import unittest")
                 parts = node.module.split(".")
                 if parts[0] == "src" and (len(parts) < 2 or parts[1] not in module_names):
@@ -404,21 +408,25 @@ def _reject_unusable_python_assets(assets: list[ModelPlanAsset], known_modules: 
                     raise ValueError(f"{asset.path} must not call {func.id}")
                 elif isinstance(func, ast.Attribute) and func.attr == "_exit":
                     raise ValueError(f"{asset.path} must not call {func.attr}")
-                if _imports_test_framework(node):
-                    raise ValueError(f"{asset.path} must not import unittest")
+                if framework := _imported_test_framework(node):
+                    if framework == "pytest" or not is_preset_test_path(asset.path):
+                        raise ValueError(f"{asset.path} must not import {framework}")
 
 
-def _imports_test_framework(node: ast.Call) -> bool:
+def _imported_test_framework(node: ast.Call) -> str | None:
     func = node.func
     if isinstance(func, ast.Name) and func.id == "__import__":
         target = node.args[0] if node.args else None
     elif isinstance(func, ast.Attribute) and func.attr == "import_module":
         target = node.args[0] if node.args else None
     else:
-        return False
+        return None
     if not isinstance(target, ast.Constant) or not isinstance(target.value, str):
-        return False
-    return target.value.split(".", 1)[0] in {"unittest", "pytest"}
+        return None
+    root = target.value.split(".", 1)[0]
+    if root in {"unittest", "pytest"}:
+        return root
+    return None
 
 
 def validate_no_action(value: Any) -> str:
@@ -583,14 +591,22 @@ def workspace_python_modules(workspace: Path) -> set[str]:
     return names
 
 
-def parse_response_plan(response: dict[str, Any], known_modules: set[str] | None = None) -> ModelPlan:
+def parse_response_plan(
+    response: dict[str, Any],
+    known_modules: set[str] | None = None,
+    existing_preset_tests: set[str] | None = None,
+) -> ModelPlan:
     try:
         payload = json_object_from_model_text(extract_response_text(response))
     except json.JSONDecodeError as exc:
         raise ValueError("model response was not valid JSON") from exc
     if not isinstance(payload, dict):
         raise ValueError("model response JSON must be an object")
-    return validate_model_plan(payload, known_modules=known_modules)
+    return validate_model_plan(
+        payload,
+        known_modules=known_modules,
+        existing_preset_tests=existing_preset_tests,
+    )
 
 
 def _responses_input_message(role: str, text: str) -> dict[str, Any]:
@@ -655,6 +671,7 @@ class OpenAIResponsesProvider:
         http_timeout_seconds: float,
         planning_context: dict[str, Any] | None = None,
         known_modules: set[str] | None = None,
+        existing_preset_tests: set[str] | None = None,
     ) -> ModelPlan:
         response_payload = _post_model_json(
             self.endpoint,
@@ -662,7 +679,11 @@ class OpenAIResponsesProvider:
             self.request_payload(task, model=model, planning_context=planning_context),
             http_timeout_seconds,
         )
-        return parse_response_plan(response_payload, known_modules=known_modules)
+        return parse_response_plan(
+            response_payload,
+            known_modules=known_modules,
+            existing_preset_tests=existing_preset_tests,
+        )
 
 
 class OpenAIChatCompletionsProvider:
@@ -691,7 +712,12 @@ class OpenAIChatCompletionsProvider:
             "response_format": {"type": "json_object"},
         }
 
-    def parse_response(self, response: dict[str, Any], known_modules: set[str] | None = None) -> ModelPlan:
+    def parse_response(
+        self,
+        response: dict[str, Any],
+        known_modules: set[str] | None = None,
+        existing_preset_tests: set[str] | None = None,
+    ) -> ModelPlan:
         choices = response.get("choices")
         if not isinstance(choices, list) or not choices:
             raise ModelProviderError("missing chat completion choices")
@@ -710,7 +736,11 @@ class OpenAIChatCompletionsProvider:
             raise ValueError("model response was not valid JSON") from exc
         if not isinstance(payload, dict):
             raise ValueError("model response JSON must be an object")
-        return validate_model_plan(payload, known_modules=known_modules)
+        return validate_model_plan(
+            payload,
+            known_modules=known_modules,
+            existing_preset_tests=existing_preset_tests,
+        )
 
     def create_plan(
         self,
@@ -720,6 +750,7 @@ class OpenAIChatCompletionsProvider:
         http_timeout_seconds: float,
         planning_context: dict[str, Any] | None = None,
         known_modules: set[str] | None = None,
+        existing_preset_tests: set[str] | None = None,
     ) -> ModelPlan:
         body = json.dumps(self.request_payload(task, model=model, planning_context=planning_context)).encode("utf-8")
         request = urllib.request.Request(
@@ -749,7 +780,11 @@ class OpenAIChatCompletionsProvider:
             raise ModelProviderError("model response exceeds maximum size") from exc
         if not isinstance(response_payload, dict):
             raise ModelProviderError("model response envelope must be an object")
-        return self.parse_response(response_payload, known_modules=known_modules)
+        return self.parse_response(
+            response_payload,
+            known_modules=known_modules,
+            existing_preset_tests=existing_preset_tests,
+        )
 
 
 def complete_model_text(
@@ -806,7 +841,7 @@ def _post_model_json(endpoint: str, api_key: str, body: dict[str, Any], timeout_
         method="POST",
     )
     last_url_error: urllib.error.URLError | None = None
-    for attempt in range(2):
+    for attempt in range(3):
         try:
             with _SAFE_OPENER.open(request, timeout=timeout_seconds) as response:
                 payload = json.loads(read_bounded_response(response).decode("utf-8"))
@@ -816,7 +851,7 @@ def _post_model_json(endpoint: str, api_key: str, body: dict[str, Any], timeout_
         except urllib.error.HTTPError as exc:
             if resumable_model_status(exc.code):
                 raise ModelProviderTimeout(f"model request can be resumed: {exc.code}") from exc
-            if exc.code == 520 and attempt == 0:
+            if exc.code == 520 and attempt < 2:
                 continue
             raise ModelProviderError(f"model request failed: {exc.reason}") from exc
         except urllib.error.URLError as exc:

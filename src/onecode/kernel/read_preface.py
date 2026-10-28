@@ -222,13 +222,16 @@ def default_read_proposer(workspace: Path, task: str) -> Propose:
 
 def _survey_queue(workspace: Path, task: str) -> list[Proposal]:
     from onecode.kernel.model_loop import named_python_files
+    from onecode.web.api import _ranked_implementation_files
 
-    named = [path for path in named_python_files(task) if (workspace / path).is_file()]
+    ranked = _ranked_implementation_files(task, workspace)
+    named = [path for path in named_python_files(task) if (workspace / path).is_file() and path not in ranked]
+    selected = [*ranked, *named][:2]
     queue: list[Proposal] = [
         {"tool_name": "read_text", "params": {"path": path, "max_bytes": 4000, "max_lines": 200}}
-        for path in named[:2]
+        for path in selected
     ]
-    for path in named:
+    for path in selected:
         if not path.startswith("src/") or not path.endswith(".py"):
             continue
         test_path = f"tests/test_{Path(path).stem}.py"
@@ -237,8 +240,8 @@ def _survey_queue(workspace: Path, task: str) -> list[Proposal]:
                 {"tool_name": "read_text", "params": {"path": test_path, "max_bytes": 4000, "max_lines": 200}}
             )
             break
-    if named and named[0].endswith(".py"):
-        queue.append({"tool_name": "outline", "params": {"path": named[0]}})
+    if selected and selected[0].endswith(".py"):
+        queue.append({"tool_name": "outline", "params": {"path": selected[0]}})
     return queue[:4]
 
 

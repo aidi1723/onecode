@@ -13,6 +13,32 @@ def is_preset_test_path(path: str) -> bool:
     return folded == "tests" or folded.startswith("tests/")
 
 
+def normalized_preset_test_path(path: str) -> str:
+    return posixpath.normpath(path.replace("\\", "/").strip()).lstrip("/")
+
+
+def preset_test_baseline_changed(before: dict[str, str], current: dict[str, str]) -> bool:
+    for path, digest in before.items():
+        if current.get(path) != digest:
+            return True
+    return False
+
+
+_NEW_TEST_SHADOWS = {"unittest.py", "pytest.py", "conftest.py", "sitecustomize.py", "usercustomize.py"}
+
+
+def new_test_asset_allowed(path: str, existing_preset_tests: set[str] | None) -> bool:
+    if existing_preset_tests is None or not is_preset_test_path(path):
+        return False
+    normalized = normalized_preset_test_path(path)
+    if not normalized.casefold().endswith(".py"):
+        return False
+    if posixpath.basename(normalized).casefold() in _NEW_TEST_SHADOWS:
+        return False
+    existing = {normalized_preset_test_path(item).casefold() for item in existing_preset_tests}
+    return normalized.casefold() not in existing
+
+
 
 def preset_test_hashes(workspace_root: Path) -> dict[str, str]:
     tests_dir = workspace_root / "tests"

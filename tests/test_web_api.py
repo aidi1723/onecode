@@ -885,6 +885,57 @@ class OneCodeWebApiTests(unittest.TestCase):
             prompt = _shell_write_prompt("只补测试，先别改 formatting.py。", root)
         self.assertNotIn("Target: markupsafe_like/formatting.py", prompt)
 
+    def test_surveyed_file_outranks_the_alphabetical_candidates(self):
+        from onecode.web.api import _shell_write_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ("a.py", "b.py", "c.py", "d.py", "e.py", "f.py", "g.py", "h.py"):
+                (root / name).write_text("A = 1\n", encoding="utf-8")
+            (root / "pkg").mkdir()
+            (root / "pkg" / "real.py").write_text("VALUE = 9\n", encoding="utf-8")
+            prompt = _shell_write_prompt("把匹配做对。", root, "## pkg / real.py\nVALUE = 9\n")
+        self.assertIn("Target: pkg/real.py", prompt)
+        self.assertNotIn("a.py", prompt)
+
+    def test_json_only_task_targets_the_named_json_file(self):
+        from onecode.web.api import _shell_write_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "app.py").write_text("VALUE = 1\n", encoding="utf-8")
+            prompt = _shell_write_prompt("请在仓库根目录生成一个 analysis.json，不要改业务代码。", root)
+        self.assertIn("Target: analysis.json", prompt)
+        self.assertNotIn("app.py", prompt)
+
+    def test_task_tokens_select_the_implementation_file(self):
+        from onecode.web.api import _shell_write_prompt, shell_model_task_extras
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ("a.py", "b.py", "c.py", "d.py", "e.py", "f.py", "g.py", "h.py"):
+                (root / name).write_text("A = 1\n", encoding="utf-8")
+            (root / "pkg").mkdir()
+            (root / "pkg" / "query_utils.py").write_text("class FilteredRelation:\n    pass\n", encoding="utf-8")
+            task = "把 FilteredRelation 放进查询后会抛 AttributeError。"
+            prompt = _shell_write_prompt(task, root)
+            extras = shell_model_task_extras(task, root)
+        self.assertIn("Target: pkg/query_utils.py", prompt)
+        self.assertNotIn("a.py", prompt)
+        self.assertIn("FilteredRelation", extras["preface"])
+
+    def test_tests_only_task_asks_for_one_new_unittest_file(self):
+        from onecode.web.api import _shell_write_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "markupsafe_like").mkdir()
+            (root / "markupsafe_like" / "formatting.py").write_text("def render():\n    return ''\n", encoding="utf-8")
+            prompt = _shell_write_prompt("麻烦只补测试，先别改 formatting.py。", root)
+        self.assertIn("tests/", prompt)
+        self.assertIn("unittest", prompt)
+        self.assertNotIn("Target: markupsafe_like/formatting.py", prompt)
+
     def test_failed_patch_opens_a_new_complete_file_approval(self):
         from onecode.kernel.approval_plans import persist_approval_plan
         from onecode.kernel.model_provider import ModelPlan, ModelPlanPatch
@@ -973,6 +1024,7 @@ class OneCodeWebApiTests(unittest.TestCase):
             {
                 "ONECODE_WORKSPACE_ROOT": tmp,
                 "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_HOME": str(Path(tmp) / "home"),
                 "ONECODE_MODEL_PROVIDER": "chat",
                 "OPENAI_API_KEY": "test-key",
             },
@@ -983,6 +1035,12 @@ class OneCodeWebApiTests(unittest.TestCase):
             memory.mkdir()
             (memory / "memory.jsonl").write_text('{"text": "fare uses cents"}\n', encoding="utf-8")
             (memory / "mcp_servers.json").write_text(
+                '{"mcpServers": {"planted": {"command": "echo"}}}',
+                encoding="utf-8",
+            )
+            home = Path(tmp) / "home"
+            home.mkdir()
+            (home / "mcp_servers.json").write_text(
                 '{"mcpServers": {"docs": {"command": "echo"}}}',
                 encoding="utf-8",
             )
@@ -997,6 +1055,48 @@ class OneCodeWebApiTests(unittest.TestCase):
         prompt = run_model.call_args.args[0] + "\n" + str(run_model.call_args.kwargs.get("preface") or "")
         self.assertIn("fare uses cents", prompt)
         self.assertIn("docs", prompt)
+        self.assertNotIn("planted", prompt)
+
+    def test_staging_an_existing_preset_test_is_rejected(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            (Path(tmp) / "home").mkdir()
+            test_file = workspace / "tests" / "test_fee.py"
+            test_file.parent.mkdir()
+            test_file.write_text("ORIGINAL = 1\n", encoding="utf-8")
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(
+                    task="stage a test",
+                    assets=[ModelPlanAsset(path="src/fee.py", content="RATE = 1\n")],
+                ),
+                model_metadata={"model": "m", "user_task": "write src/fee.py"},
+            )
+            payload, status = handle_onecode_plan_approval(
+                stored.plan_id,
+                {
+                    "workspace": tmp,
+                    "approved": True,
+                    "stage": {"path": "tests/test_fee.py", "content": "TAMPERED = 1\n"},
+                },
+            )
+            self.assertEqual(status, 400)
+            self.assertEqual(test_file.read_text(encoding="utf-8"), "ORIGINAL = 1\n")
+            self.assertEqual(payload["error"]["type"], "invalid_stage")
 
     def test_confirmed_completion_is_remembered_and_a_halt_is_not(self):
         from onecode.kernel.agent_memory import load_agent_memory
