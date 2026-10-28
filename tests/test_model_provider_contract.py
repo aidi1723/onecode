@@ -1,4 +1,5 @@
 import json
+import os
 import unittest
 from unittest.mock import patch
 
@@ -13,8 +14,11 @@ from onecode.kernel.model_provider import (
 
 def system_contract(payload: dict) -> str:
     if "input" in payload:
-        return payload["input"][0]["content"]
-    return payload["messages"][0]["content"]
+        content = payload["input"][0]["content"]
+        if isinstance(content, list):
+            return str(content[0]["text"])
+        return str(content)
+    return str(payload["messages"][0]["content"])
 
 
 class ModelProviderContractTests(unittest.TestCase):
@@ -151,6 +155,15 @@ class ModelProviderContractTests(unittest.TestCase):
 
         self.assertEqual(len(plan.assets), 2)
 
+    def test_empty_patch_replace_block_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "replace_block must be a non-empty string"):
+            validate_model_plan(
+                {
+                    "task": "edit",
+                    "patches": [{"path": "src/a.py", "search_block": "x = 1\n", "replace_block": ""}],
+                }
+            )
+
     def test_model_plan_accepts_explicit_no_action(self):
         plan = validate_model_plan(
             {"task": "explain", "no_action": {"reason": "no workspace action"}}
@@ -159,6 +172,27 @@ class ModelProviderContractTests(unittest.TestCase):
         self.assertEqual(plan.no_action_reason, "no workspace action")
         self.assertEqual(plan.assets, [])
         self.assertEqual(plan.execution_steps, [])
+
+    def test_responses_payload_can_drop_schema_for_a_gateway_cache_key(self):
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("ONECODE_PROMPT_CACHE_KEY", None)
+            os.environ.pop("ONECODE_RESPONSES_TEXT_FORMAT", None)
+            default_payload = OpenAIResponsesProvider("key").request_payload("check", model="m")
+        self.assertEqual(
+            default_payload["input"][1]["content"],
+            [{"type": "input_text", "text": "check"}],
+        )
+        self.assertNotIn("prompt_cache_key", default_payload)
+        self.assertEqual(default_payload["text"]["format"]["type"], "json_schema")
+
+        with patch.dict(
+            os.environ,
+            {"ONECODE_PROMPT_CACHE_KEY": "any", "ONECODE_RESPONSES_TEXT_FORMAT": "off"},
+        ):
+            plain = OpenAIResponsesProvider("key").request_payload("check", model="m")
+        self.assertEqual(plain["prompt_cache_key"], "any")
+        self.assertNotIn("text", plain)
+        self.assertFalse(plain["stream"])
 
     def test_planning_contract_is_json_serializable(self):
         payload = OpenAIChatCompletionsProvider("key").request_payload(
@@ -220,6 +254,42 @@ class ModelProviderTimeoutTests(unittest.TestCase):
         self.assertEqual(captured["agent"], "onecode/0.8")
         self.assertEqual(captured["timeout"], 0.1)
         self.assertIn("read the fare", captured["body"]["messages"][0]["content"])
+
+    def test_origin_error_is_retried_once(self):
+        import io
+        import urllib.error
+
+        from onecode.kernel.model_provider import _post_model_json
+
+        calls = {"count": 0}
+
+        class Response:
+            def read(self, _size: int = -1) -> bytes:
+                return b'{"ok": true}'
+
+            def __enter__(self) -> "Response":
+                return self
+
+            def __exit__(self, *_args: object) -> bool:
+                return False
+
+        def opener(_request, timeout):  # type: ignore
+            calls["count"] += 1
+            if calls["count"] == 1:
+                raise urllib.error.HTTPError(
+                    "https://example.test",
+                    520,
+                    "Origin Error",
+                    hdrs=None,
+                    fp=io.BytesIO(b""),
+                )
+            return Response()
+
+        with patch("onecode.kernel.model_provider._SAFE_OPENER.open", side_effect=opener):
+            payload = _post_model_json("https://example.test/v1/responses", "key", {"model": "m"}, 1)
+
+        self.assertEqual(payload, {"ok": True})
+        self.assertEqual(calls["count"], 2)
 
 
 if __name__ == "__main__":

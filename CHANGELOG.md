@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-10-28 - Close the WorkBuddy code exam
+
+Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false. The record is `docs/closure/ONECODE_WORKBUDDY_EXAM_CLOSEOUT_2026-10-28.md`.
+
+### Changed
+
+- A Python path named in the task is the write target when that file exists, and up to four named files are placed in the preface.
+- An empty patch `replace_block` is an invalid plan. Building that patch no longer raises.
+
+### Verification
+
+- `bash scripts/verify.sh` on this Mac: `Ran 1317 tests`, `OK (skipped=1)`, coverage 86%, doctor `ok`. n100 was not re-run.
+- The n100 code-subset exam is recorded in the closeout. It is not a Harbor score and not Pass@k.
+
+## 2026-10-27 - Let responses calls match a gateway that rejects JSON Schema
+
+Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false.
+
+### Changed
+
+- Responses input is sent as `input_text` messages. `ONECODE_PROMPT_CACHE_KEY` is added when it is set.
+- `ONECODE_RESPONSES_TEXT_FORMAT=off` omits the strict JSON Schema. The default remains `json_schema`.
+- The read survey asks for a tools array in prose. A sample tool-call object is not embedded in that prompt.
+- A later survey call that fails keeps the reads already gathered. The first call still stops the task.
+- A single HTTP 520 from the model gateway is retried once.
+
+## 2026-10-26 - Name the WorkBuddy code exam
+
+Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false. The record is `docs/closure/ONECODE_WORKBUDDY_CODE_EXAM_PROTOCOL_2026-10-26.md`.
+
+### Changed
+
+- The code subset of WorkBuddy Bench is named as an external exam. Web, Office, and Security stay out.
+- Hidden tests, `gold.patch`, and `scorer.py` stay with the grader. OneCode's unittest count is not that score.
+- A failed task does not rewrite skills, scripts, or tests. A later skill or script still needs its own approval and ledger entry.
+
 ## 2026-10-23 - Close the audit findings
 
 Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false. The code is not yet committed. The record is `docs/closure/ONECODE_AUDIT_REMEDIATION_CLOSEOUT_2026-10-23.md`.

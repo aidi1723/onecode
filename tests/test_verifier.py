@@ -259,6 +259,23 @@ class VerifierExecutionTests(unittest.TestCase):
             self.assertEqual(result.status, "failed")
             self.assertEqual(result.reason, "verifier_empty_or_aborted")
 
+            fake_empty = CompletedProcess(
+                args=spec.command,
+                returncode=0,
+                stdout="Ran 0 tests in 0.000s\n\nNO TESTS RAN\n",
+                stderr="",
+            )
+            with patch("onecode.kernel.verifier.image_platform_mismatch", return_value=False), patch(
+                "onecode.kernel.verifier.run_in_sandbox", return_value=fake_empty
+            ):
+                empty = run_verifier(
+                    Path(tmp),
+                    spec,
+                    sandbox_config=SandboxConfig(workspace=Path(tmp), image="python:3.12-slim", network="none"),
+                )
+            self.assertEqual(empty.status, "skipped")
+            self.assertEqual(empty.reason, "no_unittest_collected")
+
     def test_foreign_image_checkpoints_before_the_container_starts(self):
         from onecode.kernel.hexagram import IchingKernel
         from onecode.kernel.sandbox import SandboxConfig

@@ -311,13 +311,13 @@ def build_intents_from_plan_actions(plan_actions: list[dict[str, Any]]) -> list[
         if action_type == "write_text":
             intents.append(ActionIntent.write_text(action.get("path", ""), action.get("content", "")))
         elif action_type == "patch_text":
-            intents.append(
-                ActionIntent.patch_text(
-                    action.get("path", ""),
-                    action.get("search_block", ""),
-                    action.get("replace_block", ""),
-                )
-            )
+            path = action.get("path", "")
+            search_block = action.get("search_block", "")
+            replace_block = action.get("replace_block", "")
+            if not all(isinstance(value, str) and value != "" for value in (path, search_block, replace_block)):
+                intents.append(ActionIntent.invalid_intent("patch_text"))
+            else:
+                intents.append(ActionIntent.patch_text(path, search_block, replace_block))
         else:
             intents.append(ActionIntent.invalid_intent(str(action_type)))
     return intents

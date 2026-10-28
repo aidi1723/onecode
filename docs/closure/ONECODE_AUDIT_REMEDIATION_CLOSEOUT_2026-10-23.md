@@ -2,7 +2,7 @@
 
 Version stays 1.0.0. Tag `v1.0.0` stays at `dd51424`. Tag `v0.8.0` stays at `e1adb3c`. No new hexagram was added. `IchingKernel.classify_outcome` was not edited. `claims_mainstream_parity` stays false. The model channel User-Agent stays `onecode/0.8`. Core runtime dependencies stay `dependencies = []`.
 
-This note records the security fixes that sit on `2e5696d` and are not yet committed. The audit they answer is the 2026-10-23 review of the controlled-scope tree. The chat path still passes `max_repair_attempts=1` and does not pass `approval_mode`, so approval stays `strict`.
+This note records the security fixes from the 2026-10-23 review. Those fixes are in `efb4447` and travel with the 2026-10-28 exam closeout. The chat path still passes `max_repair_attempts=1` and does not pass `approval_mode`, so approval stays `strict`.
 
 ## What changed
 

@@ -59,7 +59,7 @@ from onecode.kernel.gateway_engine import adjudicate_gateway_prediction, validat
 from onecode.kernel.model_provider import MissingModelApiKey, ModelProviderError, api_key_from_env, build_provider_config
 from onecode.kernel.allow_evidence import complete_allow_evidence
 from onecode.kernel.path_guard import PathGuard, PathGuardError
-from onecode.kernel.preset_tests import authoritative_preset_test_hashes, preset_test_hashes
+from onecode.kernel.preset_tests import authoritative_preset_test_hashes, is_preset_test_path, preset_test_hashes
 from onecode.kernel.run_inspection import ledger_matches_workspace
 from onecode.kernel.prompt_rules import decide_prompt
 from onecode.kernel.project_context import discover_project_context
@@ -205,7 +205,13 @@ def continue_named_files(user_task: str, workspace: Path, written_before: set[st
 
 
 def shell_model_task_extras(task: str, workspace: Path) -> dict[str, Any]:
-    paths = [path for path in named_python_files(task) if (workspace / path).is_file()]
+    paths: list[str] = []
+    for path in [*_mentioned_existing_python_files(task, workspace), *named_python_files(task)]:
+        if path in paths or is_preset_test_path(path) or not (workspace / path).is_file():
+            continue
+        paths.append(path)
+        if len(paths) == 4:
+            break
     preface = collect_preface(workspace, paths) if paths else ""
     return {
         "preface": preface or None,
@@ -245,6 +251,7 @@ def prepare_shell_model_call(task: str, workspace: Path, run_id: str | None = No
         "resource_budget_exceeded",
         "action_exception",
         "search_miss",
+        "repeated_action",
     }:
         return {"stop": _survey_stop(survey)}
     extras = shell_model_task_extras(task, workspace)
@@ -353,6 +360,51 @@ def _remember_confirmed_completion(
     )
 
 
+_MENTIONED_PYTHON = re.compile(r"(?<![\w./-])((?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]+\.py)")
+_REFUSED_PYTHON = re.compile(
+    r"(?:别改|不要改|不修改|不得修改|do not modify|don't modify)\s*`?([A-Za-z0-9_./-]+\.py)",
+    re.IGNORECASE,
+)
+
+
+def _refused_python_files(task: str) -> set[str]:
+    refused: set[str] = set()
+    for match in _REFUSED_PYTHON.findall(task):
+        relative = match.replace("\\", "/")
+        refused.add(relative)
+        refused.add(Path(relative).name)
+    return refused
+
+
+def _mentioned_existing_python_files(task: str, workspace: Path) -> list[str]:
+    refused = _refused_python_files(task)
+    found: list[str] = []
+    for match in _MENTIONED_PYTHON.findall(task):
+        relative = match.replace("\\", "/")
+        if relative in found or relative in refused or Path(relative).name in refused or is_preset_test_path(relative):
+            continue
+        if (workspace / relative).is_file():
+            found.append(relative)
+        if len(found) == 4:
+            break
+    return found
+
+
+def _existing_implementation_files(workspace: Path) -> list[str]:
+    denied = {"unittest.py", "pytest.py", "conftest.py", "sitecustomize.py", "usercustomize.py"}
+    found: list[str] = []
+    for path in sorted(workspace.rglob("*.py")):
+        if "__pycache__" in path.parts or not path.is_file():
+            continue
+        relative = path.relative_to(workspace).as_posix()
+        if is_preset_test_path(relative) or Path(relative).name in denied:
+            continue
+        found.append(relative)
+        if len(found) == 8:
+            break
+    return found
+
+
 def _shell_write_prompt(task: str, workspace: Path) -> str:
     missing = missing_required_files(task, workspace)
     if len(missing) > 1:
@@ -362,6 +414,32 @@ def _shell_write_prompt(task: str, workspace: Path) -> str:
     required = required_python_files(task)
     if len(required) == 1:
         return initial_asset_prompt(task, required[0])
+    mentioned = _mentioned_existing_python_files(task, workspace)
+    if len(mentioned) == 1:
+        return initial_asset_prompt(task, mentioned[0])
+    if len(mentioned) > 1:
+        listed = ", ".join(mentioned)
+        return (
+            "Change exactly one existing Python file from this list. "
+            "Its current text is in the preface above. "
+            "Return it as one complete JSON asset. Do not return patches. "
+            "Do not include execution_plan or run_command. Do not modify tests/.\n"
+            f"Existing files: {listed}\n"
+            f"Task: {task}"
+        )
+    existing = _existing_implementation_files(workspace)
+    if len(existing) == 1:
+        return initial_asset_prompt(task, existing[0])
+    if existing:
+        listed = ", ".join(existing)
+        return (
+            "Change exactly one existing Python file. "
+            "Prefer a file whose current text is in the preface above. "
+            "Return it as one complete JSON asset. Do not return patches. "
+            "Do not include execution_plan or run_command. Do not modify tests/.\n"
+            f"Candidate files: {listed}\n"
+            f"Task: {task}"
+        )
     return task
 
 
@@ -496,6 +574,8 @@ def verify_shell_write(
         targeted_test=resolved_target,
         sandbox_config=SandboxConfig(workspace=workspace),
     )
+    if checked.reason == "no_unittest_collected":
+        return result
     verified = {**result, "preset_test_hashes": current_tests} if checked.status == "passed" else result
     return apply_verifier_evidence(verified, workspace, verifier_runs)
 
@@ -1167,9 +1247,12 @@ def handle_chat_completion(
         }
         failure_reason = result.get("reason")
         if failure_reason in failure_statuses:
-            payload = error_payload(
-                str(failure_reason), "model planning failed before execution"
-            )
+            detail = result.get("payload")
+            extra = detail.get("detail") if isinstance(detail, dict) else None
+            message = "model planning failed before execution"
+            if isinstance(extra, str) and extra.strip():
+                message = f"{message}: {extra.strip()[:300]}"
+            payload = error_payload(str(failure_reason), message)
             payload["onecode"] = {"mode": "model", "result": result}
             return payload, failure_statuses[failure_reason]
         if failure_reason == "no_actionable_plan":

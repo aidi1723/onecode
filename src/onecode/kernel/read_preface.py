@@ -122,6 +122,7 @@ class _ModelReadProposer:
         self._fallback = fallback
         self.halt_reason: str | None = None
         self._model_done = False
+        self._got_model_text = False
 
     def __call__(self, history: list[dict[str, Any]], allowed: frozenset[str]) -> list[Proposal]:
         if self.halt_reason is not None:
@@ -157,12 +158,16 @@ class _ModelReadProposer:
 
     def _once(self, prompt: str) -> str | None:
         try:
-            return self._complete(prompt)
+            text = self._complete(prompt)
         except ModelProviderTimeout:
             self.halt_reason = "model_provider_timeout"
+            return None
         except ModelProviderError:
-            self.halt_reason = "model_provider_error"
-        return None
+            if not self._got_model_text:
+                self.halt_reason = "model_provider_error"
+            return None
+        self._got_model_text = True
+        return text
 
 
 def _survey_prompt(task: str, history: list[dict[str, Any]], allowed: frozenset[str]) -> str:
@@ -175,7 +180,8 @@ def _survey_prompt(task: str, history: list[dict[str, Any]], allowed: frozenset[
     return (
         "Choose the next read-only tools for this task. "
         f"Allowed tools: {names}. "
-        'Return one JSON object {"tools":[{"tool_name":"read_text","params":{"path":"src/file.py"}}]}. '
+        "Return one JSON object with a tools array. "
+        "Each item has a tool_name and a params object. "
         "Use an empty tools array when you have enough to stop. Do not write files.\n"
         f"Task: {task}\nObservations:\n" + "\n".join(observations)
     )

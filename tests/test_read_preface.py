@@ -6,7 +6,13 @@ from onecode.kernel.path_guard import PathGuardError
 
 
 class ReadPrefaceTests(unittest.TestCase):
-    def test_preface_rejects_a_write_tool(self):
+    def test_survey_prompt_asks_for_a_tools_array_without_a_sample_call(self):
+        from onecode.kernel.read_preface import _survey_prompt
+
+        prompt = _survey_prompt("fix the parser", [], frozenset({"read_text", "outline"}))
+        self.assertIn("tools array", prompt)
+        self.assertIn("read_text", prompt)
+        self.assertNotIn('"tool_name"', prompt)
         from onecode.kernel.read_preface import ReadPrefaceError, assert_read_only
 
         with self.assertRaises(ReadPrefaceError):
@@ -249,3 +255,47 @@ class ReadPrefaceTests(unittest.TestCase):
             )
         self.assertEqual(result["status"], "halted")
         self.assertEqual(result["reason"], "model_provider_timeout")
+
+    def test_model_survey_stops_when_the_first_call_fails(self):
+        from onecode.kernel.model_provider import ModelProviderError
+        from onecode.kernel.read_preface import read_only_registry_execute, survey_model_reads
+
+        def complete(prompt: str) -> str:
+            del prompt
+            raise ModelProviderError("origin")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            result = survey_model_reads(
+                Path(tmp),
+                "where is the fare constant",
+                complete,
+                read_only_registry_execute(Path(tmp)),
+            )
+        self.assertEqual(result["status"], "halted")
+        self.assertEqual(result["reason"], "model_provider_error")
+
+    def test_model_survey_keeps_an_earlier_read_when_a_later_call_fails(self):
+        from onecode.kernel.model_provider import ModelProviderError
+        from onecode.kernel.read_preface import read_only_registry_execute, survey_model_reads
+
+        calls = {"count": 0}
+
+        def complete(prompt: str) -> str:
+            del prompt
+            calls["count"] += 1
+            if calls["count"] == 1:
+                return '{"tools":[{"tool_name":"read_text","params":{"path":"src/fares.py"}}]}'
+            raise ModelProviderError("origin")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "src" / "fares.py").write_text("FARE = 9\n", encoding="utf-8")
+            result = survey_model_reads(
+                workspace,
+                "Fix src/fares.py",
+                complete,
+                read_only_registry_execute(workspace),
+            )
+        self.assertNotEqual(result.get("reason"), "model_provider_error")
+        self.assertIn("FARE = 9", result["preface"])

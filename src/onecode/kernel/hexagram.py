@@ -550,6 +550,8 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
                 "remaining_count": max(cast(int, requested_count) - resolved, 0),  # type: ignore
             }
             if status == "completed" and cast(int, failed_count) == 0 and resolved == cast(int, requested_count):  # type: ignore
+                if cast(int, requested_count) == 0:  # type: ignore
+                    return {"delivery_status": "blocked", "next_action": "inspect"} | counts
                 return {"delivery_status": "deliverable", "next_action": "idle"} | counts
             if cast(int, failed_count) > 0 or status in {"halted", "denied"}:  # type: ignore
                 return {"delivery_status": "blocked", "next_action": "resume"} | counts

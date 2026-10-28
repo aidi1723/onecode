@@ -398,6 +398,16 @@ class RunnerTests(unittest.TestCase):
             self.assertNotIn("unsafe-skill", ledger_text)
             self.assertNotIn("unsafe-skill", trace_text)
 
+    def test_empty_patch_replace_does_not_raise_while_building_intents(self):
+        from onecode.kernel.action_intent import ActionType
+        from onecode.kernel.runner import build_intents_from_plan_actions
+
+        intents = build_intents_from_plan_actions(
+            [{"action_type": "patch_text", "path": "src/a.py", "search_block": "x = 1\n", "replace_block": ""}]
+        )
+
+        self.assertEqual(intents[0].action_type, ActionType.INVALID_INTENT)
+
 
 class CliTests(unittest.TestCase):
     def test_cli_shell_schema_prints_projection_contract(self):

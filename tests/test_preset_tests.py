@@ -105,6 +105,24 @@ class PresetTestGuardTests(unittest.TestCase):
         code = IchingKernel.classify_outcome("halted", "verifier_failed")
         self.assertEqual(code, IchingKernel.compute_status(IchingKernel.LI, IchingKernel.KUN))
 
+    def test_verify_shell_write_skips_a_repository_with_no_unittest_collection(self):
+        from types import SimpleNamespace
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "tests").mkdir()
+            (workspace / "app").mkdir()
+            (workspace / "app" / "policy.py").write_text("def allow():\n    return False\n", encoding="utf-8")
+            original = {"status": "completed", "delivery_status": "deliverable", "reason": None}
+            empty = SimpleNamespace(status="skipped", reason="no_unittest_collected")
+            with patch(
+                "onecode.kernel.verifier.run_two_stage_verifier",
+                return_value=(empty, []),
+            ):
+                result = verify_shell_write(original, workspace)
+        self.assertEqual(result["delivery_status"], "deliverable")
+        self.assertEqual(result["status"], "completed")
+
     def test_verify_shell_write_blocks_delivery_when_preset_test_changes_without_running_verifier(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

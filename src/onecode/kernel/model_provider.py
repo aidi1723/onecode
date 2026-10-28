@@ -347,8 +347,8 @@ def validate_model_plan(data: dict[str, Any], known_modules: set[str] | None = N
             raise ValueError(f"paths under tests/ are protected: {path}")
         if not isinstance(search_block, str) or search_block == "":
             raise ValueError(f"patch {index} search_block must be a non-empty string")
-        if not isinstance(replace_block, str):
-            raise ValueError(f"patch {index} replace_block must be a string")
+        if not isinstance(replace_block, str) or replace_block == "":
+            raise ValueError(f"patch {index} replace_block must be a non-empty string")
         plan_patches.append(
             ModelPlanPatch(path=path, search_block=search_block, replace_block=replace_block)
         )
@@ -593,6 +593,26 @@ def parse_response_plan(response: dict[str, Any], known_modules: set[str] | None
     return validate_model_plan(payload, known_modules=known_modules)
 
 
+def _responses_input_message(role: str, text: str) -> dict[str, Any]:
+    return {
+        "type": "message",
+        "role": role,
+        "content": [{"type": "input_text", "text": text}],
+    }
+
+
+def _responses_prompt_cache() -> dict[str, str]:
+    value = os.environ.get("ONECODE_PROMPT_CACHE_KEY", "").strip()
+    if value == "":
+        return {}
+    return {"prompt_cache_key": value}
+
+
+def _responses_json_schema_enabled() -> bool:
+    mode = os.environ.get("ONECODE_RESPONSES_TEXT_FORMAT", "json_schema").strip().casefold()
+    return mode not in {"off", "text", "none", "false", "0"}
+
+
 class OpenAIResponsesProvider:
     def __init__(self, api_key: str, *, endpoint: str = DEFAULT_OPENAI_RESPONSES_URL) -> None:
         if api_key.strip() == "":
@@ -607,24 +627,25 @@ class OpenAIResponsesProvider:
         model: str,
         planning_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "model": model,
+            "stream": False,
             "input": [
-                {
-                    "role": "system",
-                    "content": canonical_planning_prompt(planning_context),
-                },
-                {"role": "user", "content": task},
+                _responses_input_message("system", canonical_planning_prompt(planning_context)),
+                _responses_input_message("user", task),
             ],
-            "text": {
+        }
+        payload.update(_responses_prompt_cache())
+        if _responses_json_schema_enabled():
+            payload["text"] = {
                 "format": {
                     "type": "json_schema",
                     "name": "onecode_task_plan",
                     "strict": True,
                     "schema": MODEL_PLAN_SCHEMA,
                 }
-            },
-        }
+            }
+        return payload
 
     def create_plan(
         self,
@@ -635,34 +656,12 @@ class OpenAIResponsesProvider:
         planning_context: dict[str, Any] | None = None,
         known_modules: set[str] | None = None,
     ) -> ModelPlan:
-        body = json.dumps(self.request_payload(task, model=model, planning_context=planning_context)).encode("utf-8")
-        request = urllib.request.Request(
+        response_payload = _post_model_json(
             self.endpoint,
-            data=body,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-                "User-Agent": "onecode/0.8",
-            },
-            method="POST",
+            self.api_key,
+            self.request_payload(task, model=model, planning_context=planning_context),
+            http_timeout_seconds,
         )
-        try:
-            with _SAFE_OPENER.open(request, timeout=http_timeout_seconds) as response:
-                response_payload = json.loads(read_bounded_response(response).decode("utf-8"))
-        except TimeoutError as exc:
-            raise ModelProviderTimeout("model request timed out") from exc
-        except urllib.error.HTTPError as exc:
-            if resumable_model_status(exc.code):
-                raise ModelProviderTimeout(f"model request can be resumed: {exc.code}") from exc
-            raise ModelProviderError(f"model request failed: {exc.reason}") from exc
-        except urllib.error.URLError as exc:
-            raise ModelProviderError(f"model request failed: {exc.reason}") from exc
-        except json.JSONDecodeError as exc:
-            raise ModelProviderError("model response envelope was not valid JSON") from exc
-        except ValueError as exc:
-            raise ModelProviderError("model response exceeds maximum size") from exc
-        if not isinstance(response_payload, dict):
-            raise ModelProviderError("model response envelope must be an object")
         return parse_response_plan(response_payload, known_modules=known_modules)
 
 
@@ -766,7 +765,12 @@ def complete_model_text(
     if api_key is None or api_key.strip() == "":
         raise MissingModelApiKey(f"{config.env_key} is required for model-backed runs")
     if config.provider_kind == "responses":
-        body: dict[str, Any] = {"model": config.model, "input": [{"role": "user", "content": prompt}]}
+        body = {
+            "model": config.model,
+            "stream": False,
+            "input": [_responses_input_message("user", prompt)],
+        }
+        body.update(_responses_prompt_cache())
     else:
         body = {
             "model": config.model,
@@ -801,21 +805,31 @@ def _post_model_json(endpoint: str, api_key: str, body: dict[str, Any], timeout_
         },
         method="POST",
     )
-    try:
-        with _SAFE_OPENER.open(request, timeout=timeout_seconds) as response:
-            payload = json.loads(read_bounded_response(response).decode("utf-8"))
-    except TimeoutError as exc:
-        raise ModelProviderTimeout("model request timed out") from exc
-    except urllib.error.HTTPError as exc:
-        if resumable_model_status(exc.code):
-            raise ModelProviderTimeout(f"model request can be resumed: {exc.code}") from exc
-        raise ModelProviderError(f"model request failed: {exc.reason}") from exc
-    except urllib.error.URLError as exc:
-        raise ModelProviderError(f"model request failed: {exc.reason}") from exc
-    except json.JSONDecodeError as exc:
-        raise ModelProviderError("model response envelope was not valid JSON") from exc
-    except ValueError as exc:
-        raise ModelProviderError("model response exceeds maximum size") from exc
+    last_url_error: urllib.error.URLError | None = None
+    for attempt in range(2):
+        try:
+            with _SAFE_OPENER.open(request, timeout=timeout_seconds) as response:
+                payload = json.loads(read_bounded_response(response).decode("utf-8"))
+            break
+        except TimeoutError as exc:
+            raise ModelProviderTimeout("model request timed out") from exc
+        except urllib.error.HTTPError as exc:
+            if resumable_model_status(exc.code):
+                raise ModelProviderTimeout(f"model request can be resumed: {exc.code}") from exc
+            if exc.code == 520 and attempt == 0:
+                continue
+            raise ModelProviderError(f"model request failed: {exc.reason}") from exc
+        except urllib.error.URLError as exc:
+            last_url_error = exc
+            if attempt == 0:
+                continue
+            raise ModelProviderError(f"model request failed: {exc.reason}") from exc
+        except json.JSONDecodeError as exc:
+            raise ModelProviderError("model response envelope was not valid JSON") from exc
+        except ValueError as exc:
+            raise ModelProviderError("model response exceeds maximum size") from exc
+    else:
+        raise ModelProviderError("model request failed: connection failed") from last_url_error
     if not isinstance(payload, dict):
         raise ModelProviderError("model response envelope must be an object")
     return payload

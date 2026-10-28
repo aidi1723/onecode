@@ -811,6 +811,80 @@ class OneCodeWebApiTests(unittest.TestCase):
         run_model.assert_called()
         self.assertIn("src/tide.py", run_model.call_args.args[0])
 
+    def test_shell_write_continues_when_the_survey_repeats_a_read(self):
+        from onecode.web.api import handle_chat_completion
+
+        halted = {
+            "status": "halted",
+            "reason": "repeated_action",
+            "status_code": 40,
+            "preface": "read src/app.py",
+            "turns": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.shell_read_survey", return_value=halted), patch(
+            "onecode.web.api.run_model_task", return_value={"status": "halted", "reason": "approval_required"}
+        ) as run_model:
+            payload, status = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Fix the coupon list."}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        self.assertEqual(status, 200)
+        run_model.assert_called()
+
+    def test_unnamed_task_asks_for_one_existing_python_file(self):
+        from onecode.web.api import _shell_write_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "app").mkdir()
+            (root / "app" / "policy.py").write_text("def allow():\n    return False\n", encoding="utf-8")
+            (root / "tests").mkdir()
+            (root / "tests" / "test_policy.py").write_text("import unittest\n", encoding="utf-8")
+            prompt = _shell_write_prompt("Fix the coupon list.", root)
+        self.assertIn("app/policy.py", prompt)
+        self.assertIn("JSON asset", prompt)
+        self.assertNotIn("tests/test_policy.py", prompt)
+
+    def test_named_workspace_file_is_the_write_target_and_preface(self):
+        from onecode.web.api import _shell_write_prompt, shell_model_task_extras
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "click_like").mkdir()
+            (root / "click_like" / "formatter.py").write_text("WIDTH = 80\n", encoding="utf-8")
+            (root / "click_like" / "other.py").write_text("X = 1\n", encoding="utf-8")
+            for index in range(10):
+                (root / f"z{index}.py").write_text("Y = 1\n", encoding="utf-8")
+            prompt = _shell_write_prompt("请修改 click_like/formatter.py 的宽度。", root)
+            extras = shell_model_task_extras("请修改 click_like/formatter.py 的宽度。", root)
+        self.assertIn("Target: click_like/formatter.py", prompt)
+        self.assertNotIn("z0.py", prompt)
+        self.assertIn("WIDTH = 80", extras["preface"])
+
+    def test_a_refused_python_file_is_not_forced_as_the_write_target(self):
+        from onecode.web.api import _shell_write_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "markupsafe_like").mkdir()
+            (root / "markupsafe_like" / "formatting.py").write_text("def render():\n    return ''\n", encoding="utf-8")
+            (root / "markupsafe_like" / "other.py").write_text("X = 1\n", encoding="utf-8")
+            prompt = _shell_write_prompt("只补测试，先别改 formatting.py。", root)
+        self.assertNotIn("Target: markupsafe_like/formatting.py", prompt)
+
     def test_failed_patch_opens_a_new_complete_file_approval(self):
         from onecode.kernel.approval_plans import persist_approval_plan
         from onecode.kernel.model_provider import ModelPlan, ModelPlanPatch

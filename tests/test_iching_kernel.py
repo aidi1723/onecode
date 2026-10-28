@@ -509,6 +509,21 @@ class TestIchingKernel(unittest.TestCase):
             ),
             {"delivery_status": "unknown", "next_action": "inspect"},
         )
+        self.assertEqual(
+            IchingKernel.delivery_decision(
+                status="completed",
+                requested_count=0,
+                completed_count=0,
+                skipped_count=0,
+                failed_count=0,
+            ),
+            {
+                "delivery_status": "blocked",
+                "next_action": "inspect",
+                "resolved_count": 0,
+                "remaining_count": 0,
+            },
+        )
 
     def test_process_exit_code_derives_cli_exit_from_transition_rules(self):
         self.assertEqual(IchingKernel.process_exit_code(status="completed", reason=None), 0)

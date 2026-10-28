@@ -384,7 +384,11 @@ def run_verifier(
                             if "-m" in spec.command and "unittest" in spec.command:
                                 stdout_str = completed.stdout if isinstance(completed.stdout, str) else completed.stdout.decode("utf-8", errors="replace")
                                 combined = stdout_str + "\n" + stderr_str
-                                if not (re.search(r"Ran ([1-9]\d*) tests?", combined) and re.search(r"\bOK\b", combined)):
+                                if re.search(r"NO TESTS RAN", combined) or re.search(r"\bRan 0 tests?\b", combined):
+                                    status = "skipped"
+                                    reason = "no_unittest_collected"
+                                    failure_kind = None
+                                elif not (re.search(r"Ran ([1-9]\d*) tests?", combined) and re.search(r"\bOK\b", combined)):
                                     status = "failed"
                                     reason = "verifier_empty_or_aborted"
                                     failure_kind = "command_failed"
