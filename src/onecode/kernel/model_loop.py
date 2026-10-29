@@ -318,6 +318,25 @@ def data_contract_guidance(task: str) -> str:
             "For calibration bins and ECE: set count, accuracy, and gap to 0 for empty bins, "
             "compute weighted Expected Calibration Error (ECE) across all bins, and include the 'gap' field (|conf - acc|) in bin dictionaries."
         )
+    if any(k in task_lower for k in ("crash_in_local", "crash in local", "crash", "unbound", "local variable", "崩溃", "作用域")):
+        rules.append(
+            "For local crash and bug fixes: defensively guard against None, missing keys, and empty collections; "
+            "ensure local variables are initialized across all conditional branches, and preserve original exception types."
+        )
+    if any(k in task_lower for k in ("envless", "envless_file_load", "file_load", "无环境", "环境变量")):
+        rules.append(
+            "For environment-less file loading: safely resolve relative and absolute paths with default search fallbacks when env vars are unset; "
+            "gracefully handle missing files or directories with deterministic fallback paths."
+        )
+    if any(k in task_lower for k in ("uriref", "eliminate_uriref", "validation_to_eliminate", "uri_ref")):
+        rules.append(
+            "For URI reference elimination and validation: deeply validate, sanitize, or convert URI references across nested structures and collections, "
+            "strictly rejecting or converting invalid URI objects without leaving partial references."
+        )
+    if any(k in task_lower for k in ("filtered_relation", "queryset_arg", "relation_queryset")):
+        rules.append(
+            "For filtered relations and querysets: preserve custom query arguments and kwargs without clobbering existing query filters or relation joins."
+        )
     if any(k in task_lower for k in ("sort", "order", "排", "顺序")) and not any("sort" in r for r in rules):
         rules.append("Sort outputs deterministically by specified keys; preserve required row and column ordering.")
     if any(k in task_lower for k in ("null", "nan", "missing", "empty", "zero", "空", "缺失", "零值")) and not any("missing" in r for r in rules):

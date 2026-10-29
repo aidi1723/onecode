@@ -2471,6 +2471,10 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
             ("feature_pipeline-hard-train_serve_parity", "train-serve parity"),
             ("feature_pipeline-hard-window_aggregates", "window aggregates"),
             ("model_evaluation-hard-calibration_bins", "calibration bins"),
+            ("bug_fix-easy-a_crash_in_local", "local crash"),
+            ("feature-medium-envless_file_load", "environment-less"),
+            ("feature-medium-validation_to_eliminate_uriref", "URI reference"),
+            ("bug_fix-easy-filtered_relation_queryset_arg", "filtered relations"),
         ]
         for task_name, expected_phrase in domains:
             guidance = data_contract_guidance(task_name)
