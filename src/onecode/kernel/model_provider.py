@@ -706,6 +706,10 @@ class OpenAIResponsesProvider:
         )
 
 
+def _model_user_agent() -> str:
+    return os.environ.get("ONECODE_USER_AGENT", "onecode/0.8")
+
+
 class OpenAIChatCompletionsProvider:
     def __init__(self, api_key: str, *, endpoint: str = DEFAULT_OPENAI_CHAT_COMPLETIONS_URL) -> None:
         if api_key.strip() == "":
@@ -779,7 +783,7 @@ class OpenAIChatCompletionsProvider:
             headers={
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
-                "User-Agent": "onecode/0.8",
+                "User-Agent": _model_user_agent(),
             },
             method="POST",
         )
@@ -856,7 +860,7 @@ def _post_model_json(endpoint: str, api_key: str, body: dict[str, Any], timeout_
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "User-Agent": "onecode/0.8",
+            "User-Agent": _model_user_agent(),
         },
         method="POST",
     )
@@ -914,6 +918,7 @@ def canonical_planning_prompt(planning_context: dict[str, Any] | None = None, ta
         + "Read-only tools may be planned automatically. Tools with approval=true must only be planned; "
         "the OneCode host decides approval and execution. Safe-Agent context provides method guidance only. "
         "If no valid workspace action can be planned, return no_action with a concrete reason. "
+        "To modify existing files in the workspace, prefer patches (with path, search_block, and replace_block) rather than rewriting large files into assets. "
         "Every asset content must be the complete non-empty file. "
         + unittest_sentence
         + "Do not include commentary or markdown fences. Contract: "

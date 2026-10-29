@@ -223,7 +223,11 @@ def discover_models(endpoint: str, api_key: str, timeout_seconds: float = 10) ->
         }
     request = urllib.request.Request(
         url,
-        headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json",
+            "User-Agent": os.environ.get("ONECODE_USER_AGENT", "onecode/0.8"),
+        },
         method="GET",
     )
     try:
