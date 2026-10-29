@@ -724,17 +724,27 @@ class OpenAIChatCompletionsProvider:
         model: str,
         planning_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        return {
+        system_content = canonical_planning_prompt(planning_context, task=task)
+        embed_system = os.environ.get("ONECODE_EMBED_SYSTEM_IN_USER", "").lower() in {"1", "true", "yes"}
+        user_content = f"{system_content}\n\nTask: {task}" if embed_system else task
+        payload: dict[str, Any] = {
             "model": model,
             "messages": [
                 {
                     "role": "system",
-                    "content": canonical_planning_prompt(planning_context, task=task),
+                    "content": system_content,
                 },
-                {"role": "user", "content": task},
+                {"role": "user", "content": user_content},
             ],
             "response_format": {"type": "json_object"},
         }
+        max_tokens_val = os.environ.get("ONECODE_MODEL_MAX_TOKENS")
+        if max_tokens_val:
+            try:
+                payload["max_tokens"] = int(max_tokens_val)
+            except ValueError:
+                pass
+        return payload
 
     def parse_response(
         self,
@@ -836,6 +846,12 @@ def complete_model_text(
             "messages": [{"role": "user", "content": prompt}],
             "response_format": {"type": "json_object"},
         }
+        max_tokens_val = os.environ.get("ONECODE_MODEL_MAX_TOKENS")
+        if max_tokens_val:
+            try:
+                body["max_tokens"] = int(max_tokens_val)
+            except ValueError:
+                pass
     payload = _post_model_json(config.endpoint, api_key, body, timeout_seconds)
     if config.provider_kind == "responses":
         return extract_response_text(payload)
