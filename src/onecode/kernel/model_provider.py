@@ -389,7 +389,7 @@ def _reject_unusable_python_assets(assets: list[ModelPlanAsset], known_modules: 
                     if pkg == "unittest" and not is_preset_test_path(asset.path):
                         raise ValueError(f"{asset.path} must not import unittest")
             elif isinstance(node, ast.ImportFrom):
-                if node.level and node.level > 0:
+                if node.level and node.level > 0 and known_modules is None:
                     raise ValueError(f"{asset.path} must not use a relative import")
                 if not node.module:
                     continue
@@ -578,16 +578,23 @@ def _message_text(content: Any) -> str | None:
 
 def workspace_python_modules(workspace: Path) -> set[str]:
     names: set[str] = set()
+    skip = {".git", ".onecode", ".venv", "venv", "__pycache__", "build", "dist", "node_modules"}
     for folder in ("src", "tests"):
         root = workspace / folder
-        if not root.is_dir():
-            continue
-        for path in root.rglob("*.py"):
-            if "__pycache__" in path.parts:
-                continue
-            stem = path.name[:-3]
-            if stem and stem != "__init__":
-                names.add(stem)
+        if root.is_dir():
+            for path in root.rglob("*.py"):
+                if "__pycache__" in path.parts:
+                    continue
+                stem = path.name[:-3]
+                if stem and stem != "__init__":
+                    names.add(stem)
+    if workspace.is_dir():
+        for item in workspace.iterdir():
+            if item.is_dir() and item.name not in skip and not item.name.startswith("."):
+                for path in item.glob("*.py"):
+                    stem = path.name[:-3]
+                    if stem and stem != "__init__":
+                        names.add(stem)
     return names
 
 
@@ -902,7 +909,7 @@ def canonical_planning_prompt(planning_context: dict[str, Any] | None = None, ta
     tool_sentence = "" if forbid_execution_plan else "Use execution_plan.steps for tool calls. "
     unittest_sentence = "" if forbid_unittest else "Tests must use the standard-library unittest module, not pytest. "
     return (
-        "Return only one JSON object matching output_schema. "
+        "Return only one JSON object matching output_schema. Do not emit tool calling markup or special tokens. "
         + tool_sentence
         + "Read-only tools may be planned automatically. Tools with approval=true must only be planned; "
         "the OneCode host decides approval and execution. Safe-Agent context provides method guidance only. "
