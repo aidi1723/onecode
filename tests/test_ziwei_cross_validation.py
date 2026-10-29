@@ -483,5 +483,108 @@ class ZiweiCrossValidationTests(unittest.TestCase):
         self.assertTrue(any("空劫夹命" in line for line in g3))
 
 
+class ZiweiAnchorageAndAuditTests(unittest.TestCase):
+    def test_shen_gong_subgroup_theorem_and_certificate(self):
+        """Test Shen Gong Even Subgroup Theorem (身宫偶数子群同构定理 2*Z_12 ~= Z_6)."""
+        cert = IchingKernel.shen_gong_anchorage_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertEqual(cert["image"], [0, 2, 4, 6, 8, 10])
+        self.assertEqual(cert["image_cardinality"], 6)
+        self.assertEqual(cert["kernel"], [0, 6])
+        self.assertTrue(cert["antipodal_symmetry_verified"])
+        self.assertTrue(cert["odd_palace_exclusion_verified"])
+        self.assertEqual(cert["subgroup_isomorphism"], "2Z_12 ~= Z_6")
+
+    def test_shen_gong_anchorage_profile_modes(self):
+        """Test active anchorage resolution across different engineering pressures."""
+        # 1. Verifier failure -> 官禄宫
+        p_guan = IchingKernel.shen_gong_anchorage_profile(
+            turn_number=2, current_status=32, verifier_passed=False
+        )
+        self.assertEqual(p_guan["active_index"], 8)
+        self.assertEqual(p_guan["palace_name"], "官禄宫")
+        self.assertEqual(p_guan["anchorage_mode"], "verifier_driven")
+        self.assertIn("Anchor to test verifier", p_guan["shelter_guidance"])
+
+        # 2. Token pressure / truncation -> 财帛宫
+        p_cai = IchingKernel.shen_gong_anchorage_profile(
+            turn_number=1, current_status=32, token_budget_ok=False
+        )
+        self.assertEqual(p_cai["active_index"], 4)
+        self.assertEqual(p_cai["palace_name"], "财帛宫")
+        self.assertEqual(p_cai["anchorage_mode"], "token_minimal_diff")
+
+        # 3. Environment incident -> 迁移宫
+        p_qian = IchingKernel.shen_gong_anchorage_profile(
+            turn_number=3, current_status=32, environment_ok=False
+        )
+        self.assertEqual(p_qian["active_index"], 6)
+        self.assertEqual(p_qian["palace_name"], "迁移宫")
+        self.assertEqual(p_qian["anchorage_mode"], "environment_adaptive")
+
+        # 4. Architectural risk -> 福德宫
+        p_fu = IchingKernel.shen_gong_anchorage_profile(
+            turn_number=4, current_status=15, architectural_risk=True
+        )
+        self.assertEqual(p_fu["active_index"], 10)
+        self.assertEqual(p_fu["palace_name"], "福德宫")
+        self.assertEqual(p_fu["anchorage_mode"], "architectural_integrity")
+
+        # 5. Interop risk -> 夫妻宫
+        p_qi = IchingKernel.shen_gong_anchorage_profile(
+            turn_number=5, current_status=31, interop_risk=True
+        )
+        self.assertEqual(p_qi["active_index"], 2)
+        self.assertEqual(p_qi["palace_name"], "夫妻宫")
+        self.assertEqual(p_qi["anchorage_mode"], "interop_compatible")
+
+        # 6. Baseline specification -> 命宫
+        p_ming = IchingKernel.shen_gong_anchorage_profile(
+            turn_number=1, current_status=1
+        )
+        self.assertEqual(p_ming["active_index"], 0)
+        self.assertEqual(p_ming["palace_name"], "命宫")
+        self.assertEqual(p_ming["anchorage_mode"], "contract_spec_driven")
+
+    def test_ziwei_mathematical_audit_full_certification(self):
+        """Test unified mathematical audit certifies all 3 Ziwei theorems."""
+        audit = IchingKernel.ziwei_mathematical_audit()
+        self.assertEqual(audit["status"], "ok")
+        self.assertEqual(audit["sovereign_ring"]["status"], "verified")
+        self.assertEqual(audit["an_he_coupling"]["status"], "verified")
+        self.assertEqual(audit["shen_gong_anchorage"]["status"], "verified")
+
+    def test_checkpoint_includes_shen_gong_telemetry(self):
+        """Verify checkpoint telemetry records shen_gong_anchorage."""
+        with tempfile.TemporaryDirectory() as tmp:
+            evidence_root = Path(tmp)
+            context = create_context(evidence_root, run_id="test-run-sg")
+            chk_path = write_checkpoint(
+                context=context,
+                payload={"op": "write_text", "path": "app.py"},
+                next_state=15,
+                status="completed",
+                partial=False,
+                reason=None,
+                iching_status_code=15,
+            )
+            data = json.loads(chk_path.read_text(encoding="utf-8"))
+            telemetry = data["telemetry"]
+            self.assertIn("shen_gong_anchorage", telemetry)
+            sg = telemetry["shen_gong_anchorage"]
+            self.assertIn("active_index", sg)
+            self.assertIn("palace_name", sg)
+            self.assertEqual(sg["subgroup_parity"], "even_subgroup_2z12")
+
+    def test_repair_guidance_injects_shen_gong_shelter(self):
+        """Test repair guidance includes 身宫寄托 shelter directive."""
+        from onecode.kernel.model_loop import _format_ziwei_repair_guidance
+
+        res = {"status": "halted", "verifier_results": [{"reason": "verifier_failed"}]}
+        guidance = _format_ziwei_repair_guidance(res, ["verifier_failed"])
+        self.assertTrue(any("身宫寄托" in line for line in guidance))
+        self.assertTrue(any("官禄宫" in line for line in guidance))
+
+
 if __name__ == "__main__":
     unittest.main()

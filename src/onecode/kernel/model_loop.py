@@ -582,6 +582,19 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
             "- Verifier failure (化忌入官禄): Test suite assertion failed. Focus surgical edits directly on the failing assertion requirements."
         )
 
+    # 3. Execution Anchorage & Fallback Shelter (身宫寄托)
+    anchorage = IchingKernel.shen_gong_anchorage_profile(
+        turn_number=len(turn_history) + 1,
+        current_status=int(failed_result.get("task_status_code", failed_result.get("iching_status_code", 32))),
+        token_budget_ok=not has_truncation,
+        verifier_passed=not has_verifier_fail,
+        environment_ok="timeout" not in str_result and "gateway" not in str_result,
+    )
+    if anchorage.get("shelter_guidance"):
+        guidance.append(
+            f"- Execution shelter (身宫寄托·{anchorage['palace_name']}): {anchorage['shelter_guidance']}"
+        )
+
     return guidance
 
 

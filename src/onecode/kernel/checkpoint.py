@@ -780,6 +780,10 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
                 macro_stage="delivery" if turn_number >= 5 else "implementation",
                 turn_status=iching_status_code,
             ),
+            "shen_gong_anchorage": IchingKernel.shen_gong_anchorage_profile(
+                turn_number=turn_number,
+                current_status=iching_status_code,
+            ),
         }
     return telemetry
 

@@ -119,6 +119,86 @@ def _evaluate_ziwei_pattern(
     }
 
 
+def _evaluate_shen_gong_anchorage(
+    turn_number: int,
+    current_status: int,
+    token_budget_ok: bool = True,
+    verifier_passed: bool | None = None,
+    environment_ok: bool = True,
+    ast_valid: bool = True,
+    has_test_suite: bool = True,
+    contract_ambiguity: bool = False,
+    architectural_risk: bool = False,
+    interop_risk: bool = False,
+) -> dict[str, Any]:
+    """Evaluate post-natal execution anchorage and fallback shelter (身宫寄托).
+
+    In Ziwei Doushu, Shen Gong (身宫) represents the post-natal anchor of action and
+    reality-check shelter. Across all 12 birth hours H in {0..11}, the relative
+    offset from 命宫 is k = (-2H) mod 12 in {0, 2, 4, 6, 8, 10} = 2*Z_12 ~= Z_6.
+    The six possible anchor palaces are:
+    - 0: 命宫 (身命同宫) -> Contract Spec & Baseline Driven
+    - 2: 夫妻宫 (身寄夫妻) -> Interop & Caller Interface Compatibility
+    - 4: 财帛宫 (身寄财帛) -> Token Economy & Minimal Surgical Diff
+    - 6: 迁移宫 (身寄迁移) -> Environment Adaptation & Gateway Shielding
+    - 8: 官禄宫 (身寄官禄) -> Verifier & Test Assertion Driven
+    - 10: 福德宫 (身寄福德) -> Architectural Integrity & Modular Decoupling
+    """
+    palace_names = {
+        0: "命宫",
+        2: "夫妻宫",
+        4: "财帛宫",
+        6: "迁移宫",
+        8: "官禄宫",
+        10: "福德宫",
+    }
+    modes = {
+        0: "contract_spec_driven",
+        2: "interop_compatible",
+        4: "token_minimal_diff",
+        6: "environment_adaptive",
+        8: "verifier_driven",
+        10: "architectural_integrity",
+    }
+    guidance_map = {
+        0: "Anchor strictly to specification baseline (身命同宫): Rely strictly on user prompt specification and core contract requirements.",
+        2: "Anchor to interface compatibility (身寄夫妻): Modifying shared module contract. Preserve function signatures and backward compatibility for callers.",
+        4: "Anchor to token conservation (身寄财帛): File exceeds comfortable asset length or budget is low. Produce minimal surgical diffs and avoid full-file rewrites.",
+        6: "Anchor to environment shelter (身寄迁移): External gateway or runtime barrier detected. Rely on standard library primitives and embed instructions defensively.",
+        8: "Anchor to test verifier (身寄官禄): Prioritize passing existing test assertions. Align implementation strictly to test expectations.",
+        10: "Anchor to structural integrity (身寄福德): High architectural complexity detected. Decouple helper logic, split functions, and preserve modular cleanliness.",
+    }
+
+    hour_branch = (turn_number - 1) % 12
+    theoretical_index = (-2 * hour_branch) % 12
+
+    if verifier_passed is False or (has_test_suite and verifier_passed is None and not ast_valid):
+        active_index = 8
+    elif not token_budget_ok:
+        active_index = 4
+    elif not environment_ok:
+        active_index = 6
+    elif architectural_risk:
+        active_index = 10
+    elif interop_risk:
+        active_index = 2
+    else:
+        active_index = 0
+
+    return {
+        "turn_number": turn_number,
+        "hour_branch_index": hour_branch,
+        "theoretical_index": theoretical_index,
+        "theoretical_palace": palace_names[theoretical_index],
+        "active_index": active_index,
+        "palace_name": palace_names[active_index],
+        "anchorage_mode": modes[active_index],
+        "shelter_guidance": guidance_map[active_index],
+        "subgroup_parity": "even_subgroup_2z12",
+        "is_valid_anchorage": active_index in palace_names,
+    }
+
+
 class IchingZiweiMixin:
     """Diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
 
@@ -467,11 +547,89 @@ class IchingZiweiMixin:
         """Comprehensive mathematical audit of all Ziwei Doushu cross-validation certificates."""
         ring = cls.sovereign_ring_isomorphism_certificate()
         an_he = cls.an_he_coupling_certificate()
-        all_passed = (ring.get("status") == "verified" and an_he.get("status") == "verified")
+        shen_gong = cls.shen_gong_anchorage_certificate()
+        all_passed = (
+            ring.get("status") == "verified"
+            and an_he.get("status") == "verified"
+            and shen_gong.get("status") == "verified"
+        )
         return {
             "status": "ok" if all_passed else "failed",
             "sovereign_ring": ring,
             "an_he_coupling": an_he,
+            "shen_gong_anchorage": shen_gong,
+        }
+
+    @classmethod
+    def shen_gong_anchorage_profile(
+        cls,
+        turn_number: int,
+        current_status: int,
+        token_budget_ok: bool = True,
+        verifier_passed: bool | None = None,
+        environment_ok: bool = True,
+        ast_valid: bool = True,
+        has_test_suite: bool = True,
+        contract_ambiguity: bool = False,
+        architectural_risk: bool = False,
+        interop_risk: bool = False,
+    ) -> dict[str, Any]:
+        """Compute post-natal execution anchorage and fallback shelter (身宫寄托)."""
+        return _evaluate_shen_gong_anchorage(
+            turn_number=turn_number,
+            current_status=current_status,
+            token_budget_ok=token_budget_ok,
+            verifier_passed=verifier_passed,
+            environment_ok=environment_ok,
+            ast_valid=ast_valid,
+            has_test_suite=has_test_suite,
+            contract_ambiguity=contract_ambiguity,
+            architectural_risk=architectural_risk,
+            interop_risk=interop_risk,
+        )
+
+    @classmethod
+    def shen_gong_anchorage_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Shen Gong Even Subgroup Theorem (身宫偶数子群同构定理).
+
+        Theorems:
+        1. Subgroup Isomorphism: The image of psi(H) = (-2H) mod 12 across all H in Z_12
+           is exactly the cyclic subgroup 2*Z_12 = {0, 2, 4, 6, 8, 10} ~= Z_6.
+        2. Parity Invariance: All elements in Im(psi) are strictly even (no odd palaces:
+           brothers(1), children(3), health(5), friends(7), property(9), parents(11) can ever be Shen Gong).
+        3. Kernel & Antipodal Symmetry: ker(psi) = {0, 6} (Zi-Wu pair). For all H, psi(H) == psi((H+6) mod 12).
+        """
+        image: set[int] = set()
+        kernel: list[int] = []
+        antipodal_verified = True
+        odd_palace_violation = False
+
+        for H in range(12):
+            k = (-2 * H) % 12
+            image.add(k)
+            if k == 0:
+                kernel.append(H)
+            if k % 2 != 0:
+                odd_palace_violation = True
+            if k != (-2 * ((H + 6) % 12)) % 12:
+                antipodal_verified = False
+
+        expected_image = {0, 2, 4, 6, 8, 10}
+        subgroup_verified = (
+            (image == expected_image)
+            and not odd_palace_violation
+            and (kernel == [0, 6])
+            and antipodal_verified
+        )
+
+        return {
+            "status": "verified" if subgroup_verified else "failed",
+            "image": sorted(list(image)),
+            "image_cardinality": len(image),
+            "kernel": kernel,
+            "antipodal_symmetry_verified": antipodal_verified,
+            "odd_palace_exclusion_verified": not odd_palace_violation,
+            "subgroup_isomorphism": "2Z_12 ~= Z_6",
         }
 
     @classmethod

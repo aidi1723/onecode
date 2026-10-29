@@ -117,6 +117,7 @@ def math_audit_payload() -> dict[str, object]:
             "state_distribution_entropy",
             "hysteresis_gate",
             "ziwei_isomorphism_and_coupling",
+            "shen_gong_subgroup_anchorage",
         ],
         "reference_only": [
             "probabilistic_sampling",
