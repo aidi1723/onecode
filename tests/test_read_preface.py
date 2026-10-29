@@ -25,6 +25,16 @@ class ReadPrefaceTests(unittest.TestCase):
         self.assertIn("src/fares.py", text)
         self.assertIn("def fare_cents", text)
 
+    def test_oversized_excerpt_keeps_distant_token_hits(self):
+        from onecode.kernel.read_preface import render_source_excerpt
+
+        text = "def early():\n    return 'data_key'\n" + ("x = 1\n" * 3000) + "def late():\n    return field.data_key\n" + ("y = 2\n" * 3000)
+        excerpt, complete = render_source_excerpt(text, ["data_key"])
+        self.assertFalse(complete)
+        self.assertIn("def early", excerpt)
+        self.assertIn("def late", excerpt)
+        self.assertIn("field.data_key", excerpt)
+
     def test_survey_queue_reads_a_ranked_file_outside_src(self):
         from onecode.kernel.read_preface import _survey_queue
 
@@ -36,6 +46,19 @@ class ReadPrefaceTests(unittest.TestCase):
             (root / "pkg" / "query_utils.py").write_text("class FilteredRelation:\n    pass\n", encoding="utf-8")
             queue = _survey_queue(root, "FilteredRelation 放进查询后会崩")
         self.assertEqual(queue[0]["params"]["path"], "pkg/query_utils.py")
+
+    def test_survey_queue_reads_the_only_flat_file_when_nothing_is_named(self):
+        from onecode.kernel.read_preface import _survey_queue
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "archive_like"
+            package.mkdir()
+            (package / "extract.py").write_text("def extract_members():\n    return []\n", encoding="utf-8")
+            queue = _survey_queue(root, "归档解压要拦住 symlink，别写出逃逸路径。")
+        self.assertEqual(queue[0]["params"]["path"], "archive_like/extract.py")
+        self.assertEqual(queue[0]["params"]["max_bytes"], 16000)
+        self.assertEqual(queue[0]["params"]["max_lines"], 600)
 
     def test_collect_preface_reads_workspace_files(self):
         from onecode.kernel.read_preface import collect_preface

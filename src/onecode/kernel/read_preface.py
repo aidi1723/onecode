@@ -1,3 +1,4 @@
+import ast
 import json
 from collections.abc import Callable
 from pathlib import Path
@@ -23,13 +24,20 @@ def assert_read_only(tool_names: list[str]) -> None:
         raise ReadPrefaceError(f"preface tools must be read-only: {', '.join(refused)}")
 
 
-def preface_text(files: dict[str, str]) -> str:
+SINGLE_FILE_PREFACE_CHARS = 24_000
+SURVEY_READ_CHARS = 16_000
+SURVEY_READ_LINES = 600
+SOURCE_WINDOW_CHARS = 8_000
+SKELETON_CHARS = 4_000
+
+
+def preface_text(files: dict[str, str], *, max_chars: int = 4_000) -> str:
     blocks: list[str] = []
     for path in sorted(files):
         content = files[path]
         if content == "":
             continue
-        blocks.append(f"## {path}\n{content[:4000]}")
+        blocks.append(f"## {path}\n{content[:max_chars]}")
     return "\n".join(blocks)
 
 
@@ -47,7 +55,7 @@ def survey_reads(
     max_turns: int = 4,
     *,
     max_read_misses: int = 4,
-    output_limit: int = 4_000,
+    output_limit: int = SURVEY_READ_CHARS,
 ) -> dict[str, Any]:
     result = run_agent_cycle(
         propose=_read_only_propose(propose),
@@ -95,7 +103,7 @@ def _preface_from_turns(turns: list[Any]) -> str:
                 continue
             output = record.get("output")
             if isinstance(output, str) and output.strip():
-                blocks.append(output[:4000])
+                blocks.append(output[:SURVEY_READ_CHARS])
     return "\n".join(blocks)
 
 
@@ -222,13 +230,16 @@ def default_read_proposer(workspace: Path, task: str) -> Propose:
 
 def _survey_queue(workspace: Path, task: str) -> list[Proposal]:
     from onecode.kernel.model_loop import named_python_files
-    from onecode.web.api import _ranked_implementation_files
+    from onecode.web.api import _existing_implementation_files, _ranked_implementation_files
 
     ranked = _ranked_implementation_files(task, workspace)
     named = [path for path in named_python_files(task) if (workspace / path).is_file() and path not in ranked]
     selected = [*ranked, *named][:2]
+    if not selected:
+        selected = _existing_implementation_files(workspace)[:2]
+    read = {"max_bytes": SURVEY_READ_CHARS, "max_lines": SURVEY_READ_LINES}
     queue: list[Proposal] = [
-        {"tool_name": "read_text", "params": {"path": path, "max_bytes": 4000, "max_lines": 200}}
+        {"tool_name": "read_text", "params": {"path": path, **read}}
         for path in selected
     ]
     for path in selected:
@@ -237,7 +248,7 @@ def _survey_queue(workspace: Path, task: str) -> list[Proposal]:
         test_path = f"tests/test_{Path(path).stem}.py"
         if (workspace / test_path).is_file():
             queue.append(
-                {"tool_name": "read_text", "params": {"path": test_path, "max_bytes": 4000, "max_lines": 200}}
+                {"tool_name": "read_text", "params": {"path": test_path, "max_bytes": SURVEY_READ_CHARS, "max_lines": SURVEY_READ_LINES}}
             )
             break
     if selected and selected[0].endswith(".py"):
@@ -285,13 +296,117 @@ def _headed_read(outcome: dict[str, Any], params: dict[str, Any]) -> dict[str, A
     path = params.get("path") if isinstance(params.get("path"), str) else outcome.get("path")
     if not isinstance(content, str) or not isinstance(path, str):
         return outcome
-    return {**outcome, "content": f"## {path.replace('/', ' / ')}\n{content[:4000]}"}
+    return {**outcome, "content": f"## {path.replace('/', ' / ')}\n{content[:SURVEY_READ_CHARS]}"}
 
 
-def collect_preface(workspace: Path, relative_paths: list[str]) -> str:
+def collect_preface(workspace: Path, relative_paths: list[str], *, max_chars: int = 4_000) -> str:
     files: dict[str, str] = {}
     for relative in relative_paths:
         target = PathGuard.resolve_read_target(workspace, relative)
         if target.is_file():
-            files[relative.replace("\\", "/")] = target.read_text(encoding="utf-8")[:4000]
-    return preface_text(files)
+            files[relative.replace("\\", "/")] = target.read_text(encoding="utf-8")[:max_chars]
+    return preface_text(files, max_chars=max_chars)
+
+
+def render_source_excerpt(text: str, tokens: list[str], *, limit: int = SINGLE_FILE_PREFACE_CHARS) -> tuple[str, bool]:
+    if len(text) <= limit:
+        return text, True
+    parts: list[str] = []
+    skeleton = _source_skeleton(text, SKELETON_CHARS)
+    if skeleton:
+        parts.append("Skeleton:\n" + skeleton)
+    parts.append("Source window:\n" + _source_window(text, tokens, SOURCE_WINDOW_CHARS))
+    return "\n".join(parts), False
+
+
+def render_workspace_preface(workspace: Path, relative_paths: list[str], tokens: list[str]) -> str:
+    blocks: list[str] = []
+    for relative in relative_paths:
+        target = PathGuard.resolve_read_target(workspace, relative)
+        if not target.is_file():
+            continue
+        text = target.read_text(encoding="utf-8")
+        if text == "":
+            continue
+        excerpt, complete = render_source_excerpt(text, tokens)
+        heading = f"## {relative.replace(chr(92), '/')}"
+        if not complete:
+            heading += "\nThis excerpt is not the whole file."
+        blocks.append(f"{heading}\n{excerpt}")
+    return "\n".join(blocks)
+
+
+def _source_window(text: str, tokens: list[str], limit: int) -> str:
+    positions: list[int] = []
+    for token in tokens:
+        if not token:
+            continue
+        start = 0
+        while len(positions) < 3:
+            index = text.find(token, start)
+            if index < 0:
+                break
+            if all(abs(index - earlier) > 200 for earlier in positions):
+                positions.append(index)
+            start = index + len(token)
+    if not positions:
+        return text[:limit]
+    per_hit = max(1200, limit // len(positions))
+    chunks: list[str] = []
+    for center in positions:
+        start = max(0, center - per_hit // 5)
+        newline = text.rfind("\n", 0, start)
+        if newline >= 0:
+            start = newline + 1
+        chunks.append(text[start : start + per_hit])
+    return "\n\n# ...\n\n".join(chunks)[:limit]
+
+
+def _source_skeleton(source: str, limit: int) -> str:
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return ""
+    lines = source.splitlines()
+    kept: list[str] = []
+    assignments = 0
+    for node in tree.body:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            kept.extend(_node_lines(lines, node))
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+            if assignments < 8:
+                kept.extend(_node_lines(lines, node)[:4])
+                assignments += 1
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            kept.extend(_folded_signature(lines, node))
+        elif isinstance(node, ast.ClassDef):
+            kept.extend(_folded_signature(lines, node))
+            for child in node.body:
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    kept.extend(_folded_signature(lines, child))
+        if sum(len(item) + 1 for item in kept) >= limit:
+            break
+    return "\n".join(kept)[:limit]
+
+
+def _node_lines(lines: list[str], node: ast.AST) -> list[str]:
+    start = getattr(node, "lineno", 1) - 1
+    end = getattr(node, "end_lineno", start + 1) or (start + 1)
+    return lines[start:end]
+
+
+def _folded_signature(lines: list[str], node: ast.AST) -> list[str]:
+    start = getattr(node, "lineno", 1) - 1
+    end = start + 1
+    last = getattr(node, "end_lineno", end) or end
+    while end < last and end < len(lines) and not lines[end - 1].rstrip().endswith(":"):
+        end += 1
+        if end - start > 8:
+            break
+    signature = lines[start:end]
+    pad = _leading_indent(signature[0] if signature else "")
+    return [*signature, f"{pad}# ... existing implementation ..."]
+
+
+def _leading_indent(line: str) -> str:
+    return line[: len(line) - len(line.lstrip(" "))] + "    "

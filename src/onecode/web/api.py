@@ -43,7 +43,7 @@ from onecode.kernel.model_loop import (
 from onecode.kernel.context import create_context
 from onecode.kernel.trace import TraceEvent, write_trace_event
 from onecode.kernel.agent_memory import load_agent_memory, remember_turn
-from onecode.kernel.read_preface import collect_preface
+from onecode.kernel.read_preface import SINGLE_FILE_PREFACE_CHARS, collect_preface, render_workspace_preface
 from onecode.kernel.host_stage import stage_bytes
 from onecode.kernel.outcome_policy import agent_cycle_decision
 from onecode.kernel.sandbox import SandboxConfig
@@ -209,10 +209,83 @@ def continue_named_files(user_task: str, workspace: Path, written_before: set[st
     )
 
 
+def _targeted_python_paths(task: str, workspace: Path) -> list[str]:
+    if _asks_for_new_tests(task) or _mentioned_json_file(task) is not None:
+        return []
+    mentioned = _mentioned_existing_python_files(task, workspace)
+    if mentioned:
+        return mentioned
+    ranked = _ranked_implementation_files(task, workspace)
+    if ranked:
+        return _fit_preface_paths(workspace, ranked)
+    return []
+
+
+def _selected_python_paths(task: str, workspace: Path) -> list[str]:
+    targeted = _targeted_python_paths(task, workspace)
+    if targeted:
+        return targeted
+    if _asks_for_new_tests(task) or _mentioned_json_file(task) is not None:
+        return []
+    existing = _existing_implementation_files(workspace)
+    if existing:
+        return _fit_preface_paths(workspace, existing)
+    return []
+
+
+def _fit_preface_paths(workspace: Path, ranked: list[str]) -> list[str]:
+    chosen: list[str] = []
+    total = 0
+    for relative in ranked:
+        try:
+            size = (workspace / relative).stat().st_size
+        except OSError:
+            continue
+        if chosen and total + min(size, SINGLE_FILE_PREFACE_CHARS) > 32_000:
+            break
+        chosen.append(relative)
+        total += min(size, SINGLE_FILE_PREFACE_CHARS)
+        if len(chosen) == 4:
+            break
+    return chosen or ranked[:1]
+
+
+def _file_exceeds_preface(workspace: Path, relative: str) -> bool:
+    try:
+        return (workspace / relative).stat().st_size > SINGLE_FILE_PREFACE_CHARS
+    except OSError:
+        return False
+
+
+def _asset_or_patch_prompt(task: str, workspace: Path, target: str) -> str:
+    if _file_exceeds_preface(workspace, target):
+        return (
+            "The target file is larger than one complete asset.\n"
+            f"Target: {target}\n"
+            f"Original task: {task}\n"
+            "Return JSON with one patch. "
+            "The patch search_block must be copied from the Source window in the preface, not from the Skeleton. "
+            "Do not return a full-file asset. "
+            "Do not include execution_plan or run_command. "
+            "Do not modify tests/."
+        )
+    return initial_asset_prompt(task, target)
+
+
+def _prompt_for_paths(task: str, workspace: Path, paths: list[str]) -> str:
+    if len(paths) == 1 or any(_file_exceeds_preface(workspace, path) for path in paths):
+        return _asset_or_patch_prompt(task, workspace, paths[0])
+    return _listed_file_prompt(task, paths)
+
+
 def shell_model_task_extras(task: str, workspace: Path) -> dict[str, Any]:
-    unique = _unique_named_business_file(task, workspace)
-    if unique is not None:
-        preface = collect_preface(workspace, [unique]) or None
+    focused = _selected_python_paths(task, workspace)
+    if focused:
+        if len(focused) == 1 and _file_exceeds_preface(workspace, focused[0]):
+            preface = render_workspace_preface(workspace, focused, _task_tokens(task)) or None
+        else:
+            max_chars = 24_000 if len(focused) == 1 else 12_000
+            preface = collect_preface(workspace, focused, max_chars=max_chars) or None
         return {
             "preface": preface,
             "sandbox_config": SandboxConfig(workspace=workspace),
@@ -282,7 +355,7 @@ def prepare_shell_model_call(task: str, workspace: Path, run_id: str | None = No
     extras = shell_model_task_extras(task, workspace)
     surveyed_text = survey.get("preface")
     named_text = extras.get("preface")
-    surveyed = "" if _unique_named_business_file(task, workspace) else (surveyed_text.strip() if isinstance(surveyed_text, str) else "")
+    surveyed = "" if _targeted_python_paths(task, workspace) else (surveyed_text.strip() if isinstance(surveyed_text, str) else "")
     named = named_text.strip() if isinstance(named_text, str) else ""
     notes = _shell_context_notes(workspace)
     preface = "\n".join(part for part in (surveyed, named, notes) if part)
@@ -335,6 +408,9 @@ def _rewrite_target(task: str, workspace: Path) -> str:
         ]
         if files:
             return files[0]
+    existing = _existing_implementation_files(workspace)
+    if existing:
+        return existing[0]
     return "src/app.py"
 
 
@@ -421,15 +497,6 @@ def _mentioned_existing_python_files(task: str, workspace: Path) -> list[str]:
     return found
 
 
-def _unique_named_business_file(task: str, workspace: Path) -> str | None:
-    if _asks_for_new_tests(task) or _mentioned_json_file(task) is not None:
-        return None
-    mentioned = _mentioned_existing_python_files(task, workspace)
-    if len(mentioned) == 1:
-        return mentioned[0]
-    return None
-
-
 _TASK_TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_]{3,}")
 _TESTS_ONLY = re.compile(r"只补测试|只补\s*tests|只添加测试|只新增测试|only add tests", re.IGNORECASE)
 _TOKEN_STOP = frozenset(
@@ -491,15 +558,14 @@ def _ranked_implementation_files(task: str, workspace: Path) -> list[str]:
             continue
         scanned += 1
         try:
-            text = path.read_text(encoding="utf-8")[:12000]
+            text = path.read_text(encoding="utf-8")[:80_000]
         except (OSError, UnicodeError):
             continue
         score = 0
         for token in tokens:
             if token in path.name or token in relative:
                 score += 5
-            if token in text:
-                score += 1
+            score += min(text.count(token), 20)
         if score:
             scored.append((score, relative))
     scored.sort(key=lambda item: (-item[0], item[1]))
@@ -599,6 +665,8 @@ def _shell_write_prompt(task: str, workspace: Path, preface: str = "") -> str:
     if len(missing) == 1:
         return initial_asset_prompt(task, missing[0])
     required = required_python_files(task)
+    if len(required) == 1 and (workspace / required[0]).is_file():
+        return _asset_or_patch_prompt(task, workspace, required[0])
     if len(required) == 1:
         return initial_asset_prompt(task, required[0])
     json_target = _mentioned_json_file(task)
@@ -606,21 +674,14 @@ def _shell_write_prompt(task: str, workspace: Path, preface: str = "") -> str:
         return _one_file_prompt(task, json_target)
     if _asks_for_new_tests(task):
         return _new_test_prompt(task)
-    mentioned = _mentioned_existing_python_files(task, workspace)
-    if len(mentioned) == 1:
-        return initial_asset_prompt(task, mentioned[0])
-    if len(mentioned) > 1:
-        return _listed_file_prompt(task, mentioned)
+    targeted = _targeted_python_paths(task, workspace)
+    if targeted:
+        return _prompt_for_paths(task, workspace, targeted)
     surveyed = _python_files_in_preface(preface, workspace)
     if len(surveyed) == 1:
-        return initial_asset_prompt(task, surveyed[0])
+        return _asset_or_patch_prompt(task, workspace, surveyed[0])
     if len(surveyed) > 1:
         return _listed_file_prompt(task, surveyed)
-    ranked = _ranked_implementation_files(task, workspace)
-    if len(ranked) == 1:
-        return initial_asset_prompt(task, ranked[0])
-    if len(ranked) > 1:
-        return _listed_file_prompt(task, ranked)
     existing = _existing_implementation_files(workspace)
     if len(existing) == 1:
         return initial_asset_prompt(task, existing[0])

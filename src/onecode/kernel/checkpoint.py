@@ -757,10 +757,15 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
     telemetry = {}
     if iching_status_code is not None:
         from onecode.kernel.hexagram import IchingKernel
+        before_status = base_status if isinstance(base_status, int) else None
+        sihua = IchingKernel.diagnostic_sihua_profile(iching_status_code, before_status=before_status)
         telemetry = {
             "moving_lines": IchingKernel.moving_lines(base_status, iching_status_code),
             "micro_relations": IchingKernel.micro_relations(iching_status_code),
-            "cycle_phase": IchingKernel.cycle_phase(turn_number - 1)
+            "cycle_phase": IchingKernel.cycle_phase(turn_number - 1),
+            "sihua": sihua["sihua"],
+            "changed_bands": sihua["changed_bands"],
+            "foundation_broken": IchingKernel.nuclear_profile(iching_status_code)["foundation_broken"],
         }
     return telemetry
 

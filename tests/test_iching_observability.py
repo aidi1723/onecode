@@ -498,6 +498,20 @@ class IchingObservabilityTests(unittest.TestCase):
             manifest2 = json.loads((ctx.evidence_root / "manifest.json").read_text())
             self.assertEqual(manifest2["checkpoints"][-1]["telemetry"]["moving_lines"], [0])
             self.assertEqual(manifest2["checkpoints"][-1]["telemetry"]["cycle_phase"], "临") # Round 2 -> index 1 -> 临
+            round_one = IchingKernel.diagnostic_sihua_profile(63)
+            self.assertEqual(data1["telemetry"]["sihua"], round_one["sihua"])
+            self.assertEqual(data1["telemetry"]["changed_bands"], [])
+            self.assertEqual(
+                data1["telemetry"]["foundation_broken"],
+                IchingKernel.nuclear_profile(63)["foundation_broken"],
+            )
+            round_two = IchingKernel.diagnostic_sihua_profile(62, before_status=63)
+            self.assertEqual(data2["telemetry"]["sihua"], round_two["sihua"])
+            self.assertEqual(data2["telemetry"]["changed_bands"], round_two["changed_bands"])
+            self.assertEqual(
+                data2["telemetry"]["foundation_broken"],
+                IchingKernel.nuclear_profile(62)["foundation_broken"],
+            )
             
     def test_wen_wang_sequence_hardcoded(self) -> None:
         self.assertEqual(len(WEN_WANG_SEQUENCE), 64)

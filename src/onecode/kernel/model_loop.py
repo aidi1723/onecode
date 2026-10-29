@@ -144,30 +144,54 @@ def build_provider(api_key: str, provider_kind: str, endpoint: str | None) -> An
     return OpenAIChatCompletionsProvider(api_key, endpoint=config.endpoint)
 
 
-_NAMED_PYTHON_FILE = re.compile(r"\b(?:src|tests)/[A-Za-z0-9_./-]+\.py\b")
+_RELATIVE_PYTHON = r"((?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]+\.py)"
+_NAMED_PYTHON_FILE = re.compile(rf"(?<![\w./-]){_RELATIVE_PYTHON}\b")
+_DO_NOT_FILE = re.compile(
+    rf"(?:do not|don't|never)\s+(?:modify|change|patch|edit|touch|rewrite)\s+{_RELATIVE_PYTHON}",
+    re.IGNORECASE,
+)
+_ONLY_FILE = re.compile(rf"\bonly\s+{_RELATIVE_PYTHON}", re.IGNORECASE)
+_REPAIR_SKIP = frozenset(
+    {
+        ".git",
+        ".github",
+        ".onecode",
+        "tests",
+        "venv",
+        ".venv",
+        "__pycache__",
+        "node_modules",
+        "docs",
+        "dist",
+        "build",
+    }
+)
+
+
+def _accepted_relative_python(path: str) -> str | None:
+    relative = path.replace("\\", "/")
+    parts = relative.split("/")
+    if any(part in {"", ".", ".."} or part.startswith(".") for part in parts):
+        return None
+    return relative
 
 
 def named_python_files(task: str) -> list[str]:
     found: list[str] = []
     for match in _NAMED_PYTHON_FILE.findall(task):
-        if match not in found:
-            found.append(match)
+        cleaned = _accepted_relative_python(match)
+        if cleaned is not None and cleaned not in found:
+            found.append(cleaned)
     return found
-
-
-_DO_NOT_FILE = re.compile(
-    r"(?:do not|don't|never)\s+(?:modify|change|patch|edit|touch|rewrite)\s+((?:src|tests)/[A-Za-z0-9_./-]+\.py)",
-    re.IGNORECASE,
-)
-_ONLY_FILE = re.compile(r"\bonly\s+((?:src|tests)/[A-Za-z0-9_./-]+\.py)", re.IGNORECASE)
 
 
 def protected_python_files(task: str) -> list[str]:
     found: list[str] = []
     for match in _DO_NOT_FILE.findall(task):
-        if match not in found:
-            found.append(match)
-    only = _ONLY_FILE.findall(task)
+        cleaned = _accepted_relative_python(match)
+        if cleaned is not None and cleaned not in found:
+            found.append(cleaned)
+    only = [cleaned for match in _ONLY_FILE.findall(task) if (cleaned := _accepted_relative_python(match))]
     if only:
         allowed = set(only)
         for path in named_python_files(task):
@@ -256,15 +280,34 @@ def initial_asset_prompt(task: str, target: str) -> str:
     )
 
 
-def _src_files_for_repair(workspace: Path) -> dict[str, str]:
-    root = workspace / "src"
-    if not root.is_dir():
-        return {}
-    files: dict[str, str] = {}
-    for path in sorted(root.rglob("*.py")):
-        if "__pycache__" in path.parts:
+def _repair_roots(workspace: Path) -> list[Path]:
+    src = workspace / "src"
+    if src.is_dir():
+        return [src]
+    if not workspace.is_dir():
+        return []
+    roots: list[Path] = []
+    for child in sorted(workspace.iterdir()):
+        if child.name in _REPAIR_SKIP or child.name.startswith("."):
             continue
-        files[path.relative_to(workspace).as_posix()] = path.read_text(encoding="utf-8")[:4000]
+        if child.is_dir() or (child.is_file() and child.suffix == ".py"):
+            roots.append(child)
+    return roots
+
+
+def _src_files_for_repair(workspace: Path) -> dict[str, str]:
+    files: dict[str, str] = {}
+    for root in _repair_roots(workspace):
+        paths = [root] if root.is_file() else sorted(root.rglob("*.py"))
+        for path in paths:
+            if not path.is_file() or "__pycache__" in path.parts:
+                continue
+            relative = path.relative_to(workspace).as_posix()
+            if is_preset_test_path(relative) or Path(relative).name in {"unittest.py", "pytest.py", "conftest.py"}:
+                continue
+            files[relative] = path.read_text(encoding="utf-8")[:4000]
+            if len(files) >= 8:
+                return files
     return files
 
 
@@ -274,7 +317,7 @@ def _repair_source_block(failed_result: dict[str, Any]) -> str:
         return ""
     blocks: list[str] = []
     for path in sorted(files):
-        if not isinstance(path, str) or not path.startswith("src/") or not path.endswith(".py"):
+        if not isinstance(path, str) or not path.endswith(".py") or path.startswith("tests/"):
             continue
         content = files.get(path)
         if not isinstance(content, str) or content == "":

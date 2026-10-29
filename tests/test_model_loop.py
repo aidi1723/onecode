@@ -2285,6 +2285,36 @@ class ModelLoopTests(unittest.TestCase):
         self.assertEqual(summary["delivery_status"], "blocked")
         self.assertEqual(summary["verifier_results"][0]["status"], "failed")
 
+    def test_named_python_files_include_a_flat_package_and_skip_example_paths(self):
+        from onecode.kernel.model_loop import named_python_files
+
+        self.assertEqual(named_python_files("Fix archive_like/extract.py"), ["archive_like/extract.py"])
+        self.assertEqual(named_python_files("像 `/foo/a.py` 这种路径"), [])
+        self.assertEqual(named_python_files("edit src/app.py"), ["src/app.py"])
+
+    def test_repair_source_includes_a_flat_package_when_src_is_absent(self):
+        from onecode.kernel.model_loop import _src_files_for_repair
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            package = workspace / "archive_like"
+            package.mkdir()
+            (package / "extract.py").write_text("def extract_members():\n    return []\n", encoding="utf-8")
+            files = _src_files_for_repair(workspace)
+        self.assertIn("def extract_members", files["archive_like/extract.py"])
+
+    def test_repair_prompt_includes_flat_package_source(self):
+        from onecode.kernel.model_loop import _src_files_for_repair, repair_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            package = workspace / "archive_like"
+            package.mkdir()
+            (package / "extract.py").write_text("def extract_members():\n    return []\n", encoding="utf-8")
+            prompt = repair_prompt("fix the archive", {"workspace_files": _src_files_for_repair(workspace)})
+        self.assertIn("archive_like/extract.py", prompt)
+        self.assertIn("def extract_members", prompt)
+
 
 class ExecuteModelPlanApprovalTests(unittest.TestCase):
     def test_asset_plan_without_callback_does_not_write(self):

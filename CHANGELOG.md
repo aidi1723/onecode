@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-29 - Keep flat-package source in the preface and the checkpoint
+
+Version stays 1.0.0. No new hexagram was added. `classify_outcome` was not edited. `claims_mainstream_parity` stays false.
+
+### Changed
+
+- A task that does not name a path still receives the text of the existing implementation files. The read survey falls back to those files, and a repository without `src/` supplies them to the repair prompt.
+- One target file may occupy 24000 characters in the preface. Several candidates may occupy 12000 each. A survey read may take 16000 characters and 600 lines.
+- A file longer than 24000 characters is shown as a signature skeleton plus a source window, and the prompt asks for one patch.
+- Checkpoint telemetry records `sihua`, `changed_bands`, and `foundation_broken`. The WAL line format is unchanged.
+
+### Verification
+
+- `bash scripts/verify.sh` on this Mac: `Ran 1340 tests`, `OK (skipped=1)`, coverage 86%, doctor `ok`.
+
 ## 2026-10-29 - Add the read-only sovereign ring and single-branch prompts
 
 Version stays 1.0.0. No new hexagram was added. `classify_outcome` was not edited. `claims_mainstream_parity` stays false.

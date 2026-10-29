@@ -858,6 +858,86 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertIn("JSON asset", prompt)
         self.assertNotIn("tests/test_policy.py", prompt)
 
+    def test_sole_flat_package_file_is_copied_into_the_preface(self):
+        from onecode.web.api import _shell_write_prompt, shell_model_task_extras
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "archive_like"
+            package.mkdir()
+            (package / "extract.py").write_text("def extract_members():\n    return []\n", encoding="utf-8")
+            task = "归档解压要拦住 symlink，别写出逃逸路径。"
+            prompt = _shell_write_prompt(task, root)
+            extras = shell_model_task_extras(task, root)
+            from onecode.web.api import _rewrite_target
+
+            rewrite = _rewrite_target(task, root)
+        self.assertIn("Target: archive_like/extract.py", prompt)
+        self.assertIn("def extract_members", extras["preface"])
+        self.assertEqual(rewrite, "archive_like/extract.py")
+
+    def test_small_flat_package_preface_includes_every_module(self):
+        from onecode.web.api import shell_model_task_extras
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "archive_like"
+            package.mkdir()
+            (package / "extract.py").write_text("def extract_members():\n    return []\n", encoding="utf-8")
+            (package / "path.py").write_text("def target_path(base, name):\n    return name\n", encoding="utf-8")
+            extras = shell_model_task_extras("归档解压要拦住 symlink，别写出逃逸路径。", root)
+        self.assertIn("def extract_members", extras["preface"])
+        self.assertIn("def target_path", extras["preface"])
+
+    def test_single_target_preface_keeps_source_past_four_thousand_characters(self):
+        from onecode.web.api import shell_model_task_extras
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "pathspec"
+            package.mkdir()
+            body = ("# pad\n" * 900) + "def match_files(paths):\n    return paths\n"
+            (package / "util.py").write_text(body, encoding="utf-8")
+            extras = shell_model_task_extras("让 match_files() 返回完整匹配。", root)
+        self.assertIn("def match_files", extras["preface"])
+        self.assertGreater(extras["preface"].index("def match_files"), 4000)
+
+    def test_single_target_preface_keeps_a_ten_thousand_character_tail(self):
+        from onecode.web.api import shell_model_task_extras
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "src" / "marshmallow"
+            package.mkdir(parents=True)
+            body = ("# line\n" * 1500) + "def tail_definition():\n    return 1\n"
+            self.assertGreater(len(body), 4000)
+            self.assertLess(len(body), 24000)
+            (package / "schema.py").write_text(body, encoding="utf-8")
+            extras = shell_model_task_extras("修正 schema.py 的尾部定义。", root)
+        self.assertIn("def tail_definition", extras["preface"])
+        self.assertGreater(extras["preface"].index("def tail_definition"), 4000)
+
+    def test_oversized_target_asks_for_one_patch_around_the_token(self):
+        from onecode.web.api import _rewrite_target, _shell_write_prompt, shell_model_task_extras
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "src" / "marshmallow"
+            package.mkdir(parents=True)
+            body = ("x = 1\n" * 5000) + "def show():\n    return 'data_key'\n" + ("y = 2\n" * 5000)
+            (package / "schema.py").write_text(body, encoding="utf-8")
+            task = "错误 key 要用对外的 data_key。"
+            prompt = _shell_write_prompt(task, root)
+            extras = shell_model_task_extras(task, root)
+            rewrite = _rewrite_target(task, root)
+        self.assertIn("patch", prompt.casefold())
+        self.assertIn("search_block", prompt)
+        self.assertNotIn("complete non-empty file", prompt)
+        self.assertIn("def show", extras["preface"])
+        self.assertIn("data_key", extras["preface"])
+        self.assertLess(len(extras["preface"]), len(body))
+        self.assertEqual(rewrite, "src/marshmallow/schema.py")
+
     def test_named_workspace_file_is_the_write_target_and_preface(self):
         from onecode.web.api import _shell_write_prompt, shell_model_task_extras
 
