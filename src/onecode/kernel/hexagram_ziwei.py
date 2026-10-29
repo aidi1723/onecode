@@ -13,6 +13,112 @@ import math
 from typing import Any
 
 
+def _evaluate_ziwei_pattern(
+    turn_number: int,
+    current_status: int,
+    ast_valid: bool = True,
+    token_budget_ok: bool = True,
+    verifier_passed: bool | None = None,
+    environment_ok: bool = True,
+    consecutive_read_stalls: int = 0,
+    consecutive_syntax_errors: int = 0,
+    undefined_symbols_count: int = 0,
+    fatal_regression: bool = False,
+) -> dict[str, Any]:
+    """Classify execution state against classical Ziwei formations (格局矩阵).
+
+    Evaluates resonance (吉格) vs impediments (凶格 / 陷阱格) to recommend
+    deterministic execution remedies and state transitions.
+    """
+    if verifier_passed is False and not token_budget_ok:
+        return {
+            "pattern": "羊陀夹忌",
+            "level": "broken",
+            "action": "switch_to_surgical_diff",
+            "remedy": "switch_to_surgical_unified_diff",
+            "description": "Deadlock trap: verifier failing while resource or file preview is truncated.",
+        }
+    if fatal_regression:
+        return {
+            "pattern": "铃昌陀武",
+            "level": "critical",
+            "action": "rollback",
+            "remedy": "rollback_to_last_stable_checkpoint",
+            "description": "Fatal logic inversion: patch caused regression on previously passing baseline.",
+        }
+    if consecutive_syntax_errors >= 2 and verifier_passed is not True:
+        return {
+            "pattern": "火铃夹命",
+            "level": "broken",
+            "action": "cooldown",
+            "remedy": "force_deliberation_cooldown",
+            "description": "Frantic retry cycle: repeated syntax/lint faults without reflection.",
+        }
+    if undefined_symbols_count > 0:
+        return {
+            "pattern": "空劫夹命",
+            "level": "caution",
+            "action": "reanchor",
+            "remedy": "reanchor_workspace_symbols",
+            "description": "Phantom identifiers referenced. Re-reading definitions from workspace baseline.",
+        }
+    if not environment_ok:
+        return {
+            "pattern": "化忌入迁移",
+            "level": "caution",
+            "action": "retry",
+            "remedy": "retry_with_system_embedding_and_backoff",
+            "description": "External environment, gateway timeout, or WAF blockage.",
+        }
+    if consecutive_read_stalls >= 2:
+        return {
+            "pattern": "自化忌",
+            "level": "caution",
+            "action": "synthesize",
+            "remedy": "break_read_hesitation_loop",
+            "description": "Read-only hesitation loop: multiple read turns without code modification.",
+        }
+    if verifier_passed is False:
+        return {
+            "pattern": "化忌入官禄",
+            "level": "caution",
+            "action": "repair",
+            "remedy": "inspect_test_traceback",
+            "description": "Execution verifier failed: focus patches on failing assertions.",
+        }
+    if ast_valid and token_budget_ok and verifier_passed is True and environment_ok and ((current_status & 0b111111) == 63):
+        return {
+            "pattern": "三奇加会",
+            "level": "excellent",
+            "action": "commit",
+            "remedy": "proceed_to_commit",
+            "description": "Full 4-point consensus with pure yang fulfillment. Ready for delivery.",
+        }
+    if ast_valid and verifier_passed is True and token_budget_ok:
+        return {
+            "pattern": "科权双会",
+            "level": "reinforced",
+            "action": "approve",
+            "remedy": "standard_approval",
+            "description": "Syntax verified and tests passing.",
+        }
+    if ast_valid and token_budget_ok and consecutive_read_stalls == 0 and consecutive_syntax_errors == 0:
+        return {
+            "pattern": "机月同梁",
+            "level": "balanced",
+            "action": "continue",
+            "remedy": "sequential_progression",
+            "description": "Methodical execution following standard contracts.",
+        }
+    return {
+        "pattern": "成格",
+        "level": "balanced",
+        "action": "continue",
+        "remedy": "continue",
+        "description": "Standard operational progression.",
+    }
+
+
 class IchingZiweiMixin:
     """Diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
 
@@ -246,6 +352,34 @@ class IchingZiweiMixin:
             "description": description,
             "points": points,
         }
+
+    @classmethod
+    def ziwei_pattern_matrix_profile(
+        cls,
+        turn_number: int,
+        current_status: int,
+        ast_valid: bool = True,
+        token_budget_ok: bool = True,
+        verifier_passed: bool | None = None,
+        environment_ok: bool = True,
+        consecutive_read_stalls: int = 0,
+        consecutive_syntax_errors: int = 0,
+        undefined_symbols_count: int = 0,
+        fatal_regression: bool = False,
+    ) -> dict[str, Any]:
+        """Classify execution state against classical Ziwei formations (格局矩阵)."""
+        return _evaluate_ziwei_pattern(
+            turn_number=turn_number,
+            current_status=current_status,
+            ast_valid=ast_valid,
+            token_budget_ok=token_budget_ok,
+            verifier_passed=verifier_passed,
+            environment_ok=environment_ok,
+            consecutive_read_stalls=consecutive_read_stalls,
+            consecutive_syntax_errors=consecutive_syntax_errors,
+            undefined_symbols_count=undefined_symbols_count,
+            fatal_regression=fatal_regression,
+        )
 
     @classmethod
     def sovereign_ring_isomorphism_certificate(cls) -> dict[str, Any]:

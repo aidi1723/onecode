@@ -548,13 +548,38 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
                 f"- Causal root trace (来因宫 {cause['incoming_branch']}): Error originates from modifications in {cause['culprit_file']} (Turn {cause['incoming_turn_id']}). Focus patches on resolving this file."
             )
 
-    # 2. Deadlock Guidance (羊陀夹忌)
+    # 2. Comprehensive Ziwei Pattern Matrix Guidance (格局矩阵诊断)
     str_result = str(failed_result).lower()
-    has_truncation = "truncated" in str_result or any("truncated" in f.lower() for f in failure_details)
-    has_verifier_fail = failed_result.get("status") in {"halted", "failed"} or any("verifier" in f.lower() for f in failure_details)
-    if has_truncation and has_verifier_fail:
+    combined_details = " ".join(failure_details).lower()
+    has_truncation = "truncated" in str_result or "truncated" in combined_details
+    has_verifier_fail = failed_result.get("status") in {"halted", "failed"} or "verifier" in combined_details
+    syntax_error_count = sum(1 for d in failure_details if any(k in d.lower() for k in ("syntaxerror", "patch_mismatch", "invalid_model_plan")))
+    undefined_symbols_count = sum(1 for d in failure_details if any(k in d.lower() for k in ("nameerror", "importerror", "has no attribute", "modulenotfounderror")))
+
+    pattern_profile = IchingKernel.ziwei_pattern_matrix_profile(
+        turn_number=len(turn_history) + 1,
+        current_status=int(failed_result.get("task_status_code", failed_result.get("iching_status_code", 32))),
+        token_budget_ok=not has_truncation,
+        verifier_passed=not has_verifier_fail,
+        consecutive_syntax_errors=syntax_error_count,
+        undefined_symbols_count=undefined_symbols_count,
+    )
+    p_name = pattern_profile["pattern"]
+    if p_name == "羊陀夹忌":
         guidance.append(
             "- Deadlock alert (羊陀夹忌): Verifier failed while context/file was truncated. Do NOT attempt to rewrite the entire file. Emit surgical search_block/replace_block patches targeting only changed lines."
+        )
+    elif p_name == "火铃夹命":
+        guidance.append(
+            "- Frantic retry warning (火铃夹命): Repeated syntax or patch mismatch errors. Take a step back and examine the file outline carefully before submitting another patch."
+        )
+    elif p_name == "空劫夹命":
+        guidance.append(
+            "- Hallucination alert (空劫夹命): Undefined symbols or missing modules detected. Only reference imports and symbols that exist in the workspace or Python standard library."
+        )
+    elif p_name == "化忌入官禄":
+        guidance.append(
+            "- Verifier failure (化忌入官禄): Test suite assertion failed. Focus surgical edits directly on the failing assertion requirements."
         )
 
     return guidance

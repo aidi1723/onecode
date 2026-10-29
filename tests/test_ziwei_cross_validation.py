@@ -388,6 +388,100 @@ class ZiweiCrossValidationTests(unittest.TestCase):
         self.assertIn("env", tokens)
         self.assertIn("prefix", tokens)
 
+    def test_ziwei_pattern_matrix_formations(self):
+        """Test comprehensive classification across classical Ziwei formations."""
+        # 1. 羊陀夹忌 (Deadlock pinch)
+        p_deadlock = IchingKernel.ziwei_pattern_matrix_profile(
+            turn_number=1, current_status=32, verifier_passed=False, token_budget_ok=False
+        )
+        self.assertEqual(p_deadlock["pattern"], "羊陀夹忌")
+        self.assertEqual(p_deadlock["level"], "broken")
+        self.assertEqual(p_deadlock["remedy"], "switch_to_surgical_unified_diff")
+
+        # 2. 铃昌陀武 (Fatal regression)
+        p_fatal = IchingKernel.ziwei_pattern_matrix_profile(
+            turn_number=2, current_status=32, fatal_regression=True
+        )
+        self.assertEqual(p_fatal["pattern"], "铃昌陀武")
+        self.assertEqual(p_fatal["level"], "critical")
+        self.assertEqual(p_fatal["action"], "rollback")
+
+        # 3. 火铃夹命 (Frantic syntax churn)
+        p_frantic = IchingKernel.ziwei_pattern_matrix_profile(
+            turn_number=3, current_status=32, verifier_passed=False, consecutive_syntax_errors=2
+        )
+        self.assertEqual(p_frantic["pattern"], "火铃夹命")
+        self.assertEqual(p_frantic["action"], "cooldown")
+
+        # 4. 空劫夹命 (Hallucinated symbols)
+        p_halluc = IchingKernel.ziwei_pattern_matrix_profile(
+            turn_number=1, current_status=32, undefined_symbols_count=1
+        )
+        self.assertEqual(p_halluc["pattern"], "空劫夹命")
+        self.assertEqual(p_halluc["action"], "reanchor")
+
+        # 5. 化忌入迁移 (Gateway / environment failure)
+        p_env = IchingKernel.ziwei_pattern_matrix_profile(
+            turn_number=1, current_status=32, environment_ok=False
+        )
+        self.assertEqual(p_env["pattern"], "化忌入迁移")
+        self.assertEqual(p_env["action"], "retry")
+
+        # 6. 自化忌 (Circular read hesitation)
+        p_read = IchingKernel.ziwei_pattern_matrix_profile(
+            turn_number=4, current_status=32, consecutive_read_stalls=2
+        )
+        self.assertEqual(p_read["pattern"], "自化忌")
+        self.assertEqual(p_read["action"], "synthesize")
+
+        # 7. 化忌入官禄 (Test assertion failure)
+        p_guan = IchingKernel.ziwei_pattern_matrix_profile(
+            turn_number=2, current_status=32, verifier_passed=False
+        )
+        self.assertEqual(p_guan["pattern"], "化忌入官禄")
+        self.assertEqual(p_guan["action"], "repair")
+
+        # 8. 三奇加会 (Pure yang 63, all clean)
+        p_sanqi = IchingKernel.ziwei_pattern_matrix_profile(
+            turn_number=5, current_status=63, ast_valid=True, token_budget_ok=True, verifier_passed=True, environment_ok=True
+        )
+        self.assertEqual(p_sanqi["pattern"], "三奇加会")
+        self.assertEqual(p_sanqi["level"], "excellent")
+        self.assertEqual(p_sanqi["action"], "commit")
+
+        # 9. 科权双会 (Syntax & test passing)
+        p_kequan = IchingKernel.ziwei_pattern_matrix_profile(
+            turn_number=3, current_status=31, ast_valid=True, verifier_passed=True, token_budget_ok=True
+        )
+        self.assertEqual(p_kequan["pattern"], "科权双会")
+        self.assertEqual(p_kequan["level"], "reinforced")
+
+        # 10. 机月同梁 (Methodical execution)
+        p_jiyue = IchingKernel.ziwei_pattern_matrix_profile(
+            turn_number=2, current_status=15, ast_valid=True, token_budget_ok=True
+        )
+        self.assertEqual(p_jiyue["pattern"], "机月同梁")
+        self.assertEqual(p_jiyue["level"], "balanced")
+
+    def test_repair_guidance_ziwei_pattern_injection(self):
+        """Test repair guidance injects patterns into repair prompt."""
+        from onecode.kernel.model_loop import _format_ziwei_repair_guidance
+
+        # Deadlock
+        res1 = {"status": "halted", "verifier_results": [{"reason": "verifier_failed"}]}
+        g1 = _format_ziwei_repair_guidance(res1, ["verifier_failed", "truncated source preview"])
+        self.assertTrue(any("羊陀夹忌" in line for line in g1))
+
+        # Frantic retry
+        res2 = {"status": "halted"}
+        g2 = _format_ziwei_repair_guidance(res2, ["SyntaxError: invalid syntax", "patch_mismatch"])
+        self.assertTrue(any("火铃夹命" in line for line in g2))
+
+        # Hallucination
+        res3 = {"status": "halted"}
+        g3 = _format_ziwei_repair_guidance(res3, ["NameError: name 'MissingFoo' is not defined"])
+        self.assertTrue(any("空劫夹命" in line for line in g3))
+
 
 if __name__ == "__main__":
     unittest.main()

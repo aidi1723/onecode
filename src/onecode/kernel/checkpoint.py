@@ -772,6 +772,10 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
                 turn_number=turn_number,
                 current_status=iching_status_code,
             ),
+            "ziwei_pattern": IchingKernel.ziwei_pattern_matrix_profile(
+                turn_number=turn_number,
+                current_status=iching_status_code,
+            ),
             "temporal_superposition": IchingKernel.temporal_superposition_profile(
                 macro_stage="delivery" if turn_number >= 5 else "implementation",
                 turn_status=iching_status_code,
