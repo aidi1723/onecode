@@ -7,12 +7,13 @@ Version stays 1.0.0. No new hexagram was added. `classify_outcome` was not edite
 ### Changed
 
 - Added `injected_test_runner.py` with multi-strategy parsing for pytest console output (handles standard summary, inverted failure-first banners, warnings, tail tokens, and line events), JUnit XML parsing, task test command resolution (Django `tests/runtests.py`, custom `verifier.toml`, and isolated pytest), and failure diagnostic classification.
+- Added standalone evaluation analyzer `scripts/eval_injected_exam.py` for parsing, recovering omitted scores, and diagnosing failure categories from injected run logs (`results-*.jsonl`).
 - Expanded `data_contract_guidance` in `model_loop.py` with defensive programming rules for local crash fixes, environment-less file loading, URI reference elimination/validation, and queryset relation filtering.
 - Added comprehensive unit tests in `test_injected_test_runner.py` and updated `test_model_loop.py`.
 
 ### Verification
 
-- `bash scripts/verify.sh` on this Mac: `Ran 1351 tests`, `OK (skipped=1)`, coverage 86%, doctor `ok`.
+- `bash scripts/verify.sh` on this Mac: `Ran 1352 tests`, `OK (skipped=1)`, coverage 86%, doctor `ok`.
 
 ## 2026-10-29 - Pattern diagnostic profile and parameterized artifact probe
 

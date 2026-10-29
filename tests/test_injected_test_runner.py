@@ -135,6 +135,53 @@ test_runner.py::test_save PASSED
         diag4 = classify_injected_test_failure(out_assert, "", 1)
         self.assertEqual(diag4["category"], "assertion_failure")
 
+    def test_evaluate_injected_jsonl_recovery(self):
+        import json
+        import sys
+
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+        from eval_injected_exam import evaluate_injected_jsonl
+
+        with tempfile.NamedTemporaryFile("w", suffix=".jsonl", delete=False) as f:
+            # 1. Graded task
+            f.write(json.dumps({
+                "task_id": "bug_fix-easy-a_crash_in_local",
+                "stdout": "=== 2 failed, 1 passed in 0.15s ===",
+                "exit_code": 1,
+                "score": 0.333,
+            }) + "\n")
+            # 2. Unscored task recovered via parser
+            f.write(json.dumps({
+                "task_id": "feature-medium-validation_to_eliminate_uriref",
+                "stdout": "test_uri.py::test_clean PASSED\ntest_uri.py::test_bad FAILED\n\nWarnings:\nUserWarning: test\n=== 1 failed, 1 passed, 1 warning in 0.30s ===",
+                "exit_code": 1,
+                "score": None, # Previously omitted!
+            }) + "\n")
+            # 3. Missing dependency task
+            f.write(json.dumps({
+                "task_id": "data_quality-hard-schema_drift",
+                "stdout": "",
+                "stderr": "ModuleNotFoundError: No module named 'click'",
+                "exit_code": 1,
+                "score": None,
+            }) + "\n")
+            temp_path = Path(f.name)
+
+        try:
+            report = evaluate_injected_jsonl(temp_path)
+            self.assertEqual(report["total_tasks"], 3)
+            self.assertEqual(report["graded_tasks"], 2) # Recovered the second task!
+            self.assertEqual(report["ungraded_tasks"], 1)
+            self.assertIn("missing_dependency", report["category_counts"])
+            
+            # Check recovered task
+            recovered = next(t for t in report["tasks"] if t["task_id"] == "feature-medium-validation_to_eliminate_uriref")
+            self.assertEqual(recovered["passed"], 1)
+            self.assertEqual(recovered["failed"], 1)
+            self.assertEqual(recovered["pass_rate"], 0.5)
+        finally:
+            temp_path.unlink(missing_ok=True)
+
 
 if __name__ == "__main__":
     unittest.main()
