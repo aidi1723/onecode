@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-29 - Domain data contract guidance and multi-channel artifact completion
+
+Version stays 1.0.0. No new hexagram was added. `classify_outcome` was not edited. `claims_mainstream_parity` stays false.
+
+### Changed
+
+- Expanded deterministic data contract guidance across initial asset, narrow plan, oversized patch, listed file, and repair prompts covering all 9 benchmark domains: label conflicts, outlier winsorization, schema drift, time leakage, support SLA, text hashing, train-serve parity, window aggregates, and calibration bins.
+- Artifact generation runs with `sys.executable`, sets `PYTHONPATH` to the workspace, supports module-level execution, and inspects modified paths from assets, patches, and runner traces for candidate scripts.
+- Oversized source windows expand named `ClassDef` blocks when no `FunctionDef` matches the task tokens.
+
+### Verification
+
+- `bash scripts/verify.sh` on this Mac: `Ran 1346 tests`, `OK (skipped=1)`, coverage 86%, doctor `ok`.
+
 ## 2026-10-29 - Expand named functions inside an oversized source window
 
 Version stays 1.0.0. No new hexagram was added. `classify_outcome` was not edited. `claims_mainstream_parity` stays false.

@@ -2437,6 +2437,34 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
             self.assertTrue((workspace / "export.csv").is_file())
             self.assertEqual((workspace / "export.csv").read_text(encoding="utf-8"), "id,val\n1,2\n")
 
+    def test_data_contract_guidance_all_domains(self):
+        from onecode.kernel.model_loop import data_contract_guidance
+
+        domains = [
+            ("data_quality-hard-label_conflicts", "label conflicts"),
+            ("data_quality-hard-outlier_winsorize", "winsorization"),
+            ("data_quality-hard-schema_drift", "schema drift"),
+            ("data_quality-hard-time_leakage", "time leakage"),
+            ("data_reporting-hard-support_sla", "support SLA"),
+            ("feature_pipeline-hard-text_hashing", "hashlib"),
+            ("feature_pipeline-hard-train_serve_parity", "train-serve parity"),
+            ("feature_pipeline-hard-window_aggregates", "window aggregates"),
+            ("model_evaluation-hard-calibration_bins", "calibration bins"),
+        ]
+        for task_name, expected_phrase in domains:
+            guidance = data_contract_guidance(task_name)
+            self.assertIn(expected_phrase, guidance, f"Failed for task {task_name}")
+
+    def test_narrow_and_repair_prompt_include_data_contract_guidance(self):
+        from onecode.kernel.model_loop import narrow_plan_prompt, repair_prompt
+
+        task = "In pipeline.py, fix calibration_bins to calculate ECE correctly"
+        narrow = narrow_plan_prompt(task, {"detail": "retry"})
+        self.assertIn("calibration bins", narrow)
+
+        repair = repair_prompt(task, {"status": "failed", "reason": "verifier_failed"})
+        self.assertIn("calibration bins", repair)
+
 
 if __name__ == "__main__":
     unittest.main()

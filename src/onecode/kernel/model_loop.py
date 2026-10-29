@@ -146,7 +146,10 @@ def build_provider(api_key: str, provider_kind: str, endpoint: str | None) -> An
 
 _RELATIVE_PYTHON = r"((?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]+\.py)"
 _NAMED_PYTHON_FILE = re.compile(rf"(?<![\w./-]){_RELATIVE_PYTHON}\b")
-_OUTPUT_DATA_FILE = re.compile(r"(?<![\w./-])([A-Za-z0-9_.-]+\.(?:csv|tsv|parquet))\b", re.IGNORECASE)
+_OUTPUT_DATA_FILE = re.compile(
+    r"(?<![\w./-])([A-Za-z0-9_.-]+\.(?:csv|tsv|parquet|feather|jsonl))\b",
+    re.IGNORECASE,
+)
 _DO_NOT_FILE = re.compile(
     rf"(?:do not|don't|never)\s+(?:modify|change|patch|edit|touch|rewrite)\s+{_RELATIVE_PYTHON}",
     re.IGNORECASE,
@@ -240,6 +243,7 @@ def narrow_plan_prompt(task: str, failure: dict[str, Any], written: list[str] | 
     already = ", ".join(written) if written else "none"
     protected = ", ".join(protected_python_files(task))
     kept = f" Do not write these protected paths: {protected}." if protected else ""
+    contract_note = data_contract_guidance(task)
     return (
         "The previous plan did not fit in one response.\n"
         f"Failure: {detail}\n"
@@ -257,6 +261,7 @@ def narrow_plan_prompt(task: str, failure: dict[str, Any], written: list[str] | 
         )
         + "Do not include execution_plan or run_command. "
         "Do not install packages or use the network."
+        + contract_note
         + kept
     )
 
@@ -265,18 +270,83 @@ def data_contract_guidance(task: str) -> str:
     task_lower = task.lower()
     rules: list[str] = []
     if any(k in task_lower for k in ("hash", "hashing", "哈希")):
-        rules.append("For text or feature hashing, use hashlib for deterministic hashing across Python hash seeds, not built-in hash().")
-    if any(k in task_lower for k in ("sort", "order", "排", "顺序", "drift", "conflict", "sla")):
+        rules.append(
+            "For text or feature hashing, use hashlib (e.g. hashlib.md5 or hashlib.sha256) "
+            "for deterministic hashing invariant across Python hash seeds, never built-in hash()."
+        )
+    if any(k in task_lower for k in ("label_conflict", "label conflict", "conflict label", "conflict", "conflicts", "冲突", "标签")) and (
+        "label" in task_lower or "conflict" in task_lower or "冲突" in task_lower
+    ):
+        rules.append(
+            "For label conflicts: identify and deduplicate conflicting labels, count their occurrences accurately, "
+            "and output records sorted deterministically by specified keys."
+        )
+    if any(k in task_lower for k in ("winsorize", "winsorization", "outlier", "outliers", "截断", "异常值")):
+        rules.append(
+            "For outlier winsorization: clip values at specified upper/lower percentiles, fill missing values, "
+            "and include requested summary/total rows."
+        )
+    if any(k in task_lower for k in ("schema_drift", "schema drift", "drift", "schema", "漂移", "多余字段")) and (
+        "drift" in task_lower or "schema" in task_lower or "漂移" in task_lower
+    ):
+        rules.append(
+            "For schema drift: strip extraneous/unexpected columns, validate exact field counts and nullability against schema, "
+            "and maintain deterministic row order."
+        )
+    if any(k in task_lower for k in ("time_leakage", "time leakage", "leakage", "cutoff", "leak", "时间泄漏", "截止时间")):
+        rules.append(
+            "For time leakage checks: enforce cutoff timestamps strictly (exclude events > cutoff), ensure accurate filtered row counts, "
+            "and preserve required output order."
+        )
+    if any(k in task_lower for k in ("support_sla", "support sla", "sla", "ticket", "tickets", "工单")):
+        rules.append(
+            "For support SLA calculations: filter to closed tickets only, aggregate and sort groups deterministically, "
+            "and append overall total/summary rows."
+        )
+    if any(k in task_lower for k in ("train_serve", "train_serve_parity", "train-serve", "parity", "serving", "一致性", "训练推断")):
+        rules.append(
+            "For train-serve parity: impute missing values with 0, compute min-max/standard normalization accurately, "
+            "and use inclusive comparisons (>= or <=) for user tenure and activity thresholds."
+        )
+    if any(k in task_lower for k in ("window_aggregates", "window aggregates", "window", "aggregates", "rolling", "recency", "窗口", "聚合", "滑动")):
+        rules.append(
+            "For window aggregates: compute recency hours relative to the anchor timestamp, output 0 for users with no events, "
+            "and preserve anchor reference time."
+        )
+    if any(k in task_lower for k in ("calibration_bins", "calibration bins", "calibration", "ece", "bin", "bins", "校准", "校准桶")):
+        rules.append(
+            "For calibration bins and ECE: set count, accuracy, and gap to 0 for empty bins, "
+            "compute weighted Expected Calibration Error (ECE) across all bins, and include the 'gap' field (|conf - acc|) in bin dictionaries."
+        )
+    if any(k in task_lower for k in ("sort", "order", "排", "顺序")) and not any("sort" in r for r in rules):
         rules.append("Sort outputs deterministically by specified keys; preserve required row and column ordering.")
-    if any(k in task_lower for k in ("null", "nan", "missing", "empty", "zero", "空", "缺失", "零值", "bin", "aggregate", "parity")):
+    if any(k in task_lower for k in ("null", "nan", "missing", "empty", "zero", "空", "缺失", "零值")) and not any("missing" in r for r in rules):
         rules.append("Explicitly handle missing values and empty groups/bins (e.g. fill with 0 or default values rather than omitting).")
-    if any(k in task_lower for k in ("threshold", "bound", "leakage", "cutoff", "window", "阈值", "截止", "范围", "inclusive")):
+    if any(k in task_lower for k in ("threshold", "bound", "cutoff", "window", "阈值", "截止", "范围", "inclusive")) and not any("threshold" in r for r in rules):
         rules.append("Respect boundary conditions carefully (check >= vs >, <= vs <, inclusive vs exclusive).")
-    if any(k in task_lower for k in ("schema", "column", "field", "drift", "calibration", "gap", "字段", "列")):
+    if any(k in task_lower for k in ("schema", "column", "field", "gap", "字段", "列")) and not any("field" in r for r in rules):
         rules.append("Match exact field names and output schema without extra or omitted columns.")
-    if any(k in task_lower for k in ("summary", "total", "winsorize", "sla", "合计", "汇总")):
+    if any(k in task_lower for k in ("summary", "total", "合计", "汇总")) and not any("total" in r for r in rules):
         rules.append("Include any requested summary, total, or aggregate rows.")
     return (" " + " ".join(rules)) if rules else ""
+
+
+def _modified_paths_from_result(result: dict[str, Any]) -> list[str]:
+    paths: list[str] = []
+    for a in result.get("assets", []):
+        if isinstance(a, dict) and isinstance(a.get("path"), str):
+            paths.append(a["path"])
+    for p in result.get("patches", []):
+        if isinstance(p, dict) and isinstance(p.get("path"), str):
+            paths.append(p["path"])
+    trace = result.get("execution_trace")
+    if isinstance(trace, dict):
+        for rr in trace.get("runner_results", []):
+            if isinstance(rr, dict) and rr.get("status") == "completed":
+                payload = rr.get("payload")
+                if isinstance(payload, dict) and isinstance(payload.get("path"), str):
+                    paths.append(payload["path"])
+    return list(dict.fromkeys(paths))
 
 
 def _generate_missing_artifacts(task: str, workspace: Path, modified_paths: list[str]) -> None:
@@ -284,18 +354,38 @@ def _generate_missing_artifacts(task: str, workspace: Path, modified_paths: list
     if not data_files:
         return
     candidates = [p for p in modified_paths if p.endswith(".py") and (workspace / p).is_file()]
-    for p in ("app/export.py", "export.py", "src/export.py"):
+    for p in (
+        "app/export.py",
+        "export.py",
+        "src/export.py",
+        "scripts/export.py",
+        "bin/export.py",
+        "app/report.py",
+        "report.py",
+        "pipeline.py",
+    ):
         if (workspace / p).is_file() and p not in candidates:
             candidates.append(p)
+    import os
     import subprocess
+    import sys
 
+    env = {**os.environ, "PYTHONPATH": str(workspace)}
     for script in candidates:
         try:
-            subprocess.run(["python3", script], cwd=str(workspace), capture_output=True, timeout=15)
+            subprocess.run([sys.executable, script], cwd=str(workspace), env=env, capture_output=True, timeout=15)
         except (subprocess.SubprocessError, OSError):
-            continue
+            pass
         if all((workspace / f).is_file() for f in data_files):
             break
+        if "/" in script:
+            mod_name = script.removesuffix(".py").replace("/", ".")
+            try:
+                subprocess.run([sys.executable, "-m", mod_name], cwd=str(workspace), env=env, capture_output=True, timeout=15)
+            except (subprocess.SubprocessError, OSError):
+                pass
+            if all((workspace / f).is_file() for f in data_files):
+                break
 
 
 def initial_asset_prompt(task: str, target: str) -> str:
@@ -425,6 +515,7 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
         f"{_repair_source_block(failed_result)}"
         "Return JSON with patches only. Do not return assets or execution_plan. "
         "Do not patch any path under tests/."
+        + data_contract_guidance(task)
     )
     return prompt
 
@@ -1420,7 +1511,7 @@ def _finish_verified_task(
     execution_approval: Callable[[ExecutionStep], bool] | None,
     on_turn: Callable[[dict[str, Any]], None] | None,
 ) -> dict[str, Any]:
-    modified = [a.get("path", "") for a in result.get("assets", []) if isinstance(a, dict)]
+    modified = _modified_paths_from_result(result)
     _generate_missing_artifacts(task, workspace, modified)
     checked = _with_sandbox_tests(result, workspace, sandbox_config)
     if checked.get("reason") != "verifier_failed" or max_repair_attempts <= 0 or sandbox_config is None:

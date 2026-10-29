@@ -30,7 +30,9 @@ from onecode.kernel.effective_model_config import resolve_effective_model_config
 from onecode.kernel.run_inspection import inspect_run, list_runs
 from onecode.kernel.model_loop import (
     _generate_missing_artifacts,
+    _modified_paths_from_result,
     _src_files_for_repair,
+    data_contract_guidance,
     execute_model_plan,
     failed_model_result,
     initial_asset_prompt,
@@ -269,6 +271,7 @@ def _asset_or_patch_prompt(task: str, workspace: Path, target: str) -> str:
             "Do not return a full-file asset. "
             "Do not include execution_plan or run_command. "
             "Do not modify tests/."
+            + data_contract_guidance(task)
         )
     return initial_asset_prompt(task, target)
 
@@ -656,6 +659,7 @@ def _listed_file_prompt(task: str, paths: list[str]) -> str:
         "Do not include execution_plan or run_command. Do not modify tests/.\n"
         f"Existing files: {listed}\n"
         f"Task: {task}"
+        + data_contract_guidance(task)
     )
 
 
@@ -1035,7 +1039,8 @@ def handle_onecode_plan_approval(
         _generate_missing_artifacts(
             user_task,
             workspace,
-            [a.path for a in stored.plan.assets] + [p.path for p in stored.plan.patches],
+            _modified_paths_from_result(result)
+            or [a.path for a in stored.plan.assets] + [p.path for p in stored.plan.patches],
         )
     if user_task and missing_required_files(user_task, workspace):
         try:

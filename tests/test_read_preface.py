@@ -47,6 +47,18 @@ class ReadPrefaceTests(unittest.TestCase):
         self.assertIn("return field.name", window)
         self.assertIn("def validate", window)
 
+    def test_oversized_window_expands_a_named_class_when_no_function_matches(self):
+        from onecode.kernel.read_preface import render_source_excerpt
+
+        early = "x = 1\n" * 4000
+        late = "class DataDriftValidator:\n    schema_key = 'val'\n"
+        text = early + late
+        excerpt, complete = render_source_excerpt(text, ["DataDriftValidator"])
+        window = excerpt.split("Source window:\n", 1)[1]
+        self.assertFalse(complete)
+        self.assertIn("class DataDriftValidator", window)
+        self.assertIn("schema_key = 'val'", window)
+
     def test_survey_queue_reads_a_ranked_file_outside_src(self):
         from onecode.kernel.read_preface import _survey_queue
 

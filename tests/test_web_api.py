@@ -2512,6 +2512,20 @@ class OneCodeWebApiTests(unittest.TestCase):
 
         self.assertEqual(raised.exception.code, 401)
 
+    def test_asset_or_patch_and_listed_prompt_include_data_contract_guidance(self):
+        from onecode.web.api import _asset_or_patch_prompt, _listed_file_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            target = workspace / "schema.py"
+            target.write_text("x = 1\n" * 5000, encoding="utf-8")
+            task = "In schema.py, fix schema_drift to prune unexpected fields"
+            patch_prompt = _asset_or_patch_prompt(task, workspace, "schema.py")
+            self.assertIn("schema drift", patch_prompt)
+
+            listed_prompt = _listed_file_prompt(task, ["schema.py", "other.py"])
+            self.assertIn("schema drift", listed_prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

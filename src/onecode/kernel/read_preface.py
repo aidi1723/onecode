@@ -374,6 +374,19 @@ def _named_function_bodies(source: str, tokens: list[str]) -> list[str]:
         seen.add(node.name)
         if len(bodies) == 3:
             break
+    if not bodies:
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            if node.name not in wanted or node.name in seen:
+                continue
+            segment = ast.get_source_segment(source, node)
+            if not segment or len(segment) > 8000:
+                continue
+            bodies.append(segment)
+            seen.add(node.name)
+            if len(bodies) == 1:
+                break
     return bodies
 
 
