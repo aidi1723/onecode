@@ -497,6 +497,74 @@ def _repair_source_block(failed_result: dict[str, Any]) -> str:
     return "Current source:\n" + "\n".join(blocks) + "\n"
 
 
+def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details: list[str]) -> list[str]:
+    """Derive targeted Ziwei diagnostic guidance for the repair prompt."""
+    guidance: list[str] = []
+    trace = failed_result.get("execution_trace", {})
+
+    # 1. Causal Root Trace (来因宫溯源)
+    error_parts: list[str] = []
+    for v in failed_result.get("verifier_results", []):
+        if isinstance(v, dict):
+            stderr = v.get("stderr_tail")
+            reason = v.get("reason")
+            if stderr:
+                error_parts.append(str(stderr))
+            if reason:
+                error_parts.append(str(reason))
+    if isinstance(trace, dict):
+        for rr in trace.get("runner_results", []):
+            if isinstance(rr, dict):
+                reason = rr.get("reason")
+                payload = rr.get("payload")
+                if reason:
+                    error_parts.append(str(reason))
+                if payload:
+                    error_parts.append(str(payload))
+
+    turn_history = failed_result.get("turn_history", [])
+    if error_parts and turn_history:
+        combined_errors = "\n".join(error_parts)
+        cause = IchingKernel.causal_origin_profile(combined_errors, turn_history)
+        if cause:
+            guidance.append(
+                f"- Causal root trace (来因宫 {cause['incoming_branch']}): Error originates from modifications in {cause['culprit_file']} (Turn {cause['incoming_turn_id']}). Focus patches on resolving this file."
+            )
+
+    # 2. Deadlock Guidance (羊陀夹忌)
+    str_result = str(failed_result).lower()
+    has_truncation = "truncated" in str_result or any("truncated" in f.lower() for f in failure_details)
+    has_verifier_fail = failed_result.get("status") in {"halted", "failed"} or any("verifier" in f.lower() for f in failure_details)
+    if has_truncation and has_verifier_fail:
+        guidance.append(
+            "- Deadlock alert (羊陀夹忌): Verifier failed while context/file was truncated. Do NOT attempt to rewrite the entire file. Emit surgical search_block/replace_block patches targeting only changed lines."
+        )
+
+    return guidance
+
+
+def workspace_scale_stats(workspace: Path) -> tuple[int, int]:
+    """Return (file_count, total_loc) for Python files in workspace, excluding venvs and hidden dirs."""
+    file_count = 0
+    total_loc = 0
+    for path in workspace.rglob("*.py"):
+        parts = set(path.parts)
+        if any(p.startswith(".") or p in {"venv", ".venv", "build", "dist", "__pycache__"} for p in parts):
+            continue
+        file_count += 1
+        try:
+            total_loc += len(path.read_text(encoding="utf-8", errors="ignore").splitlines())
+        except Exception:
+            pass
+    return file_count, total_loc
+
+
+def resolve_task_bureau(workspace: Path) -> dict[str, Any]:
+    """Resolve the task's Five Elements Bureau (五行局) and adaptive scheduling limits."""
+    file_count, total_loc = workspace_scale_stats(workspace)
+    return IchingKernel.task_bureau_profile(file_count, total_loc)
+
+
 def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | None = None) -> str:
     trace = failed_result.get("execution_trace", {})
     paths = []
@@ -543,6 +611,9 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
     )
     if closest_hints:
         prompt += "Patch context hints:\n" + "\n\n".join(closest_hints) + "\n"
+    ziwei_hints = _format_ziwei_repair_guidance(failed_result, failure_details)
+    if ziwei_hints:
+        prompt += "Diagnostic guidance:\n" + "\n".join(ziwei_hints) + "\n"
     prompt += (
         f"{_repair_source_block(failed_result)}"
         "Return JSON with patches only. Do not return assets or execution_plan. "
@@ -1724,6 +1795,11 @@ def run_model_task(
     if plan_approval is not None and not plan_approval(plan):
         return _plan_user_rejected_result(plan, run_id, provider_config, resolved_model)
     run_metadata = _run_plan_metadata(provider_config, resolved_model, plan, planning_context["safe_agent"])
+    bureau = resolve_task_bureau(workspace)
+    run_metadata["task_bureau"] = bureau["bureau_name"]
+    run_metadata["task_scale"] = bureau["scale"]
+    run_metadata["bureau_turn_budget"] = bureau["turn_budget"]
+    run_metadata["bureau_patch_strategy"] = bureau["patch_strategy"]
     callback = execution_approval
     if callback is None and approval_mode == "scoped_auto":
         callback = lambda _step: True

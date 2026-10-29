@@ -207,6 +207,72 @@ class ZiweiCrossValidationTests(unittest.TestCase):
             self.assertEqual(consensus["pattern"], "三奇加会")
             self.assertEqual(consensus["pattern_level"], "excellent")
 
+    def test_resolve_task_bureau_for_workspace(self):
+        """Test resolve_task_bureau computes bureau from workspace files."""
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = Path(tmp)
+            (ws / "a.py").write_text("x = 1\ny = 2\n", encoding="utf-8")
+            (ws / "b.py").write_text("z = 3\n", encoding="utf-8")
+
+            from onecode.kernel.model_loop import resolve_task_bureau, workspace_scale_stats
+
+            fc, loc = workspace_scale_stats(ws)
+            self.assertEqual(fc, 2)
+            self.assertEqual(loc, 3)
+
+            bureau = resolve_task_bureau(ws)
+            self.assertEqual(bureau["bureau"], 2)
+            self.assertEqual(bureau["bureau_name"], "水二局")
+            self.assertEqual(bureau["patch_strategy"], "surgical_diff_only")
+
+    def test_repair_prompt_injects_causal_root_trace_and_deadlock_guidance(self):
+        """Test repair_prompt dynamically injects Ziwei causal trace and deadlock alerts."""
+        from onecode.kernel.model_loop import repair_prompt
+
+        failed_with_deadlock = {
+            "status": "failed",
+            "reason": "verifier_failed",
+            "execution_trace": {
+                "runner_results": [
+                    {"reason": "model response was truncated: exceeded 4096 tokens"}
+                ]
+            },
+            "verifier_results": [
+                {"stderr_tail": "AssertionError: expected 42 but got None in test_flow.py", "reason": "assertion_error"}
+            ],
+            "turn_history": [
+                {"turn_id": 1, "branch_name": "子", "modified_files": []},
+                {"turn_id": 2, "branch_name": "丑", "modified_files": ["src/calculator.py"]},
+            ],
+        }
+
+        # The error traceback mentions test_flow.py, but let's test when traceback mentions calculator.py
+        failed_with_causal_root = {
+            "status": "failed",
+            "reason": "verifier_failed",
+            "execution_trace": {},
+            "verifier_results": [
+                {
+                    "stderr_tail": 'File "src/calculator.py", line 12: ZeroDivisionError',
+                    "reason": "crash",
+                }
+            ],
+            "turn_history": [
+                {"turn_id": 1, "branch_name": "子", "modified_files": []},
+                {"turn_id": 2, "branch_name": "丑", "modified_files": ["src/calculator.py"]},
+            ],
+        }
+
+        # Deadlock prompt check
+        deadlock_prompt = repair_prompt("fix calculation", failed_with_deadlock)
+        self.assertIn("Deadlock alert (羊陀夹忌)", deadlock_prompt)
+        self.assertIn("surgical search_block/replace_block patches", deadlock_prompt)
+
+        # Causal root trace prompt check
+        causal_prompt = repair_prompt("fix calculation", failed_with_causal_root)
+        self.assertIn("Causal root trace (来因宫 丑)", causal_prompt)
+        self.assertIn("src/calculator.py", causal_prompt)
+
 
 if __name__ == "__main__":
     unittest.main()
