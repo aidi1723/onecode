@@ -591,6 +591,19 @@ def workspace_python_modules(workspace: Path) -> set[str]:
     return names
 
 
+def normalize_model_plan_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return payload
+    normalized = dict(payload)
+    if not normalized.get("task") or not isinstance(normalized.get("task"), str):
+        normalized["task"] = "workspace_task"
+    if "assets" not in normalized and ("target" in normalized or "path" in normalized) and "content" in normalized:
+        target_path = normalized.get("target") or normalized.get("path")
+        if isinstance(target_path, str) and isinstance(normalized.get("content"), str):
+            normalized["assets"] = [{"path": target_path, "content": normalized["content"]}]
+    return normalized
+
+
 def parse_response_plan(
     response: dict[str, Any],
     known_modules: set[str] | None = None,
@@ -603,7 +616,7 @@ def parse_response_plan(
     if not isinstance(payload, dict):
         raise ValueError("model response JSON must be an object")
     return validate_model_plan(
-        payload,
+        normalize_model_plan_payload(payload),
         known_modules=known_modules,
         existing_preset_tests=existing_preset_tests,
     )
@@ -737,7 +750,7 @@ class OpenAIChatCompletionsProvider:
         if not isinstance(payload, dict):
             raise ValueError("model response JSON must be an object")
         return validate_model_plan(
-            payload,
+            normalize_model_plan_payload(payload),
             known_modules=known_modules,
             existing_preset_tests=existing_preset_tests,
         )
