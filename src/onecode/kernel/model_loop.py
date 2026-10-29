@@ -146,6 +146,7 @@ def build_provider(api_key: str, provider_kind: str, endpoint: str | None) -> An
 
 _RELATIVE_PYTHON = r"((?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]+\.py)"
 _NAMED_PYTHON_FILE = re.compile(rf"(?<![\w./-]){_RELATIVE_PYTHON}\b")
+_OUTPUT_DATA_FILE = re.compile(r"(?<![\w./-])([A-Za-z0-9_.-]+\.(?:csv|tsv|parquet))\b", re.IGNORECASE)
 _DO_NOT_FILE = re.compile(
     rf"(?:do not|don't|never)\s+(?:modify|change|patch|edit|touch|rewrite)\s+{_RELATIVE_PYTHON}",
     re.IGNORECASE,
@@ -260,9 +261,53 @@ def narrow_plan_prompt(task: str, failure: dict[str, Any], written: list[str] | 
     )
 
 
+def data_contract_guidance(task: str) -> str:
+    task_lower = task.lower()
+    rules: list[str] = []
+    if any(k in task_lower for k in ("hash", "hashing", "哈希")):
+        rules.append("For text or feature hashing, use hashlib for deterministic hashing across Python hash seeds, not built-in hash().")
+    if any(k in task_lower for k in ("sort", "order", "排", "顺序", "drift", "conflict", "sla")):
+        rules.append("Sort outputs deterministically by specified keys; preserve required row and column ordering.")
+    if any(k in task_lower for k in ("null", "nan", "missing", "empty", "zero", "空", "缺失", "零值", "bin", "aggregate", "parity")):
+        rules.append("Explicitly handle missing values and empty groups/bins (e.g. fill with 0 or default values rather than omitting).")
+    if any(k in task_lower for k in ("threshold", "bound", "leakage", "cutoff", "window", "阈值", "截止", "范围", "inclusive")):
+        rules.append("Respect boundary conditions carefully (check >= vs >, <= vs <, inclusive vs exclusive).")
+    if any(k in task_lower for k in ("schema", "column", "field", "drift", "calibration", "gap", "字段", "列")):
+        rules.append("Match exact field names and output schema without extra or omitted columns.")
+    if any(k in task_lower for k in ("summary", "total", "winsorize", "sla", "合计", "汇总")):
+        rules.append("Include any requested summary, total, or aggregate rows.")
+    return (" " + " ".join(rules)) if rules else ""
+
+
+def _generate_missing_artifacts(task: str, workspace: Path, modified_paths: list[str]) -> None:
+    data_files = [f for f in _OUTPUT_DATA_FILE.findall(task) if not (workspace / f).is_file()]
+    if not data_files:
+        return
+    candidates = [p for p in modified_paths if p.endswith(".py") and (workspace / p).is_file()]
+    for p in ("app/export.py", "export.py", "src/export.py"):
+        if (workspace / p).is_file() and p not in candidates:
+            candidates.append(p)
+    import subprocess
+
+    for script in candidates:
+        try:
+            subprocess.run(["python3", script], cwd=str(workspace), capture_output=True, timeout=15)
+        except (subprocess.SubprocessError, OSError):
+            continue
+        if all((workspace / f).is_file() for f in data_files):
+            break
+
+
 def initial_asset_prompt(task: str, target: str) -> str:
     protected = ", ".join(protected_python_files(task))
     kept = f" Do not write these protected paths: {protected}." if protected else ""
+    data_files = _OUTPUT_DATA_FILE.findall(task)
+    artifact_note = (
+        f" If the task requires producing an output data file ({', '.join(data_files)}), include it as an additional asset in assets or ensure it is generated."
+        if data_files
+        else ""
+    )
+    contract_note = data_contract_guidance(task)
     return (
         "Write exactly one complete Python file as a JSON asset.\n"
         f"Target: {target}\n"
@@ -276,6 +321,8 @@ def initial_asset_prompt(task: str, target: str) -> str:
             if is_preset_test_path(target)
             else "Do not import unittest or pytest. No relative imports."
         )
+        + contract_note
+        + artifact_note
         + kept
     )
 
@@ -1373,6 +1420,8 @@ def _finish_verified_task(
     execution_approval: Callable[[ExecutionStep], bool] | None,
     on_turn: Callable[[dict[str, Any]], None] | None,
 ) -> dict[str, Any]:
+    modified = [a.get("path", "") for a in result.get("assets", []) if isinstance(a, dict)]
+    _generate_missing_artifacts(task, workspace, modified)
     checked = _with_sandbox_tests(result, workspace, sandbox_config)
     if checked.get("reason") != "verifier_failed" or max_repair_attempts <= 0 or sandbox_config is None:
         return checked

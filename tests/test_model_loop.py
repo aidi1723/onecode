@@ -2414,6 +2414,29 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
             self.assertEqual(auto_result["status"], "completed")
             self.assertEqual((workspace / "src" / "mesh.py").read_text(encoding="utf-8"), "VALUE = 1\n")
 
+    def test_data_contract_guidance_added_to_initial_asset_prompt(self):
+        from onecode.kernel.model_loop import initial_asset_prompt
+
+        task = "In pipeline.py, perform text hashing and sort outputs, filling missing values with 0."
+        prompt = initial_asset_prompt(task, "pipeline.py")
+        self.assertIn("hashlib", prompt)
+        self.assertIn("deterministic", prompt)
+        self.assertIn("missing values", prompt)
+
+    def test_generate_missing_artifacts_runs_export_script(self):
+        from onecode.kernel.model_loop import _generate_missing_artifacts
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            app = workspace / "app"
+            app.mkdir()
+            export_py = app / "export.py"
+            export_py.write_text("from pathlib import Path\nPath('export.csv').write_text('id,val\\n1,2\\n', encoding='utf-8')\n", encoding="utf-8")
+            task = "Run the invoice export and produce export.csv"
+            _generate_missing_artifacts(task, workspace, ["app/export.py"])
+            self.assertTrue((workspace / "export.csv").is_file())
+            self.assertEqual((workspace / "export.csv").read_text(encoding="utf-8"), "id,val\n1,2\n")
+
 
 if __name__ == "__main__":
     unittest.main()

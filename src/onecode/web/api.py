@@ -29,6 +29,7 @@ from onecode.kernel.diagnostics import run_doctor
 from onecode.kernel.effective_model_config import resolve_effective_model_config
 from onecode.kernel.run_inspection import inspect_run, list_runs
 from onecode.kernel.model_loop import (
+    _generate_missing_artifacts,
     _src_files_for_repair,
     execute_model_plan,
     failed_model_result,
@@ -1030,6 +1031,12 @@ def handle_onecode_plan_approval(
         approval_callback=lambda _step: True,
         on_turn=on_turn,
     )
+    if user_task:
+        _generate_missing_artifacts(
+            user_task,
+            workspace,
+            [a.path for a in stored.plan.assets] + [p.path for p in stored.plan.patches],
+        )
     if user_task and missing_required_files(user_task, workspace):
         try:
             continued = continue_named_files(user_task, workspace, written_before)

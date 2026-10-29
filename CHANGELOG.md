@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-29 - Expand named functions inside an oversized source window
+
+Version stays 1.0.0. No new hexagram was added. `classify_outcome` was not edited. `claims_mainstream_parity` stays false.
+
+### Changed
+
+- When a file is longer than one complete asset, a task token that names a function is expanded to that function's body before any earlier keyword window.
+- Initial asset prompts include deterministic data contract guidance for hashing, sorting, null-handling, and thresholds.
+- Named output artifacts (such as `export.csv`) are permitted alongside code targets and generated after execution if missing.
+
+### Verification
+
+- `bash scripts/verify.sh` on this Mac: `Ran 1343 tests`, `OK (skipped=1)`, coverage 86%, doctor `ok`.
+
 ## 2026-10-29 - Keep flat-package source in the preface and the checkpoint
 
 Version stays 1.0.0. No new hexagram was added. `classify_outcome` was not edited. `claims_mainstream_parity` stays false.

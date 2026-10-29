@@ -337,6 +337,47 @@ def render_workspace_preface(workspace: Path, relative_paths: list[str], tokens:
 
 
 def _source_window(text: str, tokens: list[str], limit: int) -> str:
+    chunks: list[str] = []
+    used = 0
+    for body in _named_function_bodies(text, tokens):
+        if used >= limit:
+            break
+        piece = body[: limit - used]
+        chunks.append(piece)
+        used += len(piece)
+    if used < limit:
+        rest = _token_windows(text, tokens, limit - used)
+        if rest:
+            chunks.append(rest)
+    return "\n\n# ...\n\n".join(chunks)[:limit]
+
+
+def _named_function_bodies(source: str, tokens: list[str]) -> list[str]:
+    wanted = {token for token in tokens if token.isidentifier()}
+    if not wanted:
+        return []
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return []
+    bodies: list[str] = []
+    seen: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if node.name not in wanted or node.name in seen:
+            continue
+        segment = ast.get_source_segment(source, node)
+        if not segment:
+            continue
+        bodies.append(segment)
+        seen.add(node.name)
+        if len(bodies) == 3:
+            break
+    return bodies
+
+
+def _token_windows(text: str, tokens: list[str], limit: int) -> str:
     positions: list[int] = []
     for token in tokens:
         if not token:

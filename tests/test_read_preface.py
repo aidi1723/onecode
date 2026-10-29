@@ -35,6 +35,18 @@ class ReadPrefaceTests(unittest.TestCase):
         self.assertIn("def late", excerpt)
         self.assertIn("field.data_key", excerpt)
 
+    def test_oversized_window_expands_a_named_function_before_an_earlier_token(self):
+        from onecode.kernel.read_preface import render_source_excerpt
+
+        early = "def other():\n    return 'data_key'\n" + ("z = 0\n" * 80)
+        late = "def validate(field):\n    return field.name\n"
+        text = early * 4 + ("x = 1\n" * 4000) + late
+        excerpt, complete = render_source_excerpt(text, ["data_key", "validate"])
+        window = excerpt.split("Source window:\n", 1)[1]
+        self.assertFalse(complete)
+        self.assertIn("return field.name", window)
+        self.assertIn("def validate", window)
+
     def test_survey_queue_reads_a_ranked_file_outside_src(self):
         from onecode.kernel.read_preface import _survey_queue
 
