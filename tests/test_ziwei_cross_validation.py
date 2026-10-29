@@ -273,6 +273,49 @@ class ZiweiCrossValidationTests(unittest.TestCase):
         self.assertIn("Causal root trace (来因宫 丑)", causal_prompt)
         self.assertIn("src/calculator.py", causal_prompt)
 
+    def test_ziwei_mathematical_audit_certificates(self):
+        """Test the formal mathematical audit certificates for Ziwei isomorphism and coupling."""
+        ring = IchingKernel.sovereign_ring_isomorphism_certificate()
+        self.assertEqual(ring["status"], "verified")
+        self.assertTrue(ring["opposition_involution_verified"])
+        self.assertTrue(ring["triad_balance_verified"])
+        self.assertEqual(ring["mean_yang_water"], 3.0)
+        self.assertEqual(ring["mean_yang_fire"], 3.0)
+        self.assertEqual(ring["dual_axis_mean"], 3.0)
+
+        an_he = IchingKernel.an_he_coupling_certificate()
+        self.assertEqual(an_he["status"], "verified")
+        self.assertTrue(an_he["distance_palindrome_verified"])
+        self.assertTrue(an_he["dual_sums_constant_12"])
+        self.assertEqual(an_he["hamming_distances"], [1, 3, 5, 5, 3, 1])
+        self.assertEqual(an_he["yang_sums"], [3, 3, 5, 7, 9, 9])
+        self.assertEqual(an_he["mean_yang_per_pair"], 3.0)
+
+        audit = IchingKernel.ziwei_mathematical_audit()
+        self.assertEqual(audit["status"], "ok")
+        self.assertIn("sovereign_ring", audit)
+        self.assertIn("an_he_coupling", audit)
+
+    def test_cli_math_audit_includes_ziwei_audit(self):
+        """Test CLI math-audit includes ziwei_audit in its payload."""
+        import os
+        import subprocess
+        import sys
+
+        env = os.environ.copy()
+        env["PYTHONPATH"] = "src"
+        completed = subprocess.run(
+            [sys.executable, "-m", "onecode.cli", "math-audit"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        data = json.loads(completed.stdout)
+        self.assertIn("ziwei_audit", data)
+        self.assertEqual(data["ziwei_audit"]["status"], "ok")
+        self.assertIn("ziwei_isomorphism_and_coupling", data["accepted_mappings"])
+
 
 if __name__ == "__main__":
     unittest.main()

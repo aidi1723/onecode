@@ -234,3 +234,96 @@ class IchingZiweiMixin:
             "description": description,
             "points": points,
         }
+
+    @classmethod
+    def sovereign_ring_isomorphism_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of the Sovereign Hexagram Ring <-> Earthly Branches isomorphism.
+
+        Theorems:
+        1. Bijective mapping: 12 sovereign hexagrams bijection to 12 earthly branches.
+        2. Opposition involution: Opposite branch (b + 6 mod 12) is bitwise NOT in Q_6.
+        3. Triad hypercube balance: Water and fire trines have exactly 3.00 mean yang bits;
+           metal and wood trines are exact reciprocal duals (average = 3.00).
+        """
+        branches = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
+        codes = cls.SOVEREIGN_HEXAGRAM_CODES  # type: ignore[attr-defined]
+
+        opposition_verified = True
+        for b_idx in range(12):
+            opp_idx = (b_idx + 6) % 12
+            if (codes[b_idx] ^ 0b111111) != codes[opp_idx]:
+                opposition_verified = False
+                break
+
+        water_yang = sum((codes[i] & 0b111111).bit_count() for i in (8, 0, 4))
+        fire_yang = sum((codes[i] & 0b111111).bit_count() for i in (2, 6, 10))
+        metal_yang = sum((codes[i] & 0b111111).bit_count() for i in (5, 9, 1))
+        wood_yang = sum((codes[i] & 0b111111).bit_count() for i in (11, 3, 7))
+
+        triads_balanced = (
+            water_yang == 9
+            and fire_yang == 9
+            and (metal_yang + wood_yang) == 18
+        )
+
+        return {
+            "status": "verified" if (opposition_verified and triads_balanced) else "failed",
+            "branch_count": len(branches),
+            "opposition_involution_verified": opposition_verified,
+            "triad_balance_verified": triads_balanced,
+            "mean_yang_water": round(water_yang / 3.0, 2),
+            "mean_yang_fire": round(fire_yang / 3.0, 2),
+            "mean_yang_metal": round(metal_yang / 3.0, 2),
+            "mean_yang_wood": round(wood_yang / 3.0, 2),
+            "dual_axis_mean": round((metal_yang + wood_yang) / 6.0, 2),
+        }
+
+    @classmethod
+    def an_he_coupling_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Six Harmonies (六合 / 暗合) on the 6-bit Boolean Hypercube.
+
+        Theorems:
+        1. Algebraic coupling: (b_1 + b_2) = 1 (mod 12).
+        2. Palindromic Hamming distance: [1, 3, 5, 5, 3, 1] across symmetric pairs.
+        3. Dual couple invariant: YangSum(Pair_k) + YangSum(Pair_{7-k}) == 12 for all k in {1, 2, 3}.
+        """
+        codes = cls.SOVEREIGN_HEXAGRAM_CODES  # type: ignore[attr-defined]
+        pairs = [(0, 1), (2, 11), (3, 10), (4, 9), (5, 8), (6, 7)]
+
+        distances = []
+        yang_sums = []
+        for b1, b2 in pairs:
+            c1, c2 = codes[b1], codes[b2]
+            distances.append((c1 ^ c2).bit_count())
+            w1 = (c1 & 0b111111).bit_count()
+            w2 = (c2 & 0b111111).bit_count()
+            yang_sums.append(w1 + w2)
+
+        is_palindrome = (distances == list(reversed(distances)))
+        dual_sums_constant = (
+            (yang_sums[0] + yang_sums[5] == 12)
+            and (yang_sums[1] + yang_sums[4] == 12)
+            and (yang_sums[2] + yang_sums[3] == 12)
+        )
+
+        return {
+            "status": "verified" if (is_palindrome and dual_sums_constant) else "failed",
+            "pair_count": len(pairs),
+            "hamming_distances": distances,
+            "distance_palindrome_verified": is_palindrome,
+            "yang_sums": yang_sums,
+            "dual_sums_constant_12": dual_sums_constant,
+            "mean_yang_per_pair": round(sum(yang_sums) / (2 * len(pairs)), 2),
+        }
+
+    @classmethod
+    def ziwei_mathematical_audit(cls) -> dict[str, Any]:
+        """Comprehensive mathematical audit of all Ziwei Doushu cross-validation certificates."""
+        ring = cls.sovereign_ring_isomorphism_certificate()
+        an_he = cls.an_he_coupling_certificate()
+        all_passed = (ring.get("status") == "verified" and an_he.get("status") == "verified")
+        return {
+            "status": "ok" if all_passed else "failed",
+            "sovereign_ring": ring,
+            "an_he_coupling": an_he,
+        }

@@ -102,6 +102,7 @@ def math_audit_payload() -> dict[str, object]:
         "totality": totality,
         "safety_dominance": safety_dominance,
         "collision_risk": collision_risk,
+        "ziwei_audit": IchingKernel.ziwei_mathematical_audit(),
         "accepted_mappings": [
             "transition_graph",
             "attractor_analysis",
@@ -115,6 +116,7 @@ def math_audit_payload() -> dict[str, object]:
             "lyapunov_energy",
             "state_distribution_entropy",
             "hysteresis_gate",
+            "ziwei_isomorphism_and_coupling",
         ],
         "reference_only": [
             "probabilistic_sampling",
