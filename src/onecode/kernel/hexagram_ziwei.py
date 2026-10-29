@@ -327,3 +327,54 @@ class IchingZiweiMixin:
             "sovereign_ring": ring,
             "an_he_coupling": an_he,
         }
+
+    @classmethod
+    def temporal_superposition_profile(
+        cls,
+        macro_stage: str,
+        turn_status: int,
+        event: str | None = None,
+    ) -> dict[str, Any]:
+        """Superimpose Macro Project Phase (大限) and Micro Step Iteration (流年/流月).
+
+        Isomorphism with Ziwei Doushu Yunxian DieGong (运限叠宫):
+        - Macro Stage 'exploration' (震/坎): Test failure / error is tolerated as learning feedback.
+        - Macro Stage 'implementation' (泰/大壮): Test failure triggers adaptive patch repair.
+        - Macro Stage 'delivery' (乾/离): Any failure is treated as fatal regression -> immediate rollback.
+        """
+        stages = {
+            "exploration": {"phase_code": 1, "element": "wood", "tolerance": 1.0, "default_action": "discover"},
+            "implementation": {"phase_code": 15, "element": "fire", "tolerance": 0.5, "default_action": "continue"},
+            "verification": {"phase_code": 31, "element": "metal", "tolerance": 0.2, "default_action": "checkpoint"},
+            "delivery": {"phase_code": 63, "element": "metal", "tolerance": 0.0, "default_action": "halt"},
+        }
+        stage_cfg = stages.get(macro_stage.lower(), stages["implementation"])
+        is_error = event in {"test_failure", "verifier_failed", "syntax_error", "timeout", "halt"} or ((turn_status & 0b111111) in {0, 32})
+
+        if not is_error:
+            superposition_state = "harmonious_progression"
+            policy_action = stage_cfg["default_action"]
+            risk_level = "low"
+        else:
+            if stage_cfg["tolerance"] >= 0.8:
+                superposition_state = "exploratory_feedback_tolerated"
+                policy_action = "discover"
+                risk_level = "tolerated"
+            elif stage_cfg["tolerance"] >= 0.4:
+                superposition_state = "repairable_defect"
+                policy_action = "repair"
+                risk_level = "medium"
+            else:
+                superposition_state = "fatal_regression_in_delivery"
+                policy_action = "rollback"
+                risk_level = "critical"
+
+        return {
+            "macro_stage": macro_stage,
+            "macro_tolerance": stage_cfg["tolerance"],
+            "micro_status_code": turn_status & 0b111111,
+            "event": event,
+            "superposition_state": superposition_state,
+            "policy_action": policy_action,
+            "risk_level": risk_level,
+        }

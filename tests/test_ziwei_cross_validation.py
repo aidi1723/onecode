@@ -207,6 +207,13 @@ class ZiweiCrossValidationTests(unittest.TestCase):
             self.assertEqual(consensus["pattern"], "三奇加会")
             self.assertEqual(consensus["pattern_level"], "excellent")
 
+            # New temporal_superposition present
+            self.assertIn("temporal_superposition", telemetry)
+            superposition = telemetry["temporal_superposition"]
+            self.assertEqual(superposition["macro_stage"], "implementation")
+            self.assertEqual(superposition["superposition_state"], "harmonious_progression")
+            self.assertEqual(superposition["risk_level"], "low")
+
     def test_resolve_task_bureau_for_workspace(self):
         """Test resolve_task_bureau computes bureau from workspace files."""
         with tempfile.TemporaryDirectory() as tmp:
@@ -315,6 +322,31 @@ class ZiweiCrossValidationTests(unittest.TestCase):
         self.assertIn("ziwei_audit", data)
         self.assertEqual(data["ziwei_audit"]["status"], "ok")
         self.assertIn("ziwei_isomorphism_and_coupling", data["accepted_mappings"])
+
+    def test_temporal_superposition_profile(self):
+        """Test macro stage and micro turn superposition (大限流年叠宫)."""
+        # Exploration: test failure is tolerated as exploratory learning
+        exp = IchingKernel.temporal_superposition_profile("exploration", 1, "test_failure")
+        self.assertEqual(exp["superposition_state"], "exploratory_feedback_tolerated")
+        self.assertEqual(exp["policy_action"], "discover")
+        self.assertEqual(exp["risk_level"], "tolerated")
+
+        # Implementation: test failure triggers repair
+        imp = IchingKernel.temporal_superposition_profile("implementation", 1, "test_failure")
+        self.assertEqual(imp["superposition_state"], "repairable_defect")
+        self.assertEqual(imp["policy_action"], "repair")
+        self.assertEqual(imp["risk_level"], "medium")
+
+        # Delivery: test failure is fatal regression -> immediate rollback
+        deliv = IchingKernel.temporal_superposition_profile("delivery", 1, "test_failure")
+        self.assertEqual(deliv["superposition_state"], "fatal_regression_in_delivery")
+        self.assertEqual(deliv["policy_action"], "rollback")
+        self.assertEqual(deliv["risk_level"], "critical")
+
+        # Success in any stage -> harmonious progression
+        ok = IchingKernel.temporal_superposition_profile("delivery", 63, "completed")
+        self.assertEqual(ok["superposition_state"], "harmonious_progression")
+        self.assertEqual(ok["risk_level"], "low")
 
 
 if __name__ == "__main__":
