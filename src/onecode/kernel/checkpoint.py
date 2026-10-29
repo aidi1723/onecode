@@ -768,6 +768,10 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
             "foundation_broken": IchingKernel.nuclear_profile(iching_status_code)["foundation_broken"],
             "pattern_state": IchingKernel.pattern_diagnostic_profile(iching_status_code)["pattern_state"],
             "pattern_name": IchingKernel.pattern_diagnostic_profile(iching_status_code)["pattern_name"],
+            "triad_consensus": IchingKernel.triad_consensus_profile(
+                turn_number=turn_number,
+                current_status=iching_status_code,
+            ),
         }
     return telemetry
 
