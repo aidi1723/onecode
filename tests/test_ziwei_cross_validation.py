@@ -585,6 +585,58 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(any("身宫寄托" in line for line in guidance))
         self.assertTrue(any("官禄宫" in line for line in guidance))
 
+    def test_star_brightness_profile_and_governance(self):
+        """Test star brightness (庙旺落陷) energy and throttle factor mapping."""
+        # 1. Ground state 7 (泰) -> 庙旺
+        b_ground = IchingKernel.star_brightness_profile(7)
+        self.assertEqual(b_ground["brightness_label"], "庙旺")
+        self.assertEqual(b_ground["governance_mode"], "autonomous")
+        self.assertEqual(b_ground["throttle_factor"], 1.0)
+        self.assertIn("commit", b_ground["permitted_actions"])
+
+        # 2. Halt state 0 (坤) -> 落陷
+        b_halt = IchingKernel.star_brightness_profile(0)
+        self.assertEqual(b_halt["brightness_label"], "落陷")
+        self.assertEqual(b_halt["governance_mode"], "degraded")
+        self.assertEqual(b_halt["throttle_factor"], 0.25)
+        self.assertNotIn("commit", b_halt["permitted_actions"])
+
+        # 3. Broken pattern forces 落陷
+        b_broken = IchingKernel.star_brightness_profile(15, pattern_level="broken")
+        self.assertEqual(b_broken["brightness_label"], "落陷")
+        self.assertEqual(b_broken["governance_mode"], "degraded")
+
+        # 4. Certificate
+        cert = IchingKernel.star_brightness_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["boundary_soundness"])
+
+    def test_repair_guidance_robust_against_none_and_injects_brightness(self):
+        """Verify _format_ziwei_repair_guidance handles None task_status_code safely."""
+        from onecode.kernel.model_loop import _format_ziwei_repair_guidance
+
+        # Both task_status_code and iching_status_code are None
+        res = {"status": "halted", "task_status_code": None, "iching_status_code": None}
+        guidance = _format_ziwei_repair_guidance(res, ["verifier_failed"])
+        self.assertTrue(any("星曜落陷" in line for line in guidance))
+        self.assertTrue(any("Degraded protection mode" in line for line in guidance))
+
+    def test_workspace_scale_stats_caching(self):
+        """Verify workspace_scale_stats is memoized and resilient to missing paths."""
+        from onecode.kernel.model_loop import workspace_scale_stats
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = Path(tmp)
+            (ws / "a.py").write_text("x = 1\ny = 2\n", encoding="utf-8")
+            count, loc = workspace_scale_stats(ws)
+            self.assertEqual(count, 1)
+            self.assertEqual(loc, 2)
+
+            # Second call should be instant from cache
+            count2, loc2 = workspace_scale_stats(ws)
+            self.assertEqual(count2, 1)
+            self.assertEqual(loc2, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

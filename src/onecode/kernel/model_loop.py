@@ -1,5 +1,6 @@
 from pathlib import Path
 import difflib
+import functools
 import hashlib
 import inspect
 import re
@@ -556,9 +557,17 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
     syntax_error_count = sum(1 for d in failure_details if any(k in d.lower() for k in ("syntaxerror", "patch_mismatch", "invalid_model_plan")))
     undefined_symbols_count = sum(1 for d in failure_details if any(k in d.lower() for k in ("nameerror", "importerror", "has no attribute", "modulenotfounderror")))
 
+    raw_status = failed_result.get("task_status_code")
+    if raw_status is None:
+        raw_status = failed_result.get("iching_status_code")
+    try:
+        resolved_status = int(raw_status) if raw_status is not None else 32
+    except (ValueError, TypeError):
+        resolved_status = 32
+
     pattern_profile = IchingKernel.ziwei_pattern_matrix_profile(
         turn_number=len(turn_history) + 1,
-        current_status=int(failed_result.get("task_status_code", failed_result.get("iching_status_code", 32))),
+        current_status=resolved_status,
         token_budget_ok=not has_truncation,
         verifier_passed=not has_verifier_fail,
         consecutive_syntax_errors=syntax_error_count,
@@ -585,7 +594,7 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
     # 3. Execution Anchorage & Fallback Shelter (身宫寄托)
     anchorage = IchingKernel.shen_gong_anchorage_profile(
         turn_number=len(turn_history) + 1,
-        current_status=int(failed_result.get("task_status_code", failed_result.get("iching_status_code", 32))),
+        current_status=resolved_status,
         token_budget_ok=not has_truncation,
         verifier_passed=not has_verifier_fail,
         environment_ok="timeout" not in str_result and "gateway" not in str_result,
@@ -595,14 +604,22 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
             f"- Execution shelter (身宫寄托·{anchorage['palace_name']}): {anchorage['shelter_guidance']}"
         )
 
+    # 4. Star Brightness & Degraded Protection (星曜庙旺落陷)
+    brightness = IchingKernel.star_brightness_profile(resolved_status, pattern_level=pattern_profile.get("level"))
+    if brightness.get("governance_mode") == "degraded":
+        guidance.append(
+            f"- Degraded protection mode (星曜落陷·{brightness['brightness_label']}): Energy unstable. Disallow full-file rewrite; limit actions to surgical diff or traceback inspection."
+        )
+
     return guidance
 
 
-def workspace_scale_stats(workspace: Path) -> tuple[int, int]:
-    """Return (file_count, total_loc) for Python files in workspace, excluding venvs and hidden dirs."""
+@functools.lru_cache(maxsize=32)
+def _cached_workspace_scale_stats(workspace_key: str) -> tuple[int, int]:
+    ws = Path(workspace_key)
     file_count = 0
     total_loc = 0
-    for path in workspace.rglob("*.py"):
+    for path in ws.rglob("*.py"):
         parts = set(path.parts)
         if any(p.startswith(".") or p in {"venv", ".venv", "build", "dist", "__pycache__"} for p in parts):
             continue
@@ -612,6 +629,15 @@ def workspace_scale_stats(workspace: Path) -> tuple[int, int]:
         except Exception:
             pass
     return file_count, total_loc
+
+
+def workspace_scale_stats(workspace: Path) -> tuple[int, int]:
+    """Return (file_count, total_loc) for Python files in workspace, excluding venvs and hidden dirs."""
+    try:
+        key = str(workspace.resolve())
+        return _cached_workspace_scale_stats(key)
+    except Exception:
+        return 1, 40
 
 
 def resolve_task_bureau(workspace: Path) -> dict[str, Any]:

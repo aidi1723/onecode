@@ -118,6 +118,7 @@ def math_audit_payload() -> dict[str, object]:
             "hysteresis_gate",
             "ziwei_isomorphism_and_coupling",
             "shen_gong_subgroup_anchorage",
+            "star_brightness_lyapunov_invariance",
         ],
         "reference_only": [
             "probabilistic_sampling",

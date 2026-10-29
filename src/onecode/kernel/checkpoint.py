@@ -784,6 +784,9 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
                 turn_number=turn_number,
                 current_status=iching_status_code,
             ),
+            "star_brightness": IchingKernel.star_brightness_profile(
+                status_code=iching_status_code,
+            ),
         }
     return telemetry
 
