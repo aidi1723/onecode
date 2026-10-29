@@ -2526,6 +2526,31 @@ class OneCodeWebApiTests(unittest.TestCase):
             listed_prompt = _listed_file_prompt(task, ["schema.py", "other.py"])
             self.assertIn("schema drift", listed_prompt)
 
+    def test_patch_threshold_and_prefer_patch_environment_flags(self):
+        from onecode.web.api import _asset_or_patch_prompt, _file_exceeds_preface, _listed_file_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            target = workspace / "module.py"
+            target.write_text("a = 1\n" * 1000, encoding="utf-8") # 6000 chars
+
+            # By default with explicit threshold = 4000, exceeds
+            try:
+                os.environ["ONECODE_PATCH_THRESHOLD_CHARS"] = "4000"
+                self.assertTrue(_file_exceeds_preface(workspace, "module.py"))
+
+                # Prompt asks for patch
+                p = _asset_or_patch_prompt("fix bug", workspace, "module.py")
+                self.assertIn("patch", p.lower())
+
+                # ONECODE_PREFER_PATCH forces listed file prompt into patch mode
+                os.environ["ONECODE_PREFER_PATCH"] = "1"
+                lp = _listed_file_prompt("fix bug", ["module.py"])
+                self.assertIn("patches only", lp)
+            finally:
+                os.environ.pop("ONECODE_PATCH_THRESHOLD_CHARS", None)
+                os.environ.pop("ONECODE_PREFER_PATCH", None)
+
 
 if __name__ == "__main__":
     unittest.main()

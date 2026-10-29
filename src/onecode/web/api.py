@@ -255,13 +255,21 @@ def _fit_preface_paths(workspace: Path, ranked: list[str]) -> list[str]:
 
 def _file_exceeds_preface(workspace: Path, relative: str) -> bool:
     try:
-        return (workspace / relative).stat().st_size > SINGLE_FILE_PREFACE_CHARS
-    except OSError:
+        size = (workspace / relative).stat().st_size
+        explicit = os.environ.get("ONECODE_PATCH_THRESHOLD_CHARS")
+        if explicit:
+            return size > int(explicit)
+        from onecode.kernel.model_loop import resolve_task_bureau
+
+        bureau = resolve_task_bureau(workspace)
+        limit = bureau.get("preview_limit_chars", SINGLE_FILE_PREFACE_CHARS)
+        return size > limit
+    except (OSError, ValueError):
         return False
 
 
 def _asset_or_patch_prompt(task: str, workspace: Path, target: str) -> str:
-    if _file_exceeds_preface(workspace, target):
+    if _file_exceeds_preface(workspace, target) or os.environ.get("ONECODE_PREFER_PATCH", "").lower() in {"1", "true", "yes"}:
         return (
             "The target file is larger than one complete asset.\n"
             f"Target: {target}\n"
@@ -696,6 +704,15 @@ def _existing_implementation_files(workspace: Path) -> list[str]:
 
 def _listed_file_prompt(task: str, paths: list[str]) -> str:
     listed = ", ".join(paths)
+    if os.environ.get("ONECODE_PREFER_PATCH", "").lower() in {"1", "true", "yes"}:
+        return (
+            "Change an existing Python file from this list using patches.\n"
+            f"Existing files: {listed}\n"
+            f"Task: {task}\n"
+            "Return JSON with patches only. Do not return full-file assets. "
+            "Do not include execution_plan or run_command. Do not modify tests/."
+            + data_contract_guidance(task)
+        )
     return (
         "Change exactly one existing Python file from this list. "
         "Its current text is in the preface above. "
