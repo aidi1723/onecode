@@ -15,6 +15,11 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+# Ensure src/ is on sys.path for standalone script execution
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT / "src"))
+
 from onecode.kernel.injected_test_runner import (
     classify_injected_test_failure,
     parse_junit_xml,
