@@ -257,7 +257,7 @@ def narrow_plan_prompt(task: str, failure: dict[str, Any], written: list[str] | 
         + (
             "Use unittest, not pytest. No relative imports. "
             if any(is_preset_test_path(path) for path in required_python_files(task) if path not in set(written or []))
-            else "Do not import unittest or pytest. No relative imports. "
+            else "Do not import unittest or pytest. "
         )
         + "Do not include execution_plan or run_command. "
         "Do not install packages or use the network."
@@ -321,17 +321,19 @@ def data_contract_guidance(task: str) -> str:
     if any(k in task_lower for k in ("crash_in_local", "crash in local", "crash", "unbound", "local variable", "崩溃", "作用域")):
         rules.append(
             "For local crash and bug fixes: defensively guard against None, missing keys, and empty collections; "
-            "ensure local variables are initialized across all conditional branches, and preserve original exception types."
+            "ensure local variables are initialized across all conditional branches, preserve original exception types, "
+            "and preserve existing package import structures and relative imports within packages to avoid circular import issues."
         )
     if any(k in task_lower for k in ("envless", "envless_file_load", "file_load", "无环境", "环境变量")):
         rules.append(
-            "For environment-less file loading: safely resolve relative and absolute paths with default search fallbacks when env vars are unset; "
-            "gracefully handle missing files or directories with deterministic fallback paths."
+            "For environment-less file loading: support loading configuration without environment prefix constraints, "
+            "safely resolve relative and absolute paths with default search fallbacks when env vars are unset, "
+            "and preserve default environment loading behaviors."
         )
     if any(k in task_lower for k in ("uriref", "eliminate_uriref", "validation_to_eliminate", "uri_ref")):
         rules.append(
-            "For URI reference elimination and validation: deeply validate, sanitize, or convert URI references across nested structures and collections, "
-            "strictly rejecting or converting invalid URI objects without leaving partial references."
+            "For URI reference elimination and component validation: support Validator.check_validity_of(*components), "
+            "deeply validate URI components, and raise InvalidComponentsError when components are invalid or fail validation."
         )
     if any(k in task_lower for k in ("filtered_relation", "queryset_arg", "relation_queryset")):
         rules.append(
@@ -439,7 +441,7 @@ def initial_asset_prompt(task: str, target: str) -> str:
         + (
             "Use unittest, not pytest. No relative imports."
             if is_preset_test_path(target)
-            else "Do not import unittest or pytest. No relative imports."
+            else "Do not import unittest or pytest."
         )
         + contract_note
         + artifact_note
