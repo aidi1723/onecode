@@ -60,24 +60,32 @@ class ZiweiCrossValidationTests(unittest.TestCase):
         self.assertEqual(b2["bureau_name"], "水二局")
         self.assertEqual(b2["turn_budget"], 3)
         self.assertEqual(b2["patch_strategy"], "surgical_diff_only")
+        self.assertEqual(b2["preview_limit_chars"], 4000)
+        self.assertEqual(b2["repair_file_limit"], 6)
 
         # Medium feature
         b3 = IchingKernel.task_bureau_profile(file_count=2, total_loc=90)
         self.assertEqual(b3["bureau"], 3)
         self.assertEqual(b3["bureau_name"], "木三局")
         self.assertEqual(b3["turn_budget"], 4)
+        self.assertEqual(b3["preview_limit_chars"], 6000)
+        self.assertEqual(b3["repair_file_limit"], 8)
 
         # Refactoring
         b4 = IchingKernel.task_bureau_profile(file_count=5, total_loc=400)
         self.assertEqual(b4["bureau"], 4)
         self.assertEqual(b4["bureau_name"], "金四局")
         self.assertEqual(b4["turn_budget"], 5)
+        self.assertEqual(b4["preview_limit_chars"], 8000)
+        self.assertEqual(b4["repair_file_limit"], 10)
 
         # Large persistence schema
         b5 = IchingKernel.task_bureau_profile(file_count=6, total_loc=650)
         self.assertEqual(b5["bureau"], 5)
         self.assertEqual(b5["bureau_name"], "土五局")
         self.assertEqual(b5["turn_budget"], 6)
+        self.assertEqual(b5["preview_limit_chars"], 10000)
+        self.assertEqual(b5["repair_file_limit"], 12)
 
         # Massive architecture evolution
         b6 = IchingKernel.task_bureau_profile(file_count=14, total_loc=2800)
@@ -85,6 +93,8 @@ class ZiweiCrossValidationTests(unittest.TestCase):
         self.assertEqual(b6["bureau_name"], "火六局")
         self.assertEqual(b6["turn_budget"], 8)
         self.assertEqual(b6["timeout_sec"], 180)
+        self.assertEqual(b6["preview_limit_chars"], 14000)
+        self.assertEqual(b6["repair_file_limit"], 16)
 
     def test_self_sihua_profile_detection(self):
         """Test detection of internal dissipation (自化忌 / 自化禄 / 自化权 / 自化科)."""
@@ -347,6 +357,36 @@ class ZiweiCrossValidationTests(unittest.TestCase):
         ok = IchingKernel.temporal_superposition_profile("delivery", 63, "completed")
         self.assertEqual(ok["superposition_state"], "harmonious_progression")
         self.assertEqual(ok["risk_level"], "low")
+
+    def test_bureau_scaled_file_repair_preview_and_tokens(self):
+        """Test bureau scaling dynamically adjusts preview truncation limits and token expansion."""
+        from onecode.kernel.model_loop import _src_files_for_repair
+        from onecode.web.api import _task_tokens
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = Path(tmp)
+            src_dir = ws / "src"
+            src_dir.mkdir()
+            large_file = src_dir / "service.py"
+            large_file.write_text("A" * 6000, encoding="utf-8")
+
+            # Default bureau on tiny workspace is 水二局 (preview_limit=4000)
+            res = _src_files_for_repair(ws)
+            self.assertIn("src/service.py", res)
+            self.assertIn("TRUNCATED: preview limited to 4000", res["src/service.py"])
+
+            # Explicit preview limit expansion (e.g. 火六局)
+            res_expanded = _src_files_for_repair(ws, preview_limit=8000)
+            self.assertNotIn("TRUNCATED", res_expanded["src/service.py"])
+            self.assertEqual(len(res_expanded["src/service.py"]), 6000)
+
+        # Chinese task token extraction & 3-character token retention
+        task = "按文件内容加载配置，不依赖 env 前缀"
+        tokens = _task_tokens(task)
+        self.assertIn("config", tokens)
+        self.assertIn("load", tokens)
+        self.assertIn("env", tokens)
+        self.assertIn("prefix", tokens)
 
 
 if __name__ == "__main__":

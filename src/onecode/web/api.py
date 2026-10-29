@@ -501,8 +501,27 @@ def _mentioned_existing_python_files(task: str, workspace: Path) -> list[str]:
     return found
 
 
-_TASK_TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_]{3,}")
+_TASK_TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_]{2,}")
 _TESTS_ONLY = re.compile(r"只补测试|只补\s*tests|只添加测试|只新增测试|only add tests", re.IGNORECASE)
+_CN_CODE_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("配置", ("config", "settings", "conf")),
+    ("加载", ("load", "loader")),
+    ("环境", ("env", "environment")),
+    ("前缀", ("prefix",)),
+    ("清理", ("cleanup", "clean")),
+    ("回收", ("collect", "gc")),
+    ("异常", ("exception", "crash")),
+    ("校验", ("validate", "validation", "validator")),
+    ("认证", ("auth", "authenticate")),
+    ("解析", ("parse", "parser")),
+    ("路由", ("route", "router")),
+    ("中间件", ("middleware",)),
+    ("数据库", ("db", "database", "model")),
+    ("异步", ("async", "await")),
+    ("线程", ("thread", "threading")),
+    ("套接字", ("socket",)),
+    ("序列化", ("serialize", "serializer")),
+)
 _TOKEN_STOP = frozenset(
     {
         "this",
@@ -530,12 +549,37 @@ _TOKEN_STOP = frozenset(
         "please",
         "class",
         "function",
+        "the",
+        "and",
+        "for",
+        "not",
+        "but",
+        "all",
+        "any",
+        "can",
+        "use",
+        "has",
+        "had",
+        "out",
+        "was",
+        "are",
+        "via",
+        "its",
+        "per",
+        "how",
     }
 )
 
 
 def _task_tokens(task: str) -> list[str]:
     found: list[str] = []
+    for cn_key, en_terms in _CN_CODE_KEYWORDS:
+        if cn_key in task:
+            for term in en_terms:
+                if term not in found and term.casefold() not in _TOKEN_STOP:
+                    found.append(term)
+                    if len(found) >= 12:
+                        return found
     for token in _TASK_TOKEN.findall(task):
         if token.casefold() in _TOKEN_STOP or token in found:
             continue

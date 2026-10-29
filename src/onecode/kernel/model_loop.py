@@ -464,7 +464,17 @@ def _repair_roots(workspace: Path) -> list[Path]:
     return roots
 
 
-def _src_files_for_repair(workspace: Path) -> dict[str, str]:
+def _src_files_for_repair(
+    workspace: Path,
+    preview_limit: int | None = None,
+    max_files: int | None = None,
+) -> dict[str, str]:
+    if preview_limit is None or max_files is None:
+        bureau = resolve_task_bureau(workspace)
+        if preview_limit is None:
+            preview_limit = bureau.get("preview_limit_chars", 4000)
+        if max_files is None:
+            max_files = bureau.get("repair_file_limit", 8)
     files: dict[str, str] = {}
     for root in _repair_roots(workspace):
         paths = [root] if root.is_file() else sorted(root.rglob("*.py"))
@@ -474,8 +484,15 @@ def _src_files_for_repair(workspace: Path) -> dict[str, str]:
             relative = path.relative_to(workspace).as_posix()
             if is_preset_test_path(relative) or Path(relative).name in {"unittest.py", "pytest.py", "conftest.py"}:
                 continue
-            files[relative] = path.read_text(encoding="utf-8")[:4000]
-            if len(files) >= 8:
+            content = path.read_text(encoding="utf-8")
+            if len(content) > preview_limit:
+                files[relative] = (
+                    content[:preview_limit]
+                    + f"\n# [TRUNCATED: preview limited to {preview_limit} of {len(content)} chars. Use search_block/replace_block patches rather than rewriting full file]"
+                )
+            else:
+                files[relative] = content
+            if len(files) >= max_files:
                 return files
     return files
 
@@ -491,7 +508,7 @@ def _repair_source_block(failed_result: dict[str, Any]) -> str:
         content = files.get(path)
         if not isinstance(content, str) or content == "":
             continue
-        blocks.append(f"## {path}\n{content[:4000]}")
+        blocks.append(f"## {path}\n{content}")
     if not blocks:
         return ""
     return "Current source:\n" + "\n".join(blocks) + "\n"

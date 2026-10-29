@@ -34,30 +34,40 @@ class IchingZiweiMixin:
             turn_budget = 3
             timeout_sec = 45
             patch_strategy = "surgical_diff_only"
+            preview_limit_chars = 4000
+            repair_file_limit = 6
         elif scale < 8.0:
             bureau = 3
             name = "木三局"
             turn_budget = 4
             timeout_sec = 60
             patch_strategy = "incremental_feature_growth"
+            preview_limit_chars = 6000
+            repair_file_limit = 8
         elif scale < 14.0:
             bureau = 4
             name = "金四局"
             turn_budget = 5
             timeout_sec = 90
             patch_strategy = "strict_contract_refactoring"
+            preview_limit_chars = 8000
+            repair_file_limit = 10
         elif scale < 22.0:
             bureau = 5
             name = "土五局"
             turn_budget = 6
             timeout_sec = 120
             patch_strategy = "foundational_stability_migration"
+            preview_limit_chars = 10000
+            repair_file_limit = 12
         else:
             bureau = 6
             name = "火六局"
             turn_budget = 8
             timeout_sec = 180
             patch_strategy = "distributed_orchestration"
+            preview_limit_chars = 14000
+            repair_file_limit = 16
 
         return {
             "scale": round(scale, 2),
@@ -66,6 +76,8 @@ class IchingZiweiMixin:
             "turn_budget": turn_budget,
             "timeout_sec": timeout_sec,
             "patch_strategy": patch_strategy,
+            "preview_limit_chars": preview_limit_chars,
+            "repair_file_limit": repair_file_limit,
         }
 
     @classmethod
