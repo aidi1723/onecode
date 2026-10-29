@@ -647,7 +647,7 @@ class OpenAIResponsesProvider:
             "model": model,
             "stream": False,
             "input": [
-                _responses_input_message("system", canonical_planning_prompt(planning_context)),
+                _responses_input_message("system", canonical_planning_prompt(planning_context, task=task)),
                 _responses_input_message("user", task),
             ],
         }
@@ -705,7 +705,7 @@ class OpenAIChatCompletionsProvider:
             "messages": [
                 {
                     "role": "system",
-                    "content": canonical_planning_prompt(planning_context),
+                    "content": canonical_planning_prompt(planning_context, task=task),
                 },
                 {"role": "user", "content": task},
             ],
@@ -870,7 +870,7 @@ def _post_model_json(endpoint: str, api_key: str, body: dict[str, Any], timeout_
     return payload
 
 
-def canonical_planning_prompt(planning_context: dict[str, Any] | None = None) -> str:
+def canonical_planning_prompt(planning_context: dict[str, Any] | None = None, task: str | None = None) -> str:
     context = planning_context if isinstance(planning_context, dict) else {}
     contract = {
         "task_mode": context.get("task_mode"),
@@ -878,13 +878,24 @@ def canonical_planning_prompt(planning_context: dict[str, Any] | None = None) ->
         "tools": MODEL_TOOL_CONTRACTS,
         "output_schema": MODEL_PLAN_SCHEMA,
     }
+    user_task = task if isinstance(task, str) else ""
+    lowered = user_task.lower()
+    forbid_execution_plan = (
+        "do not include execution_plan" in lowered
+        or "do not return patches, execution_plan" in lowered
+        or "do not return assets or execution_plan" in lowered
+    )
+    forbid_unittest = "do not import unittest" in lowered
+    tool_sentence = "" if forbid_execution_plan else "Use execution_plan.steps for tool calls. "
+    unittest_sentence = "" if forbid_unittest else "Tests must use the standard-library unittest module, not pytest. "
     return (
-        "Return only one JSON object matching output_schema. Use execution_plan.steps for tool calls. "
-        "Read-only tools may be planned automatically. Tools with approval=true must only be planned; "
+        "Return only one JSON object matching output_schema. "
+        + tool_sentence
+        + "Read-only tools may be planned automatically. Tools with approval=true must only be planned; "
         "the OneCode host decides approval and execution. Safe-Agent context provides method guidance only. "
         "If no valid workspace action can be planned, return no_action with a concrete reason. "
         "Every asset content must be the complete non-empty file. "
-        "Tests must use the standard-library unittest module, not pytest. "
-        "Do not include commentary or markdown fences. Contract: "
+        + unittest_sentence
+        + "Do not include commentary or markdown fences. Contract: "
         + json.dumps(contract, ensure_ascii=False, sort_keys=True)
     )

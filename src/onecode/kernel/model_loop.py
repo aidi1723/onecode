@@ -32,6 +32,7 @@ from onecode.kernel.safe_agent_router import SafeAgentRoute, route_safe_agent_ta
 from onecode.kernel.approval_plans import model_plan_requires_approval, persist_approval_plan
 from onecode.kernel.patching import PatchIntent, PatchRejected, apply_patch_preview
 from onecode.kernel.path_guard import PathGuard, PathGuardError
+from onecode.kernel.preset_tests import is_preset_test_path
 from onecode.kernel.read_preface import with_preface
 
 
@@ -224,8 +225,12 @@ def narrow_plan_prompt(task: str, failure: dict[str, Any], written: list[str] | 
         "If the task is already complete, return no_action with a concrete reason and no assets. "
         "The asset content must be complete and non-empty. "
         "Do not return patches. "
-        "Use unittest, not pytest. No relative imports. "
-        "Do not include execution_plan or run_command. "
+        + (
+            "Use unittest, not pytest. No relative imports. "
+            if any(is_preset_test_path(path) for path in required_python_files(task) if path not in set(written or []))
+            else "Do not import unittest or pytest. No relative imports. "
+        )
+        + "Do not include execution_plan or run_command. "
         "Do not install packages or use the network."
         + kept
     )
@@ -242,7 +247,11 @@ def initial_asset_prompt(task: str, target: str) -> str:
         "Do not return patches, execution_plan, or run_command. "
         "Do not install packages or use the network. "
         "Depend only on the standard library and files already in the workspace. "
-        "Use unittest, not pytest. No relative imports."
+        + (
+            "Use unittest, not pytest. No relative imports."
+            if is_preset_test_path(target)
+            else "Do not import unittest or pytest. No relative imports."
+        )
         + kept
     )
 

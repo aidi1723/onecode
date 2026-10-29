@@ -142,6 +142,8 @@ class IchingCertificatesMixin:
             "evolved_element_modulation": cls.evolved_element_modulation(normalized),  # type: ignore[attr-defined]
             "harmony": cls.harmony_score(normalized),  # type: ignore[attr-defined]
             "yin_yang": cls.yin_yang_cross_profile(normalized),  # type: ignore[attr-defined]
+            "polarity_index": cls.polarity_index(normalized),  # type: ignore[attr-defined]
+            "balance_mask": cls.balance_mask(normalized),  # type: ignore[attr-defined]
             "four_symbols": cls.four_symbols(normalized),  # type: ignore[attr-defined]
             "overlapping_four_symbols": cls.overlapping_four_symbols(normalized),  # type: ignore[attr-defined]
             "four_symbol_balance": cls.four_symbol_balance_vector(normalized),  # type: ignore[attr-defined]
@@ -224,7 +226,7 @@ class IchingCertificatesMixin:
         bits = cls.bits_for_state(status_code & 0b111111, width=6)  # type: ignore[attr-defined]
         return cls.state_for_bits([bits[1], bits[2], bits[3], bits[2], bits[3], bits[4]])  # type: ignore[attr-defined]
     @classmethod
-    def nuclear_profile(cls, status_code: int) -> dict[str, int | str]:
+    def nuclear_profile(cls, status_code: int) -> dict[str, int | str | bool]:
         nuclear = cls.nuclear_hexagram(status_code)  # type: ignore[attr-defined]
         inner = nuclear & 0b111
         outer = (nuclear >> 3) & 0b111
@@ -241,6 +243,32 @@ class IchingCertificatesMixin:
             "element_relation": cls.element_cross_relation(outer_element, inner_element),  # type: ignore[attr-defined]
             "transition_action": transition.action,
             "transition_reason": transition.reason,
+            "foundation_broken": cls.dispatch_decision(cls.transition(status_code & 0b111111)) == "continue" and transition.action == "halt",  # type: ignore[attr-defined]
+        }
+
+    @classmethod
+    def diagnostic_sihua_profile(cls, status_code: int, before_status: int | None = None) -> dict[str, object]:
+        normalized = status_code & 0b111111
+        action = cls.transition(normalized).action  # type: ignore[attr-defined]
+        if action == "halt":
+            label = "化忌"
+        elif action in {"checkpoint", "discover"}:
+            label = "化科"
+        elif action in {"activate", "throttle", "prune", "cooldown"}:
+            label = "化权"
+        else:
+            label = "化禄"
+        changed_bands: list[str] = []
+        if before_status is not None:
+            mutation = cls.mutation_profile(before_status, normalized)  # type: ignore[attr-defined]
+            bands = mutation["changed_bands"]
+            if isinstance(bands, list):
+                changed_bands = [str(band) for band in bands]
+        return {
+            "status_code": normalized,
+            "transition_action": action,
+            "sihua": label,
+            "changed_bands": changed_bands,
         }
     @classmethod
     def nuclear_chain(cls, status_code: int, max_steps: int = 4) -> list[int]:

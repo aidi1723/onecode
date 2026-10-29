@@ -429,12 +429,6 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
                 action="cooldown",
                 reason="yang_overload_cooldown",
             )
-        if profile["balance"] == "pure_yin":
-            return IchingTransition(
-                status_code=normalized,
-                action="discover",
-                reason="rule_gap_requires_discovery",
-            )
         if dynamics["modulation"] == "recovery_seed":
             return IchingTransition(
                 status_code=normalized,

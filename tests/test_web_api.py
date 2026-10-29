@@ -684,8 +684,8 @@ class OneCodeWebApiTests(unittest.TestCase):
             )
 
         preface = run_model.call_args.kwargs["preface"]
-        self.assertIn("assertEqual", preface)
-        self.assertNotIn("tests/test_fares.py", preface)
+        self.assertIn("def fare_cents", preface)
+        self.assertNotIn("assertEqual", preface)
 
     def test_shell_asks_for_one_file_when_several_are_missing(self):
         from onecode.web.api import handle_chat_completion
@@ -873,6 +873,7 @@ class OneCodeWebApiTests(unittest.TestCase):
         self.assertIn("Target: click_like/formatter.py", prompt)
         self.assertNotIn("z0.py", prompt)
         self.assertIn("WIDTH = 80", extras["preface"])
+        self.assertNotIn("X = 1", extras["preface"])
 
     def test_a_refused_python_file_is_not_forced_as_the_write_target(self):
         from onecode.web.api import _shell_write_prompt

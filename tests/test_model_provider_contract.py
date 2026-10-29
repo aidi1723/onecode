@@ -46,6 +46,21 @@ class ModelProviderContractTests(unittest.TestCase):
         self.assertIn("code-test-regression", contract)
         self.assertIn("method_only", contract)
         self.assertNotIn("API key", contract)
+        self.assertIn("execution_plan.steps", contract)
+
+    def test_asset_prompt_drops_execution_plan_and_unittest_when_the_file_is_not_a_test(self):
+        from onecode.kernel.model_loop import initial_asset_prompt
+        from onecode.kernel.model_provider import canonical_planning_prompt
+
+        prompt = initial_asset_prompt("fix the fee", "src/fee.py")
+        system = canonical_planning_prompt(task=prompt)
+        self.assertIn("Do not import unittest", prompt)
+        self.assertNotIn("Use unittest, not pytest.", prompt)
+        self.assertNotIn("execution_plan.steps", system)
+        self.assertNotIn("unittest module", system)
+        kept = canonical_planning_prompt(task="check the repository")
+        self.assertIn("execution_plan.steps", kept)
+        self.assertIn("unittest module", kept)
 
     def test_chat_plan_accepts_json_wrapped_in_fences(self):
         provider = OpenAIChatCompletionsProvider("key", endpoint="https://example.test/v1/chat/completions")

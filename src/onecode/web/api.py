@@ -210,6 +210,14 @@ def continue_named_files(user_task: str, workspace: Path, written_before: set[st
 
 
 def shell_model_task_extras(task: str, workspace: Path) -> dict[str, Any]:
+    unique = _unique_named_business_file(task, workspace)
+    if unique is not None:
+        preface = collect_preface(workspace, [unique]) or None
+        return {
+            "preface": preface,
+            "sandbox_config": SandboxConfig(workspace=workspace),
+            "max_repair_attempts": 1,
+        }
     paths: list[str] = []
 
     def add(path: str) -> None:
@@ -274,7 +282,7 @@ def prepare_shell_model_call(task: str, workspace: Path, run_id: str | None = No
     extras = shell_model_task_extras(task, workspace)
     surveyed_text = survey.get("preface")
     named_text = extras.get("preface")
-    surveyed = surveyed_text.strip() if isinstance(surveyed_text, str) else ""
+    surveyed = "" if _unique_named_business_file(task, workspace) else (surveyed_text.strip() if isinstance(surveyed_text, str) else "")
     named = named_text.strip() if isinstance(named_text, str) else ""
     notes = _shell_context_notes(workspace)
     preface = "\n".join(part for part in (surveyed, named, notes) if part)
@@ -411,6 +419,15 @@ def _mentioned_existing_python_files(task: str, workspace: Path) -> list[str]:
         if len(found) == 4:
             break
     return found
+
+
+def _unique_named_business_file(task: str, workspace: Path) -> str | None:
+    if _asks_for_new_tests(task) or _mentioned_json_file(task) is not None:
+        return None
+    mentioned = _mentioned_existing_python_files(task, workspace)
+    if len(mentioned) == 1:
+        return mentioned[0]
+    return None
 
 
 _TASK_TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_]{3,}")

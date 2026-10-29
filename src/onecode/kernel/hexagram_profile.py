@@ -476,5 +476,19 @@ class IchingProfileMixin:
 
     @classmethod
     def cycle_phase(cls, cycle_count: int) -> str:
-        SOVEREIGN_HEXAGRAMS = ["复", "临", "泰", "大壮", "夬", "乾", "姤", "遁", "否", "观", "剥", "坤"]
-        return SOVEREIGN_HEXAGRAMS[cycle_count % 12]
+        return cls.SOVEREIGN_HEXAGRAM_NAMES[cycle_count % 12]
+
+    SOVEREIGN_HEXAGRAM_CODES = (1, 3, 7, 15, 31, 63, 62, 60, 56, 48, 32, 0)
+    SOVEREIGN_HEXAGRAM_NAMES = ("复", "临", "泰", "大壮", "夬", "乾", "姤", "遁", "否", "观", "剥", "坤")
+
+    @classmethod
+    def sovereign_ring_profile(cls, cycle_count: int) -> dict[str, int | str]:
+        branch_index = cycle_count % 12
+        status_code = cls.SOVEREIGN_HEXAGRAM_CODES[branch_index]
+        return {
+            "branch_index": branch_index,
+            "name": cls.SOVEREIGN_HEXAGRAM_NAMES[branch_index],
+            "status_code": status_code,
+            "opposite_status_code": cls.opposite_hexagram(status_code),  # type: ignore[attr-defined]
+            "inverse_status_code": cls.inverse_hexagram(status_code),  # type: ignore[attr-defined]
+        }

@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-29 - Add the read-only sovereign ring and single-branch prompts
+
+Version stays 1.0.0. No new hexagram was added. `classify_outcome` was not edited. `claims_mainstream_parity` stays false.
+
+### Changed
+
+- The twelve-hexagram ring exposes a read-only profile. Opposite and inverse stay the existing operators.
+- Diagnostic labels name halt, checkpoint, write-control, and nourishing actions. They do not change the status code.
+- `foundation_broken` is true only for status codes 10, 23, 52, 53, 54, and 55.
+- A named business file keeps only its own preface. A non-test target no longer asks for `unittest`.
+
+### Verification
+
+- `bash scripts/verify.sh` on this Mac: `Ran 1330 tests`, `OK (skipped=1)`, coverage 86%, doctor `ok`.
+
 ## 2026-10-28 - Close the gap optimization phase
 
 Version stays 1.0.0. No new hexagram was added. `claims_mainstream_parity` stays false. The record is `docs/closure/ONECODE_GAP_OPTIMIZATION_CLOSEOUT_2026-10-28.md`. n100 was offline and was not rechecked.

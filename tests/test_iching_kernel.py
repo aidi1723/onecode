@@ -57,6 +57,39 @@ class TestIchingKernel(unittest.TestCase):
         self.assertEqual(IchingKernel.perspective_profile(status)["inverse_status_code"], inverse)
         self.assertEqual(IchingKernel.perspective_profile(status)["exchange_status_code"], exchange)
 
+    def test_sovereign_ring_keeps_three_algebraic_identities(self):
+        codes = IchingKernel.SOVEREIGN_HEXAGRAM_CODES
+        self.assertEqual(codes, (1, 3, 7, 15, 31, 63, 62, 60, 56, 48, 32, 0))
+
+        def distance(left: int, right: int) -> int:
+            return (left ^ right).bit_count()
+
+        for branch in range(12):
+            self.assertEqual(distance(codes[branch], codes[(branch + 1) % 12]), 1)
+            self.assertEqual(codes[(branch + 6) % 12], IchingKernel.opposite_hexagram(codes[branch]))
+            inverse = IchingKernel.inverse_hexagram(codes[branch])
+            inverse_branch = codes.index(inverse)
+            self.assertEqual((branch + inverse_branch) % 12, 10)
+            self.assertEqual(distance(codes[branch], codes[(branch + 4) % 12]), 4)
+
+        profile = IchingKernel.sovereign_ring_profile(11)
+        self.assertEqual(profile["name"], "坤")
+        self.assertEqual(profile["status_code"], 0)
+        self.assertEqual(profile["opposite_status_code"], 63)
+        self.assertEqual(IchingKernel.transition(0).action, "discover")
+
+    def test_diagnostic_sihua_and_foundation_are_read_only_labels(self):
+        labels = {IchingKernel.diagnostic_sihua_profile(code)["sihua"] for code in range(64)}
+        self.assertEqual(labels, {"化禄", "化权", "化科", "化忌"})
+        self.assertEqual(IchingKernel.diagnostic_sihua_profile(40)["sihua"], "化忌")
+        self.assertEqual(IchingKernel.transition(40).action, "halt")
+        broken = {code for code in range(64) if IchingKernel.nuclear_profile(code)["foundation_broken"]}
+        self.assertEqual(broken, {10, 23, 52, 53, 54, 55})
+        cross = IchingKernel.cross_cutting_profile(21)
+        self.assertIn("polarity_index", cross)
+        self.assertIn("balance_mask", cross)
+        self.assertEqual(cross["polarity_index"], cross["yin_yang"]["polarity_index"])
+
     def test_cross_cutting_profile_exposes_position_correspondence_virtue_and_perspective(self):
         status = IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)
 

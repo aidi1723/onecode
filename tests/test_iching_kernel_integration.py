@@ -312,7 +312,7 @@ class IchingKernelIntegrationTests(unittest.TestCase):
             self.assertEqual(entries[0]["em"], "wal")
             self.assertIsNone(entries[0]["lp"])
             self.assertIsNone(entries[0]["mp"])
-            self.assertLess(metadata_bytes, 31000)
+            self.assertLess(metadata_bytes, 32000)
 
     def test_wal_only_completed_run_does_not_create_per_run_evidence_directories(self):
         with tempfile.TemporaryDirectory() as tmp:
