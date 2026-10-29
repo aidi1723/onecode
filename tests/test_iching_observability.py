@@ -505,6 +505,8 @@ class IchingObservabilityTests(unittest.TestCase):
                 data1["telemetry"]["foundation_broken"],
                 IchingKernel.nuclear_profile(63)["foundation_broken"],
             )
+            self.assertEqual(data1["telemetry"]["pattern_state"], "balanced")
+            self.assertEqual(data1["telemetry"]["pattern_name"], "成格")
             round_two = IchingKernel.diagnostic_sihua_profile(62, before_status=63)
             self.assertEqual(data2["telemetry"]["sihua"], round_two["sihua"])
             self.assertEqual(data2["telemetry"]["changed_bands"], round_two["changed_bands"])
@@ -512,6 +514,8 @@ class IchingObservabilityTests(unittest.TestCase):
                 data2["telemetry"]["foundation_broken"],
                 IchingKernel.nuclear_profile(62)["foundation_broken"],
             )
+            self.assertEqual(data2["telemetry"]["pattern_state"], "balanced")
+            self.assertEqual(data2["telemetry"]["pattern_name"], "成格")
             
     def test_wen_wang_sequence_hardcoded(self) -> None:
         self.assertEqual(len(WEN_WANG_SEQUENCE), 64)

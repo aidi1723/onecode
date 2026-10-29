@@ -386,6 +386,17 @@ def _generate_missing_artifacts(task: str, workspace: Path, modified_paths: list
                 pass
             if all((workspace / f).is_file() for f in data_files):
                 break
+        for data_file in data_files:
+            if not (workspace / data_file).is_file():
+                for arg in (data_file, f"--output={data_file}", f"--out={data_file}"):
+                    try:
+                        subprocess.run([sys.executable, script, arg], cwd=str(workspace), env=env, capture_output=True, timeout=15)
+                    except (subprocess.SubprocessError, OSError):
+                        pass
+                    if (workspace / data_file).is_file():
+                        break
+        if all((workspace / f).is_file() for f in data_files):
+            break
 
 
 def initial_asset_prompt(task: str, target: str) -> str:

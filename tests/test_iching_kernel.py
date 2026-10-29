@@ -88,7 +88,20 @@ class TestIchingKernel(unittest.TestCase):
         cross = IchingKernel.cross_cutting_profile(21)
         self.assertIn("polarity_index", cross)
         self.assertIn("balance_mask", cross)
+        self.assertIn("pattern", cross)
         self.assertEqual(cross["polarity_index"], cross["yin_yang"]["polarity_index"])
+
+        # Test pattern_diagnostic_profile partition (15 broken, 17 reinforced, 32 balanced)
+        broken_patterns = {c for c in range(64) if IchingKernel.pattern_diagnostic_profile(c)["pattern_state"] == "broken"}
+        reinforced_patterns = {c for c in range(64) if IchingKernel.pattern_diagnostic_profile(c)["pattern_state"] == "reinforced"}
+        balanced_patterns = {c for c in range(64) if IchingKernel.pattern_diagnostic_profile(c)["pattern_state"] == "balanced"}
+        self.assertEqual(len(broken_patterns), 15)
+        self.assertEqual(len(reinforced_patterns), 17)
+        self.assertEqual(len(balanced_patterns), 32)
+        self.assertEqual(broken_patterns | reinforced_patterns | balanced_patterns, set(range(64)))
+        self.assertEqual(IchingKernel.pattern_diagnostic_profile(40)["pattern_name"], "破格")
+        self.assertEqual(IchingKernel.pattern_diagnostic_profile(10)["pattern_name"], "破格")
+        self.assertEqual(IchingKernel.pattern_diagnostic_profile(21)["pattern_name"], "破格")
 
     def test_cross_cutting_profile_exposes_position_correspondence_virtue_and_perspective(self):
         status = IchingKernel.compute_status(IchingKernel.KAN, IchingKernel.ZHEN)

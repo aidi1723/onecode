@@ -153,6 +153,7 @@ class IchingCertificatesMixin:
                 "reason": transition.reason,
             },
             "dispatch_decision": dispatch_decision,
+            "pattern": cls.pattern_diagnostic_profile(normalized),  # type: ignore[attr-defined]
             "rule_layers": cls.rule_layers(),  # type: ignore[attr-defined]
         }
     @classmethod
@@ -269,6 +270,37 @@ class IchingCertificatesMixin:
             "transition_action": action,
             "sihua": label,
             "changed_bands": changed_bands,
+        }
+
+    @classmethod
+    def pattern_diagnostic_profile(cls, status_code: int, before_status: int | None = None) -> dict[str, object]:
+        normalized = status_code & 0b111111
+        transition = cls.transition(normalized)  # type: ignore[attr-defined]
+        nuclear = cls.nuclear_profile(normalized)  # type: ignore[attr-defined]
+        dynamics = cls.element_dynamics(normalized)  # type: ignore[attr-defined]
+        foundation_broken = bool(nuclear.get("foundation_broken", False))
+
+        if foundation_broken or transition.action == "halt":
+            state = "broken"
+            name = "破格"
+            reason = "foundation_broken" if foundation_broken else "transition_halt"
+        elif dynamics.get("cross_relation") in {"generates", "generated_by"}:
+            state = "reinforced"
+            name = "加分"
+            reason = "generating_element_dynamics"
+        else:
+            state = "balanced"
+            name = "成格"
+            reason = "stable_envelope"
+
+        return {
+            "status_code": normalized,
+            "pattern_state": state,
+            "pattern_name": name,
+            "reason": reason,
+            "foundation_broken": foundation_broken,
+            "cross_relation": dynamics.get("cross_relation"),
+            "transition_action": transition.action,
         }
     @classmethod
     def nuclear_chain(cls, status_code: int, max_steps: int = 4) -> list[int]:

@@ -372,7 +372,7 @@ def _named_function_bodies(source: str, tokens: list[str]) -> list[str]:
             continue
         bodies.append(segment)
         seen.add(node.name)
-        if len(bodies) == 3:
+        if len(bodies) == 4:
             break
     if not bodies:
         for node in ast.walk(tree):

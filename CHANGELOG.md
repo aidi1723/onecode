@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-29 - Pattern diagnostic profile and parameterized artifact probe
+
+Version stays 1.0.0. No new hexagram was added. `classify_outcome` was not edited. `claims_mainstream_parity` stays false.
+
+### Changed
+
+- Added `pattern_diagnostic_profile` partitioning the 64 hexagrams into 15 broken (`破格`: 9 halt + 6 `foundation_broken`), 17 reinforced (`加分`: mutual generation without fault), and 32 balanced (`成格`) states.
+- Recorded `pattern_state` and `pattern_name` in checkpoint telemetry and exposed `pattern` in `cross_cutting_profile`.
+- Enhanced `_generate_missing_artifacts` with parameterized probes passing target data filenames and flag arguments (`--output=...`, `--out=...`).
+- Expanded `_named_function_bodies` to capture up to 4 function bodies for multi-symbol tasks.
+
+### Verification
+
+- `bash scripts/verify.sh` on this Mac: `Ran 1347 tests`, `OK (skipped=1)`, coverage 86%, doctor `ok`.
+
 ## 2026-10-29 - Domain data contract guidance and multi-channel artifact completion
 
 Version stays 1.0.0. No new hexagram was added. `classify_outcome` was not edited. `claims_mainstream_parity` stays false.

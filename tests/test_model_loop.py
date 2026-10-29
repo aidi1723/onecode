@@ -2437,6 +2437,27 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
             self.assertTrue((workspace / "export.csv").is_file())
             self.assertEqual((workspace / "export.csv").read_text(encoding="utf-8"), "id,val\n1,2\n")
 
+    def test_generate_missing_artifacts_parameterized_probe(self):
+        from onecode.kernel.model_loop import _generate_missing_artifacts
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            app = workspace / "app"
+            app.mkdir()
+            export_py = app / "export.py"
+            # Script that requires positional argument or --output
+            export_py.write_text(
+                "import sys\nfrom pathlib import Path\n"
+                "if len(sys.argv) > 1:\n"
+                "    target = sys.argv[1].replace('--output=', '').replace('--out=', '')\n"
+                "    Path(target).write_text('arg,ok\\n1,1\\n', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            task = "Export results to metrics.csv"
+            _generate_missing_artifacts(task, workspace, ["app/export.py"])
+            self.assertTrue((workspace / "metrics.csv").is_file())
+            self.assertEqual((workspace / "metrics.csv").read_text(encoding="utf-8"), "arg,ok\n1,1\n")
+
     def test_data_contract_guidance_all_domains(self):
         from onecode.kernel.model_loop import data_contract_guidance
 
