@@ -120,6 +120,7 @@ def math_audit_payload() -> dict[str, object]:
             "shen_gong_subgroup_anchorage",
             "star_brightness_lyapunov_invariance",
             "jie_shen_even_subgroup_relief",
+            "twelve_deities_triad_and_suipo",
         ],
         "reference_only": [
             "probabilistic_sampling",

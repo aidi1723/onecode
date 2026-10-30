@@ -786,6 +786,50 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["damping_bounded"])
         self.assertTrue(cert["shengong_dual_harmonic_coupling_verified"])
 
+    def test_twelve_deities_triad_partition_and_suipo_involution_certificate(self):
+        """Verify Twelve Auxiliary Deities Triad Partition and Sui Po Opposite Involution Theorem."""
+        cert = IchingKernel.twelve_deities_triad_and_suipo_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertEqual(cert["triad_cardinal_points"], [0, 3, 6, 9])
+        self.assertTrue(cert["triad_partition_verified"])
+        self.assertTrue(cert["suipo_opposite_involution_verified"])
+        self.assertTrue(cert["tian_de_long_de_even_coupling"])
+
+    def test_twelve_deities_profile_and_governance_directives(self):
+        """Verify Twelve Auxiliary Deities (将前/岁前/博士) profile and runtime governance."""
+        from onecode.kernel.recovery_policy import recovery_status
+
+        # 1. Opposite palace clash triggers Sui Po (岁破)
+        # Turn 1 -> anchor_b = 0 (子). If active palace is 6 (午), sui_idx = 6 -> 岁破
+        res_suipo = IchingKernel.twelve_deities_profile(turn_number=1, status_code=6)
+        self.assertTrue(res_suipo["suipo_clash"])
+        self.assertEqual(res_suipo["sui_qian_shen"], "岁破")
+        self.assertEqual(res_suipo["governance_directive"], "barrier_synchronization_isolate_subtask")
+
+        # 2. Tian De (天德) at (b + 9) % 12 -> active palace 9
+        res_tiande = IchingKernel.twelve_deities_profile(turn_number=1, status_code=9)
+        self.assertTrue(res_tiande["grace_shelter"])
+        self.assertEqual(res_tiande["sui_qian_shen"], "天德")
+        self.assertEqual(res_tiande["governance_directive"], "baseline_guarded_continue")
+
+        # 3. Bai Hu (白虎) at (b + 8) % 12 -> active palace 8
+        res_baihu = IchingKernel.twelve_deities_profile(turn_number=1, status_code=8)
+        self.assertTrue(res_baihu["panic_risk"])
+        self.assertEqual(res_baihu["sui_qian_shen"], "白虎")
+        self.assertEqual(res_baihu["governance_directive"], "exception_quarantine_rollback")
+
+        # 4. Jiang Xing (将星) momentum
+        # Turn 1 -> anchor_b = 0 (Water Triad) -> jiang_start = 0 -> active palace 0 -> 将星
+        res_jiang = IchingKernel.twelve_deities_profile(turn_number=1, status_code=0)
+        self.assertTrue(res_jiang["momentum_accelerated"])
+        self.assertEqual(res_jiang["jiang_qian_shen"], "将星")
+
+        # 5. Recovery policy includes twelve_deities telemetry
+        status = recovery_status("provider_failure", attempt_count=0)
+        self.assertIn("twelve_deities", status)
+        self.assertIn("sui_qian_shen", status["twelve_deities"])
+        self.assertIn("jiang_qian_shen", status["twelve_deities"])
+
 
 if __name__ == "__main__":
     unittest.main()

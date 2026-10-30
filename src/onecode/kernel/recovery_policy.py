@@ -64,6 +64,10 @@ def recovery_status(
         error_scenario=scenario,
         attempt_count=attempt_count,
     )
+    deities = IchingKernel.twelve_deities_profile(
+        turn_number=turn_number,
+        status_code=status_code,
+    )
 
     return {
         "scenario": scenario,
@@ -75,6 +79,7 @@ def recovery_status(
         "state": state,
         "recommended_action": resolved_action,
         "jie_shen_relief": jie_shen,
+        "twelve_deities": deities,
         "element": "fire",
         "yin_yang_pressure": yin_yang["pressure"],
         "iching_status_code": status_code,

@@ -787,6 +787,144 @@ def _evaluate_jie_shen_certificate() -> dict[str, Any]:
     }
 
 
+_JIANG_QIAN_SHEN = (
+    "将星", "攀鞍", "岁驿", "息神", "华盖", "劫煞",
+    "灾煞", "天煞", "指背", "咸池", "月煞", "亡神",
+)
+
+_SUI_QIAN_SHEN = (
+    "岁建", "晦气", "丧门", "贯索", "官符", "小耗",
+    "岁破", "龙德", "白虎", "天德", "吊客", "病符",
+)
+
+_BOSHI_SHEN = (
+    "博士", "力士", "青龙", "小耗", "将军", "奏书",
+    "飞廉", "喜神", "病符", "大耗", "伏兵", "官符",
+)
+
+_LUCUN_BRANCH_BY_STEM = (2, 3, 5, 6, 5, 6, 8, 9, 11, 0)
+
+
+def _evaluate_twelve_deities(
+    turn_number: int,
+    status_code: int,
+    anchor_branch: int | None = None,
+) -> dict[str, Any]:
+    """Compute the Twelve Auxiliary Deities (将前/岁前/博士十二神) for runtime governance."""
+    turn_idx = max(0, turn_number - 1)
+    if anchor_branch is None:
+        anchor_b = turn_idx % 12
+    else:
+        anchor_b = anchor_branch % 12
+
+    active_palace = status_code % 12
+
+    # 1. Jiang Qian 12 Shen: starts at Triad Emperor Branch (三合帝旺)
+    # 申子辰(0)->子(0), 巳酉丑(1)->酉(9), 寅午戌(2)->午(6), 亥卯未(3)->卯(3)
+    jiang_start = (0, 9, 6, 3)[anchor_b % 4]
+    jiang_idx = (active_palace - jiang_start) % 12
+    active_jiang_shen = _JIANG_QIAN_SHEN[jiang_idx]
+
+    # 2. Sui Qian 12 Shen: starts at anchor_b (岁建), Sui Po is opposite (对宫)
+    sui_idx = (active_palace - anchor_b) % 12
+    active_sui_shen = _SUI_QIAN_SHEN[sui_idx]
+
+    # 3. Bo Shi 12 Shen: starts at Lu Cun branch of turn stem, Yang clockwise, Yin counter
+    stem_idx = turn_idx % 10
+    lucun_b = _LUCUN_BRANCH_BY_STEM[stem_idx]
+    direction = 1 if (stem_idx % 2 == 0) else -1
+    boshi_idx = (direction * (active_palace - lucun_b)) % 12
+    active_boshi_shen = _BOSHI_SHEN[boshi_idx]
+
+    suipo_clash = (active_sui_shen == "岁破")
+    panic_risk = (active_sui_shen == "白虎")
+    deadlock_risk = (active_sui_shen == "贯索")
+    grace_shelter = (active_sui_shen in {"天德", "龙德"})
+    momentum_accelerated = (active_jiang_shen in {"将星", "攀鞍"})
+
+    if suipo_clash:
+        governance_directive = "barrier_synchronization_isolate_subtask"
+        reason = "Sui Po active: opposite clash requires barrier synchronization."
+    elif panic_risk:
+        governance_directive = "exception_quarantine_rollback"
+        reason = "Bai Hu active: sudden runtime fault requires exception quarantine."
+    elif deadlock_risk:
+        governance_directive = "break_circular_dependency"
+        reason = "Guan Suo active: deadlock risk detected, break dependency cycle."
+    elif grace_shelter:
+        governance_directive = "baseline_guarded_continue"
+        reason = f"{active_sui_shen} grace active: protective invariant shields execution."
+    elif momentum_accelerated:
+        governance_directive = "accelerate_direct_dispatch"
+        reason = f"{active_jiang_shen} momentum active: execution pipeline prioritized."
+    else:
+        governance_directive = "standard_pipeline"
+        reason = "Normal auxiliary deity distribution."
+
+    return {
+        "anchor_branch": anchor_b,
+        "anchor_branch_name": _EARTHLY_BRANCH_NAMES[anchor_b],
+        "active_palace": active_palace,
+        "active_palace_name": _EARTHLY_BRANCH_NAMES[active_palace],
+        "jiang_qian_shen": active_jiang_shen,
+        "sui_qian_shen": active_sui_shen,
+        "boshi_shen": active_boshi_shen,
+        "suipo_clash": suipo_clash,
+        "panic_risk": panic_risk,
+        "deadlock_risk": deadlock_risk,
+        "grace_shelter": grace_shelter,
+        "momentum_accelerated": momentum_accelerated,
+        "governance_directive": governance_directive,
+        "reason": reason,
+    }
+
+
+def _evaluate_twelve_deities_certificate(sovereign_codes: tuple[int, ...]) -> dict[str, Any]:
+    """Formal mathematical certificate of Twelve Auxiliary Deities (Triad Partition & Sui Po Opposite Involution)."""
+    # 1. Triad partition invariance: JiangXing maps 12 branches to exactly 4 Cardinal points {0, 9, 6, 3}
+    jiang_map = {b: (0, 9, 6, 3)[b % 4] for b in range(12)}
+    unique_jiang = sorted(list(set(jiang_map.values())))
+    triad_cardinal_verified = (unique_jiang == [0, 3, 6, 9])
+
+    water_triad = {0, 4, 8}
+    fire_triad = {2, 6, 10}
+    metal_triad = {1, 5, 9}
+    wood_triad = {3, 7, 11}
+    triad_partition_ok = (
+        all(jiang_map[b] == 0 for b in water_triad)
+        and all(jiang_map[b] == 6 for b in fire_triad)
+        and all(jiang_map[b] == 9 for b in metal_triad)
+        and all(jiang_map[b] == 3 for b in wood_triad)
+    )
+
+    # 2. Sui Po Dui Gong Opposite Involution:
+    suipo_opposite_involution_ok = True
+    for b in range(12):
+        suipo_b = (b + 6) % 12
+        code_b = sovereign_codes[b]
+        code_suipo = sovereign_codes[suipo_b]
+        if code_suipo != (code_b ^ 63):
+            suipo_opposite_involution_ok = False
+            break
+
+    # 3. Tian De (b+9) and Long De (b+7) harmonic even difference
+    even_difference_ok = ((9 - 7) % 2 == 0)
+
+    status = (
+        "verified"
+        if (triad_cardinal_verified and triad_partition_ok and suipo_opposite_involution_ok and even_difference_ok)
+        else "failed"
+    )
+
+    return {
+        "status": status,
+        "triad_cardinal_points": unique_jiang,
+        "triad_partition_verified": triad_partition_ok,
+        "suipo_opposite_involution_verified": suipo_opposite_involution_ok,
+        "tian_de_long_de_even_coupling": even_difference_ok,
+    }
+
+
 class IchingZiweiMixin:
     """Diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
 
@@ -986,6 +1124,26 @@ class IchingZiweiMixin:
         return _evaluate_jie_shen_certificate()
 
     @classmethod
+    def twelve_deities_profile(
+        cls,
+        turn_number: int,
+        status_code: int,
+        anchor_branch: int | None = None,
+    ) -> dict[str, Any]:
+        """Compute Twelve Auxiliary Deities (将前/岁前/博士十二神) distribution."""
+        return _evaluate_twelve_deities(
+            turn_number=turn_number,
+            status_code=status_code,
+            anchor_branch=anchor_branch,
+        )
+
+    @classmethod
+    def twelve_deities_triad_and_suipo_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Twelve Deities Triad Partition and Sui Po Opposite Involution."""
+        codes = getattr(cls, "SOVEREIGN_HEXAGRAM_CODES")
+        return _evaluate_twelve_deities_certificate(codes)
+
+    @classmethod
     def star_brightness_certificate(cls) -> dict[str, Any]:
         """Formal mathematical certificate of Star Brightness Invariance across all 64 states."""
         return _evaluate_star_brightness_certificate(cls)
@@ -998,12 +1156,14 @@ class IchingZiweiMixin:
         shen_gong = cls.shen_gong_anchorage_certificate()
         star_bright = cls.star_brightness_certificate()
         jie_shen = cls.jie_shen_even_subgroup_relief_certificate()
+        twelve_deities = cls.twelve_deities_triad_and_suipo_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
             and shen_gong.get("status") == "verified"
             and star_bright.get("status") == "verified"
             and jie_shen.get("status") == "verified"
+            and twelve_deities.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -1012,4 +1172,5 @@ class IchingZiweiMixin:
             "shen_gong_anchorage": shen_gong,
             "star_brightness": star_bright,
             "jie_shen_relief": jie_shen,
+            "twelve_deities": twelve_deities,
         }

@@ -797,6 +797,10 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
                 turn_number=turn_number,
                 status_code=iching_status_code,
             ),
+            "twelve_deities": IchingKernel.twelve_deities_profile(
+                turn_number=turn_number,
+                status_code=iching_status_code,
+            ),
         }
     return telemetry
 
