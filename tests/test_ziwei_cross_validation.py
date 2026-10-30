@@ -572,6 +572,7 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
             telemetry = data["telemetry"]
             self.assertIn("shen_gong_anchorage", telemetry)
             self.assertIn("full_sihua_graph", telemetry)
+            self.assertIn("system_pathology", telemetry)
             sg = telemetry["shen_gong_anchorage"]
             self.assertIn("active_index", sg)
             self.assertIn("palace_name", sg)
@@ -1317,6 +1318,109 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["full_12_palace_patterns_verified"])
         self.assertTrue(cert["china_dst_soundness_verified"])
         self.assertTrue(cert["aphorism_knowledge_coverage_verified"])
+
+    def test_system_pathology_and_five_elements_governance(self):
+        """Direction L: Five Elements System Pathology & Organ Governance Engine."""
+        # 1. Syntax fracture -> Metal (肺)
+        p_metal = IchingKernel.system_pathology_profile(status_code=0, error_type="SyntaxError: invalid syntax")
+        self.assertEqual(p_metal["element"], "metal")
+        self.assertEqual(p_metal["organ"], "肺")
+        self.assertEqual(p_metal["damping_factor"], 0.25)
+        self.assertEqual(p_metal["remedy_directive"], "ast_prevalidation_and_surgical_rollback")
+
+        # 2. Concurrency deadlock -> Wood (肝)
+        p_wood = IchingKernel.system_pathology_profile(status_code=49, error_type="Deadlock: lock acquisition timeout")
+        self.assertEqual(p_wood["element"], "wood")
+        self.assertEqual(p_wood["organ"], "肝")
+        self.assertEqual(p_wood["damping_factor"], 0.40)
+        self.assertEqual(p_wood["remedy_directive"], "channel_serialization_and_mutex_release")
+
+        # 3. Resource leak / network flood -> Water (肾)
+        p_water = IchingKernel.system_pathology_profile(status_code=17, error_type="MemoryLeak: memory limit exceeded")
+        self.assertEqual(p_water["element"], "water")
+        self.assertEqual(p_water["organ"], "肾")
+        self.assertEqual(p_water["damping_factor"], 0.35)
+
+        # 4. CPU loop flame -> Fire (心)
+        p_fire = IchingKernel.system_pathology_profile(status_code=40, error_type="RateLimit: spin thrashing")
+        self.assertEqual(p_fire["element"], "fire")
+        self.assertEqual(p_fire["organ"], "心")
+        self.assertEqual(p_fire["damping_factor"], 0.50)
+
+        # 5. Cache pollution -> Earth (脾)
+        p_earth = IchingKernel.system_pathology_profile(status_code=32, error_type="CachePollution: stale token context")
+        self.assertEqual(p_earth["element"], "earth")
+        self.assertEqual(p_earth["organ"], "脾")
+        self.assertEqual(p_earth["damping_factor"], 0.60)
+
+        # 6. Tai Ground state 7 -> Optimal harmony
+        p_ground = IchingKernel.system_pathology_profile(status_code=7)
+        self.assertFalse(p_ground["has_pathology"])
+        self.assertEqual(p_ground["element"], "balanced")
+        self.assertEqual(p_ground["damping_factor"], 1.0)
+        self.assertEqual(p_ground["system_equilibrium"], "optimal")
+
+    def test_partner_star_contracts_and_14_stars_completeness(self):
+        """Direction L: 14 Major Stars Partner Contracts in 夫妻宫 (Multi-Agent Swarm)."""
+        stars_14 = [
+            ("紫微", "sovereign", "high_autonomy_macro_contract"),
+            ("天机", "agile_adaptor", "agile_rapid_adaptive_sync"),
+            ("太阳", "public_broadcaster", "transparent_broadcast_logging"),
+            ("武曲", "strict_executor", "deterministic_strict_accounting"),
+            ("天同", "cooperative_assistant", "cooperative_forgiving_assist"),
+            ("廉贞", "security_sentinel", "security_sandboxed_quarantine"),
+            ("天府", "reliable_steward", "conservative_snapshot_archive"),
+            ("太阴", "deep_memory_manager", "persistent_deep_state_cache"),
+            ("贪狼", "exploratory_pioneer", "exploratory_bounded_sandbox"),
+            ("巨门", "critical_linter", "critical_audit_and_linter"),
+            ("天相", "orchestration_proxy", "bilateral_proxy_arbitration"),
+            ("天梁", "architectural_auditor", "architectural_guidance_veto"),
+            ("七杀", "single_shot_striker", "isolated_single_shot_strike"),
+            ("破军", "refactoring_innovator", "transactional_refactor_sandbox"),
+        ]
+
+        for star, expected_role, expected_mode in stars_14:
+            contract = IchingKernel.partner_star_contract_profile(star)
+            self.assertTrue(contract["found"], f"Star {star} must be found")
+            self.assertEqual(contract["role"], expected_role)
+            self.assertEqual(contract["coordination_mode"], expected_mode)
+            self.assertGreater(contract["concurrency_limit"], 0)
+            self.assertIn("guidance", contract)
+            self.assertIn("ni_quote", contract)
+
+        # Fallback for unknown star
+        unknown = IchingKernel.partner_star_contract_profile("未知星曜")
+        self.assertFalse(unknown["found"])
+        self.assertEqual(unknown["role"], "general_peer")
+
+    def test_sandbox_fengshui_and_three_essentials(self):
+        """Direction L: Environmental Security across Three Essentials (门、主、灶)."""
+        # All 3 intact
+        s_all = IchingKernel.sandbox_fengshui_profile(True, True, True)
+        self.assertEqual(s_all["fengshui_safety_level"], "auspicious_secure")
+        self.assertEqual(s_all["passed_essentials_count"], 3)
+        self.assertEqual(s_all["governance_action"], "full_throughput_unrestricted")
+
+        # 1 breach (2/3)
+        s_warn = IchingKernel.sandbox_fengshui_profile(True, False, True)
+        self.assertEqual(s_warn["fengshui_safety_level"], "guarded_warning")
+        self.assertEqual(s_warn["passed_essentials_count"], 2)
+        self.assertEqual(s_warn["governance_action"], "subtask_sandbox_confinement")
+
+        # 2 breaches (1/3)
+        s_crit = IchingKernel.sandbox_fengshui_profile(False, False, True)
+        self.assertEqual(s_crit["fengshui_safety_level"], "breached_critical")
+        self.assertEqual(s_crit["passed_essentials_count"], 1)
+        self.assertEqual(s_crit["governance_action"], "emergency_environment_quarantine_halt")
+
+    def test_pathology_and_environmental_certificate(self):
+        """Direction L: Formal Mathematical Certificate of Pathology, 14-Star Contracts, and Three Essentials."""
+        cert = IchingKernel.pathology_and_environmental_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["five_element_pathology_totality_verified"])
+        self.assertTrue(cert["pathology_damping_monotonicity_verified"])
+        self.assertTrue(cert["fourteen_partner_stars_contract_verified"])
+        self.assertTrue(cert["sandbox_three_essentials_verified"])
 
 
 if __name__ == "__main__":

@@ -851,6 +851,9 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
                 year_stem=turn_number - 1,
                 status_code=iching_status_code,
             ),
+            "system_pathology": IchingKernel.system_pathology_profile(
+                status_code=iching_status_code,
+            ),
         }
     return telemetry
 

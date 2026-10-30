@@ -58,6 +58,9 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.full_palace_patterns_profile(1, state)
         _ = IchingKernel.china_dst_profile(1988, 6, 1)
         _ = IchingKernel.aphorism_knowledge_profile("紫微在子")
+        _ = IchingKernel.system_pathology_profile(state)
+        _ = IchingKernel.partner_star_contract_profile("紫微")
+        _ = IchingKernel.sandbox_fengshui_profile()
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
 
     start_total = time.perf_counter()
@@ -95,6 +98,9 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.full_palace_patterns_profile(turn, state)
         _ = IchingKernel.china_dst_profile(1988, 6, 1)
         _ = IchingKernel.aphorism_knowledge_profile("紫微在子")
+        _ = IchingKernel.system_pathology_profile(state)
+        _ = IchingKernel.partner_star_contract_profile("紫微")
+        _ = IchingKernel.sandbox_fengshui_profile()
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
         t1 = time.perf_counter_ns()
         latencies_us.append((t1 - t0) / 1000.0)
@@ -140,6 +146,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
     c_aux = IchingKernel.auxiliary_polarity_and_yunxian_certificate()
     c_heming = IchingKernel.heming_synastry_and_noble_stars_certificate()
     c_deep = IchingKernel.deep_computation_and_graph_certificate()
+    c_pathology = IchingKernel.pathology_and_environmental_certificate()
     
     return {
         "sovereign_ring": c_ring.get("status") == "verified" and c_ring.get("triad_balance_verified") is True,
@@ -157,6 +164,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
         "auxiliary_polarity_and_yunxian": c_aux.get("status") == "verified" and c_aux.get("dahao_bijection_verified") is True and c_aux.get("jiekong_stem_duality_verified") is True,
         "heming_synastry_and_noble_stars": c_heming.get("status") == "verified" and c_heming.get("tianluo_diwang_exclusion_verified") is True and c_heming.get("mutual_ji_deadlock_breaker_verified") is True,
         "deep_computation_and_graph": c_deep.get("status") == "verified" and c_deep.get("sihua_48_rays_conservation_verified") is True and c_deep.get("bipartite_96_rays_conservation_verified") is True,
+        "pathology_and_environmental": c_pathology.get("status") == "verified" and c_pathology.get("five_element_pathology_totality_verified") is True and c_pathology.get("fourteen_partner_stars_contract_verified") is True,
     }
 
 

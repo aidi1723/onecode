@@ -2805,6 +2805,347 @@ def _evaluate_deep_computation_and_graph_certificate() -> dict[str, Any]:
     }
 
 
+_PATHOLOGY_ELEMENTS = {
+    "fire": {
+        "organ": "心",
+        "element": "fire",
+        "pathology_name": "心火过旺·执行狂转",
+        "remedy_directive": "exponential_cooling_backoff",
+        "damping_factor": 0.50,
+        "classical_star": "廉贞化忌 / 火铃入疾",
+        "description": "High CPU consumption, loop thrashing or API rate limit explosion.",
+    },
+    "wood": {
+        "organ": "肝",
+        "element": "wood",
+        "pathology_name": "肝气郁结·死锁阻塞",
+        "remedy_directive": "channel_serialization_and_mutex_release",
+        "damping_factor": 0.40,
+        "classical_star": "天机化忌 / 擎羊入疾",
+        "description": "Deadlock contention, concurrent lock stasis or git lock collisions.",
+    },
+    "earth": {
+        "organ": "脾",
+        "element": "earth",
+        "pathology_name": "脾湿积滞·上下文重叠",
+        "remedy_directive": "cache_flush_and_context_revalidation",
+        "damping_factor": 0.60,
+        "classical_star": "天府逢空 / 巨门化忌",
+        "description": "Cache contamination, stale tokens or cross-turn context pollution.",
+    },
+    "metal": {
+        "organ": "肺",
+        "element": "metal",
+        "pathology_name": "肺气受损·语法骨折",
+        "remedy_directive": "ast_prevalidation_and_surgical_rollback",
+        "damping_factor": 0.25,
+        "classical_star": "武曲化忌 / 七杀天刑",
+        "description": "Syntax fracture, invalid AST mutations or broken diff patching.",
+    },
+    "water": {
+        "organ": "肾",
+        "element": "water",
+        "pathology_name": "肾水泛滥·资源泄露",
+        "remedy_directive": "gc_recycle_wal_rotate_and_circuit_break",
+        "damping_factor": 0.35,
+        "classical_star": "太阴化忌 / 破军水乡",
+        "description": "Memory leaks, unclosed file descriptors, runaway WAL or network timeouts.",
+    },
+}
+
+
+def _evaluate_system_pathology(
+    status_code: int,
+    error_type: str | None = None,
+    resource_pressure: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Diagnose system pathology across the Five Elements and prescribe organ governance."""
+    err = (error_type or "").lower().strip()
+    pressure = resource_pressure or {}
+
+    if any(k in err for k in ("syntax", "ast", "parse", "compile", "diff", "patch")):
+        category = "metal"
+        severity = 0.90
+    elif any(k in err for k in ("deadlock", "lock", "concurrency", "thread", "stasis")):
+        category = "wood"
+        severity = 0.85
+    elif any(k in err for k in ("memory", "leak", "fd", "wal", "timeout", "network", "flood")):
+        category = "water"
+        severity = 0.80
+    elif any(k in err for k in ("loop", "cpu", "thrash", "rate_limit", "flame", "spin")):
+        category = "fire"
+        severity = 0.75
+    elif any(k in err for k in ("cache", "context", "config", "pollute", "stale")):
+        category = "earth"
+        severity = 0.65
+    elif status_code == 0:
+        category = "metal"
+        severity = 0.85
+    elif status_code in (40, 42):
+        category = "fire"
+        severity = 0.70
+    elif status_code in (17, 29):
+        category = "water"
+        severity = 0.75
+    elif status_code in (32, 52):
+        category = "earth"
+        severity = 0.60
+    elif status_code in (49, 51):
+        category = "wood"
+        severity = 0.60
+    elif status_code == 7:
+        return {
+            "status_code": status_code,
+            "has_pathology": False,
+            "element": "balanced",
+            "organ": "五脏和合",
+            "pathology_name": "阴阳调和·气血充盈",
+            "remedy_directive": "nominal_autonomous_flow",
+            "damping_factor": 1.0,
+            "severity_score": 0.0,
+            "system_equilibrium": "optimal",
+        }
+    else:
+        elem_map = {0: "water", 1: "wood", 2: "fire", 3: "earth", 4: "metal"}
+        category = elem_map[status_code % 5]
+        severity = 0.50
+
+    p_info = _PATHOLOGY_ELEMENTS[category]
+    return {
+        "status_code": status_code,
+        "has_pathology": True,
+        "element": p_info["element"],
+        "organ": p_info["organ"],
+        "pathology_name": p_info["pathology_name"],
+        "remedy_directive": p_info["remedy_directive"],
+        "damping_factor": p_info["damping_factor"],
+        "severity_score": severity,
+        "classical_star": p_info["classical_star"],
+        "description": p_info["description"],
+        "system_equilibrium": "degraded" if severity >= 0.8 else "cautious",
+    }
+
+
+_PARTNER_STAR_CONTRACTS: dict[str, dict[str, Any]] = {
+    "紫微": {
+        "role": "sovereign",
+        "coordination_mode": "high_autonomy_macro_contract",
+        "review_rigor": "coarse_grained_boundary",
+        "delegation_model": "delegated_trust",
+        "concurrency_limit": 4,
+        "ni_quote": "紫微在夫妻宫，高傲能干，以尊重为基础，宜粗粒度契约",
+        "guidance": "High autonomous authority; respect agent sovereignty and avoid micromanagement.",
+    },
+    "天机": {
+        "role": "agile_adaptor",
+        "coordination_mode": "agile_rapid_adaptive_sync",
+        "review_rigor": "frequent_checkpoint_alignment",
+        "delegation_model": "supervised_agility",
+        "concurrency_limit": 3,
+        "ni_quote": "天机善变，充满变化，宜多设稳定检查点",
+        "guidance": "Agile and rapidly changing; requires tight checkpoint anchors to prevent context drift.",
+    },
+    "太阳": {
+        "role": "public_broadcaster",
+        "coordination_mode": "transparent_broadcast_logging",
+        "review_rigor": "full_provenance_audit",
+        "delegation_model": "open_access",
+        "concurrency_limit": 5,
+        "ni_quote": "太阳光明磊落，照耀四方，宜高透明度协同",
+        "guidance": "Complete transparency; maintain comprehensive broadcast logs and open communication.",
+    },
+    "武曲": {
+        "role": "strict_executor",
+        "coordination_mode": "deterministic_strict_accounting",
+        "review_rigor": "byte_level_verification",
+        "delegation_model": "strict_contract",
+        "concurrency_limit": 2,
+        "ni_quote": "武曲为刚正之星，刑克严峻，宜晚步确认、精确微创",
+        "guidance": "Deterministic strict execution; enforce surgical minimal diffs and byte-level audits.",
+    },
+    "天同": {
+        "role": "cooperative_assistant",
+        "coordination_mode": "cooperative_forgiving_assist",
+        "review_rigor": "automated_regression_safety_net",
+        "delegation_model": "collaborative_pair",
+        "concurrency_limit": 4,
+        "ni_quote": "天同温和乐生，宜配搭自动化安全网防过度宽容",
+        "guidance": "Gentle, supportive cooperation; must be backed by strict automated assertions.",
+    },
+    "廉贞": {
+        "role": "security_sentinel",
+        "coordination_mode": "security_sandboxed_quarantine",
+        "review_rigor": "zero_trust_permission_check",
+        "delegation_model": "gated_sandbox",
+        "concurrency_limit": 1,
+        "ni_quote": "廉贞囚星变数大，水中做冢，生离死别，防范越权",
+        "guidance": "Rigorous zero-trust security; isolate tool executions inside strict capability gates.",
+    },
+    "天府": {
+        "role": "reliable_steward",
+        "coordination_mode": "conservative_snapshot_archive",
+        "review_rigor": "invariant_preservation",
+        "delegation_model": "custodial_lock",
+        "concurrency_limit": 3,
+        "ni_quote": "天府守财有原则，主生离不死别，重资产留存",
+        "guidance": "Conservative preservation; capture clean checkpoints before applying any mutations.",
+    },
+    "太阴": {
+        "role": "deep_memory_manager",
+        "coordination_mode": "persistent_deep_state_cache",
+        "review_rigor": "memory_consistency_check",
+        "delegation_model": "partitioned_memory",
+        "concurrency_limit": 3,
+        "ni_quote": "太阴主细腻深沉，私有状态与深层内存不可外泄",
+        "guidance": "Deep state memory stewardship; maintain partition isolation between execution contexts.",
+    },
+    "贪狼": {
+        "role": "exploratory_pioneer",
+        "coordination_mode": "exploratory_bounded_sandbox",
+        "review_rigor": "token_and_turn_budget_quota",
+        "delegation_model": "bounded_experiment",
+        "concurrency_limit": 4,
+        "ni_quote": "贪狼欲望旺盛，多才多艺，宜设硬性预算约束",
+        "guidance": "Multi-tool exploratory pioneer; enforce hard turn budget limits to prevent wandering.",
+    },
+    "巨门": {
+        "role": "critical_linter",
+        "coordination_mode": "critical_audit_and_linter",
+        "review_rigor": "adversarial_code_review",
+        "delegation_model": "skeptical_verification",
+        "concurrency_limit": 2,
+        "ni_quote": "巨门是非口舌多，刨根问底，需以太阳之光消弭疑窦",
+        "guidance": "Adversarial review and deep code linting; aggressively surface hidden ambiguities.",
+    },
+    "天相": {
+        "role": "orchestration_proxy",
+        "coordination_mode": "bilateral_proxy_arbitration",
+        "review_rigor": "contract_fidelity",
+        "delegation_model": "trusted_envoy",
+        "concurrency_limit": 4,
+        "ni_quote": "天相亲上加亲，守信用不挑冲突，为中介良配",
+        "guidance": "Faithful proxy and bilateral arbiter; maintain fair mediation across agent swarms.",
+    },
+    "天梁": {
+        "role": "architectural_auditor",
+        "coordination_mode": "architectural_guidance_veto",
+        "review_rigor": "architectural_governance",
+        "delegation_model": "mentor_advisory",
+        "concurrency_limit": 2,
+        "ni_quote": "天梁荫星老成持重，善讲道理，拥有一票否决权",
+        "guidance": "Senior architectural auditor; has veto power over architectural regression.",
+    },
+    "七杀": {
+        "role": "single_shot_striker",
+        "coordination_mode": "isolated_single_shot_strike",
+        "review_rigor": "pre_condition_completeness",
+        "delegation_model": "high_impact_solo",
+        "concurrency_limit": 1,
+        "ni_quote": "七杀孤独刚烈，鸳衾半冷，单打独斗，要求前置依赖齐备",
+        "guidance": "High-impact single-shot solver; only deploy when environment prerequisites are verified.",
+    },
+    "破军": {
+        "role": "refactoring_innovator",
+        "coordination_mode": "transactional_refactor_sandbox",
+        "review_rigor": "atomic_transaction_barrier",
+        "delegation_model": "isolated_staging",
+        "concurrency_limit": 1,
+        "ni_quote": "破军破而后立，婚姻破坏力最强，必须强制事务原子性",
+        "guidance": "High entropy refactoring innovator; must execute behind an atomic staging boundary.",
+    },
+}
+
+
+def _evaluate_partner_star_contract(star_name: str) -> dict[str, Any]:
+    """Retrieve multi-agent peer contract and coordination mode from 14 major stars in 夫妻宫."""
+    norm = star_name.strip()
+    contract = _PARTNER_STAR_CONTRACTS.get(norm)
+    if contract is not None:
+        return {"star": norm, "found": True, **contract}
+    return {
+        "star": norm,
+        "found": False,
+        "role": "general_peer",
+        "coordination_mode": "balanced_cooperative_channel",
+        "review_rigor": "standard_regression_suite",
+        "delegation_model": "standard_supervised",
+        "concurrency_limit": 2,
+        "ni_quote": "中正平和，顺应五行相生之道",
+        "guidance": "Standard peer collaboration under default contractual bounds.",
+    }
+
+
+def _evaluate_sandbox_fengshui(
+    workdir_present: bool = True,
+    command_sandbox_enabled: bool = True,
+    entry_validated: bool = True,
+) -> dict[str, Any]:
+    """Evaluate environmental security across Ni Haixia's Three Spatial Essentials (门、主、灶)."""
+    passed_count = int(workdir_present) + int(command_sandbox_enabled) + int(entry_validated)
+
+    if passed_count == 3:
+        level = "auspicious_secure"
+        action = "full_throughput_unrestricted"
+        desc = "门主灶三元完备：输入门禁严密、工作区完整隔离、执行灶火可控。"
+    elif passed_count == 2:
+        level = "guarded_warning"
+        action = "subtask_sandbox_confinement"
+        desc = "三元有一处破绽：部分环境边界未闭合，已启用受控微步执行。"
+    else:
+        level = "breached_critical"
+        action = "emergency_environment_quarantine_halt"
+        desc = "三元两处以上失守：存在环境未封闭隐患，立即暂停自主执行。"
+
+    return {
+        "gate_integrity": entry_validated,
+        "master_integrity": workdir_present,
+        "kitchen_integrity": command_sandbox_enabled,
+        "passed_essentials_count": passed_count,
+        "fengshui_safety_level": level,
+        "governance_action": action,
+        "evaluation_summary": desc,
+    }
+
+
+def _evaluate_pathology_and_environmental_certificate() -> dict[str, Any]:
+    """Formal mathematical certificate for Five-Element Pathology, 14-Star Contracts, and Fengshui Sandbox."""
+    elem_covered = set()
+    for err in ("syntax", "deadlock", "memory", "cpu", "cache"):
+        res = _evaluate_system_pathology(0, error_type=err)
+        elem_covered.add(res["element"])
+    pathology_totality_ok = (len(elem_covered) == 5 and elem_covered == {"fire", "wood", "earth", "metal", "water"})
+
+    p_severe = _evaluate_system_pathology(0, error_type="syntax")
+    p_mild = _evaluate_system_pathology(7)
+    damping_monotonic_ok = (p_severe["damping_factor"] <= p_mild["damping_factor"])
+
+    stars_14 = ("紫微", "天机", "太阳", "武曲", "天同", "廉贞", "天府", "太阴", "贪狼", "巨门", "天相", "天梁", "七杀", "破军")
+    all_14_stars_ok = all(
+        _evaluate_partner_star_contract(s)["found"] is True
+        and len(_evaluate_partner_star_contract(s)["role"]) > 0
+        for s in stars_14
+    )
+
+    f_all = _evaluate_sandbox_fengshui(True, True, True)
+    f_breach = _evaluate_sandbox_fengshui(False, False, True)
+    fengshui_soundness_ok = (
+        f_all["fengshui_safety_level"] == "auspicious_secure"
+        and f_breach["fengshui_safety_level"] == "breached_critical"
+        and f_all["passed_essentials_count"] == 3
+        and f_breach["passed_essentials_count"] == 1
+    )
+
+    all_verified = pathology_totality_ok and damping_monotonic_ok and all_14_stars_ok and fengshui_soundness_ok
+
+    return {
+        "status": "verified" if all_verified else "failed",
+        "five_element_pathology_totality_verified": pathology_totality_ok,
+        "pathology_damping_monotonicity_verified": damping_monotonic_ok,
+        "fourteen_partner_stars_contract_verified": all_14_stars_ok,
+        "sandbox_three_essentials_verified": fengshui_soundness_ok,
+    }
+
+
 class IchingZiweiCertificatesMixin:
     """Mathematical certificates and formal verification for Ziwei Doushu isomorphism."""
 
@@ -2889,8 +3230,13 @@ class IchingZiweiCertificatesMixin:
         return _evaluate_deep_computation_and_graph_certificate()
 
     @classmethod
+    def pathology_and_environmental_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate for Five-Element Pathology, 14-Star Contracts, and Fengshui Sandbox."""
+        return _evaluate_pathology_and_environmental_certificate()
+
+    @classmethod
     def ziwei_mathematical_audit(cls) -> dict[str, Any]:
-        """Comprehensive mathematical audit of all 15 Ziwei Doushu cross-validation certificates."""
+        """Comprehensive mathematical audit of all 16 Ziwei Doushu cross-validation certificates."""
         ring = cls.sovereign_ring_isomorphism_certificate()
         an_he = cls.an_he_coupling_certificate()
         shen_gong = cls.shen_gong_anchorage_certificate()
@@ -2906,6 +3252,7 @@ class IchingZiweiCertificatesMixin:
         aux_yunxian = cls.auxiliary_polarity_and_yunxian_certificate()
         heming_synastry = cls.heming_synastry_and_noble_stars_certificate()
         deep_comp = cls.deep_computation_and_graph_certificate()
+        pathology_env = cls.pathology_and_environmental_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
@@ -2922,6 +3269,7 @@ class IchingZiweiCertificatesMixin:
             and aux_yunxian.get("status") == "verified"
             and heming_synastry.get("status") == "verified"
             and deep_comp.get("status") == "verified"
+            and pathology_env.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -2940,11 +3288,12 @@ class IchingZiweiCertificatesMixin:
             "auxiliary_polarity_and_yunxian": aux_yunxian,
             "heming_synastry_and_noble_stars": heming_synastry,
             "deep_computation_and_graph": deep_comp,
+            "pathology_and_environmental": pathology_env,
         }
 
 
-class IchingZiweiMixin(IchingZiweiCertificatesMixin):
-    """Diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
+class IchingZiweiCoreMixin(IchingZiweiCertificatesMixin):
+    """Core diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
 
     @classmethod
     def task_bureau_profile(cls, file_count: int, total_loc: int) -> dict[str, Any]:
@@ -3179,6 +3528,10 @@ class IchingZiweiMixin(IchingZiweiCertificatesMixin):
         """Compute Ziwei-Tianfu duality axis, involutive distance, and Tai-Pi fixed points."""
         return _evaluate_ziwei_tianfu_duality(status_code=status_code)
 
+
+class IchingZiweiMixin(IchingZiweiCoreMixin):
+    """Extended diagnostic, synastric, and environmental extensions based on Ziwei Doushu."""
+
     @classmethod
     def yang_tuo_clamping_profile(
         cls,
@@ -3398,3 +3751,36 @@ class IchingZiweiMixin(IchingZiweiCertificatesMixin):
     def aphorism_knowledge_profile(cls, topic: str) -> dict[str, Any]:
         """Retrieve classical aphorism and Ni Haixia doctrine mapped to engineering implications."""
         return _evaluate_aphorism_knowledge(topic=topic)
+
+    @classmethod
+    def system_pathology_profile(
+        cls,
+        status_code: int,
+        error_type: str | None = None,
+        resource_pressure: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Diagnose system pathology across the Five Elements and prescribe organ governance."""
+        return _evaluate_system_pathology(
+            status_code=status_code,
+            error_type=error_type,
+            resource_pressure=resource_pressure,
+        )
+
+    @classmethod
+    def partner_star_contract_profile(cls, star_name: str) -> dict[str, Any]:
+        """Retrieve multi-agent peer contract and coordination mode from 14 major stars in 夫妻宫."""
+        return _evaluate_partner_star_contract(star_name=star_name)
+
+    @classmethod
+    def sandbox_fengshui_profile(
+        cls,
+        workdir_present: bool = True,
+        command_sandbox_enabled: bool = True,
+        entry_validated: bool = True,
+    ) -> dict[str, Any]:
+        """Evaluate environmental security across Ni Haixia's Three Spatial Essentials (门、主、灶)."""
+        return _evaluate_sandbox_fengshui(
+            workdir_present=workdir_present,
+            command_sandbox_enabled=command_sandbox_enabled,
+            entry_validated=entry_validated,
+        )

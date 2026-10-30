@@ -130,6 +130,7 @@ def math_audit_payload() -> dict[str, object]:
             "auxiliary_polarity_and_yunxian",
             "heming_synastry_and_noble_stars",
             "deep_computation_and_graph",
+            "pathology_and_environmental",
         ],
         "reference_only": [
             "probabilistic_sampling",
