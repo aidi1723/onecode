@@ -1940,6 +1940,61 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["auspicious_pairs_sum_2_verified"])
         self.assertTrue(cert["sha_po_lang_equilateral_trine_verified"])
 
+    def test_ming_zhu_shen_zhu_invariants(self):
+        """Direction S: Ming Zhu Zi-Wu Mirror Symmetry and Shen Zhu Period-6 Antipodal Invariant."""
+        for state in range(64):
+            res = IchingKernel.ming_zhu_shen_zhu_profile(state)
+            self.assertTrue(res["mirror_conserved"])
+            self.assertTrue(res["shen_zhu_period_6_conserved"])
+            self.assertIn("harmonic", res["governance_mode"])
+
+        # Specific canonical checks
+        # Zi: MingZhu=贪狼 (0), Wu: MingZhu=破军 (6)
+        zi = IchingKernel.ming_zhu_shen_zhu_profile(0, custom_ming_branch=0, custom_year_branch=0)
+        self.assertEqual(zi["ming_zhu"], "贪狼")
+        self.assertEqual(zi["shen_zhu"], "火星")
+        self.assertTrue(zi["is_ziwu_axis"])
+
+        wu = IchingKernel.ming_zhu_shen_zhu_profile(0, custom_ming_branch=6, custom_year_branch=6)
+        self.assertEqual(wu["ming_zhu"], "破军")
+        self.assertEqual(wu["shen_zhu"], "火星")
+        self.assertTrue(wu["is_ziwu_axis"])
+
+        # Chou (1) and Hai (11) mirror pair: both 巨门
+        chou = IchingKernel.ming_zhu_shen_zhu_profile(0, custom_ming_branch=1)
+        hai = IchingKernel.ming_zhu_shen_zhu_profile(0, custom_ming_branch=11)
+        self.assertEqual(chou["ming_zhu"], "巨门")
+        self.assertEqual(hai["ming_zhu"], "巨门")
+
+    def test_void_and_consumption_stars(self):
+        """Direction S: Jiekong Dyad Contiguity and DaHao SuiPo Adjacency."""
+        for s in range(10):
+            for y in range(12):
+                res = IchingKernel.void_and_consumption_stars_profile(year_stem=s, year_branch=y, ming_branch=(s + y) % 12)
+                self.assertTrue(res["jiekong_is_contiguous"])
+                self.assertTrue(res["dahao_is_adjacent_to_suipo"])
+                self.assertEqual(len(res["jiekong_dyad"]), 2)
+
+        # Canonical checks:
+        # Jia (0): Jiekong base is Shen (8), FuJie is You (9)
+        jia = IchingKernel.void_and_consumption_stars_profile(year_stem=0, year_branch=0)
+        self.assertEqual(jia["jiekong_branch"], 8)
+        self.assertEqual(jia["fujie_branch"], 9)
+
+        # Yi (1): Yin stem, polarity inverts -> Jiekong is Wei (7), FuJie is Wu (6)
+        yi = IchingKernel.void_and_consumption_stars_profile(year_stem=1, year_branch=0)
+        self.assertEqual(yi["jiekong_branch"], 7)
+        self.assertEqual(yi["fujie_branch"], 6)
+
+    def test_ming_zhu_void_stars_certificate(self):
+        """Direction S: Formal Mathematical Certificate for Ming/Shen Zhu and Void Stars."""
+        cert = IchingKernel.ming_zhu_shen_zhu_and_void_stars_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["ming_zhu_ziwu_mirror_verified"])
+        self.assertTrue(cert["shen_zhu_period_6_antipodal_verified"])
+        self.assertTrue(cert["jiekong_dyad_contiguity_verified"])
+        self.assertTrue(cert["dahao_suipo_adjacency_verified"])
+
 
 if __name__ == "__main__":
     unittest.main()

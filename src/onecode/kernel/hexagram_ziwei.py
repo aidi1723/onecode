@@ -4651,6 +4651,214 @@ def _evaluate_sha_po_lang_triad(
     }
 
 
+def _evaluate_ming_zhu_shen_zhu(
+    hexagram_state: int,
+    custom_ming_branch: int | None = None,
+    custom_year_branch: int | None = None,
+) -> dict[str, Any]:
+    """Evaluate Ming Zhu (命主) and Shen Zhu (身主) symmetry invariants and archetypal roles."""
+    state_code = hexagram_state & 0b111111
+    ming_branch = (
+        custom_ming_branch
+        if custom_ming_branch is not None
+        else (state_code & 0b111) % 12
+    )
+    year_branch = (
+        custom_year_branch
+        if custom_year_branch is not None
+        else ((state_code >> 3) & 0b111) % 12
+    )
+
+    branch_names = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+    ming_zhu_table = {
+        0: "贪狼",
+        1: "巨门",
+        2: "禄存",
+        3: "文曲",
+        4: "廉贞",
+        5: "武曲",
+        6: "破军",
+        7: "武曲",
+        8: "廉贞",
+        9: "文曲",
+        10: "禄存",
+        11: "巨门",
+    }
+    shen_zhu_table = {
+        0: "火星",
+        6: "火星",
+        1: "天相",
+        7: "天相",
+        2: "天梁",
+        8: "天梁",
+        3: "天同",
+        9: "天同",
+        4: "文昌",
+        10: "文昌",
+        5: "天机",
+        11: "天机",
+    }
+
+    ming_zhu = ming_zhu_table[ming_branch]
+    shen_zhu = shen_zhu_table[year_branch]
+
+    mirror_branch = (12 - ming_branch) % 12
+    is_ziwu_axis = ming_branch in (0, 6)
+    mirror_conserved = ming_zhu == ming_zhu_table[mirror_branch]
+
+    antipodal_branch = (year_branch + 6) % 12
+    shen_zhu_period_6_conserved = shen_zhu == shen_zhu_table[antipodal_branch]
+
+    role_descriptions = {
+        "贪狼": "exploration_and_opportunistic_resource_acquisition",
+        "巨门": "deep_interface_inspection_and_audit_probing",
+        "禄存": "reserve_capital_conservation_and_safe_buffering",
+        "文曲": "formal_specification_syntax_and_protocol_formatting",
+        "廉贞": "strict_security_boundary_and_invariant_enforcement",
+        "武曲": "deterministic_execution_and_direct_tool_dispatch",
+        "破军": "radical_refactoring_and_pioneering_state_mutation",
+    }
+    shen_role_descriptions = {
+        "火星": "dynamic_burst_energy_and_immediate_reaction",
+        "天相": "peer_contract_arbitration_and_interface_consensus",
+        "天梁": "audit_oversight_and_systemic_recovery_supervision",
+        "天同": "cooperative_consensus_and_graceful_tolerance",
+        "文昌": "canonical_documentation_and_contract_verification",
+        "天机": "algorithmic_tactical_routing_and_heuristic_planning",
+    }
+
+    return {
+        "hexagram_state": state_code,
+        "ming_branch": ming_branch,
+        "ming_branch_name": branch_names[ming_branch],
+        "ming_zhu": ming_zhu,
+        "ming_zhu_role": role_descriptions.get(ming_zhu, "generic_agent_operator"),
+        "is_ziwu_axis": is_ziwu_axis,
+        "mirror_branch": mirror_branch,
+        "mirror_conserved": mirror_conserved,
+        "year_branch": year_branch,
+        "year_branch_name": branch_names[year_branch],
+        "shen_zhu": shen_zhu,
+        "shen_zhu_role": shen_role_descriptions.get(
+            shen_zhu, "generic_execution_archetype"
+        ),
+        "antipodal_branch": antipodal_branch,
+        "shen_zhu_period_6_conserved": shen_zhu_period_6_conserved,
+        "governance_mode": f"{ming_zhu}_{shen_zhu}_harmonic",
+    }
+
+
+def _evaluate_void_and_consumption_stars(
+    year_stem: int = 0,
+    year_branch: int = 0,
+    ming_branch: int = 2,
+) -> dict[str, Any]:
+    """Evaluate Jiekong (截路空亡), DaHao (年支大耗), and TianShi/TianShang (天使天伤) dynamics."""
+    s = year_stem % 10
+    y = year_branch % 12
+    m = ming_branch % 12
+
+    stem_names = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
+    branch_names = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+
+    base_branch = (8 - 2 * (s % 5)) % 12
+    if s % 2 == 0:
+        jiekong_branch = base_branch
+        fujie_branch = (base_branch + 1) % 12
+    else:
+        jiekong_branch = (base_branch + 1) % 12
+        fujie_branch = base_branch
+
+    sui_po = (y + 6) % 12
+    if y % 2 == 0:
+        dahao_branch = (sui_po + 1) % 12
+    else:
+        dahao_branch = (sui_po + 11) % 12
+
+    dahao_suipo_distance = (dahao_branch - sui_po) % 12
+    tianshang_branch = (m + 5) % 12
+    tianshi_branch = (m + 7) % 12
+    shang_shi_axis_distance = (tianshi_branch - tianshang_branch) % 12
+
+    return {
+        "year_stem": s,
+        "year_stem_name": stem_names[s],
+        "year_branch": y,
+        "year_branch_name": branch_names[y],
+        "ming_branch": m,
+        "ming_branch_name": branch_names[m],
+        "jiekong_branch": jiekong_branch,
+        "jiekong_branch_name": branch_names[jiekong_branch],
+        "fujie_branch": fujie_branch,
+        "fujie_branch_name": branch_names[fujie_branch],
+        "jiekong_dyad": sorted([jiekong_branch, fujie_branch]),
+        "jiekong_is_contiguous": (abs(jiekong_branch - fujie_branch) in (1, 11)),
+        "sui_po_branch": sui_po,
+        "sui_po_branch_name": branch_names[sui_po],
+        "dahao_branch": dahao_branch,
+        "dahao_branch_name": branch_names[dahao_branch],
+        "dahao_suipo_distance": dahao_suipo_distance,
+        "dahao_is_adjacent_to_suipo": dahao_suipo_distance in (1, 11),
+        "tianshang_branch": tianshang_branch,
+        "tianshang_branch_name": branch_names[tianshang_branch],
+        "tianshi_branch": tianshi_branch,
+        "tianshi_branch_name": branch_names[tianshi_branch],
+        "shang_shi_distance": shang_shi_axis_distance,
+        "risk_containment_directive": (
+            "apply_void_damping"
+            if jiekong_branch == m or dahao_branch == m
+            else "normal_execution_flow"
+        ),
+    }
+
+
+def _evaluate_ming_zhu_void_stars_certificate() -> dict[str, Any]:
+    """23rd Formal mathematical certificate: Ming/Shen Zhu Invariants & Void/Consumption Star Dynamics."""
+    ming_mirror_all_ok = True
+    shen_period6_all_ok = True
+
+    for state in range(64):
+        res = _evaluate_ming_zhu_shen_zhu(state)
+        if not res["mirror_conserved"]:
+            ming_mirror_all_ok = False
+            break
+        if not res["shen_zhu_period_6_conserved"]:
+            shen_period6_all_ok = False
+            break
+
+    jiekong_all_ok = True
+    dahao_all_ok = True
+
+    for s in range(10):
+        for y in range(12):
+            void_res = _evaluate_void_and_consumption_stars(
+                year_stem=s, year_branch=y, ming_branch=(s + y) % 12
+            )
+            if not void_res["jiekong_is_contiguous"]:
+                jiekong_all_ok = False
+                break
+            if not void_res["dahao_is_adjacent_to_suipo"]:
+                dahao_all_ok = False
+                break
+        if not jiekong_all_ok or not dahao_all_ok:
+            break
+
+    all_verified = (
+        ming_mirror_all_ok
+        and shen_period6_all_ok
+        and jiekong_all_ok
+        and dahao_all_ok
+    )
+
+    return {
+        "status": "verified" if all_verified else "failed",
+        "ming_zhu_ziwu_mirror_verified": ming_mirror_all_ok,
+        "shen_zhu_period_6_antipodal_verified": shen_period6_all_ok,
+        "jiekong_dyad_contiguity_verified": jiekong_all_ok,
+        "dahao_suipo_adjacency_verified": dahao_all_ok,
+    }
+
+
 def _evaluate_dipper_axes_and_sha_po_lang_certificate() -> dict[str, Any]:
     """22nd Formal mathematical certificate: Dipper Pairwise Invariants & Sha-Po-Lang Equilateral Triad."""
     axes_all_64_ok = True
@@ -4809,8 +5017,13 @@ class IchingZiweiCertificatesMixin:
         return _evaluate_dipper_axes_and_sha_po_lang_certificate()
 
     @classmethod
+    def ming_zhu_shen_zhu_and_void_stars_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate for Ming/Shen Zhu Invariants & Void/Consumption Star Dynamics."""
+        return _evaluate_ming_zhu_void_stars_certificate()
+
+    @classmethod
     def ziwei_mathematical_audit(cls) -> dict[str, Any]:
-        """Comprehensive mathematical audit of all 22 Ziwei Doushu cross-validation certificates."""
+        """Comprehensive mathematical audit of all 23 Ziwei Doushu cross-validation certificates."""
         ring = cls.sovereign_ring_isomorphism_certificate()
         an_he = cls.an_he_coupling_certificate()
         shen_gong = cls.shen_gong_anchorage_certificate()
@@ -4833,6 +5046,7 @@ class IchingZiweiCertificatesMixin:
         changsheng_pat = cls.changsheng_and_expanded_patterns_certificate()
         ziwu_shengke = cls.ziwu_liuzhu_and_shengke_certificate()
         dipper_spl = cls.dipper_axes_and_sha_po_lang_certificate()
+        ming_zhu_void = cls.ming_zhu_shen_zhu_and_void_stars_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
@@ -4856,6 +5070,7 @@ class IchingZiweiCertificatesMixin:
             and changsheng_pat.get("status") == "verified"
             and ziwu_shengke.get("status") == "verified"
             and dipper_spl.get("status") == "verified"
+            and ming_zhu_void.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -4881,11 +5096,40 @@ class IchingZiweiCertificatesMixin:
             "changsheng_and_expanded_patterns": changsheng_pat,
             "ziwu_liuzhu_and_shengke": ziwu_shengke,
             "dipper_axes_and_sha_po_lang": dipper_spl,
+            "ming_zhu_shen_zhu_and_void_stars": ming_zhu_void,
         }
 
 
 class IchingZiweiCoreMixin(IchingZiweiCertificatesMixin):
     """Core diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
+
+    @classmethod
+    def ming_zhu_shen_zhu_profile(
+        cls,
+        hexagram_state: int,
+        custom_ming_branch: int | None = None,
+        custom_year_branch: int | None = None,
+    ) -> dict[str, Any]:
+        """Evaluate Ming Zhu (命主) and Shen Zhu (身主) symmetry invariants and archetypal roles."""
+        return _evaluate_ming_zhu_shen_zhu(
+            hexagram_state=hexagram_state,
+            custom_ming_branch=custom_ming_branch,
+            custom_year_branch=custom_year_branch,
+        )
+
+    @classmethod
+    def void_and_consumption_stars_profile(
+        cls,
+        year_stem: int = 0,
+        year_branch: int = 0,
+        ming_branch: int = 2,
+    ) -> dict[str, Any]:
+        """Evaluate Jiekong (截路空亡), DaHao (年支大耗), and TianShi/TianShang (天使天伤) dynamics."""
+        return _evaluate_void_and_consumption_stars(
+            year_stem=year_stem,
+            year_branch=year_branch,
+            ming_branch=ming_branch,
+        )
 
     @classmethod
     def dipper_axis_invariants_profile(cls, hexagram_state: int) -> dict[str, Any]:
