@@ -2111,6 +2111,80 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertIn("systemic_parameter_coupling", audit)
         self.assertEqual(audit["systemic_parameter_coupling"]["status"], "verified")
 
+    def test_king_wen_hexagram_records(self):
+        """Direction X: Classical King Wen 64 Hexagrams & Pairs Alignment."""
+        qian = IchingKernel.king_wen_hexagram_record(63)
+        self.assertEqual(qian["king_wen_order"], 1)
+        self.assertEqual(qian["hexagram_name"], "乾为天")
+        self.assertEqual(qian["paired_order"], 2)
+        self.assertEqual(qian["pair_label"], "错卦(旁通)")
+
+        kun = IchingKernel.king_wen_hexagram_record(0)
+        self.assertEqual(kun["king_wen_order"], 2)
+        self.assertEqual(kun["hexagram_name"], "坤为地")
+        self.assertEqual(kun["paired_order"], 1)
+
+        chun = IchingKernel.king_wen_hexagram_record(17)
+        self.assertEqual(chun["king_wen_order"], 3)
+        self.assertEqual(chun["hexagram_name"], "水雷屯")
+        self.assertEqual(chun["paired_order"], 4)
+        self.assertEqual(chun["pair_label"], "综卦(反对)")
+
+        jiji = IchingKernel.king_wen_hexagram_record(21)
+        self.assertEqual(jiji["king_wen_order"], 63)
+        self.assertEqual(jiji["hexagram_name"], "水火既济")
+
+        weiji = IchingKernel.king_wen_sequence_record(64)
+        self.assertEqual(weiji["status_code"], 42)
+        self.assertEqual(weiji["hexagram_name"], "火水未济")
+
+    def test_jing_fang_eight_palaces(self):
+        """Direction X: Jing Fang Eight Palaces and Shi-Ying Duality."""
+        for state in range(64):
+            palace = IchingKernel.jing_fang_palace_record(state)
+            self.assertIn(palace["palace_name"], ["乾宫", "坎宫", "艮宫", "震宫", "巽宫", "离宫", "坤宫", "兑宫"])
+            self.assertIn(palace["rank_short"], ["本宫", "一世", "二世", "三世", "四世", "五世", "游魂", "归魂"])
+            self.assertEqual((palace["shi_line"] + 3) % 6, palace["ying_line"])
+
+    def test_zhigua_evolution_and_timing(self):
+        """Direction X: ZhiGua (之卦 / 变卦) Evolution & Shi Zhong Timing."""
+        # Qian (63) with initial line moving (line 0 flips 1 -> 0): becomes TianFengGou (姤 62)
+        evol = IchingKernel.zhigua_profile(63, moving_lines=[0])
+        self.assertEqual(evol["source_status_code"], 63)
+        self.assertEqual(evol["resulting_status_code"], 62)
+        self.assertEqual(evol["resulting_hexagram"]["hexagram_name"], "天风姤")
+        self.assertEqual(evol["moving_lines_count"], 1)
+
+        # JiJi (21) is fully proper (6/6) and central
+        jiji_evol = IchingKernel.zhigua_profile(21)
+        self.assertEqual(jiji_evol["source_proper_count"], 6)
+        self.assertTrue(jiji_evol["source_is_central_and_proper"])
+
+        # WeiJi (42) has 0 proper lines
+        weiji_evol = IchingKernel.zhigua_profile(42)
+        self.assertEqual(weiji_evol["source_proper_count"], 0)
+        self.assertFalse(weiji_evol["source_is_central_and_proper"])
+
+    def test_iching_classical_correspondence_certificate(self):
+        """Direction X: 26th Formal Mathematical Certificate."""
+        cert = IchingKernel.iching_classical_correspondence_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["king_wen_bijection_verified"])
+        self.assertTrue(cert["king_wen_pairs_invariant_verified"])
+        self.assertEqual(cert["inverse_pairs_count"], 28)
+        self.assertEqual(cert["opposite_pairs_count"], 4)
+        self.assertTrue(cert["jing_fang_palaces_bijection_verified"])
+        self.assertTrue(cert["shi_ying_triadic_distance_verified"])
+        self.assertTrue(cert["jiji_optimal_centrality_verified"])
+        self.assertTrue(cert["weiji_ultimate_potential_verified"])
+
+    def test_audit_contains_iching_classical_certificate(self):
+        """Verify the 26th certificate is registered in ziwei_mathematical_audit."""
+        audit = IchingKernel.ziwei_mathematical_audit()
+        self.assertEqual(audit["status"], "ok")
+        self.assertIn("iching_classical_correspondence", audit)
+        self.assertEqual(audit["iching_classical_correspondence"]["status"], "verified")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -51,6 +51,7 @@ from typing import Any, cast
 from onecode.kernel.hexagram_profile import IchingProfileMixin
 from onecode.kernel.hexagram_dynamics import IchingDynamicsMixin
 from onecode.kernel.hexagram_certificates import IchingCertificatesMixin
+from onecode.kernel.hexagram_classical import IchingClassicalMixin
 from onecode.kernel.hexagram_ziwei import IchingZiweiMixin
 
 
@@ -86,7 +87,7 @@ def _schedule_status(kernel: Any, reason: str | None) -> int | None:
     return kernel.compute_status(pair[0], pair[1])
 
 
-class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMixin, IchingZiweiMixin):
+class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMixin, IchingClassicalMixin, IchingZiweiMixin):
     KUN = 0b000
     ZHEN = 0b001
     KAN = 0b010

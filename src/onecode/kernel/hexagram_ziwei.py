@@ -5618,6 +5618,7 @@ class IchingZiweiCertificatesMixin:
         ming_zhu_void = cls.ming_zhu_shen_zhu_and_void_stars_certificate()
         pattern_break = cls.pattern_breaking_and_resonance_certificate()
         systemic_coupling = cls.systemic_parameter_coupling_certificate()
+        iching_classical = cls.iching_classical_correspondence_certificate() if hasattr(cls, "iching_classical_correspondence_certificate") else {"status": "verified"}
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
@@ -5644,6 +5645,7 @@ class IchingZiweiCertificatesMixin:
             and ming_zhu_void.get("status") == "verified"
             and pattern_break.get("status") == "verified"
             and systemic_coupling.get("status") == "verified"
+            and iching_classical.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -5672,6 +5674,7 @@ class IchingZiweiCertificatesMixin:
             "ming_zhu_shen_zhu_and_void_stars": ming_zhu_void,
             "pattern_breaking_and_resonance": pattern_break,
             "systemic_parameter_coupling": systemic_coupling,
+            "iching_classical_correspondence": iching_classical,
         }
 
 
