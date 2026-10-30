@@ -641,6 +641,17 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
         f"- Active operational domain (把宫当星·{palace_star['palace_as_star']}): Focus on {palace_star['governance_domain']}."
     )
 
+    # 8. Systemic Coupling & Yin-Yang Balance Alert (全参数联动与阴阳平衡警示)
+    coupling = IchingKernel.systemic_coupling_profile(hexagram_state=resolved_status)
+    if coupling["governance_posture"] == "yang_overload_cooldown_governance":
+        guidance.append(
+            "- Yang overload alert (纯阳亢进): System entropy too high. Enforce cooldown and surgical micro-patches."
+        )
+    elif coupling["governance_posture"] == "yin_excess_checkpoint_preservation":
+        guidance.append(
+            "- Yin excess alert (重阴凝滞): System inertia high. Enforce state preservation and incremental commit."
+        )
+
     return guidance
 
 
@@ -1932,11 +1943,13 @@ def _enrich_bureau_and_brightness_metadata(workspace: Path, run_metadata: dict[s
                 year_branch=((code_int >> 3) & 0b111) % 12,
             )
             palace_star = IchingKernel.palace_star_duality_profile(active_palace=code_int % 12)
+            coupling = IchingKernel.systemic_coupling_profile(hexagram_state=code_int)
 
             run_metadata["star_brightness"] = brightness
             run_metadata["pattern_breaking"] = breaking
             run_metadata["tri_level_time_flow"] = time_flow
             run_metadata["palace_star_duality"] = palace_star
+            run_metadata["systemic_coupling"] = coupling
 
             if time_flow.get("gain_multiplier", 1.0) > 1.0:
                 base_budget = run_metadata["bureau_turn_budget"]

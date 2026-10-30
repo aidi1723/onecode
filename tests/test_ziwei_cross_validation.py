@@ -2054,6 +2054,63 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["palace_as_star_totality_verified"])
         self.assertTrue(cert["tai_sui_ingress_sihua_verified"])
 
+    def test_systemic_parameter_coupling_profile(self):
+        """Test systemic parameter coupling sensitivity and conservation invariants."""
+        # 1. Nominal test
+        profile = IchingKernel.systemic_coupling_profile(
+            hexagram_state=0,
+            year_stem=0,
+            year_branch=0,
+            lunar_month=1,
+            lunar_day=1,
+            lunar_hour=0,
+        )
+        self.assertEqual(profile["baseline_coordinates"]["yang_line_count"], 0)
+        self.assertEqual(profile["baseline_coordinates"]["yin_line_count"], 6)
+        self.assertEqual(profile["baseline_coordinates"]["bureau_number"], 3)
+        self.assertEqual(profile["baseline_coordinates"]["bureau_name"], "木三局")
+        self.assertEqual(profile["governance_posture"], "yin_excess_checkpoint_preservation")
+        self.assertTrue(profile["perturbation_sensitivity"]["hour_shift_conserved"])
+        self.assertTrue(profile["perturbation_sensitivity"]["day_shift_conserved"])
+        self.assertTrue(profile["perturbation_sensitivity"]["month_shift_conserved"])
+        self.assertTrue(profile["perturbation_sensitivity"]["stem_shift_conserved"])
+        self.assertTrue(profile["perturbation_sensitivity"]["branch_shift_conserved"])
+
+        # 2. Yang overload test (Qian hexagram state 63)
+        qian = IchingKernel.systemic_coupling_profile(hexagram_state=63)
+        self.assertEqual(qian["baseline_coordinates"]["yang_line_count"], 6)
+        self.assertEqual(qian["baseline_coordinates"]["yin_line_count"], 0)
+        self.assertEqual(qian["governance_posture"], "yang_overload_cooldown_governance")
+
+        # 3. Intermediate balanced state
+        mid = IchingKernel.systemic_coupling_profile(hexagram_state=7)  # 000111: 3 yang, 3 yin
+        self.assertEqual(mid["baseline_coordinates"]["yang_line_count"], 3)
+        self.assertEqual(mid["baseline_coordinates"]["yin_line_count"], 3)
+        self.assertEqual(mid["governance_posture"], "harmonic_elemental_equilibrium")
+
+    def test_systemic_parameter_coupling_certificate(self):
+        """Direction W: 25th Formal Mathematical Certificate."""
+        cert = IchingKernel.systemic_parameter_coupling_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["yin_yang_line_duality_conserved"])
+        self.assertTrue(cert["ming_shen_centroid_hour_invariance_verified"])
+        self.assertTrue(cert["ziwei_tianfu_dipper_axis_invariance_verified"])
+        self.assertTrue(cert["five_elements_bureau_equipartition_verified"])
+        self.assertTrue(cert["ziwu_liuzhu_energy_conservation_verified"])
+        self.assertTrue(cert["five_elements_doubly_stochastic_verified"])
+        self.assertTrue(cert["auxiliary_dipper_pairs_sum_invariance_verified"])
+        self.assertTrue(cert["pattern_breaking_monotonicity_verified"])
+        # Check bureau measure equipartition (20% each)
+        for b in (2, 3, 4, 5, 6):
+            self.assertAlmostEqual(cert["bureau_distribution_measure"][b], 0.20)
+
+    def test_audit_contains_systemic_parameter_coupling_certificate(self):
+        """Verify the 25th certificate is registered in ziwei_mathematical_audit."""
+        audit = IchingKernel.ziwei_mathematical_audit()
+        self.assertEqual(audit["status"], "ok")
+        self.assertIn("systemic_parameter_coupling", audit)
+        self.assertEqual(audit["systemic_parameter_coupling"]["status"], "verified")
+
 
 if __name__ == "__main__":
     unittest.main()
