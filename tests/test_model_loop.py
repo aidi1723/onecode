@@ -2499,6 +2499,41 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
         repair = repair_prompt(task, {"status": "failed", "reason": "verifier_failed"})
         self.assertIn("calibration bins", repair)
 
+    def test_resolve_governance_mode_considers_pattern_breaking(self):
+        from onecode.kernel.model_loop import _resolve_governance_mode
+
+        # Hexagram state 1 has sha 擎羊 (bit 0 set), which triggers breaking in 君臣庆会 -> degraded
+        mode = _resolve_governance_mode({"iching_status_code": 1})
+        self.assertEqual(mode, "degraded")
+
+    def test_enrich_bureau_and_brightness_metadata_includes_time_and_breaking(self):
+        from onecode.kernel.model_loop import _enrich_bureau_and_brightness_metadata
+
+        meta = {"iching_status_code": 39}
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td)
+            (p / "app.py").write_text("print('test')\n")
+            _enrich_bureau_and_brightness_metadata(p, meta)
+
+        self.assertIn("pattern_breaking", meta)
+        self.assertIn("tri_level_time_flow", meta)
+        self.assertIn("palace_star_duality", meta)
+        self.assertIn("governance_mode", meta)
+
+    def test_format_ziwei_repair_guidance_includes_breaking_and_palace_star(self):
+        from onecode.kernel.model_loop import _format_ziwei_repair_guidance
+
+        failed_res = {
+            "status": "failed",
+            "task_status_code": 1,
+            "turn_history": [{"turn": 1}],
+            "turn": 2,
+        }
+        guidance = _format_ziwei_repair_guidance(failed_res, ["syntax error"])
+        guidance_text = " ".join(guidance)
+        self.assertIn("Formation broken alert", guidance_text)
+        self.assertIn("Active operational domain", guidance_text)
+
 
 if __name__ == "__main__":
     unittest.main()

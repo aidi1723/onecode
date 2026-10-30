@@ -255,7 +255,11 @@ def execute_step(
                     status_code = _tagged_status_code(step, registry)
                     if status_code is not None:
                         brightness = IchingKernel.star_brightness_profile(status_code)
-                        if brightness.get("governance_mode") == "degraded":
+                        breaking = IchingKernel.pattern_breaking_profile(status_code)
+                        if (
+                            brightness.get("governance_mode") == "degraded"
+                            or breaking.get("execution_posture") in ("partially_broken_degraded", "severely_broken_quarantine")
+                        ):
                             step_failed_reason = "degraded_mode_disallows_full_file_rewrite"
                             tool_results.append(
                                 ToolResult(

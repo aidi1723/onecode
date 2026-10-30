@@ -626,6 +626,21 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
             "- Opposite clash alert (化忌冲破): Opposite palace clash detected. Do not modify peripheral files; isolate changes to the culprit module."
         )
 
+    # 6. Pattern Breaking & Disruption Alerts (破格警示与结构衰减)
+    breaking_profile = IchingKernel.pattern_breaking_profile(resolved_status)
+    if breaking_profile.get("is_broken"):
+        shas_str = "、".join(breaking_profile.get("breaking_shas_hit", []))
+        guidance.append(
+            f"- Formation broken alert (格局破格·{shas_str}): Health score {breaking_profile['formation_health_score']}. "
+            f"{breaking_profile['governance_directive']}. Emit minimal search_block/replace_block patches; do NOT rewrite the file."
+        )
+
+    # 7. Palace-as-Star Operational Domain (倪海厦把宫当星看)
+    palace_star = IchingKernel.palace_star_duality_profile(active_palace=resolved_status % 12)
+    guidance.append(
+        f"- Active operational domain (把宫当星·{palace_star['palace_as_star']}): Focus on {palace_star['governance_domain']}."
+    )
+
     return guidance
 
 
@@ -818,7 +833,14 @@ def _resolve_governance_mode(run_metadata: dict[str, Any]) -> str:
         raw_status = run_metadata.get("task_status_code")
     if raw_status is not None:
         try:
-            return str(IchingKernel.star_brightness_profile(int(raw_status)).get("governance_mode", "autonomous"))
+            status_int = int(raw_status)
+            brightness_mode = str(IchingKernel.star_brightness_profile(status_int).get("governance_mode", "autonomous"))
+            if brightness_mode == "degraded":
+                return "degraded"
+            breaking = IchingKernel.pattern_breaking_profile(status_int)
+            if breaking.get("execution_posture") in ("partially_broken_degraded", "severely_broken_quarantine"):
+                return "degraded"
+            return brightness_mode
         except Exception:
             pass
     if os.environ.get("ONECODE_GOVERNANCE_MODE"):
@@ -1900,9 +1922,32 @@ def _enrich_bureau_and_brightness_metadata(workspace: Path, run_metadata: dict[s
     run_metadata["bureau_patch_strategy"] = bureau["patch_strategy"]
     status_code = run_metadata.get("iching_status_code")
     if status_code is not None:
-        brightness = IchingKernel.star_brightness_profile(int(status_code))
-        run_metadata["star_brightness"] = brightness
-        run_metadata.setdefault("governance_mode", brightness.get("governance_mode", "autonomous"))
+        try:
+            code_int = int(status_code)
+            brightness = IchingKernel.star_brightness_profile(code_int)
+            breaking = IchingKernel.pattern_breaking_profile(code_int)
+            time_flow = IchingKernel.tri_level_time_flow_profile(
+                bureau=bureau.get("bureau", 2),
+                ming_branch=(code_int & 0b111) % 12,
+                year_branch=((code_int >> 3) & 0b111) % 12,
+            )
+            palace_star = IchingKernel.palace_star_duality_profile(active_palace=code_int % 12)
+
+            run_metadata["star_brightness"] = brightness
+            run_metadata["pattern_breaking"] = breaking
+            run_metadata["tri_level_time_flow"] = time_flow
+            run_metadata["palace_star_duality"] = palace_star
+
+            if time_flow.get("gain_multiplier", 1.0) > 1.0:
+                base_budget = run_metadata["bureau_turn_budget"]
+                run_metadata["bureau_turn_budget"] = int(base_budget * time_flow["gain_multiplier"])
+
+            gov_mode = brightness.get("governance_mode", "autonomous")
+            if breaking.get("execution_posture") in ("partially_broken_degraded", "severely_broken_quarantine"):
+                gov_mode = "degraded"
+            run_metadata.setdefault("governance_mode", gov_mode)
+        except Exception:
+            pass
 
 
 def run_model_task(
