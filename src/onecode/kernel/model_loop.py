@@ -1955,9 +1955,22 @@ def _enrich_bureau_and_brightness_metadata(workspace: Path, run_metadata: dict[s
                 base_budget = run_metadata["bureau_turn_budget"]
                 run_metadata["bureau_turn_budget"] = int(base_budget * time_flow["gain_multiplier"])
 
+            intervention = coupling.get("physical_intervention", {})
+            damping_factor = intervention.get("turn_budget_damping_factor", 1.0)
+            if damping_factor < 1.0:
+                curr_budget = run_metadata["bureau_turn_budget"]
+                run_metadata["bureau_turn_budget"] = max(1, int(curr_budget * damping_factor))
+
             gov_mode = brightness.get("governance_mode", "autonomous")
-            if breaking.get("execution_posture") in ("partially_broken_degraded", "severely_broken_quarantine"):
+            if (
+                breaking.get("execution_posture") in ("partially_broken_degraded", "severely_broken_quarantine")
+                or intervention.get("execution_mode") == "degraded"
+            ):
                 gov_mode = "degraded"
+            if intervention.get("force_wal_checkpoint_sync"):
+                run_metadata["force_wal_checkpoint_sync"] = True
+            if intervention.get("adaptive_cooldown_ms", 0) > 0:
+                run_metadata["cooldown_pause_ms"] = intervention["adaptive_cooldown_ms"]
             run_metadata.setdefault("governance_mode", gov_mode)
         except Exception:
             pass

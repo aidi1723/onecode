@@ -2076,17 +2076,34 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(profile["perturbation_sensitivity"]["stem_shift_conserved"])
         self.assertTrue(profile["perturbation_sensitivity"]["branch_shift_conserved"])
 
+        # Downstream cascading sensitivity & physical intervention verification
+        sens = profile["perturbation_sensitivity"]
+        self.assertIn("hour_shift_cascade", sens)
+        self.assertIn("day_shift_cascade", sens)
+        self.assertIn("stem_shift_cascade", sens)
+        self.assertIn("branch_shift_cascade", sens)
+        self.assertTrue(sens["day_shift_cascade"]["tianfu_canonical_match"])
+        self.assertEqual(len(sens["bit_flips"]), 6)
+        self.assertIn("zhi_gua_name", sens["bit_flips"][0])
+        self.assertIn("timing_action", sens["bit_flips"][0])
+        self.assertIn("delta_proper_lines", sens["bit_flips"][0])
+        interv = profile["physical_intervention"]
+        self.assertTrue(interv["force_wal_checkpoint_sync"])
+        self.assertEqual(interv["execution_mode"], "degraded")
+
         # 2. Yang overload test (Qian hexagram state 63)
         qian = IchingKernel.systemic_coupling_profile(hexagram_state=63)
         self.assertEqual(qian["baseline_coordinates"]["yang_line_count"], 6)
         self.assertEqual(qian["baseline_coordinates"]["yin_line_count"], 0)
         self.assertEqual(qian["governance_posture"], "yang_overload_cooldown_governance")
+        self.assertEqual(qian["physical_intervention"]["turn_budget_damping_factor"], 0.85)
 
         # 3. Intermediate balanced state
         mid = IchingKernel.systemic_coupling_profile(hexagram_state=7)  # 000111: 3 yang, 3 yin
         self.assertEqual(mid["baseline_coordinates"]["yang_line_count"], 3)
         self.assertEqual(mid["baseline_coordinates"]["yin_line_count"], 3)
         self.assertEqual(mid["governance_posture"], "harmonic_elemental_equilibrium")
+        self.assertEqual(mid["physical_intervention"]["execution_mode"], "autonomous")
 
     def test_systemic_parameter_coupling_certificate(self):
         """Direction W: 25th Formal Mathematical Certificate."""
@@ -2095,11 +2112,14 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["yin_yang_line_duality_conserved"])
         self.assertTrue(cert["ming_shen_centroid_hour_invariance_verified"])
         self.assertTrue(cert["ziwei_tianfu_dipper_axis_invariance_verified"])
+        self.assertTrue(cert["tianfu_canonical_table_cross_validation_verified"])
         self.assertTrue(cert["five_elements_bureau_equipartition_verified"])
         self.assertTrue(cert["ziwu_liuzhu_energy_conservation_verified"])
+        self.assertTrue(cert["ziwu_liuzhu_l2_norm_isometry_verified"])
         self.assertTrue(cert["five_elements_doubly_stochastic_verified"])
         self.assertTrue(cert["auxiliary_dipper_pairs_sum_invariance_verified"])
         self.assertTrue(cert["pattern_breaking_monotonicity_verified"])
+        self.assertTrue(cert["jie_shen_relief_damping_verified"])
         # Check bureau measure equipartition (20% each)
         for b in (2, 3, 4, 5, 6):
             self.assertAlmostEqual(cert["bureau_distribution_measure"][b], 0.20)

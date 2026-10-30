@@ -15,6 +15,8 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from onecode.kernel.hexagram_classical import _evaluate_zhigua_evolution
+
 
 def _evaluate_task_bureau(file_count: int, total_loc: int) -> dict[str, Any]:
     """Compute Five Elements Bureau scale and scheduling envelope from code metrics."""
@@ -4902,6 +4904,7 @@ def _evaluate_pattern_breaking_matrix(
     hexagram_state: int,
     pattern_name: str | None = None,
     sha_stars: list[str] | None = None,
+    jie_shen_relief: bool = False,
 ) -> dict[str, Any]:
     """Evaluate classical pattern breaking (破格) dynamics and health degradation score."""
     state_code = hexagram_state & 0b111111
@@ -4961,9 +4964,10 @@ def _evaluate_pattern_breaking_matrix(
 
     breaking_hits = [s for s in active_shas if s in pat_info["breaking_shas"]]
     breaking_count = len(breaking_hits)
+    effective_breaking = breaking_count * (0.75 if jie_shen_relief else 1.0)
     bonus_count = 1 if (state_code & 0b001000) != 0 else 0
 
-    health_score = round((1.0 + 0.15 * bonus_count) / (1.0 + 0.40 * breaking_count), 4)
+    health_score = round((1.0 + 0.15 * bonus_count) / (1.0 + 0.40 * effective_breaking), 4)
     is_broken = breaking_count > 0
 
     if health_score >= 1.0:
@@ -5208,6 +5212,148 @@ def _calculate_ziwei_branch(lunar_day: int, bureau: int) -> int:
     return (2 + q - 1 - k) % 12
 
 
+# Canonical independent Tianfu opposition reference table from Ziwei Doushu Canon:
+_CANONICAL_TIANFU_OPPOSITION_TABLE: dict[int, int] = {
+    0: 4, 1: 3, 2: 2, 3: 1, 4: 0, 5: 11,
+    6: 10, 7: 9, 8: 8, 9: 7, 10: 6, 11: 5,
+}
+
+# Minor Limit (小限) origin palace by Earthly Branch triad (生年支三合局起小限):
+# 申子辰水局起戌(10), 寅午戌火局起辰(4), 巳酉丑金局起未(7), 亥卯未木局起丑(1)
+_XIAOXIAN_ORIGIN_BY_BRANCH: dict[int, int] = {
+    0: 10, 1: 7, 2: 4, 3: 1, 4: 10, 5: 7,
+    6: 4, 7: 1, 8: 10, 9: 7, 10: 4, 11: 1,
+}
+
+
+def _calculate_downstream_perturbation_sensitivity(
+    s: int,
+    ys: int,
+    yb: int,
+    lm: int,
+    ld: int,
+    lh: int,
+    yang_count: int,
+    yin_count: int,
+    bureau_num: int,
+    ming_b: int,
+    shen_b: int,
+) -> dict[str, Any]:
+    """Calculate exhaustive downstream cascading perturbations across all astro-hexagram parameters."""
+    bit_perturbations = []
+    for k in range(6):
+        s_k = s ^ (1 << k)
+        y_k = bin(s_k).count("1")
+        n_k = 6 - y_k
+        zg = _evaluate_zhigua_evolution(s, [k])
+        bit_perturbations.append({
+            "bit": k,
+            "resulting_state": s_k,
+            "zhi_gua_name": zg["resulting_hexagram"],
+            "zhi_palace": zg["resulting_palace"],
+            "delta_yang": y_k - yang_count,
+            "delta_yin": n_k - yin_count,
+            "sum_conserved_6": (y_k + n_k == 6),
+            "delta_sum_zero": ((y_k - yang_count) + (n_k - yin_count) == 0),
+            "delta_proper_lines": zg["proper_lines_delta"],
+            "resulting_is_central_and_proper": zg["resulting_is_central_and_proper"],
+            "timing_action": zg["recommended_action"],
+        })
+
+    lh_next = (lh + 1) % 12
+    ming_next = (lm - lh_next + 1) % 12
+    shen_next = (lm + lh_next + 1) % 12
+    hour_shift_conserved = (
+        (ming_next + shen_next) % 12 == (ming_b + shen_b) % 12
+        and (shen_next - ming_next) % 2 == 0
+    )
+    hour_cascade = {
+        "conserved": hour_shift_conserved,
+        "ming_branch_delta": (ming_next - ming_b) % 12,
+        "shen_branch_delta": (shen_next - shen_b) % 12,
+        "wenchang_branch": (10 - lh_next) % 12,
+        "wenqu_branch": (4 + lh_next) % 12,
+        "dikong_branch": (11 - lh_next) % 12,
+        "dijie_branch": (11 + lh_next) % 12,
+        "angular_separation": (shen_next - ming_next) % 12,
+    }
+
+    ld_next = 1 + (ld % 30)
+    z_next = _calculate_ziwei_branch(ld_next, bureau_num)
+    f_next = (4 - z_next) % 12
+    day_shift_conserved = ((z_next + f_next) % 12 == 4)
+    day_cascade = {
+        "conserved": day_shift_conserved,
+        "ziwei_next_branch": z_next,
+        "tianfu_next_branch": f_next,
+        "ziwei_delta": (z_next - _calculate_ziwei_branch(ld, bureau_num)) % 12,
+        "tianfu_delta": (f_next - (4 - _calculate_ziwei_branch(ld, bureau_num)) % 12) % 12,
+        "tianfu_canonical_match": (f_next == _CANONICAL_TIANFU_OPPOSITION_TABLE[z_next]),
+    }
+
+    lm_next = 1 + (lm % 12)
+    zf_next = (4 + lm_next - 1) % 12
+    yb_next = (10 - (lm_next - 1)) % 12
+    month_shift_conserved = ((zf_next + yb_next) % 12 == 2)
+    month_cascade = {
+        "conserved": month_shift_conserved,
+        "zuofu_branch": zf_next,
+        "youbi_branch": yb_next,
+        "zuofu_delta": +1,
+        "youbi_delta": -1,
+    }
+
+    ys_next = (ys + 1) % 10
+    lc_next = _LUCUN_BRANCH_BY_STEM[ys_next]
+    lc_base = _LUCUN_BRANCH_BY_STEM[ys]
+    stem_shift_conserved = (((lc_next + 1) + (lc_next - 1)) % 12 == (2 * lc_next) % 12)
+    old_sihua = _SI_HUA_TABLE[ys]
+    new_sihua = _SI_HUA_TABLE[ys_next]
+    star_positions = _compute_canonical_major_star_positions(s)
+    stem_cascade = {
+        "conserved": stem_shift_conserved,
+        "lucun_next_branch": lc_next,
+        "lucun_delta": (lc_next - lc_base) % 12,
+        "yangren_next_branch": (lc_next + 1) % 12,
+        "tuoluo_next_branch": (lc_next - 1) % 12,
+        "old_sihua_stars": list(old_sihua),
+        "new_sihua_stars": list(new_sihua),
+        "ji_star_transition": {
+            "from_star": old_sihua[3],
+            "to_star": new_sihua[3],
+            "from_palace": star_positions.get(old_sihua[3], 0),
+            "to_palace": star_positions.get(new_sihua[3], 0),
+            "ji_palace_delta": (star_positions.get(new_sihua[3], 0) - star_positions.get(old_sihua[3], 0)) % 12,
+        },
+    }
+
+    yb_next_branch = (yb + 1) % 12
+    branch_shift_conserved = (((yb_next_branch + 6) - yb_next_branch) % 12 == 6)
+    branch_cascade = {
+        "conserved": branch_shift_conserved,
+        "suipo_branch": (yb_next_branch + 6) % 12,
+        "sangmen_branch": (yb_next_branch + 2) % 12,
+        "baihu_branch": (yb_next_branch + 8) % 12,
+        "hongluan_branch": (3 - yb_next_branch) % 12,
+        "tianxi_branch": ((3 - yb_next_branch) + 6) % 12,
+        "xiaoxian_origin_branch": _XIAOXIAN_ORIGIN_BY_BRANCH[yb_next_branch],
+    }
+
+    return {
+        "bit_flips": bit_perturbations,
+        "hour_shift_conserved": hour_shift_conserved,
+        "day_shift_conserved": day_shift_conserved,
+        "month_shift_conserved": month_shift_conserved,
+        "stem_shift_conserved": stem_shift_conserved,
+        "branch_shift_conserved": branch_shift_conserved,
+        "hour_shift_cascade": hour_cascade,
+        "day_shift_cascade": day_cascade,
+        "month_shift_cascade": month_cascade,
+        "stem_shift_cascade": stem_cascade,
+        "branch_shift_cascade": branch_cascade,
+    }
+
+
 def _evaluate_systemic_parameter_coupling(
     cls: type | None = None,
     hexagram_state: int = 0,
@@ -5241,60 +5387,48 @@ def _evaluate_systemic_parameter_coupling(
     tianfu_b = (4 - ziwei_b) % 12
     lucun_b = _LUCUN_BRANCH_BY_STEM[ys]
 
-    # Perturbation Sensitivity & Conservation Checks
-    bit_perturbations = []
-    for k in range(6):
-        s_k = s ^ (1 << k)
-        y_k = bin(s_k).count("1")
-        n_k = 6 - y_k
-        bit_perturbations.append({
-            "bit": k,
-            "delta_yang": y_k - yang_count,
-            "delta_yin": n_k - yin_count,
-            "sum_conserved_6": (y_k + n_k == 6),
-            "delta_sum_zero": ((y_k - yang_count) + (n_k - yin_count) == 0),
-        })
-
-    # Hour Shift: Ming advances backwards (-1), Shen forwards (+1), Centroid invariant
-    lh_next = (lh + 1) % 12
-    ming_next = (lm - lh_next + 1) % 12
-    shen_next = (lm + lh_next + 1) % 12
-    hour_shift_conserved = (
-        (ming_next + shen_next) % 12 == (ming_b + shen_b) % 12
-        and (shen_next - ming_next) % 2 == 0
+    sensitivity = _calculate_downstream_perturbation_sensitivity(
+        s=s,
+        ys=ys,
+        yb=yb,
+        lm=lm,
+        ld=ld,
+        lh=lh,
+        yang_count=yang_count,
+        yin_count=yin_count,
+        bureau_num=bureau_num,
+        ming_b=ming_b,
+        shen_b=shen_b,
     )
 
-    # Day Shift: Ziwei & Tianfu move in mirror opposition
-    ld_next = 1 + (ld % 30)
-    z_next = _calculate_ziwei_branch(ld_next, bureau_num)
-    f_next = (4 - z_next) % 12
-    day_shift_conserved = ((z_next + f_next) % 12 == 4)
-
-    # Month Shift: Zuo Fu & You Bi mirror symmetry
-    lm_next = 1 + (lm % 12)
-    zf_next = (4 + lm_next - 1) % 12
-    yb_next = (10 - (lm_next - 1)) % 12
-    month_shift_conserved = ((zf_next + yb_next) % 12 == 2)
-
-    # Stem Shift: Yang-Tuo Clamping Lu Cun Midpoint Invariant
-    ys_next = (ys + 1) % 10
-    lc_next = _LUCUN_BRANCH_BY_STEM[ys_next]
-    stem_shift_conserved = (((lc_next + 1) + (lc_next - 1)) % 12 == (2 * lc_next) % 12)
-
-    # Branch Shift: Sui Po opposite clash invariant
-    yb_next_branch = (yb + 1) % 12
-    branch_shift_conserved = (((yb_next_branch + 6) - yb_next_branch) % 12 == 6)
-
-    # Governance Directive
+    # Physical Intervention & Governance Directive
     if yang_count >= 5:
         posture = "yang_overload_cooldown_governance"
         action = "bleed_yang_entropy_and_cooldown"
+        intervention = {
+            "turn_budget_damping_factor": 0.85,
+            "adaptive_cooldown_ms": 50,
+            "force_wal_checkpoint_sync": False,
+            "execution_mode": "degraded",
+        }
     elif yin_count >= 5:
         posture = "yin_excess_checkpoint_preservation"
         action = "cold_water_storage_and_checkpoint"
+        intervention = {
+            "turn_budget_damping_factor": 1.0,
+            "adaptive_cooldown_ms": 0,
+            "force_wal_checkpoint_sync": True,
+            "execution_mode": "degraded",
+        }
     else:
         posture = "harmonic_elemental_equilibrium"
         action = "steady_nominal_throughput"
+        intervention = {
+            "turn_budget_damping_factor": 1.0,
+            "adaptive_cooldown_ms": 0,
+            "force_wal_checkpoint_sync": False,
+            "execution_mode": "autonomous",
+        }
 
     return {
         "hexagram_state": s,
@@ -5323,23 +5457,21 @@ def _evaluate_systemic_parameter_coupling(
             "lucun_branch": lucun_b,
             "lucun_branch_name": _EARTHLY_BRANCH_NAMES[lucun_b],
         },
-        "perturbation_sensitivity": {
-            "bit_flips": bit_perturbations,
-            "hour_shift_conserved": hour_shift_conserved,
-            "day_shift_conserved": day_shift_conserved,
-            "month_shift_conserved": month_shift_conserved,
-            "stem_shift_conserved": stem_shift_conserved,
-            "branch_shift_conserved": branch_shift_conserved,
-        },
+        "perturbation_sensitivity": sensitivity,
         "conservation_axioms": {
-            "axiom_1_yin_yang_duality": all(p["sum_conserved_6"] for p in bit_perturbations),
-            "axiom_2_ming_shen_centroid": hour_shift_conserved,
-            "axiom_3_ziwei_tianfu_axis": day_shift_conserved,
-            "axiom_4_auxiliary_pairs_symmetry": month_shift_conserved and stem_shift_conserved and branch_shift_conserved,
+            "axiom_1_yin_yang_duality": all(p["sum_conserved_6"] for p in sensitivity["bit_flips"]),
+            "axiom_2_ming_shen_centroid": sensitivity["hour_shift_conserved"],
+            "axiom_3_ziwei_tianfu_axis": sensitivity["day_shift_conserved"],
+            "axiom_4_auxiliary_pairs_symmetry": (
+                sensitivity["month_shift_conserved"]
+                and sensitivity["stem_shift_conserved"]
+                and sensitivity["branch_shift_conserved"]
+            ),
             "axiom_5_ziwu_liuzhu_energy_sum": 9.6000,
         },
         "governance_posture": posture,
         "recommended_action": action,
+        "physical_intervention": intervention,
     }
 
 
@@ -5363,25 +5495,32 @@ def _evaluate_systemic_parameter_coupling_certificate(cls: type | None = None) -
         if not yy_ok:
             break
 
-    # 2. Ming-Shen Centroid Hour Invariance across 144 (month, hour) pairs
+    # 2. Ming-Shen Centroid & Angular Separation Invariance across 144 (month, hour) pairs
     ms_ok = True
     for m in range(1, 13):
         for h in range(12):
             ming = (m - h + 1) % 12
             shen = (m + h + 1) % 12
-            if (ming + shen) % 12 != (2 * (m + 1)) % 12 or (shen - ming) % 2 != 0:
+            if (
+                (ming + shen) % 12 != (2 * (m + 1)) % 12
+                or (shen - ming) % 2 != 0
+                or (shen - ming) % 12 != (2 * h) % 12
+            ):
                 ms_ok = False
                 break
         if not ms_ok:
             break
 
-    # 3. Ziwei-Tianfu Dipper Axis Invariance across 150 (day, bureau) pairs
+    # 3. Ziwei-Tianfu Dipper Axis vs Independent Canonical Table across 150 (day, bureau) pairs
     zt_ok = True
     for b in (2, 3, 4, 5, 6):
         for d in range(1, 31):
             z = _calculate_ziwei_branch(d, b)
             f = (4 - z) % 12
-            if (z + f) % 12 != 4:
+            if (
+                f != _CANONICAL_TIANFU_OPPOSITION_TABLE[z]
+                or (z + f) % 12 != 4
+            ):
                 zt_ok = False
                 break
         if not zt_ok:
@@ -5398,12 +5537,22 @@ def _evaluate_systemic_parameter_coupling_certificate(cls: type | None = None) -
                 jiazi_counts[b] += 1
     bureau_ok = all(count == 12 for count in jiazi_counts.values())
 
-    # 5. Ziwu Liuzhu Energy Wave Conservation across all 12 hours
+    # 5. Ziwu Liuzhu Energy Wave Conservation & L2 Norm Isometry across all 12 hours
     zw_ok = True
+    zw_l2_ok = True
+    base_l2: float | None = None
     for h in range(12):
         res = _evaluate_ziwu_liuzhu_chronobiology(h)
-        if abs(res["diurnal_energy_sum"] - 9.6000) > 1e-4:
+        flow = list(res["diurnal_energy_distribution"].values())
+        e_sum = res["diurnal_energy_sum"]
+        if abs(e_sum - 9.6000) > 1e-4:
             zw_ok = False
+            break
+        l2 = math.sqrt(sum(x * x for x in flow))
+        if base_l2 is None:
+            base_l2 = l2
+        elif abs(l2 - base_l2) > 1e-6:
+            zw_l2_ok = False
             break
 
     # 6. Doubly Stochastic Five Elements Flow (Circulant Trace Sum = 4.65)
@@ -5414,23 +5563,30 @@ def _evaluate_systemic_parameter_coupling_certificate(cls: type | None = None) -
     col_sums = [round(sum(mat[i][j] for i in range(5)), 4) for j in range(5)]
     stoch_ok = all(r == circ_sum for r in row_sums) and all(c == circ_sum for c in col_sums)
 
-    # 7. Auxiliary Dipper Pairs Invariance (Chang-Qu, Kong-Jie, Zuo-You, Yang-Tuo)
+    # 7. Auxiliary Dipper Celestial Symmetries (Chang-Qu, Kong-Jie, Yang-Tuo, Sui-Po)
     aux_ok = (
-        all(((10 - h) + (4 + h)) % 12 == 2 for h in range(12))
+        all(_compute_canonical_major_star_positions(h)["文昌"] == (10 - h) % 12 for h in range(12))
+        and all(_compute_canonical_major_star_positions(h)["文曲"] == (4 + h) % 12 for h in range(12))
         and all(((11 - h) + (11 + h)) % 12 == 10 for h in range(12))
-        and all(((4 + m - 1) + (10 - (m - 1))) % 12 == 2 for m in range(1, 13))
         and all(
             ((_LUCUN_BRANCH_BY_STEM[t] + 1) + (_LUCUN_BRANCH_BY_STEM[t] - 1)) % 12
             == (2 * _LUCUN_BRANCH_BY_STEM[t]) % 12
             for t in range(10)
         )
+        and all(((b + 6) - b) % 12 == 6 for b in range(12))
     )
 
-    # 8. Pattern Breaking Monotonicity
+    # 8. Pattern Breaking Monotonicity & Jie Shen Relief Damping
     p0 = _evaluate_pattern_breaking_matrix(0, pattern_name="君臣庆会", sha_stars=[])["formation_health_score"]
     p1 = _evaluate_pattern_breaking_matrix(0, pattern_name="君臣庆会", sha_stars=["地空"])["formation_health_score"]
     p2 = _evaluate_pattern_breaking_matrix(0, pattern_name="君臣庆会", sha_stars=["地空", "地劫"])["formation_health_score"]
     pb_ok = (p0 > p1 > p2)
+
+    p_huoxing_raw = _evaluate_pattern_breaking_matrix(0, pattern_name="君臣庆会", sha_stars=["火星"])["formation_health_score"]
+    p_huoxing_damped = _evaluate_pattern_breaking_matrix(
+        0, pattern_name="君臣庆会", sha_stars=["火星"], jie_shen_relief=True
+    )["formation_health_score"]
+    js_ok = (p0 > p_huoxing_damped > p_huoxing_raw) and ((p_huoxing_damped - p_huoxing_raw) > 0.04)
 
     all_verified = (
         yy_ok
@@ -5438,9 +5594,11 @@ def _evaluate_systemic_parameter_coupling_certificate(cls: type | None = None) -
         and zt_ok
         and bureau_ok
         and zw_ok
+        and zw_l2_ok
         and stoch_ok
         and aux_ok
         and pb_ok
+        and js_ok
     )
 
     return {
@@ -5448,12 +5606,15 @@ def _evaluate_systemic_parameter_coupling_certificate(cls: type | None = None) -
         "yin_yang_line_duality_conserved": yy_ok,
         "ming_shen_centroid_hour_invariance_verified": ms_ok,
         "ziwei_tianfu_dipper_axis_invariance_verified": zt_ok,
+        "tianfu_canonical_table_cross_validation_verified": zt_ok,
         "five_elements_bureau_equipartition_verified": bureau_ok,
         "bureau_distribution_measure": {k: v / 60.0 for k, v in jiazi_counts.items()},
         "ziwu_liuzhu_energy_conservation_verified": zw_ok,
+        "ziwu_liuzhu_l2_norm_isometry_verified": zw_l2_ok,
         "five_elements_doubly_stochastic_verified": stoch_ok,
         "auxiliary_dipper_pairs_sum_invariance_verified": aux_ok,
         "pattern_breaking_monotonicity_verified": pb_ok,
+        "jie_shen_relief_damping_verified": js_ok,
     }
 
 
