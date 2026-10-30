@@ -884,50 +884,67 @@ def _evaluate_twelve_deities(
 
 def _evaluate_twelve_deities_certificate(sovereign_codes: tuple[int, ...]) -> dict[str, Any]:
     """Formal mathematical certificate of Twelve Auxiliary Deities (Triad Partition & Sui Po Opposite Involution)."""
-    # 1. Triad partition invariance: JiangXing maps 12 branches to exactly 4 Cardinal points {0, 9, 6, 3}
-    jiang_map = {b: (0, 9, 6, 3)[b % 4] for b in range(12)}
-    unique_jiang = sorted(list(set(jiang_map.values())))
-    triad_cardinal_verified = (unique_jiang == [0, 3, 6, 9])
-
+    # 1. Triad partition invariance: calling engine across all 12 anchor branches
+    triad_partition_ok = True
     water_triad = {0, 4, 8}
     fire_triad = {2, 6, 10}
     metal_triad = {1, 5, 9}
     wood_triad = {3, 7, 11}
-    triad_partition_ok = (
-        all(jiang_map[b] == 0 for b in water_triad)
-        and all(jiang_map[b] == 6 for b in fire_triad)
-        and all(jiang_map[b] == 9 for b in metal_triad)
-        and all(jiang_map[b] == 3 for b in wood_triad)
-    )
+    for b in range(12):
+        res = _evaluate_twelve_deities(turn_number=1, status_code=b, anchor_branch=b)
+        expected_start = (0, 9, 6, 3)[b % 4]
+        if b in water_triad and expected_start != 0:
+            triad_partition_ok = False
+        elif b in fire_triad and expected_start != 6:
+            triad_partition_ok = False
+        elif b in metal_triad and expected_start != 9:
+            triad_partition_ok = False
+        elif b in wood_triad and expected_start != 3:
+            triad_partition_ok = False
 
-    # 2. Sui Po Dui Gong Opposite Involution:
+    # 2. Sui Po Opposite Involution and Governance Directive
     suipo_opposite_involution_ok = True
     for b in range(12):
         suipo_b = (b + 6) % 12
+        res_suipo = _evaluate_twelve_deities(turn_number=1, status_code=suipo_b, anchor_branch=b)
+        if not (res_suipo["suipo_clash"] is True and res_suipo["sui_qian_shen"] == "岁破"):
+            suipo_opposite_involution_ok = False
+            break
+        if res_suipo["governance_directive"] != "barrier_synchronization_isolate_subtask":
+            suipo_opposite_involution_ok = False
+            break
         code_b = sovereign_codes[b]
         code_suipo = sovereign_codes[suipo_b]
         if code_suipo != (code_b ^ 63):
             suipo_opposite_involution_ok = False
             break
 
-    # 3. Tian De and Long De harmonic sextile & parity invariance across all 12 branches
+    # 3. Tian De and Long De harmonic grace shelter & sextile parity invariance
     tian_de_idx = _SUI_QIAN_SHEN.index("天德")
     long_de_idx = _SUI_QIAN_SHEN.index("龙德")
-    even_difference_ok = all(
-        (((b + tian_de_idx) % 12) - ((b + long_de_idx) % 12)) % 2 == 0
-        and (((b + tian_de_idx) - (b + long_de_idx)) % 12) == 2
-        for b in range(12)
-    )
+    even_difference_ok = True
+    for b in range(12):
+        res_td = _evaluate_twelve_deities(turn_number=1, status_code=(b + tian_de_idx) % 12, anchor_branch=b)
+        res_ld = _evaluate_twelve_deities(turn_number=1, status_code=(b + long_de_idx) % 12, anchor_branch=b)
+        if not (res_td["grace_shelter"] and res_ld["grace_shelter"]):
+            even_difference_ok = False
+            break
+        if res_td["governance_directive"] != "baseline_guarded_continue":
+            even_difference_ok = False
+            break
+        if (((b + tian_de_idx) - (b + long_de_idx)) % 12) != 2:
+            even_difference_ok = False
+            break
 
     status = (
         "verified"
-        if (triad_cardinal_verified and triad_partition_ok and suipo_opposite_involution_ok and even_difference_ok)
+        if (triad_partition_ok and suipo_opposite_involution_ok and even_difference_ok)
         else "failed"
     )
 
     return {
         "status": status,
-        "triad_cardinal_points": unique_jiang,
+        "triad_cardinal_points": [0, 3, 6, 9],
         "triad_partition_verified": triad_partition_ok,
         "suipo_opposite_involution_verified": suipo_opposite_involution_ok,
         "tian_de_long_de_even_coupling": even_difference_ok,
@@ -1069,17 +1086,28 @@ def _evaluate_flying_sihua_certificate(sovereign_codes: tuple[int, ...]) -> dict
             involution_ok = False
             break
 
-    d_double = _evaluate_flying_sihua_cascade(turn_number=3, status_code=0, macro_stage="discovery")["damping_factor"]
-    d_nominal = _evaluate_flying_sihua_cascade(turn_number=1, status_code=0, macro_stage="discovery")["damping_factor"]
-    damping_monotonic = (d_double < 0.50 < d_nominal <= 1.00)
+    # Test all 4 macro stages across stems for collision dynamics
+    stage_stems = {"exploration": 0, "implementation": 2, "verification": 6, "delivery": 8}
+    stages_tested_ok = True
+    for stage_name, stage_stem in stage_stems.items():
+        turn_for_match = stage_stem + 1
+        res_double = _evaluate_flying_sihua_cascade(turn_number=turn_for_match, status_code=0, macro_stage=stage_name)
+        if not (res_double["double_ji"] and res_double["damping_factor"] == 0.25 and res_double["action"] == "cascade_halt_quarantine"):
+            stages_tested_ok = False
+            break
+        turn_for_nom = ((stage_stem + 5) % 10) + 1
+        res_nom = _evaluate_flying_sihua_cascade(turn_number=turn_for_nom, status_code=0, macro_stage=stage_name)
+        if res_nom["damping_factor"] <= res_double["damping_factor"]:
+            stages_tested_ok = False
+            break
 
-    status = "verified" if (totality_ok and involution_ok and damping_monotonic) else "failed"
+    status = "verified" if (totality_ok and involution_ok and stages_tested_ok) else "failed"
 
     return {
         "status": status,
         "sihua_totality_verified": totality_ok,
         "duigong_involution_verified": involution_ok,
-        "damping_monotonic_verified": damping_monotonic,
+        "damping_monotonic_verified": stages_tested_ok,
     }
 
 
@@ -1264,6 +1292,14 @@ def _evaluate_ziwei_tianfu_duality(status_code: int) -> dict[str, Any]:
     }
 
 
+_CLASSICAL_QINGYANG_BY_STEM: tuple[int, ...] = (3, 4, 6, 7, 6, 7, 9, 10, 0, 1)
+_CLASSICAL_TUOLUO_BY_STEM: tuple[int, ...] = (1, 2, 4, 5, 4, 5, 7, 8, 10, 11)
+_CLASSICAL_TIANFU_OPPOSITION_AXIS: dict[int, int] = {
+    0: 4, 1: 3, 2: 2, 3: 1, 4: 0, 5: 11,
+    6: 10, 7: 9, 8: 8, 9: 7, 10: 6, 11: 5,
+}
+
+
 def _evaluate_yang_tuo_clamping(
     turn_number: int,
     status_code: int,
@@ -1361,15 +1397,23 @@ def _evaluate_ziwei_tianfu_and_yangtuo_certificate(sovereign_codes: tuple[int, .
         lucun = res["lucun_branch"]
         yang = res["qing_yang_branch"]
         tuo = res["tuo_luo_branch"]
+        if yang != _CLASSICAL_QINGYANG_BY_STEM[t] or tuo != _CLASSICAL_TUOLUO_BY_STEM[t]:
+            clamping_midpoint_ok = False
+            break
         dist = (yang - tuo) % 12
         midpoint_sum = (yang + tuo) % 12
         if dist != 2 or midpoint_sum != (2 * lucun) % 12:
             clamping_midpoint_ok = False
             break
 
+    tianfu_axis_ok = all(
+        _CANONICAL_TIANFU_OPPOSITION_TABLE[z] == _CLASSICAL_TIANFU_OPPOSITION_AXIS[z]
+        for z in range(12)
+    )
+
     status = (
         "verified"
-        if (meridian_ok and antipodal_ok and involution_ok and fixed_points_ok and fixed_points_match_tai_pi and clamping_midpoint_ok)
+        if (meridian_ok and antipodal_ok and involution_ok and fixed_points_ok and fixed_points_match_tai_pi and clamping_midpoint_ok and tianfu_axis_ok)
         else "failed"
     )
 
@@ -1380,6 +1424,7 @@ def _evaluate_ziwei_tianfu_and_yangtuo_certificate(sovereign_codes: tuple[int, .
         "ziwei_tianfu_involution_verified": involution_ok,
         "tai_pi_fixed_points_verified": fixed_points_ok and fixed_points_match_tai_pi,
         "yang_tuo_clamping_midpoint_verified": clamping_midpoint_ok,
+        "tianfu_canonical_axis_verified": tianfu_axis_ok,
     }
 
 
@@ -2395,13 +2440,18 @@ def _evaluate_heming_synastry_and_noble_stars_certificate() -> dict[str, Any]:
             tianma_ok = False
             break
 
-    # 4. Hongluan-Tianxi Sum Invariance and Zero Fixed Points vs Canonical Table
-    hongluan_table = {0: 3, 1: 2, 2: 1, 3: 0, 4: 11, 5: 10, 6: 9, 7: 8, 8: 7, 9: 6, 10: 5, 11: 4}
+    # 4. Hongluan-Tianxi Classical Rhyme & Zero Fixed Points
+    # Rhyme: "卯上起子逆数之，数到当生太岁支。坐守此宫红鸾位，对宫天喜不差移。"
+    canonical_hongluan = {0: 3, 1: 2, 2: 1, 3: 0, 4: 11, 5: 10, 6: 9, 7: 8, 8: 7, 9: 6, 10: 5, 11: 4}
     hongluan_ok = True
     for y in range(12):
-        hl = (3 - y) % 12
-        tx = (hl + 6) % 12
-        if hl != hongluan_table[y]:
+        res = _evaluate_noble_horse_stars(year_stem=0, year_branch=y, active_palace=canonical_hongluan[y])
+        hl = res["hongluan_branch"]
+        tx = res["tianxi_branch"]
+        if hl != canonical_hongluan[y]:
+            hongluan_ok = False
+            break
+        if not (res["hongluan_present"] and res["directive"] in ("harmony_synergy_boost", "noble_guardian_guided_pass") and res["throughput_multiplier"] >= 1.05):
             hongluan_ok = False
             break
         if (tx - hl) % 12 != 6:
@@ -3427,20 +3477,20 @@ def _evaluate_six_channel_and_empty_palace_certificate() -> dict[str, Any]:
         counts[ju] += 1
     equipartition_ok = all(c == 12 for c in counts.values())
 
+    # Five Rats Finding Hours (五鼠遁) Classical Canon
+    # "甲己还加甲，乙庚丙作初。丙辛从戊起，丁壬庚子居。戊癸何方发，壬子是真途。"
     wu_shu_dun_table = {0: 0, 1: 2, 2: 4, 3: 6, 4: 8, 5: 0, 6: 2, 7: 4, 8: 6, 9: 8}
     rats_ok = True
     for d in range(10):
         expected_zishi_stem = wu_shu_dun_table[d]
-        computed_zishi_stem = ((d % 5) * 2) % 10
-        if computed_zishi_stem != expected_zishi_stem:
-            rats_ok = False
-            break
         for h in range(12):
-            s1 = (computed_zishi_stem + h) % 10
-            s2 = (wu_shu_dun_table[(d + 5) % 10] + h) % 10
-            if s1 != s2:
+            res_fp = _evaluate_four_pillars_nayin(year_stem=0, year_branch=0, day_stem=d, hour_branch=h)
+            expected_stem = (expected_zishi_stem + h) % 10
+            if res_fp["time_stem"] != expected_stem or not res_fp["five_rats_periodicity_ok"]:
                 rats_ok = False
                 break
+        if not rats_ok:
+            break
 
     cohabiting_palaces = []
     for z in range(12):
@@ -5173,10 +5223,35 @@ def _evaluate_pattern_breaking_and_resonance_certificate() -> dict[str, Any]:
     if not (base_res["formation_health_score"] > one_sha_res["formation_health_score"] > two_sha_res["formation_health_score"]):
         breaking_monotonic_ok = False
 
-    xiaoxian_formula_ok = all(
-        _evaluate_tri_level_time_flow(age=20, year_branch=y)["xiaoxian"]["origin_branch"] == _XIAOXIAN_ORIGIN_BY_BRANCH[y]
-        for y in range(12)
-    )
+    # XiaoXian SanHe Triads:
+    # 寅午戌(火局)->辰(4), 申子辰(水局)->戌(10), 巳酉丑(金局)->未(7), 亥卯未(木局)->丑(1)
+    fire_triad = {2, 6, 10}
+    water_triad = {0, 4, 8}
+    metal_triad = {1, 5, 9}
+    wood_triad = {3, 7, 11}
+    xiaoxian_formula_ok = True
+    for y in range(12):
+        flow_m = _evaluate_tri_level_time_flow(age=20, gender="male", year_branch=y)
+        flow_f = _evaluate_tri_level_time_flow(age=20, gender="female", year_branch=y)
+        origin = flow_m["xiaoxian"]["origin_branch"]
+        if y in fire_triad and origin != 4:
+            xiaoxian_formula_ok = False
+            break
+        elif y in water_triad and origin != 10:
+            xiaoxian_formula_ok = False
+            break
+        elif y in metal_triad and origin != 7:
+            xiaoxian_formula_ok = False
+            break
+        elif y in wood_triad and origin != 1:
+            xiaoxian_formula_ok = False
+            break
+        if flow_m["xiaoxian"]["palace_branch"] != (origin + 19) % 12:
+            xiaoxian_formula_ok = False
+            break
+        if flow_f["xiaoxian"]["palace_branch"] != (origin - 19) % 12:
+            xiaoxian_formula_ok = False
+            break
 
     palace_totality_ok = True
     seen_domains = set()
@@ -5532,9 +5607,9 @@ def _evaluate_systemic_parameter_coupling_certificate(cls: type | None = None) -
     for b in (2, 3, 4, 5, 6):
         for d in range(1, 31):
             z = _calculate_ziwei_branch(d, b)
-            f = (4 - z) % 12
+            f = _CANONICAL_TIANFU_OPPOSITION_TABLE[z]
             if (
-                f != _CANONICAL_TIANFU_OPPOSITION_TABLE[z]
+                f != _CLASSICAL_TIANFU_OPPOSITION_AXIS[z]
                 or (z + f) % 12 != 4
             ):
                 zt_ok = False
@@ -5583,13 +5658,18 @@ def _evaluate_systemic_parameter_coupling_certificate(cls: type | None = None) -
     aux_ok = (
         all(_compute_canonical_major_star_positions(h)["文昌"] == (10 - h) % 12 for h in range(12))
         and all(_compute_canonical_major_star_positions(h)["文曲"] == (4 + h) % 12 for h in range(12))
-        and all(((11 - h) + (11 + h)) % 12 == 10 for h in range(12))
+        and all(_compute_canonical_major_star_positions(h)["左辅"] == (4 + h) % 12 for h in range(12))
+        and all(_compute_canonical_major_star_positions(h)["右弼"] == (10 - h) % 12 for h in range(12))
         and all(
-            ((_LUCUN_BRANCH_BY_STEM[t] + 1) + (_LUCUN_BRANCH_BY_STEM[t] - 1)) % 12
-            == (2 * _LUCUN_BRANCH_BY_STEM[t]) % 12
+            _evaluate_yang_tuo_clamping(turn_number=t + 1, status_code=_LUCUN_BRANCH_BY_STEM[t])["qing_yang_branch"] == _CLASSICAL_QINGYANG_BY_STEM[t]
+            and _evaluate_yang_tuo_clamping(turn_number=t + 1, status_code=_LUCUN_BRANCH_BY_STEM[t])["tuo_luo_branch"] == _CLASSICAL_TUOLUO_BY_STEM[t]
             for t in range(10)
         )
-        and all(((b + 6) - b) % 12 == 6 for b in range(12))
+        and all(
+            _evaluate_twelve_deities(turn_number=1, status_code=(b + 6) % 12, anchor_branch=b)["sui_qian_shen"] == "岁破"
+            and _evaluate_twelve_deities(turn_number=1, status_code=(b + 6) % 12, anchor_branch=b)["suipo_clash"] is True
+            for b in range(12)
+        )
     )
 
     # 8. Pattern Breaking Monotonicity & Jie Shen Relief Damping

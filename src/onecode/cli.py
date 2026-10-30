@@ -442,7 +442,12 @@ def apply_run_plan_repair(
     current_result = result
     current_verifiers = initial_verifiers
 
-    for attempt in range(1, args.max_repair_attempts + 1):
+    from onecode.kernel.model_loop import resolve_task_bureau
+    bureau = resolve_task_bureau(workspace)
+    bureau_budget = bureau.get("turn_budget", args.max_repair_attempts)
+    effective_attempts = min(args.max_repair_attempts, bureau_budget) if args.max_repair_attempts > 0 else 0
+
+    for attempt in range(1, effective_attempts + 1):
         prompt = build_run_plan_repair_prompt(task, current_result, current_verifiers, planned_asset_paths)
         prompt_evidence.append(
             {

@@ -1042,6 +1042,12 @@ def write_checkpoint(
         validate_manifest_metrics(manifest_metrics)
         manifest["manifest_metrics"] = manifest_metrics
         atomic_write_json(context.manifest_path, manifest)
+        force_sync = (
+            (isinstance(run_control, dict) and run_control.get("force_wal_checkpoint_sync"))
+            or (isinstance(payload, dict) and payload.get("force_wal_checkpoint_sync"))
+        )
+        if force_sync and hasattr(os, "sync"):
+            os.sync()
         return checkpoint_path
 
 
@@ -1076,4 +1082,10 @@ def write_ledger(context: OneCodeContext, result: dict[str, Any]) -> Path:
             artifact_line_number=line_count,
         )
         append_global_wal_entry(context, evidence_result)
+        force_sync = (
+            evidence_result.get("force_wal_checkpoint_sync")
+            or (isinstance(evidence_result.get("run_control"), dict) and evidence_result["run_control"].get("force_wal_checkpoint_sync"))
+        )
+        if force_sync and hasattr(os, "sync"):
+            os.sync()
     return ledger_path

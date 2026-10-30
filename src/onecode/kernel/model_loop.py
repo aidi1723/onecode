@@ -1804,7 +1804,13 @@ def _finish_verified_task(
         return checked
     current_checked = checked
     current_result = result
-    for attempt in range(1, max_repair_attempts + 1):
+    bureau_budget = run_metadata.get("bureau_turn_budget", max_repair_attempts)
+    effective_attempts = min(max_repair_attempts, bureau_budget) if max_repair_attempts > 0 else 0
+    for attempt in range(1, effective_attempts + 1):
+        cooldown_ms = run_metadata.get("cooldown_pause_ms", 0)
+        if cooldown_ms > 0:
+            import time
+            time.sleep(cooldown_ms / 1000.0)
         tails = [
             str(item.get("stderr_tail"))[-400:]
             for item in (current_checked.get("verifier_results") or [])
@@ -1843,11 +1849,26 @@ def _finish_verified_task(
         failed_status = current_checked.get("iching_status_code") or current_checked.get("task_status_code")
         failed_code = int(failed_status) if failed_status is not None else 32
         repair_brightness = IchingKernel.star_brightness_profile(failed_code)
+        repair_gov_mode = (
+            "degraded"
+            if run_metadata.get("governance_mode") == "degraded"
+            else repair_brightness.get("governance_mode", "autonomous")
+        )
         repair_metadata = {
             **run_metadata,
-            "governance_mode": repair_brightness.get("governance_mode", "autonomous"),
+            "governance_mode": repair_gov_mode,
             "star_brightness": repair_brightness,
         }
+        try:
+            coupling = IchingKernel.systemic_coupling_profile(hexagram_state=failed_code)
+            repair_metadata["systemic_coupling"] = coupling
+            interv = coupling.get("physical_intervention", {})
+            if interv.get("force_wal_checkpoint_sync"):
+                repair_metadata["force_wal_checkpoint_sync"] = True
+            if interv.get("adaptive_cooldown_ms", 0) > 0:
+                repair_metadata["cooldown_pause_ms"] = interv["adaptive_cooldown_ms"]
+        except Exception:
+            pass
         repaired = execute_model_plan(
             plan,
             workspace=workspace,
@@ -2075,6 +2096,48 @@ def run_model_task(
     if narrowed or result["status"] == "completed" or max_repair_attempts <= 0:
         return _finish_verified_task(result, task, workspace, sandbox_config, max_repair_attempts, active_provider, model_context, trace_path, provider_config, resolved_model, http_timeout_seconds, planning_context, run_id, resume_from_run_id, run_metadata, require_explicit_approval, execution_approval, on_turn)
 
+    return _run_model_task_repair_loop(
+        result=result,
+        task=task,
+        workspace=workspace,
+        run_metadata=run_metadata,
+        max_repair_attempts=max_repair_attempts,
+        active_provider=active_provider,
+        model_context=model_context,
+        trace_path=trace_path,
+        provider_config=provider_config,
+        resolved_model=resolved_model,
+        http_timeout_seconds=http_timeout_seconds,
+        planning_context=planning_context,
+        run_id=run_id,
+        resume_from_run_id=resume_from_run_id,
+        require_explicit_approval=require_explicit_approval,
+        execution_approval=execution_approval,
+        on_turn=on_turn,
+        sandbox_config=sandbox_config,
+    )
+
+
+def _run_model_task_repair_loop(
+    result: dict[str, Any],
+    task: str,
+    workspace: Path,
+    run_metadata: dict[str, Any],
+    max_repair_attempts: int,
+    active_provider: Any,
+    model_context: Any,
+    trace_path: Path,
+    provider_config: Any,
+    resolved_model: str,
+    http_timeout_seconds: float,
+    planning_context: dict[str, Any],
+    run_id: str | None,
+    resume_from_run_id: str | None,
+    require_explicit_approval: bool,
+    execution_approval: Callable[[ExecutionStep], bool] | None,
+    on_turn: Callable[[dict[str, Any]], None] | None,
+    sandbox_config: Any | None,
+) -> dict[str, Any]:
     failed_result = result
     bureau_budget = run_metadata.get("bureau_turn_budget", max_repair_attempts)
     effective_attempts = min(max_repair_attempts, bureau_budget) if max_repair_attempts > 0 else 0
@@ -2107,9 +2170,14 @@ def run_model_task(
         failed_status = failed_result.get("iching_status_code") or failed_result.get("task_status_code")
         failed_code = int(failed_status) if failed_status is not None else 32
         repair_brightness = IchingKernel.star_brightness_profile(failed_code)
+        repair_gov_mode = (
+            "degraded"
+            if run_metadata.get("governance_mode") == "degraded"
+            else repair_brightness.get("governance_mode", "autonomous")
+        )
         repair_metadata = {
             **run_metadata,
-            "governance_mode": repair_brightness.get("governance_mode", "autonomous"),
+            "governance_mode": repair_gov_mode,
             "star_brightness": repair_brightness,
             "model_plan_task": repair_plan.task,
             "model_plan_asset_count": len(repair_plan.assets),
@@ -2117,6 +2185,16 @@ def run_model_task(
             "model_plan_execution_step_count": len(repair_plan.execution_steps),
             "repair_of_run_id": run_id,
         }
+        try:
+            coupling = IchingKernel.systemic_coupling_profile(hexagram_state=failed_code)
+            repair_metadata["systemic_coupling"] = coupling
+            interv = coupling.get("physical_intervention", {})
+            if interv.get("force_wal_checkpoint_sync"):
+                repair_metadata["force_wal_checkpoint_sync"] = True
+            if interv.get("adaptive_cooldown_ms", 0) > 0:
+                repair_metadata["cooldown_pause_ms"] = interv["adaptive_cooldown_ms"]
+        except Exception:
+            pass
         repair_result = execute_model_plan(
             repair_plan,
             workspace=workspace,

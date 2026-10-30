@@ -673,9 +673,15 @@ class _DeferredEvidence:
             "run_control": run_control,
             "balance_mutation_summary": balance_mutation_summary,
         }
-        if self.defer_completed_evidence:
+        force_sync = (
+            (isinstance(run_control, dict) and run_control.get("force_wal_checkpoint_sync"))
+            or (isinstance(payload, dict) and payload.get("force_wal_checkpoint_sync"))
+        )
+        if self.defer_completed_evidence and not force_sync:
             self.pending_checkpoints.append(checkpoint)
             return
+        if force_sync and self.pending_checkpoints:
+            self.flush_checkpoints()
         write_checkpoint(
             context=self.context,
             payload=payload,
