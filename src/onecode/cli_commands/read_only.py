@@ -123,6 +123,7 @@ def math_audit_payload() -> dict[str, object]:
             "twelve_deities_triad_and_suipo",
             "flying_sihua_cascade",
             "triadic_synthesis",
+            "ziwei_tianfu_and_yangtuo",
         ],
         "reference_only": [
             "probabilistic_sampling",

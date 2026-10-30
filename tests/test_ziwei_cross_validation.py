@@ -894,6 +894,65 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["two_thirds_domination_verified"])
         self.assertTrue(cert["physical_remediation_boundary_verified"])
 
+    def test_ming_shen_zhu_symmetries(self):
+        """Verify Ming Zhu and Shen Zhu symmetry profiles."""
+        res_0 = IchingKernel.ming_shen_zhu_profile(turn_number=1, status_code=0)
+        self.assertEqual(res_0["ming_zhu"], "贪狼")
+        self.assertEqual(res_0["shen_zhu"], "火星")
+
+        res_2 = IchingKernel.ming_shen_zhu_profile(turn_number=1, status_code=2)
+        res_10 = IchingKernel.ming_shen_zhu_profile(turn_number=1, status_code=10)
+        # Meridian mirror symmetry
+        self.assertEqual(res_2["ming_zhu"], res_10["ming_zhu"])
+        self.assertEqual(res_2["ming_zhu"], "禄存")
+
+        res_8 = IchingKernel.ming_shen_zhu_profile(turn_number=1, status_code=8)
+        # Antipodal invariance (2 + 6 = 8)
+        self.assertEqual(res_2["shen_zhu"], res_8["shen_zhu"])
+        self.assertEqual(res_2["shen_zhu"], "天梁")
+
+    def test_ziwei_tianfu_duality_and_fixed_points(self):
+        """Verify Ziwei-Tianfu duality axis and Tai-Pi fixed point cohabitation."""
+        # Tai (code 7, branch 2, Yin) is fixed point
+        res_tai = IchingKernel.ziwei_tianfu_duality_profile(status_code=7)
+        self.assertTrue(res_tai["is_fixed_point"])
+        self.assertTrue(res_tai["co_habitation"])
+        self.assertEqual(res_tai["ziwei_branch"], 2)  # branch 2 (寅)
+        # At branch 2 (寅):
+        res_yin = IchingKernel.ziwei_tianfu_duality_profile(status_code=2)
+        self.assertTrue(res_yin["is_fixed_point"])
+        self.assertTrue(res_yin["co_habitation"])
+        self.assertEqual(res_yin["axis_state"], "ziwei_tianfu_cohabitation")
+
+        # Opposite polarity check
+        res_opp = IchingKernel.ziwei_tianfu_duality_profile(status_code=11)  # Ziwei in Hai(11), Tianfu in Si(5)
+        self.assertEqual(res_opp["circular_distance"], 6)
+        self.assertEqual(res_opp["axis_state"], "ziwei_tianfu_opposite_polarity")
+
+    def test_yang_tuo_clamping_and_midpoint(self):
+        """Verify Qing Yang and Tuo Luo geometric clamping around Lu Cun."""
+        # Turn 1 -> stem 0 (Jia) -> Lu Cun in Yin (2), Yang in Mao (3), Tuo in Chou (1)
+        res_clamp = IchingKernel.yang_tuo_clamping_profile(turn_number=1, status_code=2, has_hua_ji=True)
+        self.assertTrue(res_clamp["clamped_at_lucun"])
+        self.assertTrue(res_clamp["yang_tuo_jia_ji"])
+        self.assertEqual(res_clamp["action"], "break_deadlock_clamp_with_micro_patch")
+        self.assertEqual(res_clamp["risk_level"], "critical")
+
+        # Leading edge friction on Qing Yang
+        res_yang = IchingKernel.yang_tuo_clamping_profile(turn_number=1, status_code=3)
+        self.assertTrue(res_yang["on_yang_edge"])
+        self.assertEqual(res_yang["action"], "suppress_cutting_edge_overwrite")
+
+    def test_ziwei_tianfu_and_yangtuo_certificate(self):
+        """Verify Ziwei-Tianfu Duality and Yang-Tuo Clamping Mathematical Certificate."""
+        cert = IchingKernel.ziwei_tianfu_and_yangtuo_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["ming_zhu_meridian_reflection_verified"])
+        self.assertTrue(cert["shen_zhu_antipodal_invariance_verified"])
+        self.assertTrue(cert["ziwei_tianfu_involution_verified"])
+        self.assertTrue(cert["tai_pi_fixed_points_verified"])
+        self.assertTrue(cert["yang_tuo_clamping_midpoint_verified"])
+
 
 if __name__ == "__main__":
     unittest.main()

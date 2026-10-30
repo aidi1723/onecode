@@ -40,6 +40,9 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.twelve_deities_profile(1, state)
         _ = IchingKernel.flying_sihua_cascade_profile(1, state)
         _ = IchingKernel.triadic_synthesis_profile(state)
+        _ = IchingKernel.ming_shen_zhu_profile(1, state)
+        _ = IchingKernel.ziwei_tianfu_duality_profile(state)
+        _ = IchingKernel.yang_tuo_clamping_profile(1, state)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
 
     start_total = time.perf_counter()
@@ -59,6 +62,9 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.twelve_deities_profile(turn, state)
         _ = IchingKernel.flying_sihua_cascade_profile(turn, state)
         _ = IchingKernel.triadic_synthesis_profile(state)
+        _ = IchingKernel.ming_shen_zhu_profile(turn, state)
+        _ = IchingKernel.ziwei_tianfu_duality_profile(state)
+        _ = IchingKernel.yang_tuo_clamping_profile(turn, state)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
         t1 = time.perf_counter_ns()
         latencies_us.append((t1 - t0) / 1000.0)
@@ -88,7 +94,7 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
 
 
 def verify_mathematical_certificates() -> dict[str, bool]:
-    """Verify all 8 mathematical certificates directly."""
+    """Verify all 9 mathematical certificates directly."""
     c_ring = IchingKernel.sovereign_ring_isomorphism_certificate()
     c_anhe = IchingKernel.an_he_coupling_certificate()
     c_shengong = IchingKernel.shen_gong_anchorage_certificate()
@@ -97,6 +103,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
     c_twelve = IchingKernel.twelve_deities_triad_and_suipo_certificate()
     c_flying = IchingKernel.flying_sihua_cascade_certificate()
     c_triad = IchingKernel.triadic_synthesis_certificate()
+    c_zifu = IchingKernel.ziwei_tianfu_and_yangtuo_certificate()
     
     return {
         "sovereign_ring": c_ring.get("status") == "verified" and c_ring.get("triad_balance_verified") is True,
@@ -107,6 +114,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
         "twelve_deities_triad_and_suipo": c_twelve.get("status") == "verified" and c_twelve.get("triad_partition_verified") is True and c_twelve.get("suipo_opposite_involution_verified") is True,
         "flying_sihua_cascade": c_flying.get("status") == "verified" and c_flying.get("sihua_totality_verified") is True and c_flying.get("duigong_involution_verified") is True,
         "triadic_synthesis": c_triad.get("status") == "verified" and c_triad.get("convex_bounds_verified") is True and c_triad.get("two_thirds_domination_verified") is True,
+        "ziwei_tianfu_and_yangtuo": c_zifu.get("status") == "verified" and c_zifu.get("ziwei_tianfu_involution_verified") is True and c_zifu.get("tai_pi_fixed_points_verified") is True and c_zifu.get("yang_tuo_clamping_midpoint_verified") is True,
     }
 
 

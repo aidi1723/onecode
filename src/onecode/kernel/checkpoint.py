@@ -808,6 +808,17 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
             "triadic_synthesis": IchingKernel.triadic_synthesis_profile(
                 status_code=iching_status_code,
             ),
+            "ming_shen_zhu": IchingKernel.ming_shen_zhu_profile(
+                turn_number=turn_number,
+                status_code=iching_status_code,
+            ),
+            "ziwei_tianfu": IchingKernel.ziwei_tianfu_duality_profile(
+                status_code=iching_status_code,
+            ),
+            "yang_tuo_clamping": IchingKernel.yang_tuo_clamping_profile(
+                turn_number=turn_number,
+                status_code=iching_status_code,
+            ),
         }
     return telemetry
 

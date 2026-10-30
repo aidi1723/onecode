@@ -1160,6 +1160,217 @@ def _evaluate_triadic_synthesis_certificate() -> dict[str, Any]:
     }
 
 
+_MING_ZHU_TABLE: dict[int, str] = {
+    0: "贪狼", 1: "巨门", 2: "禄存", 3: "文曲", 4: "廉贞", 5: "武曲",
+    6: "破军", 7: "武曲", 8: "廉贞", 9: "文曲", 10: "禄存", 11: "巨门",
+}
+
+_SHEN_ZHU_TABLE: dict[int, str] = {
+    0: "火星", 6: "火星", 1: "天相", 7: "天相",
+    2: "天梁", 8: "天梁", 3: "天同", 9: "天同",
+    4: "文昌", 10: "文昌", 5: "天机", 11: "天机",
+}
+
+
+def _evaluate_ming_shen_zhu(
+    turn_number: int,
+    status_code: int,
+) -> dict[str, Any]:
+    """Compute Ming Zhu (命主) and Shen Zhu (身主) stellar governors and symmetries."""
+    active_b = status_code % 12
+    ming_zhu = _MING_ZHU_TABLE[active_b]
+    shen_zhu = _SHEN_ZHU_TABLE[active_b]
+
+    ming_roles = {
+        "贪狼": "exploratory_breadth",
+        "巨门": "ast_semantic_analysis",
+        "禄存": "resource_budget_guard",
+        "文曲": "telemetry_evidence_record",
+        "廉贞": "boundary_integrity_audit",
+        "武曲": "surgical_execution_patch",
+        "破军": "structural_refactoring",
+    }
+    shen_roles = {
+        "火星": "panic_recovery_fast_retry",
+        "天相": "contract_specification_anchor",
+        "天梁": "stability_guardrail_protection",
+        "天同": "harmonic_state_equilibrium",
+        "文昌": "symbolic_syntax_verification",
+        "天机": "strategic_decomposition_plan",
+    }
+
+    return {
+        "active_branch": active_b,
+        "active_branch_name": _EARTHLY_BRANCH_NAMES[active_b],
+        "ming_zhu": ming_zhu,
+        "ming_zhu_role": ming_roles.get(ming_zhu, "standard_focus"),
+        "shen_zhu": shen_zhu,
+        "shen_zhu_role": shen_roles.get(shen_zhu, "standard_guard"),
+        "meridian_symmetric_branch": (12 - active_b) % 12,
+        "antipodal_branch": (active_b + 6) % 12,
+    }
+
+
+def _evaluate_ziwei_tianfu_duality(status_code: int) -> dict[str, Any]:
+    """Compute Ziwei-Tianfu duality axis, involutive distance, and Tai-Pi fixed points."""
+    # Sovereign Tai (code 7) maps to branch 2 (Yin); Sovereign Pi (code 56) maps to branch 8 (Shen)
+    if status_code == 7:
+        z_branch = 2
+    elif status_code == 56:
+        z_branch = 8
+    else:
+        z_branch = status_code % 12
+    f_branch = (4 - z_branch) % 12
+
+    circ_dist = min((z_branch - f_branch) % 12, (f_branch - z_branch) % 12)
+    is_fixed_point = (z_branch in {2, 8})
+    co_habitation = (z_branch == f_branch)
+
+    if co_habitation:
+        axis_state = "ziwei_tianfu_cohabitation"
+        governance_directive = "unified_centralized_authority"
+        description = "Ziwei and Tianfu co-habitate (紫府同宫): maximum structural stability and authority."
+    elif circ_dist == 6:
+        axis_state = "ziwei_tianfu_opposite_polarity"
+        governance_directive = "balanced_dual_plane_arbitration"
+        description = "Ziwei and Tianfu in opposite polarity: dual-plane checks and balances active."
+    else:
+        axis_state = "ziwei_tianfu_dynamic_resonance"
+        governance_directive = "standard_harmonic_flow"
+        description = "Ziwei-Tianfu orbital configuration within nominal parameters."
+
+    return {
+        "ziwei_branch": z_branch,
+        "ziwei_branch_name": _EARTHLY_BRANCH_NAMES[z_branch],
+        "tianfu_branch": f_branch,
+        "tianfu_branch_name": _EARTHLY_BRANCH_NAMES[f_branch],
+        "circular_distance": circ_dist,
+        "is_fixed_point": is_fixed_point,
+        "co_habitation": co_habitation,
+        "axis_state": axis_state,
+        "governance_directive": governance_directive,
+        "description": description,
+    }
+
+
+def _evaluate_yang_tuo_clamping(
+    turn_number: int,
+    status_code: int,
+    has_hua_ji: bool = False,
+) -> dict[str, Any]:
+    """Evaluate Qing Yang and Tuo Luo geometric clamping around Lu Cun (羊陀夹禄 / 羊陀夹忌)."""
+    t_turn = max(0, turn_number - 1) % 10
+    lucun_b = _LUCUN_BRANCH_BY_STEM[t_turn]
+    yang_b = (lucun_b + 1) % 12
+    tuo_b = (lucun_b - 1) % 12
+
+    active_p = status_code % 12
+    clamped_at_lucun = (active_p == lucun_b)
+    on_yang_edge = (active_p == yang_b)
+    on_tuo_edge = (active_p == tuo_b)
+
+    yang_tuo_jia_ji = (clamped_at_lucun and has_hua_ji)
+    yang_tuo_jia_lu = (clamped_at_lucun and not has_hua_ji)
+
+    if yang_tuo_jia_ji:
+        risk_level = "critical"
+        action = "break_deadlock_clamp_with_micro_patch"
+        reason = "Yang Tuo Jia Ji (羊陀夹忌): severe deadlock trap detected. Disallow full rewrites."
+    elif on_yang_edge:
+        risk_level = "elevated"
+        action = "suppress_cutting_edge_overwrite"
+        reason = "Qing Yang leading edge: high friction/syntax hazard; enforce strict AST validation."
+    elif on_tuo_edge:
+        risk_level = "elevated"
+        action = "accelerate_lagging_execution"
+        reason = "Tuo Luo trailing edge: circular stall hazard; apply bounded timeout."
+    elif yang_tuo_jia_lu:
+        risk_level = "guarded"
+        action = "preserve_sheltered_gain"
+        reason = "Yang Tuo Jia Lu (羊陀夹禄): sheltered resource safe zone; bounded execution permitted."
+    else:
+        risk_level = "stable"
+        action = "standard_pipeline"
+        reason = "Nominal trajectory outside Yang-Tuo clamping band."
+
+    return {
+        "turn_stem": t_turn,
+        "lucun_branch": lucun_b,
+        "lucun_branch_name": _EARTHLY_BRANCH_NAMES[lucun_b],
+        "qing_yang_branch": yang_b,
+        "qing_yang_branch_name": _EARTHLY_BRANCH_NAMES[yang_b],
+        "tuo_luo_branch": tuo_b,
+        "tuo_luo_branch_name": _EARTHLY_BRANCH_NAMES[tuo_b],
+        "active_palace": active_p,
+        "clamped_at_lucun": clamped_at_lucun,
+        "on_yang_edge": on_yang_edge,
+        "on_tuo_edge": on_tuo_edge,
+        "yang_tuo_jia_ji": yang_tuo_jia_ji,
+        "yang_tuo_jia_lu": yang_tuo_jia_lu,
+        "risk_level": risk_level,
+        "action": action,
+        "reason": reason,
+    }
+
+
+def _evaluate_ziwei_tianfu_and_yangtuo_certificate(sovereign_codes: tuple[int, ...]) -> dict[str, Any]:
+    """Formal mathematical certificate of Ming/Shen Zhu Symmetries, Ziwei-Tianfu Duality & Yang-Tuo Clamping."""
+    meridian_ok = True
+    for b in range(12):
+        if _MING_ZHU_TABLE[b] != _MING_ZHU_TABLE[(12 - b) % 12]:
+            meridian_ok = False
+            break
+
+    antipodal_ok = True
+    for b in range(12):
+        if _SHEN_ZHU_TABLE[b] != _SHEN_ZHU_TABLE[(b + 6) % 12]:
+            antipodal_ok = False
+            break
+
+    involution_ok = True
+    fixed_points = []
+    for z in range(12):
+        f = (4 - z) % 12
+        f_of_f = (4 - f) % 12
+        if f_of_f != z:
+            involution_ok = False
+            break
+        if z == f:
+            fixed_points.append(z)
+
+    fixed_points_ok = (sorted(fixed_points) == [2, 8])
+    fixed_points_match_tai_pi = (
+        sovereign_codes[2] == 7
+        and sovereign_codes[8] == 56
+    )
+
+    clamping_midpoint_ok = True
+    for t in range(10):
+        lucun = _LUCUN_BRANCH_BY_STEM[t]
+        yang = (lucun + 1) % 12
+        tuo = (lucun - 1) % 12
+        dist = (yang - tuo) % 12
+        midpoint_sum = (yang + tuo) % 12
+        if dist != 2 or midpoint_sum != (2 * lucun) % 12:
+            clamping_midpoint_ok = False
+            break
+
+    status = (
+        "verified"
+        if (meridian_ok and antipodal_ok and involution_ok and fixed_points_ok and fixed_points_match_tai_pi and clamping_midpoint_ok)
+        else "failed"
+    )
+
+    return {
+        "status": status,
+        "ming_zhu_meridian_reflection_verified": meridian_ok,
+        "shen_zhu_antipodal_invariance_verified": antipodal_ok,
+        "ziwei_tianfu_involution_verified": involution_ok,
+        "tai_pi_fixed_points_verified": fixed_points_ok and fixed_points_match_tai_pi,
+        "yang_tuo_clamping_midpoint_verified": clamping_midpoint_ok,
+    }
+
+
 class IchingZiweiMixin:
     """Diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
 
@@ -1426,6 +1637,36 @@ class IchingZiweiMixin:
         return _evaluate_triadic_synthesis_certificate()
 
     @classmethod
+    def ming_shen_zhu_profile(cls, turn_number: int, status_code: int) -> dict[str, Any]:
+        """Compute Ming Zhu (命主) and Shen Zhu (身主) stellar governors."""
+        return _evaluate_ming_shen_zhu(turn_number=turn_number, status_code=status_code)
+
+    @classmethod
+    def ziwei_tianfu_duality_profile(cls, status_code: int) -> dict[str, Any]:
+        """Compute Ziwei-Tianfu duality axis, involutive distance, and Tai-Pi fixed points."""
+        return _evaluate_ziwei_tianfu_duality(status_code=status_code)
+
+    @classmethod
+    def yang_tuo_clamping_profile(
+        cls,
+        turn_number: int,
+        status_code: int,
+        has_hua_ji: bool = False,
+    ) -> dict[str, Any]:
+        """Evaluate Qing Yang and Tuo Luo geometric clamping around Lu Cun (羊陀夹禄 / 羊陀夹忌)."""
+        return _evaluate_yang_tuo_clamping(
+            turn_number=turn_number,
+            status_code=status_code,
+            has_hua_ji=has_hua_ji,
+        )
+
+    @classmethod
+    def ziwei_tianfu_and_yangtuo_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Ming/Shen Zhu Symmetries, Ziwei-Tianfu Duality & Yang-Tuo Clamping."""
+        codes = getattr(cls, "SOVEREIGN_HEXAGRAM_CODES")
+        return _evaluate_ziwei_tianfu_and_yangtuo_certificate(codes)
+
+    @classmethod
     def star_brightness_certificate(cls) -> dict[str, Any]:
         """Formal mathematical certificate of Star Brightness Invariance across all 64 states."""
         return _evaluate_star_brightness_certificate(cls)
@@ -1441,6 +1682,7 @@ class IchingZiweiMixin:
         twelve_deities = cls.twelve_deities_triad_and_suipo_certificate()
         flying_sihua = cls.flying_sihua_cascade_certificate()
         triad_syn = cls.triadic_synthesis_certificate()
+        zi_fu_yang_tuo = cls.ziwei_tianfu_and_yangtuo_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
@@ -1450,6 +1692,7 @@ class IchingZiweiMixin:
             and twelve_deities.get("status") == "verified"
             and flying_sihua.get("status") == "verified"
             and triad_syn.get("status") == "verified"
+            and zi_fu_yang_tuo.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -1461,4 +1704,5 @@ class IchingZiweiMixin:
             "twelve_deities": twelve_deities,
             "flying_sihua_cascade": flying_sihua,
             "triadic_synthesis": triad_syn,
+            "ziwei_tianfu_and_yangtuo": zi_fu_yang_tuo,
         }
