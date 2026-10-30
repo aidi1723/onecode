@@ -578,6 +578,8 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
             self.assertIn("auxiliary_stars_pairs", telemetry)
             self.assertIn("changsheng_lifecycle", telemetry)
             self.assertIn("guchen_guasu_huagai", telemetry)
+            self.assertIn("ziwu_liuzhu", telemetry)
+            self.assertIn("five_elements_shengke", telemetry)
             sg = telemetry["shen_gong_anchorage"]
             self.assertIn("active_index", sg)
             self.assertIn("palace_name", sg)
@@ -1802,6 +1804,100 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["xianchi_four_cardinals_verified"])
         self.assertTrue(cert["expanded_patterns_safety_dominance_verified"])
         self.assertTrue(cert["expanded_patterns_ground_purity_verified"])
+
+    def test_ziwu_liuzhu_chronobiology(self):
+        """Direction Q: Ni Haixia Ziwu Liuzhu Meridian flow, diurnal energy wave & antipodal balance."""
+        # 1. Branch 0 (子时 23-1): 胆经
+        z0 = IchingKernel.ziwu_liuzhu_chronobiology_profile(0)
+        self.assertEqual(z0["current_branch_name"], "子")
+        self.assertEqual(z0["active_meridian"], "足少阳胆经")
+        self.assertEqual(z0["active_organ"], "胆")
+        self.assertEqual(z0["active_subsystem"], "decision_arbitration")
+        self.assertEqual(z0["element"], "木")
+        self.assertEqual(z0["antipodal_branch"], 6)
+        self.assertEqual(z0["antipodal_branch_name"], "午")
+        self.assertEqual(z0["antipodal_meridian"], "手少阴心经")
+        self.assertEqual(z0["peak_energy"], 1.0)
+        self.assertEqual(z0["nadir_energy"], 0.60)
+        self.assertAlmostEqual(z0["diurnal_energy_sum"], 9.60, places=3)
+
+        # 2. Branch 6 (午时 11-13): 心经 (君主之官)
+        w6 = IchingKernel.ziwu_liuzhu_chronobiology_profile(6)
+        self.assertEqual(w6["active_meridian"], "手少阴心经")
+        self.assertEqual(w6["active_subsystem"], "sovereignty_core_monarch")
+        self.assertEqual(w6["antipodal_branch"], 0)
+
+        # 3. Involution across all 12 branches: D(D(b)) == b
+        for b in range(12):
+            res = IchingKernel.ziwu_liuzhu_chronobiology_profile(b)
+            opp = res["antipodal_branch"]
+            self.assertEqual((opp + 6) % 12, b)
+            self.assertAlmostEqual(res["diurnal_energy_sum"], 9.60, places=3)
+
+    def test_five_elements_shengke_dynamics(self):
+        """Direction Q: Five Elements Generation-Destruction interaction dynamics."""
+        # 1. Mutual generation (我生): Wood(0) -> Fire(1)
+        wf = IchingKernel.five_elements_shengke_profile("木", "火")
+        self.assertEqual(wf["relation"], "相生(我生)")
+        self.assertEqual(wf["energy_transmission_gain"], 1.15)
+        self.assertEqual(wf["coordination_mode"], "generative_outflow_feedforward")
+
+        # 2. Nurturing (生我): Water(4) -> Wood(0)
+        ww = IchingKernel.five_elements_shengke_profile(0, 4)
+        self.assertEqual(ww["relation"], "相生(生我)")
+        self.assertEqual(ww["energy_transmission_gain"], 1.20)
+        self.assertEqual(ww["coordination_mode"], "generative_inflow_nurturing")
+
+        # 3. Overcoming (我克): Wood(0) -> Earth(2)
+        we = IchingKernel.five_elements_shengke_profile("木", "土")
+        self.assertEqual(we["relation"], "相克(我克)")
+        self.assertEqual(we["energy_transmission_gain"], 0.80)
+        self.assertEqual(we["coordination_mode"], "supervisory_governance_barrier")
+
+        # 4. Restraining (克我): Metal(3) overcomes Wood(0) -> for Wood, Metal is 克我
+        mw = IchingKernel.five_elements_shengke_profile("wood", "metal")
+        self.assertEqual(mw["relation"], "相克(克我)")
+        self.assertEqual(mw["energy_transmission_gain"], 0.50)
+        self.assertEqual(mw["coordination_mode"], "defensive_containment_throttle")
+
+        # 5. Peer Accord (比和): Wood -> Wood
+        bb = IchingKernel.five_elements_shengke_profile(0, 0)
+        self.assertEqual(bb["relation"], "比和")
+        self.assertEqual(bb["energy_transmission_gain"], 1.00)
+
+        # 6. Circulant row sum is strictly 4.65
+        self.assertEqual(wf["circulant_row_sum"], 4.65)
+
+    def test_quanshu_star_brightness_grid(self):
+        """Direction Q: Complete 14-star classical Quanshu brightness grid & Lyapunov separation."""
+        # 1. State 7 (泰) with Life Palace in Yin (2): supreme illumination
+        b_ground = IchingKernel.quanshu_star_brightness_profile(7, ming_branch=2)
+        self.assertEqual(b_ground["governance_tier"], "supreme_miao")
+        self.assertEqual(b_ground["throttle_factor"], 1.00)
+        self.assertGreaterEqual(b_ground["sanfang_mean_energy"], 0.85)
+
+        # 2. State 0 (坤) with Life Palace in Zi (0): cautious illumination
+        b_halt = IchingKernel.quanshu_star_brightness_profile(0, ming_branch=0)
+        self.assertLess(b_halt["sanfang_mean_energy"], b_ground["sanfang_mean_energy"])
+
+        # 3. Solar & Lunar Diurnal Path Invariant:
+        stars_breakdown = b_ground["stars_breakdown"]
+        self.assertIn("太阳", stars_breakdown)
+        self.assertIn("太阴", stars_breakdown)
+        self.assertIn("紫微", stars_breakdown)
+
+    def test_ziwu_liuzhu_and_shengke_certificate(self):
+        """Direction Q: Formal Mathematical Certificate for Ziwu Liuzhu, Sheng-Ke & Quanshu."""
+        cert = IchingKernel.ziwu_liuzhu_and_shengke_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["ziwu_liuzhu_antipodal_involution_verified"])
+        self.assertTrue(cert["ziwu_liuzhu_energy_conservation_verified"])
+        self.assertTrue(cert["five_elements_sheng_cycle_verified"])
+        self.assertTrue(cert["five_elements_ke_cycle_verified"])
+        self.assertTrue(cert["five_elements_circulant_conservation_verified"])
+        self.assertTrue(cert["quanshu_14_stars_totality_verified"])
+        self.assertTrue(cert["quanshu_energy_gap_monotonic_verified"])
+        self.assertGreaterEqual(cert["energy_gap"], 0.10)
 
 
 if __name__ == "__main__":

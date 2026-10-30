@@ -881,6 +881,13 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
             "guchen_guasu_huagai": IchingKernel.guchen_guasu_huagai_profile(
                 year_branch=(turn_number - 1) % 12,
             ),
+            "ziwu_liuzhu": IchingKernel.ziwu_liuzhu_chronobiology_profile(
+                current_hour_branch=(iching_status_code % 12),
+            ),
+            "five_elements_shengke": IchingKernel.five_elements_shengke_profile(
+                element_a=(turn_number - 1) % 5,
+                element_b=(iching_status_code % 5),
+            ),
         }
     return telemetry
 

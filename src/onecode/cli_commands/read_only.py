@@ -135,6 +135,7 @@ def math_audit_payload() -> dict[str, object]:
             "doujun_and_solar_boundary",
             "auxiliary_pairs_and_city_solar",
             "changsheng_and_expanded_patterns",
+            "ziwu_liuzhu_and_shengke",
         ],
         "reference_only": [
             "probabilistic_sampling",

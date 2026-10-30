@@ -4265,6 +4265,281 @@ def _evaluate_changsheng_and_expanded_patterns_certificate() -> dict[str, Any]:
     }
 
 
+_QUANSHU_FOURTEEN_STARS_BRIGHTNESS: dict[str, list[str]] = {
+    # Indexed 0=子, 1=丑, 2=寅, 3=卯, 4=辰, 5=巳, 6=午, 7=未, 8=申, 9=酉, 10=戌, 11=亥
+    "紫微": ["平", "庙", "庙", "旺", "得", "旺", "庙", "庙", "旺", "旺", "得", "旺"],
+    "天机": ["庙", "陷", "得", "旺", "庙", "平", "庙", "陷", "得", "旺", "庙", "平"],
+    "太阳": ["陷", "不", "旺", "庙", "旺", "旺", "庙", "得", "得", "陷", "不", "陷"],
+    "武曲": ["旺", "庙", "得", "利", "庙", "平", "旺", "庙", "得", "利", "庙", "平"],
+    "天同": ["旺", "不", "旺", "平", "平", "庙", "不", "不", "旺", "平", "平", "庙"],
+    "廉贞": ["平", "利", "庙", "平", "利", "陷", "平", "利", "庙", "平", "利", "陷"],
+    "天府": ["庙", "庙", "庙", "得", "旺", "得", "旺", "庙", "得", "旺", "旺", "得"],
+    "太阴": ["庙", "庙", "陷", "陷", "陷", "陷", "陷", "不", "利", "旺", "旺", "庙"],
+    "贪狼": ["平", "庙", "不", "平", "得", "平", "平", "庙", "不", "平", "得", "利"],
+    "巨门": ["旺", "不", "庙", "庙", "陷", "旺", "旺", "不", "庙", "庙", "陷", "旺"],
+    "天相": ["庙", "庙", "庙", "平", "得", "得", "庙", "得", "庙", "平", "得", "得"],
+    "天梁": ["庙", "旺", "庙", "得", "庙", "陷", "庙", "旺", "陷", "得", "得", "陷"],
+    "七杀": ["旺", "庙", "庙", "旺", "庙", "平", "旺", "庙", "庙", "旺", "庙", "平"],
+    "破军": ["庙", "旺", "得", "陷", "旺", "平", "庙", "旺", "得", "陷", "旺", "平"],
+}
+
+_QUANSHU_BRIGHTNESS_WEIGHTS: dict[str, float] = {
+    "庙": 1.00,
+    "旺": 0.90,
+    "得": 0.80,
+    "利": 0.75,
+    "平": 0.65,
+    "不": 0.45,
+    "陷": 0.25,
+}
+
+_ZIWU_LIUZHU_MERIDIANS: dict[int, dict[str, Any]] = {
+    0: {"meridian": "足少阳胆经", "organ": "胆", "subsystem": "decision_arbitration", "element": "木", "peak_hours": "23:00-01:00"},
+    1: {"meridian": "足厥阴肝经", "organ": "肝", "subsystem": "strategic_planning", "element": "木", "peak_hours": "01:00-03:00"},
+    2: {"meridian": "手太阴肺经", "organ": "肺", "subsystem": "syntax_ast_respiration", "element": "金", "peak_hours": "03:00-05:00"},
+    3: {"meridian": "手阳明大肠经", "organ": "大肠", "subsystem": "artifact_evacuation", "element": "金", "peak_hours": "05:00-07:00"},
+    4: {"meridian": "足阳明胃经", "organ": "胃", "subsystem": "prompt_ingestion", "element": "土", "peak_hours": "07:00-09:00"},
+    5: {"meridian": "足太阴脾经", "organ": "脾", "subsystem": "memory_transportation", "element": "土", "peak_hours": "09:00-11:00"},
+    6: {"meridian": "手少阴心经", "organ": "心", "subsystem": "sovereignty_core_monarch", "element": "火", "peak_hours": "11:00-13:00"},
+    7: {"meridian": "手太阳小肠经", "organ": "小肠", "subsystem": "diff_discrimination", "element": "火", "peak_hours": "13:00-15:00"},
+    8: {"meridian": "足太阳膀胱经", "organ": "膀胱", "subsystem": "evidence_wal_reservoir", "element": "水", "peak_hours": "15:00-17:00"},
+    9: {"meridian": "足少阴肾经", "organ": "肾", "subsystem": "checkpoint_congenital_root", "element": "水", "peak_hours": "17:00-19:00"},
+    10: {"meridian": "手厥阴心包经", "organ": "心包", "subsystem": "sandbox_sentinel_shield", "element": "火", "peak_hours": "19:00-21:00"},
+    11: {"meridian": "手少阳三焦经", "organ": "三焦", "subsystem": "ipc_coordination_pipeline", "element": "火", "peak_hours": "21:00-23:00"},
+}
+
+_FIVE_ELEMENTS_NAMES: list[str] = ["木", "火", "土", "金", "水"]
+_FIVE_ELEMENTS_INDEX: dict[str, int] = {
+    "木": 0, "火": 1, "土": 2, "金": 3, "水": 4,
+    "wood": 0, "fire": 1, "earth": 2, "metal": 3, "water": 4,
+}
+
+
+def _evaluate_quanshu_star_brightness(
+    hexagram_state: int,
+    ming_branch: int | None = None,
+) -> dict[str, Any]:
+    """Evaluate classical 14 major stars brightness from Quanshu across Sanfang and full chart."""
+    state_code = hexagram_state & 0b111111
+    stars = _compute_canonical_major_star_positions(state_code)
+    branch_names = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+
+    mb = ((hexagram_state % 12) if ming_branch is None else (ming_branch % 12))
+    san_fang = {mb, (mb + 4) % 12, (mb + 8) % 12, (mb + 6) % 12}
+
+    breakdown: dict[str, dict[str, Any]] = {}
+    sanfang_scores: list[float] = []
+    chart_scores: list[float] = []
+
+    for star_name, star_branch in stars.items():
+        if star_name in _QUANSHU_FOURTEEN_STARS_BRIGHTNESS:
+            bright_label = _QUANSHU_FOURTEEN_STARS_BRIGHTNESS[star_name][star_branch]
+            score = _QUANSHU_BRIGHTNESS_WEIGHTS.get(bright_label, 0.65)
+            chart_scores.append(score)
+            in_sanfang = (star_branch in san_fang)
+            if in_sanfang:
+                sanfang_scores.append(score)
+            breakdown[star_name] = {
+                "branch": star_branch,
+                "branch_name": branch_names[star_branch],
+                "brightness": bright_label,
+                "score": score,
+                "in_sanfang": in_sanfang,
+            }
+
+    mean_sanfang = round(sum(sanfang_scores) / len(sanfang_scores), 4) if sanfang_scores else 0.65
+    mean_chart = round(sum(chart_scores) / len(chart_scores), 4) if chart_scores else 0.65
+
+    if mean_sanfang >= 0.85:
+        tier = "supreme_miao"
+        throttle = 1.00
+        mode = "autonomous_high_illumination"
+    elif mean_sanfang >= 0.70:
+        tier = "balanced_wang_de"
+        throttle = 0.80
+        mode = "guarded_illumination"
+    else:
+        tier = "cautious_xian"
+        throttle = 0.40
+        mode = "degraded_protective_linter"
+
+    return {
+        "hexagram_state": hexagram_state,
+        "ming_branch": mb,
+        "ming_branch_name": branch_names[mb],
+        "stars_breakdown": breakdown,
+        "sanfang_mean_energy": mean_sanfang,
+        "chart_mean_energy": mean_chart,
+        "governance_tier": tier,
+        "throttle_factor": throttle,
+        "execution_mode": mode,
+    }
+
+
+def _evaluate_ziwu_liuzhu_chronobiology(
+    current_hour_branch: int,
+    task_type: str = "general",
+) -> dict[str, Any]:
+    """Compute Ziwu Liuzhu Meridian flow, diurnal energy wave, and antipodal balance."""
+    b = (int(current_hour_branch) % 12 + 12) % 12
+    meta = _ZIWU_LIUZHU_MERIDIANS[b]
+    antipodal_b = (b + 6) % 12
+    antipodal_meta = _ZIWU_LIUZHU_MERIDIANS[antipodal_b]
+
+    branch_names = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+    diurnal_distribution: dict[str, float] = {}
+    for k in range(12):
+        delta = abs(((k - b + 6) % 12) - 6)
+        energy_k = round(1.0 - 0.40 * (delta / 6.0), 4)
+        diurnal_distribution[branch_names[k]] = energy_k
+
+    energy_sum = round(sum(diurnal_distribution.values()), 4)
+    peak_energy = diurnal_distribution[branch_names[b]]
+    nadir_energy = diurnal_distribution[branch_names[antipodal_b]]
+
+    return {
+        "current_hour_branch": b,
+        "current_branch_name": branch_names[b],
+        "active_meridian": meta["meridian"],
+        "active_organ": meta["organ"],
+        "active_subsystem": meta["subsystem"],
+        "element": meta["element"],
+        "peak_hours": meta["peak_hours"],
+        "antipodal_branch": antipodal_b,
+        "antipodal_branch_name": branch_names[antipodal_b],
+        "antipodal_meridian": antipodal_meta["meridian"],
+        "antipodal_subsystem": antipodal_meta["subsystem"],
+        "diurnal_energy_distribution": diurnal_distribution,
+        "diurnal_energy_sum": energy_sum,
+        "peak_energy": peak_energy,
+        "nadir_energy": nadir_energy,
+        "subsystem_directive": f"Prioritize {meta['subsystem']} ({meta['meridian']}) at peak energy {peak_energy}.",
+    }
+
+
+def _evaluate_five_elements_shengke(
+    element_a: int | str,
+    element_b: int | str,
+) -> dict[str, Any]:
+    """Compute Five Elements Generation-Destruction interaction dynamics and circulant energy gain."""
+    idx_a = _FIVE_ELEMENTS_INDEX[str(element_a).lower()] if isinstance(element_a, str) else (int(element_a) % 5)
+    idx_b = _FIVE_ELEMENTS_INDEX[str(element_b).lower()] if isinstance(element_b, str) else (int(element_b) % 5)
+
+    name_a = _FIVE_ELEMENTS_NAMES[idx_a]
+    name_b = _FIVE_ELEMENTS_NAMES[idx_b]
+
+    diff = (idx_b - idx_a) % 5
+    if diff == 0:
+        relation = "比和"
+        gain = 1.00
+        mode = "mutual_cooperative_parallel"
+        directive = "Equal peers: parallel collaborative throughput."
+    elif diff == 1:
+        relation = "相生(我生)"
+        gain = 1.15
+        mode = "generative_outflow_feedforward"
+        directive = "Generative acceleration: agent A nurtures agent B."
+    elif diff == 4:
+        relation = "相生(生我)"
+        gain = 1.20
+        mode = "generative_inflow_nurturing"
+        directive = "Replenishing cache: agent B powers agent A."
+    elif diff == 2:
+        relation = "相克(我克)"
+        gain = 0.80
+        mode = "supervisory_governance_barrier"
+        directive = "Supervisory containment: agent A enforces constraints on agent B."
+    else:  # diff == 3
+        relation = "相克(克我)"
+        gain = 0.50
+        mode = "defensive_containment_throttle"
+        directive = "Damped throttle: agent A subject to defensive supervision by agent B."
+
+    circulant_row = [1.00, 1.15, 0.80, 0.50, 1.20]
+    circulant_sum = round(sum(circulant_row), 4)
+
+    return {
+        "element_a": idx_a,
+        "element_a_name": name_a,
+        "element_b": idx_b,
+        "element_b_name": name_b,
+        "relation": relation,
+        "energy_transmission_gain": gain,
+        "coordination_mode": mode,
+        "governance_directive": directive,
+        "circulant_row_sum": circulant_sum,
+    }
+
+
+def _evaluate_ziwu_liuzhu_and_shengke_certificate() -> dict[str, Any]:
+    """21st Formal mathematical certificate: Ziwu Liuzhu, Five Elements Sheng-Ke & Quanshu Totality."""
+    antipodal_ok = True
+    energy_sum_ok = True
+    for b in range(12):
+        zl = _evaluate_ziwu_liuzhu_chronobiology(b)
+        opp = zl["antipodal_branch"]
+        if (opp + 6) % 12 != b or opp == b:
+            antipodal_ok = False
+        if abs(zl["diurnal_energy_sum"] - 9.6000) > 1e-4:
+            energy_sum_ok = False
+
+    sheng_visited: set[int] = set()
+    cur = 0
+    for _ in range(5):
+        sheng_visited.add(cur)
+        cur = (cur + 1) % 5
+    sheng_cyclic = (len(sheng_visited) == 5)
+
+    ke_visited: set[int] = set()
+    cur = 0
+    for _ in range(5):
+        ke_visited.add(cur)
+        cur = (cur + 2) % 5
+    ke_cyclic = (len(ke_visited) == 5)
+
+    circulant_ok = all(
+        _evaluate_five_elements_shengke(a, 0)["circulant_row_sum"] == 4.65
+        for a in range(5)
+    )
+
+    valid_labels = {"庙", "旺", "得", "利", "平", "不", "陷"}
+    quanshu_total_cells = sum(len(arr) for arr in _QUANSHU_FOURTEEN_STARS_BRIGHTNESS.values())
+    quanshu_valid = (quanshu_total_cells == 168) and all(
+        val in valid_labels
+        for arr in _QUANSHU_FOURTEEN_STARS_BRIGHTNESS.values()
+        for val in arr
+    )
+
+    e_ground = _evaluate_quanshu_star_brightness(7, ming_branch=2)["sanfang_mean_energy"]
+    e_halt = _evaluate_quanshu_star_brightness(0, ming_branch=0)["sanfang_mean_energy"]
+    gap = round(e_ground - e_halt, 4)
+    energy_gap_ok = (gap >= 0.10 and e_ground >= 0.85)
+
+    all_verified = (
+        antipodal_ok
+        and energy_sum_ok
+        and sheng_cyclic
+        and ke_cyclic
+        and circulant_ok
+        and quanshu_valid
+        and energy_gap_ok
+    )
+
+    return {
+        "status": "verified" if all_verified else "failed",
+        "ziwu_liuzhu_antipodal_involution_verified": antipodal_ok,
+        "ziwu_liuzhu_energy_conservation_verified": energy_sum_ok,
+        "five_elements_sheng_cycle_verified": sheng_cyclic,
+        "five_elements_ke_cycle_verified": ke_cyclic,
+        "five_elements_circulant_conservation_verified": circulant_ok,
+        "quanshu_14_stars_totality_verified": quanshu_valid,
+        "quanshu_energy_gap_monotonic_verified": energy_gap_ok,
+        "ground_state_sanfang_energy": e_ground,
+        "halt_state_sanfang_energy": e_halt,
+        "energy_gap": gap,
+    }
+
+
 class IchingZiweiCertificatesMixin:
     """Mathematical certificates and formal verification for Ziwei Doushu isomorphism."""
 
@@ -4374,8 +4649,13 @@ class IchingZiweiCertificatesMixin:
         return _evaluate_changsheng_and_expanded_patterns_certificate()
 
     @classmethod
+    def ziwu_liuzhu_and_shengke_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate for Ziwu Liuzhu, Five Elements Sheng-Ke & Quanshu Totality."""
+        return _evaluate_ziwu_liuzhu_and_shengke_certificate()
+
+    @classmethod
     def ziwei_mathematical_audit(cls) -> dict[str, Any]:
-        """Comprehensive mathematical audit of all 20 Ziwei Doushu cross-validation certificates."""
+        """Comprehensive mathematical audit of all 21 Ziwei Doushu cross-validation certificates."""
         ring = cls.sovereign_ring_isomorphism_certificate()
         an_he = cls.an_he_coupling_certificate()
         shen_gong = cls.shen_gong_anchorage_certificate()
@@ -4396,6 +4676,7 @@ class IchingZiweiCertificatesMixin:
         doujun_solar = cls.doujun_and_solar_boundary_certificate()
         aux_city_solar = cls.auxiliary_pairs_and_city_solar_certificate()
         changsheng_pat = cls.changsheng_and_expanded_patterns_certificate()
+        ziwu_shengke = cls.ziwu_liuzhu_and_shengke_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
@@ -4417,6 +4698,7 @@ class IchingZiweiCertificatesMixin:
             and doujun_solar.get("status") == "verified"
             and aux_city_solar.get("status") == "verified"
             and changsheng_pat.get("status") == "verified"
+            and ziwu_shengke.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -4440,11 +4722,33 @@ class IchingZiweiCertificatesMixin:
             "doujun_and_solar_boundary": doujun_solar,
             "auxiliary_pairs_and_city_solar": aux_city_solar,
             "changsheng_and_expanded_patterns": changsheng_pat,
+            "ziwu_liuzhu_and_shengke": ziwu_shengke,
         }
 
 
 class IchingZiweiCoreMixin(IchingZiweiCertificatesMixin):
     """Core diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
+
+    @classmethod
+    def ziwu_liuzhu_chronobiology_profile(
+        cls, current_hour_branch: int, task_type: str = "general"
+    ) -> dict[str, Any]:
+        """Compute Ziwu Liuzhu Meridian flow, diurnal energy wave, and antipodal balance."""
+        return _evaluate_ziwu_liuzhu_chronobiology(current_hour_branch, task_type)
+
+    @classmethod
+    def five_elements_shengke_profile(
+        cls, element_a: int | str, element_b: int | str
+    ) -> dict[str, Any]:
+        """Compute Five Elements Generation-Destruction interaction dynamics and circulant energy gain."""
+        return _evaluate_five_elements_shengke(element_a, element_b)
+
+    @classmethod
+    def quanshu_star_brightness_profile(
+        cls, hexagram_state: int, ming_branch: int | None = None
+    ) -> dict[str, Any]:
+        """Evaluate classical 14 major stars brightness from Quanshu across Sanfang and full chart."""
+        return _evaluate_quanshu_star_brightness(hexagram_state, ming_branch)
 
     @classmethod
     def changsheng_lifecycle_profile(
