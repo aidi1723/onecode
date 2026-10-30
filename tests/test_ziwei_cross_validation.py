@@ -576,6 +576,8 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
             self.assertIn("six_channel_healing", telemetry)
             self.assertIn("doujun_chronology", telemetry)
             self.assertIn("auxiliary_stars_pairs", telemetry)
+            self.assertIn("changsheng_lifecycle", telemetry)
+            self.assertIn("guchen_guasu_huagai", telemetry)
             sg = telemetry["shen_gong_anchorage"]
             self.assertIn("active_index", sg)
             self.assertIn("palace_name", sg)
@@ -1710,6 +1712,96 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["tianshang_tianshi_migration_sandwiching_verified"])
         self.assertTrue(cert["major_cities_geodetic_bounds_verified"])
         self.assertTrue(cert["china_dst_automatic_shift_verified"])
+
+    def test_changsheng_lifecycle_automaton(self):
+        """Direction P: Twelve ChangSheng Process Automaton and bureau origins."""
+        # 1. Bureau Origins: Water 2 & Earth 5 -> 8 (申), Wood 3 -> 11 (亥), Metal 4 -> 5 (巳), Fire 6 -> 2 (寅)
+        w2 = IchingKernel.changsheng_lifecycle_profile(2, "male", 0, 8)
+        self.assertEqual(w2["origin_branch"], 8)
+        self.assertEqual(w2["origin_branch_name"], "申")
+        self.assertEqual(w2["current_stage"], "长生")
+        self.assertEqual(w2["phase_type"], "init_session")
+
+        e5 = IchingKernel.changsheng_lifecycle_profile(5, "male", 0, 8)
+        self.assertEqual(e5["origin_branch"], 8)
+        self.assertEqual(e5["origin_branch_name"], "申")
+
+        m3 = IchingKernel.changsheng_lifecycle_profile(3, "male", 0, 11)
+        self.assertEqual(m3["origin_branch"], 11)
+        self.assertEqual(m3["origin_branch_name"], "亥")
+
+        g4 = IchingKernel.changsheng_lifecycle_profile(4, "male", 0, 5)
+        self.assertEqual(g4["origin_branch"], 5)
+        self.assertEqual(g4["origin_branch_name"], "巳")
+
+        f6 = IchingKernel.changsheng_lifecycle_profile(6, "male", 0, 2)
+        self.assertEqual(f6["origin_branch"], 2)
+        self.assertEqual(f6["origin_branch_name"], "寅")
+
+        # 2. Yang Male (stem 0, Yang) -> Clockwise progression
+        # Fire 6: 寅(2)=长生, 卯(3)=沐浴, 辰(4)=冠带, 巳(5)=临官, 午(6)=帝旺
+        f6_wu = IchingKernel.changsheng_lifecycle_profile(6, "male", 0, 6)
+        self.assertEqual(f6_wu["current_stage"], "帝旺")
+        self.assertEqual(f6_wu["phase_type"], "peak_execution_throughput")
+        self.assertEqual(f6_wu["step_direction"], 1)
+
+        # 3. Yin Male (stem 1, Yin) -> Counter-Clockwise progression
+        f6_yin_male = IchingKernel.changsheng_lifecycle_profile(6, "male", 1, 1)
+        self.assertEqual(f6_yin_male["step_direction"], -1)
+        self.assertEqual(f6_yin_male["current_stage"], "沐浴")
+
+        # 4. Palaces distribution is a strict 12-stage permutation
+        self.assertEqual(len(set(w2["palace_stages_distribution"].values())), 12)
+
+    def test_guchen_guasu_and_huagai_invariants(self):
+        """Direction P: GuChen-GuaSu Trine Distance and HuaGai/XianChi Invariants."""
+        four_horses = {2, 5, 8, 11}
+        four_tombs = {1, 4, 7, 10}
+        four_cardinals = {0, 3, 6, 9}
+
+        for yb in range(12):
+            res = IchingKernel.guchen_guasu_huagai_profile(yb)
+            self.assertTrue(res["angular_distance_invariant_verified"])
+            self.assertEqual(res["angular_distance"], 4)
+            self.assertIn(res["guchen_branch"], four_horses)
+            self.assertIn(res["guasu_branch"], four_tombs)
+            self.assertTrue(res["huagai_in_four_tombs"])
+            self.assertIn(res["huagai_branch"], four_tombs)
+            self.assertTrue(res["xianchi_in_four_cardinals"])
+            self.assertIn(res["xianchi_branch"], four_cardinals)
+
+    def test_expanded_classical_patterns(self):
+        """Direction P: Expanded 32+ Classical Patterns, clamping, and safety dominance."""
+        # 1. Breaking pattern safety dominance
+        pat_breaking = IchingKernel.expanded_classical_patterns_profile(turn_number=1, current_status=0, fatal_regression=True)
+        self.assertTrue(pat_breaking["has_breaking"])
+        self.assertEqual(pat_breaking["safety_level"], "caution")
+
+        # 2. Auspicious formation with ground purity
+        pat_ground = IchingKernel.expanded_classical_patterns_profile(turn_number=1, current_status=7, fatal_regression=False, ast_valid=True, verifier_passed=True)
+        self.assertFalse(pat_ground["has_breaking"])
+        self.assertIn(pat_ground["safety_level"], ("good", "excellent"))
+
+        # 3. Special pattern detection: 阳梁昌禄
+        pat_ylcl = IchingKernel.expanded_classical_patterns_profile(turn_number=4, current_status=7, fatal_regression=False)
+        pat_names = [p["name"] for p in pat_ylcl["patterns"]]
+        self.assertIn("阳梁昌禄", pat_names)
+
+        # 4. Clamping formation: 辅弼夹命
+        # turn 5: zf=(3+5)%12=8, yb=(11-5)%12=6. If ming_branch=7, prev=6, next=8 -> clamped!
+        pat_fb = IchingKernel.expanded_classical_patterns_profile(turn_number=8, current_status=7)
+        self.assertIsInstance(pat_fb["patterns"], list)
+
+    def test_changsheng_and_expanded_patterns_certificate(self):
+        """Direction P: Formal Mathematical Certificate for ChangSheng & 32 Patterns."""
+        cert = IchingKernel.changsheng_and_expanded_patterns_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["changsheng_origins_four_horses_verified"])
+        self.assertTrue(cert["guchen_guasu_angular_distance_4_verified"])
+        self.assertTrue(cert["huagai_four_earth_tombs_verified"])
+        self.assertTrue(cert["xianchi_four_cardinals_verified"])
+        self.assertTrue(cert["expanded_patterns_safety_dominance_verified"])
+        self.assertTrue(cert["expanded_patterns_ground_purity_verified"])
 
 
 if __name__ == "__main__":

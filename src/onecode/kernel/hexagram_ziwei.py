@@ -3959,6 +3959,312 @@ def _evaluate_auxiliary_pairs_and_city_solar_certificate() -> dict[str, Any]:
     }
 
 
+_CHANGSHENG_STAGES: tuple[str, ...] = (
+    "长生", "沐浴", "冠带", "临官", "帝旺", "衰",
+    "病", "死", "墓", "绝", "胎", "养"
+)
+
+_CHANGSHENG_ORIGIN: dict[int, int] = {
+    2: 8,   # 水二局 起申
+    3: 11,  # 木三局 起亥
+    4: 5,   # 金四局 起巳
+    5: 8,   # 土五局 起申 (水土共生于申)
+    6: 2,   # 火六局 起寅
+}
+
+_CHANGSHENG_LIFECYCLE_MAP: dict[str, dict[str, Any]] = {
+    "长生": {"lifecycle": "init_session", "throttle": 0.85, "directive": "warmup_and_discover"},
+    "沐浴": {"lifecycle": "code_lint_and_inspect", "throttle": 0.75, "directive": "read_and_lint_scrutiny"},
+    "冠带": {"lifecycle": "ast_parse_and_bind", "throttle": 0.90, "directive": "structural_binding"},
+    "临官": {"lifecycle": "tool_dispatch_ready", "throttle": 1.00, "directive": "autonomous_dispatch"},
+    "帝旺": {"lifecycle": "peak_execution_throughput", "throttle": 1.00, "directive": "maximum_parallel_burst"},
+    "衰": {"lifecycle": "cooldown_backoff", "throttle": 0.70, "directive": "exponential_backoff"},
+    "病": {"lifecycle": "exception_quarantine", "throttle": 0.50, "directive": "isolate_fault_rollback"},
+    "死": {"lifecycle": "graceful_halt", "throttle": 0.25, "directive": "sovereign_halt_preserve_state"},
+    "墓": {"lifecycle": "checkpoint_persistence", "throttle": 0.60, "directive": "wal_flush_and_archive"},
+    "绝": {"lifecycle": "memory_garbage_collection", "throttle": 0.30, "directive": "evict_dead_buffers"},
+    "胎": {"lifecycle": "seed_generation", "throttle": 0.50, "directive": "prepare_restart_seed"},
+    "养": {"lifecycle": "warmup_read_only", "throttle": 0.75, "directive": "gradual_warmup"},
+}
+
+
+def _evaluate_changsheng_lifecycle(
+    bureau_number: int,
+    gender: str = "male",
+    year_stem: int = 0,
+    current_palace_branch: int | None = None,
+) -> dict[str, Any]:
+    """Compute Twelve ChangSheng stages and Agent Process Lifecycle Automaton."""
+    b_num = max(2, min(6, int(bureau_number)))
+    start_branch = _CHANGSHENG_ORIGIN.get(b_num, 8)
+
+    is_yang = (int(year_stem) % 2 == 0)
+    is_male = (str(gender).lower() in ("male", "m", "阳男", "阴男"))
+    clockwise = (is_male and is_yang) or (not is_male and not is_yang)
+    step = 1 if clockwise else -1
+
+    palace_stages: dict[int, str] = {}
+    for stage_idx, stage_name in enumerate(_CHANGSHENG_STAGES):
+        branch = (start_branch + stage_idx * step) % 12
+        palace_stages[branch] = stage_name
+
+    cur_branch = (start_branch if current_palace_branch is None else (current_palace_branch % 12))
+    current_stage = palace_stages.get(cur_branch, "长生")
+    meta = _CHANGSHENG_LIFECYCLE_MAP.get(current_stage, _CHANGSHENG_LIFECYCLE_MAP["长生"])
+
+    branch_names = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+
+    return {
+        "bureau_number": b_num,
+        "gender": "male" if is_male else "female",
+        "year_stem_polarity": "yang" if is_yang else "yin",
+        "stepping_direction": "clockwise" if clockwise else "counter_clockwise",
+        "start_branch": start_branch,
+        "start_branch_name": branch_names[start_branch],
+        "origin_branch": start_branch,
+        "origin_branch_name": branch_names[start_branch],
+        "step_direction": step,
+        "current_palace_branch": cur_branch,
+        "current_palace_name": branch_names[cur_branch],
+        "current_stage": current_stage,
+        "lifecycle_phase": meta["lifecycle"],
+        "phase_type": meta["lifecycle"],
+        "throttle_factor": meta["throttle"],
+        "runtime_directive": meta["directive"],
+        "palace_stages_distribution": {branch_names[b]: s for b, s in palace_stages.items()},
+    }
+
+
+def _evaluate_guchen_guasu_huagai(year_branch: int) -> dict[str, Any]:
+    """Compute GuChen, GuaSu, HuaGai (Four Earth Tombs), and XianChi (Four Cardinals)."""
+    yb = (int(year_branch) % 12 + 12) % 12
+    quadrant = ((yb + 1) // 3) % 4
+
+    guchen = (3 * quadrant + 2) % 12
+    guasu = (3 * quadrant - 2) % 12
+    angular_distance = (guchen - guasu) % 12
+
+    triad_idx = yb % 4
+    huagai_map = {0: 4, 1: 1, 2: 10, 3: 7}
+    xianchi_map = {0: 9, 1: 6, 2: 3, 3: 0}
+
+    huagai = huagai_map[triad_idx]
+    xianchi = xianchi_map[triad_idx]
+
+    branch_names = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+
+    return {
+        "year_branch": yb,
+        "year_branch_name": branch_names[yb],
+        "season_quadrant": quadrant,
+        "guchen_branch": guchen,
+        "guchen_branch_name": branch_names[guchen],
+        "guasu_branch": guasu,
+        "guasu_branch_name": branch_names[guasu],
+        "angular_distance": angular_distance,
+        "angular_distance_invariant_verified": angular_distance == 4,
+        "huagai_branch": huagai,
+        "huagai_branch_name": branch_names[huagai],
+        "huagai_in_four_tombs": huagai in (1, 4, 7, 10),
+        "xianchi_branch": xianchi,
+        "xianchi_branch_name": branch_names[xianchi],
+        "xianchi_in_four_cardinals": xianchi in (0, 3, 6, 9),
+        "security_advisory": "HuaGai active: engage deep analytical reflection mode" if huagai == yb else "Standard governance",
+    }
+
+
+def _evaluate_expanded_classical_patterns(
+    turn_number: int,
+    current_status: int,
+    fatal_regression: bool = False,
+    ast_valid: bool = True,
+    verifier_passed: bool = True,
+) -> dict[str, Any]:
+    """Comprehensive 32+ classical patterns evaluation across all levels and clamping formations."""
+    base_res = _evaluate_classical_patterns(
+        turn_number=turn_number,
+        status_code=current_status,
+        ast_valid=ast_valid,
+        verifier_passed=verifier_passed,
+        fatal_regression=fatal_regression,
+    )
+    patterns = list(base_res["active_patterns"])
+
+    mb = base_res["branch"]
+    state_code = current_status & 0b111111
+    stars = _compute_canonical_major_star_positions(state_code)
+    san_fang = {mb, (mb + 4) % 12, (mb + 8) % 12, (mb + 6) % 12}
+
+    sun_b = stars.get("太阳", 6)
+    liang_b = stars.get("天梁", 10)
+    if sun_b in san_fang and liang_b in san_fang and state_code == 7:
+        patterns.append({
+            "name": "阳梁昌禄",
+            "tier": "tier_1_supreme",
+            "level": "excellent",
+            "description": "太阳天梁文昌禄存四星交会三方四正，主学术文教登峰造极，高维审查认证通过。",
+            "governance_action": "academic_linter_authoritative_cert",
+            "action": "academic_linter_authoritative_cert",
+        })
+
+    tan_b = stars.get("贪狼", 2)
+    if tan_b in san_fang and state_code in (7, 11, 19, 34):
+        patterns.append({
+            "name": "火贪格",
+            "tier": "tier_2_noble",
+            "level": "good",
+            "description": "贪狼与火星交会三合，主爆发突破、突击攻关迅速达成。",
+            "governance_action": "burst_acceleration_dispatch",
+            "action": "burst_acceleration_dispatch",
+        })
+
+    wu_b = stars.get("武曲", 8)
+    if wu_b in (1, 7) and tan_b in (1, 7):
+        patterns.append({
+            "name": "武贪格",
+            "tier": "tier_2_noble",
+            "level": "good",
+            "description": "武曲贪狼同度丑未，主先难后易、大器晚成、重构稳固。",
+            "governance_action": "endurance_refactor_delayed_success",
+            "action": "endurance_refactor_delayed_success",
+        })
+
+    ju_b = stars.get("巨门", 0)
+    if mb in (0, 6) and ju_b == mb and state_code != 0:
+        patterns.append({
+            "name": "石中隐玉",
+            "tier": "tier_1_supreme",
+            "level": "excellent",
+            "description": "巨门坐命子午，外表质朴内蕴才华，专项破题深入微观核心。",
+            "governance_action": "deep_domain_specialist_inspection",
+            "action": "deep_domain_specialist_inspection",
+        })
+
+    if mb == 7 and sun_b == 1 and stars.get("太阴", 1) == 1:
+        patterns.append({
+            "name": "明珠出海",
+            "tier": "tier_1_supreme",
+            "level": "excellent",
+            "description": "命在未宫空宫，对宫丑宫日月同辉拱照，远跨边界协调会聚。",
+            "governance_action": "cross_boundary_holistic_convergence",
+            "action": "cross_boundary_holistic_convergence",
+        })
+
+    if mb == 6 and state_code in (0, 32, 40):
+        patterns.append({
+            "name": "马头带箭",
+            "tier": "breaking",
+            "level": "caution",
+            "description": "擎羊坐命午宫，威震边疆然险象环生，强制微创沙箱校验。",
+            "governance_action": "decisive_boundary_strike_and_sandbox",
+            "action": "decisive_boundary_strike_and_sandbox",
+        })
+
+    lian_b = stars.get("廉贞", 4)
+    sha_b = stars.get("七杀", 2)
+    if lian_b in san_fang and sha_b in san_fang and state_code == 0:
+        patterns.append({
+            "name": "廉杀羊",
+            "tier": "breaking",
+            "level": "caution",
+            "description": "廉贞七杀擎羊齐会，金火交战高危冲突，激活严格微创退避。",
+            "governance_action": "strict_minimal_diff_conflict_quarantine",
+            "action": "strict_minimal_diff_conflict_quarantine",
+        })
+
+    if ju_b in san_fang and state_code in (0, 40):
+        patterns.append({
+            "name": "巨火羊",
+            "tier": "breaking",
+            "level": "caution",
+            "description": "巨门火星擎羊三方交会，口舌是非争用死锁，温和降解争议。",
+            "governance_action": "gentle_linter_deescalate_contention",
+            "action": "gentle_linter_deescalate_contention",
+        })
+
+    prev_b = (mb - 1) % 12
+    next_b = (mb + 1) % 12
+    zf_b = (3 + turn_number) % 12
+    yb_b = (11 - turn_number) % 12
+    if {prev_b, next_b} == {zf_b, yb_b}:
+        patterns.append({
+            "name": "辅弼夹命",
+            "tier": "tier_1_supreme",
+            "level": "excellent",
+            "description": "左辅右弼分居命宫两侧夹护，左右臂膀坚实，多智能体协同护航。",
+            "governance_action": "collaborative_pair_shield",
+            "action": "collaborative_pair_shield",
+        })
+
+    has_breaking = any(p["tier"] == "breaking" for p in patterns)
+    safety_level = "caution" if has_breaking else ("excellent" if any(p["tier"] in ("supreme", "tier_1_supreme") for p in patterns) else "good")
+
+    rec_act = patterns[0].get("governance_action") or patterns[0].get("action") or "standard_step" if patterns else "standard_step"
+    return {
+        "turn_number": turn_number,
+        "ming_branch": mb,
+        "patterns": patterns,
+        "pattern_count": len(patterns),
+        "has_breaking": has_breaking,
+        "safety_level": safety_level,
+        "recommended_action": rec_act,
+    }
+
+
+def _evaluate_changsheng_and_expanded_patterns_certificate() -> dict[str, Any]:
+    """20th Formal mathematical certificate: ChangSheng Automaton, GuChen-GuaSu-HuaGai & 32 Patterns."""
+    changsheng_ok = True
+    origins = set(_CHANGSHENG_ORIGIN.values())
+    if origins != {2, 5, 8, 11} or _CHANGSHENG_ORIGIN[2] != 8 or _CHANGSHENG_ORIGIN[5] != 8:
+        changsheng_ok = False
+    for b in (2, 3, 4, 5, 6):
+        res = _evaluate_changsheng_lifecycle(b, "male", 0)
+        stages_set = set(res["palace_stages_distribution"].values())
+        if len(stages_set) != 12:
+            changsheng_ok = False
+            break
+
+    guchen_guasu_ok = all(
+        _evaluate_guchen_guasu_huagai(b)["angular_distance_invariant_verified"]
+        for b in range(12)
+    )
+
+    huagai_ok = all(
+        _evaluate_guchen_guasu_huagai(b)["huagai_in_four_tombs"]
+        for b in range(12)
+    )
+
+    xianchi_ok = all(
+        _evaluate_guchen_guasu_huagai(b)["xianchi_in_four_cardinals"]
+        for b in range(12)
+    )
+
+    pat_halt = _evaluate_expanded_classical_patterns(1, 0, fatal_regression=True)
+    safety_dom_ok = (pat_halt["has_breaking"] is True and pat_halt["safety_level"] == "caution")
+
+    pat_ground = _evaluate_expanded_classical_patterns(1, 7, fatal_regression=False, ast_valid=True, verifier_passed=True)
+    ground_clean_ok = (pat_ground["has_breaking"] is False and pat_ground["safety_level"] in ("good", "excellent"))
+
+    all_verified = (
+        changsheng_ok
+        and guchen_guasu_ok
+        and huagai_ok
+        and xianchi_ok
+        and safety_dom_ok
+        and ground_clean_ok
+    )
+
+    return {
+        "status": "verified" if all_verified else "failed",
+        "changsheng_origins_four_horses_verified": changsheng_ok,
+        "guchen_guasu_angular_distance_4_verified": guchen_guasu_ok,
+        "huagai_four_earth_tombs_verified": huagai_ok,
+        "xianchi_four_cardinals_verified": xianchi_ok,
+        "expanded_patterns_safety_dominance_verified": safety_dom_ok,
+        "expanded_patterns_ground_purity_verified": ground_clean_ok,
+    }
+
+
 class IchingZiweiCertificatesMixin:
     """Mathematical certificates and formal verification for Ziwei Doushu isomorphism."""
 
@@ -4063,8 +4369,13 @@ class IchingZiweiCertificatesMixin:
         return _evaluate_auxiliary_pairs_and_city_solar_certificate()
 
     @classmethod
+    def changsheng_and_expanded_patterns_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate for ChangSheng Automaton, GuChen-GuaSu-HuaGai & 32 Patterns."""
+        return _evaluate_changsheng_and_expanded_patterns_certificate()
+
+    @classmethod
     def ziwei_mathematical_audit(cls) -> dict[str, Any]:
-        """Comprehensive mathematical audit of all 19 Ziwei Doushu cross-validation certificates."""
+        """Comprehensive mathematical audit of all 20 Ziwei Doushu cross-validation certificates."""
         ring = cls.sovereign_ring_isomorphism_certificate()
         an_he = cls.an_he_coupling_certificate()
         shen_gong = cls.shen_gong_anchorage_certificate()
@@ -4084,6 +4395,7 @@ class IchingZiweiCertificatesMixin:
         six_chan = cls.six_channel_and_empty_palace_certificate()
         doujun_solar = cls.doujun_and_solar_boundary_certificate()
         aux_city_solar = cls.auxiliary_pairs_and_city_solar_certificate()
+        changsheng_pat = cls.changsheng_and_expanded_patterns_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
@@ -4104,6 +4416,7 @@ class IchingZiweiCertificatesMixin:
             and six_chan.get("status") == "verified"
             and doujun_solar.get("status") == "verified"
             and aux_city_solar.get("status") == "verified"
+            and changsheng_pat.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -4126,11 +4439,48 @@ class IchingZiweiCertificatesMixin:
             "six_channel_and_empty_palace": six_chan,
             "doujun_and_solar_boundary": doujun_solar,
             "auxiliary_pairs_and_city_solar": aux_city_solar,
+            "changsheng_and_expanded_patterns": changsheng_pat,
         }
 
 
 class IchingZiweiCoreMixin(IchingZiweiCertificatesMixin):
     """Core diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
+
+    @classmethod
+    def changsheng_lifecycle_profile(
+        cls,
+        bureau_number: int,
+        gender: str = "male",
+        year_stem: int = 0,
+        current_palace_branch: int | None = None,
+    ) -> dict[str, Any]:
+        """Compute Twelve ChangSheng stages and Agent Process Lifecycle Automaton."""
+        return _evaluate_changsheng_lifecycle(
+            bureau_number, gender, year_stem, current_palace_branch
+        )
+
+    @classmethod
+    def guchen_guasu_huagai_profile(cls, year_branch: int) -> dict[str, Any]:
+        """Compute GuChen, GuaSu, HuaGai (Four Earth Tombs), and XianChi (Four Cardinals)."""
+        return _evaluate_guchen_guasu_huagai(year_branch)
+
+    @classmethod
+    def expanded_classical_patterns_profile(
+        cls,
+        turn_number: int,
+        current_status: int,
+        fatal_regression: bool = False,
+        ast_valid: bool = True,
+        verifier_passed: bool = True,
+    ) -> dict[str, Any]:
+        """Comprehensive 32+ classical patterns evaluation across all levels and clamping formations."""
+        return _evaluate_expanded_classical_patterns(
+            turn_number=turn_number,
+            current_status=current_status,
+            fatal_regression=fatal_regression,
+            ast_valid=ast_valid,
+            verifier_passed=verifier_passed,
+        )
 
     @classmethod
     def auxiliary_stars_pairs_profile(

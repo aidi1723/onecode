@@ -69,6 +69,9 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.solar_lichun_boundary_profile(2026, 2, 4, 12, 0)
         _ = IchingKernel.auxiliary_stars_pairs_profile(1, 1, 0, 0)
         _ = IchingKernel.city_true_solar_profile("北京", 2026, 6, 15, 12, 0)
+        _ = IchingKernel.changsheng_lifecycle_profile(2, "male", 0, state % 12)
+        _ = IchingKernel.guchen_guasu_huagai_profile(state % 12)
+        _ = IchingKernel.expanded_classical_patterns_profile(1, state)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
 
     start_total = time.perf_counter()
@@ -117,6 +120,9 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.solar_lichun_boundary_profile(2026, 2, 4, 12, 0)
         _ = IchingKernel.auxiliary_stars_pairs_profile(1, 1, 0, 0)
         _ = IchingKernel.city_true_solar_profile("北京", 2026, 6, 15, 12, 0)
+        _ = IchingKernel.changsheng_lifecycle_profile(2, "male", 0, state % 12)
+        _ = IchingKernel.guchen_guasu_huagai_profile(state % 12)
+        _ = IchingKernel.expanded_classical_patterns_profile(1, state)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
         t1 = time.perf_counter_ns()
         latencies_us.append((t1 - t0) / 1000.0)
@@ -166,6 +172,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
     c_sixchan = IchingKernel.six_channel_and_empty_palace_certificate()
     c_doujun = IchingKernel.doujun_and_solar_boundary_certificate()
     c_aux_city = IchingKernel.auxiliary_pairs_and_city_solar_certificate()
+    c_cs_pat = IchingKernel.changsheng_and_expanded_patterns_certificate()
     
     return {
         "sovereign_ring": c_ring.get("status") == "verified" and c_ring.get("triad_balance_verified") is True,
@@ -187,6 +194,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
         "six_channel_and_empty_palace": c_sixchan.get("status") == "verified" and c_sixchan.get("six_channel_transmission_order_verified") is True and c_sixchan.get("nayin_60_jiazi_equipartition_verified") is True,
         "doujun_and_solar_boundary": c_doujun.get("status") == "verified" and c_doujun.get("doujun_surjective_coverage_verified") is True and c_doujun.get("solar_lichun_boundary_switch_verified") is True,
         "auxiliary_pairs_and_city_solar": c_aux_city.get("status") == "verified" and c_aux_city.get("tianxing_tianyao_constant_phase_verified") is True and c_aux_city.get("santai_bazuo_sum_conservation_verified") is True and c_aux_city.get("tianshang_tianshi_migration_sandwiching_verified") is True and c_aux_city.get("major_cities_geodetic_bounds_verified") is True,
+        "changsheng_and_expanded_patterns": c_cs_pat.get("status") == "verified" and c_cs_pat.get("changsheng_origins_four_horses_verified") is True and c_cs_pat.get("guchen_guasu_angular_distance_4_verified") is True and c_cs_pat.get("huagai_four_earth_tombs_verified") is True and c_cs_pat.get("expanded_patterns_safety_dominance_verified") is True,
     }
 
 
