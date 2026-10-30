@@ -61,6 +61,9 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.system_pathology_profile(state)
         _ = IchingKernel.partner_star_contract_profile("紫微")
         _ = IchingKernel.sandbox_fengshui_profile()
+        _ = IchingKernel.six_channel_healing_profile(state)
+        _ = IchingKernel.empty_palace_borrowing_profile(state)
+        _ = IchingKernel.four_pillars_nayin_profile(0, 0, 0, 0, 0, 2)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
 
     start_total = time.perf_counter()
@@ -101,6 +104,9 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.system_pathology_profile(state)
         _ = IchingKernel.partner_star_contract_profile("紫微")
         _ = IchingKernel.sandbox_fengshui_profile()
+        _ = IchingKernel.six_channel_healing_profile(state)
+        _ = IchingKernel.empty_palace_borrowing_profile(state)
+        _ = IchingKernel.four_pillars_nayin_profile(0, 0, 0, 0, 0, 2)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
         t1 = time.perf_counter_ns()
         latencies_us.append((t1 - t0) / 1000.0)
@@ -147,6 +153,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
     c_heming = IchingKernel.heming_synastry_and_noble_stars_certificate()
     c_deep = IchingKernel.deep_computation_and_graph_certificate()
     c_pathology = IchingKernel.pathology_and_environmental_certificate()
+    c_sixchan = IchingKernel.six_channel_and_empty_palace_certificate()
     
     return {
         "sovereign_ring": c_ring.get("status") == "verified" and c_ring.get("triad_balance_verified") is True,
@@ -165,6 +172,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
         "heming_synastry_and_noble_stars": c_heming.get("status") == "verified" and c_heming.get("tianluo_diwang_exclusion_verified") is True and c_heming.get("mutual_ji_deadlock_breaker_verified") is True,
         "deep_computation_and_graph": c_deep.get("status") == "verified" and c_deep.get("sihua_48_rays_conservation_verified") is True and c_deep.get("bipartite_96_rays_conservation_verified") is True,
         "pathology_and_environmental": c_pathology.get("status") == "verified" and c_pathology.get("five_element_pathology_totality_verified") is True and c_pathology.get("fourteen_partner_stars_contract_verified") is True,
+        "six_channel_and_empty_palace": c_sixchan.get("status") == "verified" and c_sixchan.get("six_channel_transmission_order_verified") is True and c_sixchan.get("nayin_60_jiazi_equipartition_verified") is True,
     }
 
 

@@ -573,6 +573,7 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
             self.assertIn("shen_gong_anchorage", telemetry)
             self.assertIn("full_sihua_graph", telemetry)
             self.assertIn("system_pathology", telemetry)
+            self.assertIn("six_channel_healing", telemetry)
             sg = telemetry["shen_gong_anchorage"]
             self.assertIn("active_index", sg)
             self.assertIn("palace_name", sg)
@@ -1421,6 +1422,116 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["pathology_damping_monotonicity_verified"])
         self.assertTrue(cert["fourteen_partner_stars_contract_verified"])
         self.assertTrue(cert["sandbox_three_essentials_verified"])
+
+    def test_six_channel_healing_and_prescriptions(self):
+        """Direction M: Zhang Zhongjing Six Channels & Classical Prescriptions Self-Healing."""
+        # 1. Taiyang (Surface)
+        res_ty = IchingKernel.six_channel_healing_profile(status_code=0, error_type="PromptBoundaryError: header missing")
+        self.assertEqual(res_ty["channel"], "taiyang")
+        self.assertEqual(res_ty["channel_name"], "太阳")
+        self.assertEqual(res_ty["damping_factor"], 0.85)
+        self.assertIn("桂枝汤", res_ty["classic_formula"])
+
+        # 2. Yangming (Interior Excess Heat)
+        res_ym = IchingKernel.six_channel_healing_profile(status_code=40, error_type="CPUOverload: memory surge and loop hot")
+        self.assertEqual(res_ym["channel"], "yangming")
+        self.assertEqual(res_ym["channel_name"], "阳明")
+        self.assertEqual(res_ym["damping_factor"], 0.50)
+        self.assertIn("白虎汤", res_ym["classic_formula"])
+
+        # 3. Shaoyang (Half-surface Half-interior)
+        res_sy = IchingKernel.six_channel_healing_profile(status_code=15, error_type="AgentRPCLatency: bridge synchronization skew")
+        self.assertEqual(res_sy["channel"], "shaoyang")
+        self.assertEqual(res_sy["channel_name"], "少阳")
+        self.assertEqual(res_sy["damping_factor"], 0.70)
+        self.assertIn("小柴胡汤", res_sy["classic_formula"])
+
+        # 4. Taiyin (Interior Deficiency)
+        res_ti = IchingKernel.six_channel_healing_profile(status_code=32, error_type="WorkerStarvation: empty response queue stalled")
+        self.assertEqual(res_ti["channel"], "taiyin")
+        self.assertEqual(res_ti["channel_name"], "太阴")
+        self.assertEqual(res_ti["damping_factor"], 0.60)
+        self.assertIn("理中汤", res_ti["classic_formula"])
+
+        # 5. Shaoyin (Deep State Failing)
+        res_si = IchingKernel.six_channel_healing_profile(status_code=42, error_type="FatalPanic: heartbeat aborted")
+        self.assertEqual(res_si["channel"], "shaoyin")
+        self.assertEqual(res_si["channel_name"], "少阴")
+        self.assertEqual(res_si["damping_factor"], 0.30)
+        self.assertIn("四逆汤", res_si["classic_formula"])
+
+        # 6. Jueyin (Conflicting Paradoxical Deadlock)
+        res_jy = IchingKernel.six_channel_healing_profile(status_code=63, error_type="DeadlockConflict: spin mutex thrashing")
+        self.assertEqual(res_jy["channel"], "jueyin")
+        self.assertEqual(res_jy["channel_name"], "厥阴")
+        self.assertEqual(res_jy["damping_factor"], 0.20)
+        self.assertIn("乌梅丸", res_jy["classic_formula"])
+
+        # 7. Ground state 7 (Nominal Balance)
+        res_nom = IchingKernel.six_channel_healing_profile(status_code=7)
+        self.assertFalse(res_nom["has_pathology"])
+        self.assertEqual(res_nom["channel_name"], "营卫和合")
+        self.assertEqual(res_nom["damping_factor"], 1.0)
+        self.assertEqual(res_nom["system_equilibrium"], "optimal")
+
+    def test_empty_palace_borrowing_and_involution(self):
+        """Direction M: Empty Palace (命无正曜) Opposite Borrowing and Involution Attenuation."""
+        # Test for status_code 0 (z=0): empty branches exist (1, 3)
+        res_0 = IchingKernel.empty_palace_borrowing_profile(status_code=0)
+        self.assertGreater(res_0["empty_palaces_count"], 0)
+        self.assertTrue(res_0["opposite_involution_preserved"])
+        self.assertTrue(res_0["full_coverage_restored"])
+
+        # Empty palaces borrow from opposite with 0.75 attenuation
+        for rep in res_0["reports"]:
+            if rep["is_empty"]:
+                self.assertEqual(rep["attenuation_factor"], 0.75)
+                self.assertGreater(len(rep["borrowed_stars"]), 0)
+                self.assertEqual(rep["opposite_branch"], (rep["palace_index"] + 6) % 12)
+            else:
+                self.assertEqual(rep["attenuation_factor"], 1.0)
+                self.assertGreater(len(rep["native_stars"]), 0)
+
+        # Test for ground state 7 (z=2, Tai): all 12 palaces have native stars
+        res_7 = IchingKernel.empty_palace_borrowing_profile(status_code=7)
+        self.assertEqual(res_7["empty_palaces_count"], 0)
+        self.assertTrue(all(not r["is_empty"] for r in res_7["reports"]))
+
+    def test_four_pillars_nayin_and_five_rats(self):
+        """Direction M: Four Pillars, Five Rats Escape hour stem, and NaYin Bureau Lookup."""
+        # 1. Five Rats Escape: Jia day (stem 0) at Zi hour (0) -> Jia-Zi (0)
+        fp_jia_zi = IchingKernel.four_pillars_nayin_profile(year_stem=0, year_branch=0, day_stem=0, hour_branch=0, ming_stem=0, ming_branch=0)
+        self.assertEqual(fp_jia_zi["time_stem"], 0)
+        self.assertEqual(fp_jia_zi["four_pillars"]["hour"], "甲子")
+        self.assertTrue(fp_jia_zi["five_rats_periodicity_ok"])
+
+        # 2. Five Rats Escape: Yi day (stem 1) at Zi hour (0) -> Bing-Zi (2)
+        fp_yi_zi = IchingKernel.four_pillars_nayin_profile(year_stem=0, year_branch=0, day_stem=1, hour_branch=0, ming_stem=1, ming_branch=0)
+        self.assertEqual(fp_yi_zi["time_stem"], 2)
+        self.assertEqual(fp_yi_zi["four_pillars"]["hour"], "丙子")
+
+        # 3. NaYin Bureau: Jia-Zi (stem 0, branch 0) -> gs=1, gb=1 -> Water 2 Bureau
+        self.assertEqual(fp_jia_zi["bureau_number"], 2)
+        self.assertEqual(fp_jia_zi["bureau_name"], "水二局")
+
+        # 4. NaYin Bureau: Jia-Yin (stem 0, branch 2) -> gs=1, gb=2 -> Fire 6 Bureau
+        fp_jia_yin = IchingKernel.four_pillars_nayin_profile(year_stem=0, year_branch=0, day_stem=0, hour_branch=0, ming_stem=0, ming_branch=2)
+        self.assertEqual(fp_jia_yin["bureau_number"], 6)
+        self.assertEqual(fp_jia_yin["bureau_name"], "火六局")
+
+    def test_six_channel_and_empty_palace_certificate(self):
+        """Direction M: Formal Mathematical Certificate of Six Channels, Empty Palace Borrowing & NaYin Equipartition."""
+        cert = IchingKernel.six_channel_and_empty_palace_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["six_channel_transmission_order_verified"])
+        self.assertTrue(cert["six_channel_damping_monotonicity_verified"])
+        self.assertTrue(cert["empty_palace_opposite_involution_verified"])
+        self.assertTrue(cert["no_dual_empty_palaces_verified"])
+        self.assertTrue(cert["empty_palace_full_coverage_verified"])
+        self.assertTrue(cert["nayin_60_jiazi_equipartition_verified"])
+        self.assertTrue(cert["five_rats_escape_periodicity_verified"])
+        self.assertTrue(cert["tianji_tianliang_chen_xu_invariant_verified"])
+        self.assertTrue(cert["reverse_clockwise_12_palace_topology_verified"])
 
 
 if __name__ == "__main__":

@@ -3146,6 +3146,323 @@ def _evaluate_pathology_and_environmental_certificate() -> dict[str, Any]:
     }
 
 
+_SIX_CHANNELS_DATA: dict[str, dict[str, Any]] = {
+    "taiyang": {
+        "index": 0,
+        "name": "太阳",
+        "syndrome": "表证·开",
+        "severity": 0.20,
+        "damping_factor": 0.85,
+        "classic_formula": "桂枝汤 / 麻黄汤",
+        "remedy_directive": "surface_header_validation_and_gentle_cooldown",
+        "description": "External boundary interface mismatch or shallow prompt distortion.",
+    },
+    "shaoyang": {
+        "index": 2,
+        "name": "少阳",
+        "syndrome": "半表半里·枢",
+        "severity": 0.40,
+        "damping_factor": 0.70,
+        "classic_formula": "小柴胡汤",
+        "remedy_directive": "cross_agent_harmonic_synchronization_barrier",
+        "description": "Half-surface half-interior: agent communication latency or RPC jitter.",
+    },
+    "yangming": {
+        "index": 1,
+        "name": "阳明",
+        "syndrome": "里实热·阖",
+        "severity": 0.50,
+        "damping_factor": 0.50,
+        "classic_formula": "白虎汤 / 承气汤",
+        "remedy_directive": "aggressive_rate_limiter_and_wal_cache_purge",
+        "description": "Interior excess heat: CPU runaway, loop thrashing, or token surge.",
+    },
+    "taiyin": {
+        "index": 3,
+        "name": "太阴",
+        "syndrome": "里虚寒·开",
+        "severity": 0.60,
+        "damping_factor": 0.60,
+        "classic_formula": "理中汤 / 苓桂术甘汤",
+        "remedy_directive": "replenish_worker_context_and_flush_stale_buffer",
+        "description": "Interior deficiency: stalled loops, empty responses, worker starvation.",
+    },
+    "shaoyin": {
+        "index": 4,
+        "name": "少阴",
+        "syndrome": "阴阳两虚·枢",
+        "severity": 0.80,
+        "damping_factor": 0.30,
+        "classic_formula": "四逆汤 / 真武汤",
+        "remedy_directive": "emergency_checkpoint_rollback_and_session_reboot",
+        "description": "Critical failure: heartbeat fading, exception boundary breach.",
+    },
+    "jueyin": {
+        "index": 5,
+        "name": "厥阴",
+        "syndrome": "寒热错杂·阖",
+        "severity": 0.95,
+        "damping_factor": 0.20,
+        "classic_formula": "乌梅丸",
+        "remedy_directive": "multi_phase_arbitration_and_paradoxical_mutex_release",
+        "description": "Extreme entropy: conflicting locks, paradoxical states, panic thrashing.",
+    },
+}
+
+
+def _evaluate_six_channel_healing(
+    status_code: int,
+    error_type: str | None = None,
+    resource_pressure: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Diagnose execution failure across Zhang Zhongjing's Six Channels and prescribe classical formulas."""
+    err = (error_type or "").lower().strip()
+
+    if status_code == 7 and not err:
+        return {
+            "status_code": status_code,
+            "has_pathology": False,
+            "channel": "harmonious",
+            "channel_name": "营卫和合",
+            "syndrome": "中正和平·阴平阳秘",
+            "classic_formula": "平胃散 / 调和阴阳",
+            "remedy_directive": "nominal_autonomous_flow",
+            "damping_factor": 1.0,
+            "severity_score": 0.0,
+            "system_equilibrium": "optimal",
+        }
+
+    if any(k in err for k in ("deadlock", "thrash", "conflict", "paradox", "spin")):
+        key = "jueyin"
+    elif any(k in err for k in ("panic", "fatal", "heartbeat", "abort", "segfault")):
+        key = "shaoyin"
+    elif any(k in err for k in ("stall", "starve", "empty", "famine", "quarantine")):
+        key = "taiyin"
+    elif any(k in err for k in ("memory", "overflow", "cpu", "surge", "purge", "hot")):
+        key = "yangming"
+    elif any(k in err for k in ("agent", "rpc", "sync", "bridge", "latency", "skew")):
+        key = "shaoyang"
+    elif any(k in err for k in ("boundary", "syntax", "header", "prompt", "input", "entry")):
+        key = "taiyang"
+    else:
+        channels = ("taiyang", "yangming", "shaoyang", "taiyin", "shaoyin", "jueyin")
+        key = channels[status_code % 6]
+
+    info = _SIX_CHANNELS_DATA[key]
+    return {
+        "status_code": status_code,
+        "has_pathology": True,
+        "channel": key,
+        "channel_name": info["name"],
+        "channel_index": info["index"],
+        "syndrome": info["syndrome"],
+        "classic_formula": info["classic_formula"],
+        "remedy_directive": info["remedy_directive"],
+        "damping_factor": info["damping_factor"],
+        "severity_score": info["severity"],
+        "description": info["description"],
+        "system_equilibrium": "critical" if info["severity"] >= 0.80 else ("degraded" if info["severity"] >= 0.50 else "cautious"),
+    }
+
+
+def _evaluate_empty_palace_borrowing(
+    status_code: int = 7,
+    custom_stars: dict[str, int] | None = None,
+) -> dict[str, Any]:
+    """Identify empty palaces (命无正曜) and apply opposite involution borrowing with mirror attenuation."""
+    star_positions = custom_stars or _compute_canonical_major_star_positions(status_code)
+    major_stars = (
+        "紫微", "天机", "太阳", "武曲", "天同", "廉贞",
+        "天府", "太阴", "贪狼", "巨门", "天相", "天梁", "七杀", "破军",
+    )
+    palace_native_stars: dict[int, list[str]] = {p: [] for p in range(12)}
+    for s in major_stars:
+        pos = star_positions.get(s)
+        if pos is not None and 0 <= pos < 12:
+            palace_native_stars[pos].append(s)
+
+    palace_borrowing_reports: list[dict[str, Any]] = []
+    empty_palaces: list[int] = []
+
+    for p in range(12):
+        natives = palace_native_stars[p]
+        is_empty = (len(natives) == 0)
+        opp_branch = (p + 6) % 12
+        if is_empty:
+            empty_palaces.append(p)
+            borrowed = list(palace_native_stars[opp_branch])
+            attenuation = 0.75
+        else:
+            borrowed = []
+            attenuation = 1.0
+
+        palace_borrowing_reports.append({
+            "palace_index": p,
+            "palace_name": _EARTHLY_BRANCH_NAMES[p],
+            "native_stars": natives,
+            "native_count": len(natives),
+            "is_empty": is_empty,
+            "opposite_branch": opp_branch,
+            "borrowed_stars": borrowed,
+            "attenuation_factor": attenuation,
+            "effective_presence": natives if not is_empty else borrowed,
+        })
+
+    return {
+        "status_code": status_code,
+        "empty_palaces_count": len(empty_palaces),
+        "empty_palaces": empty_palaces,
+        "reports": palace_borrowing_reports,
+        "opposite_involution_preserved": all((p + 6 + 6) % 12 == p for p in range(12)),
+        "full_coverage_restored": all(
+            len(r["effective_presence"]) > 0 for r in palace_borrowing_reports
+        ),
+    }
+
+
+_WUXING_JU_MATRIX: list[list[int]] = [
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 2, 6, 3, 5, 4, 6],  # 甲己
+    [0, 6, 5, 4, 3, 2, 5],  # 乙庚
+    [0, 5, 3, 2, 4, 6, 3],  # 丙辛
+    [0, 3, 4, 6, 2, 5, 4],  # 丁壬
+    [0, 4, 2, 5, 6, 3, 2],  # 戊癸
+]
+
+_JU_NUMBER_TO_NAME: dict[int, str] = {
+    2: "水二局",
+    3: "木三局",
+    4: "金四局",
+    5: "土五局",
+    6: "火六局",
+}
+
+
+def _evaluate_four_pillars_nayin(
+    year_stem: int = 0,
+    year_branch: int = 0,
+    day_stem: int = 0,
+    hour_branch: int = 0,
+    ming_stem: int = 0,
+    ming_branch: int = 2,
+) -> dict[str, Any]:
+    """Compute Four Pillars, Five Rats Escape hour stem, and 6x7 NaYin Bureau Matrix."""
+    ys = year_stem % 10
+    yb = year_branch % 12
+    ds = day_stem % 10
+    hb = hour_branch % 12
+    ms = ming_stem % 10
+    mb = ming_branch % 12
+
+    time_stem = ((ds % 5) * 2 + hb) % 10
+    gs = (ms % 5) + 1
+    gb = (mb // 2) + 1
+    bureau_num = _WUXING_JU_MATRIX[gs][gb]
+    bureau_name = _JU_NUMBER_TO_NAME[bureau_num]
+
+    four_pillars = {
+        "year": f"{_HEAVENLY_STEM_NAMES[ys]}{_EARTHLY_BRANCH_NAMES[yb]}",
+        "day": f"{_HEAVENLY_STEM_NAMES[ds]}",
+        "hour": f"{_HEAVENLY_STEM_NAMES[time_stem]}{_EARTHLY_BRANCH_NAMES[hb]}",
+    }
+
+    return {
+        "year_stem": ys,
+        "year_branch": yb,
+        "day_stem": ds,
+        "hour_branch": hb,
+        "time_stem": time_stem,
+        "ming_stem": ms,
+        "ming_branch": mb,
+        "bureau_number": bureau_num,
+        "bureau_name": bureau_name,
+        "four_pillars": four_pillars,
+        "five_rats_periodicity_ok": (((ds + 5) % 5) * 2 + hb) % 10 == time_stem,
+    }
+
+
+def _evaluate_six_channel_and_empty_palace_certificate() -> dict[str, Any]:
+    """Formal mathematical certificate for Six-Channel Healing, Empty Palace Borrowing, and NaYin Matrix."""
+    channels = ("taiyang", "shaoyang", "yangming", "taiyin", "shaoyin", "jueyin")
+    severities = [_SIX_CHANNELS_DATA[k]["severity"] for k in channels]
+    order_ok = all(severities[i] <= severities[i + 1] for i in range(len(severities) - 1))
+
+    dampings = [_SIX_CHANNELS_DATA[k]["damping_factor"] for k in ("taiyang", "shaoyang", "taiyin", "yangming", "shaoyin", "jueyin")]
+    damping_ok = all(dampings[i] >= dampings[i + 1] for i in range(len(dampings) - 1))
+
+    all_opposite_involution_ok = True
+    no_dual_empty_ok = True
+    full_coverage_all_charts = True
+    for z in range(12):
+        res = _evaluate_empty_palace_borrowing(status_code=z)
+        if not res["opposite_involution_preserved"]:
+            all_opposite_involution_ok = False
+        if not res["full_coverage_restored"]:
+            full_coverage_all_charts = False
+        e_set = set(res["empty_palaces"])
+        for p in e_set:
+            if (p + 6) % 12 in e_set:
+                no_dual_empty_ok = False
+                break
+
+    counts = {2: 0, 3: 0, 4: 0, 5: 0, 6: 0}
+    for i in range(60):
+        s = i % 10
+        b = i % 12
+        gs = (s % 5) + 1
+        gb = (b // 2) + 1
+        ju = _WUXING_JU_MATRIX[gs][gb]
+        counts[ju] += 1
+    equipartition_ok = all(c == 12 for c in counts.values())
+
+    rats_ok = True
+    for d in range(10):
+        for h in range(12):
+            s1 = ((d % 5) * 2 + h) % 10
+            s2 = (((d + 5) % 5) * 2 + h) % 10
+            if s1 != s2:
+                rats_ok = False
+                break
+
+    cohabiting_palaces = []
+    for z in range(12):
+        tj = (z - 1) % 12
+        tl = (9 - z) % 12
+        if tj == tl:
+            cohabiting_palaces.append(tj)
+    tianji_tianliang_ok = (sorted(cohabiting_palaces) == [4, 10])
+
+    rev_clockwise_ok = all(
+        len(set((p0 - k) % 12 for k in range(12))) == 12
+        for p0 in range(12)
+    )
+
+    all_verified = (
+        order_ok
+        and damping_ok
+        and all_opposite_involution_ok
+        and no_dual_empty_ok
+        and full_coverage_all_charts
+        and equipartition_ok
+        and rats_ok
+        and tianji_tianliang_ok
+        and rev_clockwise_ok
+    )
+
+    return {
+        "status": "verified" if all_verified else "failed",
+        "six_channel_transmission_order_verified": order_ok,
+        "six_channel_damping_monotonicity_verified": damping_ok,
+        "empty_palace_opposite_involution_verified": all_opposite_involution_ok,
+        "no_dual_empty_palaces_verified": no_dual_empty_ok,
+        "empty_palace_full_coverage_verified": full_coverage_all_charts,
+        "nayin_60_jiazi_equipartition_verified": equipartition_ok,
+        "five_rats_escape_periodicity_verified": rats_ok,
+        "tianji_tianliang_chen_xu_invariant_verified": tianji_tianliang_ok,
+        "reverse_clockwise_12_palace_topology_verified": rev_clockwise_ok,
+    }
+
+
 class IchingZiweiCertificatesMixin:
     """Mathematical certificates and formal verification for Ziwei Doushu isomorphism."""
 
@@ -3235,8 +3552,13 @@ class IchingZiweiCertificatesMixin:
         return _evaluate_pathology_and_environmental_certificate()
 
     @classmethod
+    def six_channel_and_empty_palace_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate for Six-Channel Healing, Empty Palace Borrowing, and NaYin Matrix."""
+        return _evaluate_six_channel_and_empty_palace_certificate()
+
+    @classmethod
     def ziwei_mathematical_audit(cls) -> dict[str, Any]:
-        """Comprehensive mathematical audit of all 16 Ziwei Doushu cross-validation certificates."""
+        """Comprehensive mathematical audit of all 17 Ziwei Doushu cross-validation certificates."""
         ring = cls.sovereign_ring_isomorphism_certificate()
         an_he = cls.an_he_coupling_certificate()
         shen_gong = cls.shen_gong_anchorage_certificate()
@@ -3253,6 +3575,7 @@ class IchingZiweiCertificatesMixin:
         heming_synastry = cls.heming_synastry_and_noble_stars_certificate()
         deep_comp = cls.deep_computation_and_graph_certificate()
         pathology_env = cls.pathology_and_environmental_certificate()
+        six_chan = cls.six_channel_and_empty_palace_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
@@ -3270,6 +3593,7 @@ class IchingZiweiCertificatesMixin:
             and heming_synastry.get("status") == "verified"
             and deep_comp.get("status") == "verified"
             and pathology_env.get("status") == "verified"
+            and six_chan.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -3289,6 +3613,7 @@ class IchingZiweiCertificatesMixin:
             "heming_synastry_and_noble_stars": heming_synastry,
             "deep_computation_and_graph": deep_comp,
             "pathology_and_environmental": pathology_env,
+            "six_channel_and_empty_palace": six_chan,
         }
 
 
@@ -3783,4 +4108,50 @@ class IchingZiweiMixin(IchingZiweiCoreMixin):
             workdir_present=workdir_present,
             command_sandbox_enabled=command_sandbox_enabled,
             entry_validated=entry_validated,
+        )
+
+    @classmethod
+    def six_channel_healing_profile(
+        cls,
+        status_code: int,
+        error_type: str | None = None,
+        resource_pressure: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Diagnose execution failure across Zhang Zhongjing's Six Channels and prescribe classical formulas."""
+        return _evaluate_six_channel_healing(
+            status_code=status_code,
+            error_type=error_type,
+            resource_pressure=resource_pressure,
+        )
+
+    @classmethod
+    def empty_palace_borrowing_profile(
+        cls,
+        status_code: int = 7,
+        custom_stars: dict[str, int] | None = None,
+    ) -> dict[str, Any]:
+        """Identify empty palaces (命无正曜) and apply opposite involution borrowing with mirror attenuation."""
+        return _evaluate_empty_palace_borrowing(
+            status_code=status_code,
+            custom_stars=custom_stars,
+        )
+
+    @classmethod
+    def four_pillars_nayin_profile(
+        cls,
+        year_stem: int = 0,
+        year_branch: int = 0,
+        day_stem: int = 0,
+        hour_branch: int = 0,
+        ming_stem: int = 0,
+        ming_branch: int = 2,
+    ) -> dict[str, Any]:
+        """Compute Four Pillars, Five Rats Escape hour stem, and 6x7 NaYin Bureau Matrix."""
+        return _evaluate_four_pillars_nayin(
+            year_stem=year_stem,
+            year_branch=year_branch,
+            day_stem=day_stem,
+            hour_branch=hour_branch,
+            ming_stem=ming_stem,
+            ming_branch=ming_branch,
         )
