@@ -2062,6 +2062,15 @@ class ModelLoopTests(unittest.TestCase):
         self.assertEqual(payload["messages"][0]["role"], "system")
         self.assertIn("assets", payload["messages"][0]["content"])
         self.assertEqual(payload["messages"][1], {"role": "user", "content": "build chat project"})
+        self.assertNotIn("thinking", payload)
+
+    def test_chat_provider_can_disable_thinking(self):
+        provider = OpenAIChatCompletionsProvider("test-key")
+
+        with patch.dict("os.environ", {"ONECODE_CHAT_THINKING": "off"}, clear=False):
+            payload = provider.request_payload("build chat project", model="test-model")
+
+        self.assertEqual(payload["thinking"], {"type": "disabled"})
 
     def test_chat_provider_parses_choices_message_content(self):
         provider = OpenAIChatCompletionsProvider("test-key")

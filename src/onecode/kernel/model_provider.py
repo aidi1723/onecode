@@ -706,6 +706,13 @@ class OpenAIResponsesProvider:
         )
 
 
+def _chat_thinking_fields() -> dict[str, Any]:
+    mode = os.environ.get("ONECODE_CHAT_THINKING", "").strip().casefold()
+    if mode in {"off", "disabled", "false", "0", "none"}:
+        return {"thinking": {"type": "disabled"}}
+    return {}
+
+
 def _model_user_agent() -> str:
     return os.environ.get("ONECODE_USER_AGENT", "onecode/0.8")
 
@@ -738,6 +745,7 @@ class OpenAIChatCompletionsProvider:
             ],
             "response_format": {"type": "json_object"},
         }
+        payload.update(_chat_thinking_fields())
         max_tokens_val = os.environ.get("ONECODE_MODEL_MAX_TOKENS")
         if max_tokens_val:
             try:
@@ -846,6 +854,7 @@ def complete_model_text(
             "messages": [{"role": "user", "content": prompt}],
             "response_format": {"type": "json_object"},
         }
+        body.update(_chat_thinking_fields())
         max_tokens_val = os.environ.get("ONECODE_MODEL_MAX_TOKENS")
         if max_tokens_val:
             try:
