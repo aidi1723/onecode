@@ -2076,7 +2076,13 @@ def run_model_task(
         return _finish_verified_task(result, task, workspace, sandbox_config, max_repair_attempts, active_provider, model_context, trace_path, provider_config, resolved_model, http_timeout_seconds, planning_context, run_id, resume_from_run_id, run_metadata, require_explicit_approval, execution_approval, on_turn)
 
     failed_result = result
-    for attempt in range(1, max_repair_attempts + 1):
+    bureau_budget = run_metadata.get("bureau_turn_budget", max_repair_attempts)
+    effective_attempts = min(max_repair_attempts, bureau_budget) if max_repair_attempts > 0 else 0
+    for attempt in range(1, effective_attempts + 1):
+        cooldown_ms = run_metadata.get("cooldown_pause_ms", 0)
+        if cooldown_ms > 0:
+            import time
+            time.sleep(cooldown_ms / 1000.0)
         repair_plan, failure = traced_provider_plan(
             provider=active_provider,
             task=repair_prompt(task, {**failed_result, "workspace_files": _src_files_for_repair(workspace)}),
