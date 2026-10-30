@@ -724,6 +724,68 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
             self.assertEqual(result["reason"], "resource_budget_exceeded")
             self.assertEqual(result["turn_count"], 3)
 
+    def test_star_dynamic_energy_profile_lucky_and_sha_balance(self):
+        """Verify dynamic energy profile across 8 Lucky Stars and 6 Sha Stars."""
+        # Dominant lucky state
+        dominant = IchingKernel.star_dynamic_energy_profile(
+            triad_consensus_score=1.0,
+            ast_valid=True,
+            environment_ok=True,
+            cache_hit=True,
+            step_duration_ms=5,
+        )
+        self.assertEqual(dominant["energy_state"], "harmonic_dominance")
+        self.assertGreaterEqual(dominant["energy_differential"], 1.0)
+        self.assertIn("zuo_you", dominant["lucky_stars"])
+        self.assertIn("chang_qu", dominant["lucky_stars"])
+        self.assertIn("kui_yue", dominant["lucky_stars"])
+        self.assertIn("lu_ma", dominant["lucky_stars"])
+
+        # Sha overload state (deadlock + syntax error + resource exhaustion)
+        overload = IchingKernel.star_dynamic_energy_profile(
+            triad_consensus_score=0.2,
+            ast_valid=False,
+            syntax_error=True,
+            consecutive_stalls=2,
+            resource_budget_exhausted=True,
+        )
+        self.assertEqual(overload["energy_state"], "sha_overload")
+        self.assertLess(overload["energy_differential"], -0.5)
+        self.assertIn("tuo_luo", overload["sha_stars"])
+        self.assertIn("ling_xing", overload["sha_stars"])
+        self.assertIn("di_jie", overload["sha_stars"])
+
+    def test_jie_shen_relief_profile_and_recovery_policy_integration(self):
+        """Verify Jie Shen (解神) relief arbitration and recovery policy integration."""
+        from onecode.kernel.recovery_policy import recovery_status
+
+        # 1. Deadlock (Tuo Luo) relief converts action to force_micro_patch
+        relief_tuoluo = IchingKernel.jie_shen_relief_profile(
+            turn_number=1,
+            status_code=32,
+            sha_stars=["tuo_luo"],
+            attempt_count=1,
+        )
+        self.assertTrue(relief_tuoluo["relief_effective"])
+        self.assertEqual(relief_tuoluo["recommended_action"], "force_micro_patch")
+        self.assertIn(relief_tuoluo["jieshen_branch"], [0, 2, 4, 6, 8, 10])
+
+        # 2. Recovery policy status payload includes Jie Shen relief
+        status = recovery_status("verifier_failure", attempt_count=1)
+        self.assertIn("jie_shen_relief", status)
+        self.assertTrue(status["jie_shen_relief"]["relief_effective"])
+        self.assertEqual(status["jie_shen_relief"]["recommended_action"], "cooldown_and_retry")
+
+    def test_jie_shen_even_subgroup_theorem_and_certificate(self):
+        """Verify Jie Shen Even Subgroup Theorem (Image in 2Z_12 ~= Z_6)."""
+        cert = IchingKernel.jie_shen_even_subgroup_relief_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertEqual(cert["subgroup_isomorphism"], "2Z_12 ~= Z_6")
+        self.assertEqual(cert["image"], [0, 2, 4, 6, 8, 10])
+        self.assertTrue(cert["odd_palace_exclusion_verified"])
+        self.assertTrue(cert["damping_bounded"])
+        self.assertTrue(cert["shengong_dual_harmonic_coupling_verified"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -52,11 +52,18 @@ def recovery_status(
     attempt_count: int = 0,
     state: str = "queued",
     recommended_action: str | None = None,
+    turn_number: int = 1,
 ) -> dict:
     resolved_action = recommended_action or SCENARIO_ACTIONS.get(scenario, "inspect")
     status_code = _iching_status_code(state, resolved_action)
     transition = IchingKernel.transition(status_code)
     yin_yang = IchingKernel.yin_yang_cross_profile(status_code)
+    jie_shen = IchingKernel.jie_shen_relief_profile(
+        turn_number=turn_number,
+        status_code=status_code,
+        error_scenario=scenario,
+        attempt_count=attempt_count,
+    )
 
     return {
         "scenario": scenario,
@@ -67,6 +74,7 @@ def recovery_status(
         "retry_limit": MAX_ATTEMPTS,
         "state": state,
         "recommended_action": resolved_action,
+        "jie_shen_relief": jie_shen,
         "element": "fire",
         "yin_yang_pressure": yin_yang["pressure"],
         "iching_status_code": status_code,

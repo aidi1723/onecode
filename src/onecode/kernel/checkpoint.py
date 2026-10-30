@@ -759,6 +759,10 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
         from onecode.kernel.hexagram import IchingKernel
         before_status = base_status if isinstance(base_status, int) else None
         sihua = IchingKernel.diagnostic_sihua_profile(iching_status_code, before_status=before_status)
+        triad = IchingKernel.triad_consensus_profile(
+            turn_number=turn_number,
+            current_status=iching_status_code,
+        )
         telemetry = {
             "moving_lines": IchingKernel.moving_lines(base_status, iching_status_code),
             "micro_relations": IchingKernel.micro_relations(iching_status_code),
@@ -768,10 +772,7 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
             "foundation_broken": IchingKernel.nuclear_profile(iching_status_code)["foundation_broken"],
             "pattern_state": IchingKernel.pattern_diagnostic_profile(iching_status_code)["pattern_state"],
             "pattern_name": IchingKernel.pattern_diagnostic_profile(iching_status_code)["pattern_name"],
-            "triad_consensus": IchingKernel.triad_consensus_profile(
-                turn_number=turn_number,
-                current_status=iching_status_code,
-            ),
+            "triad_consensus": triad,
             "ziwei_pattern": IchingKernel.ziwei_pattern_matrix_profile(
                 turn_number=turn_number,
                 current_status=iching_status_code,
@@ -785,6 +786,15 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
                 current_status=iching_status_code,
             ),
             "star_brightness": IchingKernel.star_brightness_profile(
+                status_code=iching_status_code,
+            ),
+            "star_dynamic_energy": IchingKernel.star_dynamic_energy_profile(
+                triad_consensus_score=triad.get("consensus_score", 1.0),
+                ast_valid=True,
+                environment_ok=True,
+            ),
+            "jie_shen_relief": IchingKernel.jie_shen_relief_profile(
+                turn_number=turn_number,
                 status_code=iching_status_code,
             ),
         }

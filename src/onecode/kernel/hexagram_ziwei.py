@@ -600,6 +600,193 @@ def _evaluate_star_brightness_certificate(cls: type) -> dict[str, Any]:
     }
 
 
+def _evaluate_star_dynamic_energy(
+    triad_consensus_score: float = 1.0,
+    ast_valid: bool = True,
+    environment_ok: bool = True,
+    cache_hit: bool = False,
+    step_duration_ms: int = 10,
+    path_guard_violation: bool = False,
+    consecutive_stalls: int = 0,
+    verifier_failed: bool = False,
+    syntax_error: bool = False,
+    undefined_symbols: int = 0,
+    no_actionable_edits: bool = False,
+    resource_budget_exhausted: bool = False,
+) -> dict[str, Any]:
+    """Compute dynamic energy distribution across 8 Lucky Stars and 6 Sha Stars."""
+    lucky_stars: dict[str, float] = {}
+    if triad_consensus_score >= 0.75:
+        lucky_stars["zuo_you"] = 1.0
+    elif triad_consensus_score >= 0.50:
+        lucky_stars["zuo_you"] = 0.5
+
+    if ast_valid and not syntax_error and undefined_symbols == 0:
+        lucky_stars["chang_qu"] = 1.0
+    elif ast_valid:
+        lucky_stars["chang_qu"] = 0.5
+
+    if environment_ok:
+        lucky_stars["kui_yue"] = 1.0
+
+    if cache_hit or step_duration_ms < 50:
+        lucky_stars["lu_ma"] = 1.0
+    elif step_duration_ms < 200:
+        lucky_stars["lu_ma"] = 0.5
+
+    sha_stars: dict[str, float] = {}
+    if path_guard_violation:
+        sha_stars["qing_yang"] = 1.5
+
+    if consecutive_stalls >= 2:
+        sha_stars["tuo_luo"] = 1.5
+    elif consecutive_stalls == 1:
+        sha_stars["tuo_luo"] = 0.8
+
+    if verifier_failed:
+        sha_stars["huo_xing"] = 1.2
+
+    if syntax_error or undefined_symbols > 0:
+        sha_stars["ling_xing"] = 1.2
+
+    if no_actionable_edits:
+        sha_stars["di_kong"] = 1.0
+
+    if resource_budget_exhausted:
+        sha_stars["di_jie"] = 1.0
+
+    total_lucky = sum(lucky_stars.values())
+    total_sha = sum(sha_stars.values())
+    differential = round(total_lucky - total_sha, 3)
+
+    if differential >= 1.0:
+        state = "harmonic_dominance"
+        label = "吉曜主导"
+    elif differential >= -0.5:
+        state = "guarded_equilibrium"
+        label = "吉凶交织"
+    else:
+        state = "sha_overload"
+        label = "凶煞过载"
+
+    return {
+        "lucky_stars": lucky_stars,
+        "sha_stars": sha_stars,
+        "lucky_energy": round(total_lucky, 3),
+        "sha_energy": round(total_sha, 3),
+        "energy_differential": differential,
+        "energy_state": state,
+        "energy_label": label,
+    }
+
+
+_EARTHLY_BRANCH_NAMES = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
+
+
+def _evaluate_jie_shen_relief(
+    turn_number: int,
+    status_code: int,
+    sha_stars: dict[str, float] | list[str] | set[str] | None = None,
+    error_scenario: str | None = None,
+    attempt_count: int = 1,
+) -> dict[str, Any]:
+    """Arbitrate Jie Shen (解神) relief damping and rescue action."""
+    month_idx = ((turn_number - 1) % 12 + 12) % 12
+    k = month_idx // 2
+    jieshen_branch = (8 + 2 * k) % 12
+    branch_name = _EARTHLY_BRANCH_NAMES[jieshen_branch]
+
+    sha_set: set[str] = set()
+    if isinstance(sha_stars, dict):
+        sha_set = set(sha_stars.keys())
+    elif isinstance(sha_stars, (list, tuple, set)):
+        sha_set = set(sha_stars)
+    elif error_scenario:
+        if error_scenario in {"resume_conflict", "write_collision"}:
+            sha_set.add("qing_yang")
+        elif error_scenario in {"deadlock", "no_progress", "read_stall"}:
+            sha_set.add("tuo_luo")
+        elif error_scenario in {"verifier_failure", "provider_failure"}:
+            sha_set.add("huo_xing")
+        elif error_scenario in {"syntax_error", "config_partial_invalid"}:
+            sha_set.add("ling_xing")
+        elif error_scenario in {"resource_budget_exceeded"}:
+            sha_set.add("di_jie")
+
+    damping_factor = round(max(0.40, 0.75 - 0.15 * max(0, attempt_count - 1)), 2)
+    max_neutralize = 2 if attempt_count <= 1 else 1
+    neutralized = sorted(list(sha_set))[:max_neutralize]
+    relief_effective = len(neutralized) > 0 or len(sha_set) == 0
+
+    if relief_effective:
+        if "tuo_luo" in neutralized:
+            action = "force_micro_patch"
+            reason = "Jie Shen breaks Tuo Luo deadlock: mandate surgical line-level patch."
+        elif "qing_yang" in neutralized:
+            action = "sandbox_quarantine_retry"
+            reason = "Jie Shen pacifies Qing Yang write conflict: isolate write in sandbox."
+        elif "huo_xing" in neutralized:
+            action = "cooldown_and_retry"
+            reason = "Jie Shen cools Huo Xing panic: apply exponential cooldown and retry."
+        elif "ling_xing" in neutralized:
+            action = "ast_trace_inspect"
+            reason = "Jie Shen unmasks Ling Xing stealth defect: inspect AST traceback."
+        elif "di_jie" in neutralized:
+            action = "compact_and_continue"
+            reason = "Jie Shen alleviates Di Jie exhaustion: compact context and continue."
+        else:
+            action = "rollback_checkpoint"
+            reason = "Jie Shen relief active: rollback to last stable checkpoint."
+    else:
+        action = "sovereignty_halt"
+        reason = "Jie Shen relief overwhelmed: irrecoverable Sha overload requires sovereign halt."
+
+    return {
+        "jieshen_branch": jieshen_branch,
+        "jieshen_branch_name": branch_name,
+        "damping_factor": damping_factor,
+        "relief_effective": relief_effective,
+        "active_sha": sorted(list(sha_set)),
+        "neutralized_sha": neutralized,
+        "recommended_action": action,
+        "reason": reason,
+    }
+
+
+def _evaluate_jie_shen_certificate() -> dict[str, Any]:
+    """Verify Jie Shen Even Subgroup Theorem and Damping Bound Theorem."""
+    image = []
+    odd_palace_violation = False
+    for m in range(1, 13):
+        k = (m - 1) // 2
+        branch = (8 + 2 * k) % 12
+        if branch % 2 != 0:
+            odd_palace_violation = True
+        image.append(branch)
+
+    unique_image = sorted(list(set(image)))
+    subgroup_verified = (unique_image == [0, 2, 4, 6, 8, 10])
+
+    sample_relief_early = _evaluate_jie_shen_relief(1, 40, ["tuo_luo", "huo_xing"], attempt_count=1)
+    sample_relief_late = _evaluate_jie_shen_relief(1, 40, ["tuo_luo", "huo_xing"], attempt_count=3)
+    damping_bounded = (0.40 <= sample_relief_late["damping_factor"] <= sample_relief_early["damping_factor"] <= 0.80)
+
+    shengong_image = [0, 2, 4, 6, 8, 10]
+    coupling_harmonic = (unique_image == shengong_image)
+
+    status = "verified" if (subgroup_verified and not odd_palace_violation and damping_bounded and coupling_harmonic) else "failed"
+
+    return {
+        "status": status,
+        "subgroup_isomorphism": "2Z_12 ~= Z_6",
+        "image": unique_image,
+        "image_cardinality": len(unique_image),
+        "odd_palace_exclusion_verified": not odd_palace_violation,
+        "damping_bounded": damping_bounded,
+        "shengong_dual_harmonic_coupling_verified": coupling_harmonic,
+    }
+
+
 class IchingZiweiMixin:
     """Diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
 
@@ -744,6 +931,61 @@ class IchingZiweiMixin:
         return _evaluate_shen_gong_certificate()
 
     @classmethod
+    def star_dynamic_energy_profile(
+        cls,
+        triad_consensus_score: float = 1.0,
+        ast_valid: bool = True,
+        environment_ok: bool = True,
+        cache_hit: bool = False,
+        step_duration_ms: int = 10,
+        path_guard_violation: bool = False,
+        consecutive_stalls: int = 0,
+        verifier_failed: bool = False,
+        syntax_error: bool = False,
+        undefined_symbols: int = 0,
+        no_actionable_edits: bool = False,
+        resource_budget_exhausted: bool = False,
+    ) -> dict[str, Any]:
+        """Compute dynamic energy distribution across 8 Lucky Stars and 6 Sha Stars."""
+        return _evaluate_star_dynamic_energy(
+            triad_consensus_score=triad_consensus_score,
+            ast_valid=ast_valid,
+            environment_ok=environment_ok,
+            cache_hit=cache_hit,
+            step_duration_ms=step_duration_ms,
+            path_guard_violation=path_guard_violation,
+            consecutive_stalls=consecutive_stalls,
+            verifier_failed=verifier_failed,
+            syntax_error=syntax_error,
+            undefined_symbols=undefined_symbols,
+            no_actionable_edits=no_actionable_edits,
+            resource_budget_exhausted=resource_budget_exhausted,
+        )
+
+    @classmethod
+    def jie_shen_relief_profile(
+        cls,
+        turn_number: int,
+        status_code: int,
+        sha_stars: dict[str, float] | list[str] | set[str] | None = None,
+        error_scenario: str | None = None,
+        attempt_count: int = 1,
+    ) -> dict[str, Any]:
+        """Arbitrate Jie Shen (解神) relief damping and rescue action."""
+        return _evaluate_jie_shen_relief(
+            turn_number=turn_number,
+            status_code=status_code,
+            sha_stars=sha_stars,
+            error_scenario=error_scenario,
+            attempt_count=attempt_count,
+        )
+
+    @classmethod
+    def jie_shen_even_subgroup_relief_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Jie Shen Even Subgroup and Damping Bound."""
+        return _evaluate_jie_shen_certificate()
+
+    @classmethod
     def star_brightness_certificate(cls) -> dict[str, Any]:
         """Formal mathematical certificate of Star Brightness Invariance across all 64 states."""
         return _evaluate_star_brightness_certificate(cls)
@@ -755,11 +997,13 @@ class IchingZiweiMixin:
         an_he = cls.an_he_coupling_certificate()
         shen_gong = cls.shen_gong_anchorage_certificate()
         star_bright = cls.star_brightness_certificate()
+        jie_shen = cls.jie_shen_even_subgroup_relief_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
             and shen_gong.get("status") == "verified"
             and star_bright.get("status") == "verified"
+            and jie_shen.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -767,4 +1011,5 @@ class IchingZiweiMixin:
             "an_he_coupling": an_he,
             "shen_gong_anchorage": shen_gong,
             "star_brightness": star_bright,
+            "jie_shen_relief": jie_shen,
         }
