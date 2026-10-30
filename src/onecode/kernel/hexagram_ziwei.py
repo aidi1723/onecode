@@ -2052,7 +2052,513 @@ def _evaluate_auxiliary_polarity_and_yunxian_certificate() -> dict[str, Any]:
     }
 
 
-class IchingZiweiMixin:
+_TIANKUI_BY_STEM: tuple[int, ...] = (1, 0, 11, 11, 1, 0, 1, 6, 3, 3)
+_TIANYUE_BY_STEM: tuple[int, ...] = (7, 8, 9, 9, 7, 8, 7, 2, 5, 5)
+_TIANMA_BY_BRANCH: tuple[int, ...] = (2, 11, 8, 5, 2, 11, 8, 5, 2, 11, 8, 5)
+
+_FAMOUS_ARCHETYPES: dict[str, dict[str, Any]] = {
+    "ma-yun": {
+        "id": "ma-yun",
+        "name": "马云",
+        "category": "商业",
+        "archetype": "po_ge_chong_jian",
+        "pattern": "破格重建",
+        "recommended_strategy": "high_entropy_refactoring",
+        "turn_budget_multiplier": 1.25,
+        "description": "极强破格重建之力，互联网商业帝国破而后立",
+    },
+    "li-jiacheng": {
+        "id": "li-jiacheng",
+        "name": "李嘉诚",
+        "category": "商业",
+        "archetype": "lu_cun_shou_cai",
+        "pattern": "禄存守财",
+        "recommended_strategy": "conservative_wal_preservation",
+        "turn_budget_multiplier": 0.85,
+        "description": "禄存守财稳健基石，越积越厚，严禁投机覆写",
+    },
+    "ren-zhengfei": {
+        "id": "ren-zhengfei",
+        "name": "任正非",
+        "category": "商业",
+        "archetype": "qi_sha_ru_ming",
+        "pattern": "七杀逆风",
+        "recommended_strategy": "anti_fragile_adversarial_retry",
+        "turn_budget_multiplier": 1.5,
+        "description": "七杀入命逆风而行，抗压韧性极致，高阶容错退避",
+    },
+    "steve-jobs": {
+        "id": "steve-jobs",
+        "name": "乔布斯",
+        "category": "科技",
+        "archetype": "po_jun_ru_ming",
+        "pattern": "破军开创",
+        "recommended_strategy": "disruptive_innovation_rebuild",
+        "turn_budget_multiplier": 1.2,
+        "description": "破而后立打破常规，重构陈旧架构，追求极致产品质感",
+    },
+    "elon-musk": {
+        "id": "elon-musk",
+        "name": "马斯克",
+        "category": "科技",
+        "archetype": "sha_po_lang_tianma",
+        "pattern": "杀破狼驿马",
+        "recommended_strategy": "high_velocity_parallel_expansion",
+        "turn_budget_multiplier": 1.4,
+        "description": "杀破狼驿马旺盛，跨领域极限并发，探索未来边界",
+    },
+}
+
+
+def _evaluate_noble_horse_stars(
+    year_stem: int,
+    year_branch: int,
+    active_palace: int,
+    tuoluo_present: bool = False,
+    kongjie_present: bool = False,
+) -> dict[str, Any]:
+    """Compute Tiankui, Tianyue, Tianma, Hongluan, Tianxi and Lu-Ma concurrency dynamics."""
+    s = year_stem % 10
+    y = year_branch % 12
+    p = active_palace % 12
+
+    kui_branch = _TIANKUI_BY_STEM[s]
+    yue_branch = _TIANYUE_BY_STEM[s]
+    ma_branch = _TIANMA_BY_BRANCH[y]
+    lu_branch = _LUCUN_BRANCH_BY_STEM[s]
+    hl_branch = (3 - y) % 12
+    tx_branch = (hl_branch + 6) % 12
+
+    kui_present = (p == kui_branch)
+    yue_present = (p == yue_branch)
+    ma_present = (p == ma_branch)
+    hl_present = (p == hl_branch)
+    tx_present = (p == tx_branch)
+    lu_present = (p == lu_branch)
+
+    opposite_p = (p + 6) % 12
+    lu_ma_jiaochi = (
+        (lu_present and ma_present)
+        or (lu_present and opposite_p == ma_branch)
+        or (ma_present and opposite_p == lu_branch)
+    )
+    broken_leg_horse = ma_present and (tuoluo_present or kongjie_present)
+    in_tianluo_diwang = (p in (4, 10)) and not (kui_present or yue_present)
+
+    if broken_leg_horse:
+        multiplier = 0.5
+        directive = "broken_leg_horse_throttle"
+        reason = "Tianma trapped with Tuoluo/Kongjie: broken-leg horse throttle applied"
+    elif lu_ma_jiaochi:
+        multiplier = 1.25
+        directive = "lu_ma_jiaochi_accelerated_concurrency"
+        reason = "Lu-Ma Jiao-Chi: dynamic checkpoint preservation with accelerated throughput"
+    elif kui_present or yue_present:
+        multiplier = 1.10
+        directive = "noble_guardian_guided_pass"
+        reason = "Noble star (Tiankui/Tianyue) presence: supervisor token guidance active"
+    elif hl_present or tx_present:
+        multiplier = 1.05
+        directive = "harmony_synergy_boost"
+        reason = "Hongluan/Tianxi harmony star: cooperative peer synergy active"
+    elif in_tianluo_diwang:
+        multiplier = 0.75
+        directive = "tianluo_diwang_cautious_step"
+        reason = "Net of Heaven and Earth (Chen/Xu): cautious step progression enforced"
+    else:
+        multiplier = 1.0
+        directive = "nominal_execution"
+        reason = "Nominal noble/horse celestial influence"
+
+    return {
+        "year_stem": s,
+        "year_branch": y,
+        "active_palace": p,
+        "tiankui_branch": kui_branch,
+        "tianyue_branch": yue_branch,
+        "tianma_branch": ma_branch,
+        "lucun_branch": lu_branch,
+        "hongluan_branch": hl_branch,
+        "tianxi_branch": tx_branch,
+        "kui_present": kui_present,
+        "yue_present": yue_present,
+        "tianma_present": ma_present,
+        "hongluan_present": hl_present,
+        "tianxi_present": tx_present,
+        "lu_ma_jiaochi": lu_ma_jiaochi,
+        "broken_leg_horse": broken_leg_horse,
+        "in_tianluo_diwang": in_tianluo_diwang,
+        "throughput_multiplier": multiplier,
+        "directive": directive,
+        "reason": reason,
+    }
+
+
+def _evaluate_dual_sihua_superposition(
+    palace_branch: int,
+    transformations: list[str],
+) -> dict[str, Any]:
+    """Arbitrate multi-signal superposition when multiple Sihua transformations share one palace."""
+    tf_set = set(transformations)
+    if {"化权", "化忌"}.issubset(tf_set):
+        action = "guarded_authority_verification"
+        risk_level = "guarded"
+        write_permission = True
+        mandatory_audit = True
+        reason = "Authority meets friction (权忌同宫): proceed with mandatory pre/post atomic state audit"
+    elif {"化禄", "化科"}.issubset(tf_set):
+        action = "accelerated_audited_execution"
+        risk_level = "nominal"
+        write_permission = True
+        mandatory_audit = False
+        reason = "Gain meets auditability (禄科同宫): high-confidence accelerated step with clean audit"
+    elif {"化禄", "化权"}.issubset(tf_set):
+        action = "decisive_expansion"
+        risk_level = "nominal"
+        write_permission = True
+        mandatory_audit = False
+        reason = "Dynamic gain and executive authority (禄权同宫): decisive parallel expansion"
+    elif {"化科", "化忌"}.issubset(tf_set):
+        action = "defensive_verification"
+        risk_level = "caution"
+        write_permission = False
+        mandatory_audit = True
+        reason = "Diagnostic insight meets obstacle (科忌同宫): pause and produce diagnostic report"
+    elif {"化禄", "化忌"}.issubset(tf_set):
+        action = "entropy_dissipation_remediation"
+        risk_level = "warning"
+        write_permission = False
+        mandatory_audit = True
+        reason = "Gain conflicts with debt (禄忌相冲): apparent gain with resource dissipation, checkpoint rollback"
+    else:
+        action = "standard_single_sihua"
+        risk_level = "nominal"
+        write_permission = True
+        mandatory_audit = False
+        reason = "Single or uncoupled transformation"
+
+    return {
+        "palace_branch": palace_branch % 12,
+        "palace_branch_name": _EARTHLY_BRANCH_NAMES[palace_branch % 12],
+        "transformations": sorted(list(tf_set)),
+        "is_dual_sihua": len(tf_set) >= 2,
+        "composite_action": action,
+        "risk_level": risk_level,
+        "write_permission": write_permission,
+        "mandatory_audit": mandatory_audit,
+        "reason": reason,
+    }
+
+
+def _evaluate_multi_agent_synastry(
+    agent_a: dict[str, Any],
+    agent_b: dict[str, Any],
+) -> dict[str, Any]:
+    """Multi-agent synastry compatibility based on Ni Haisha's Double Palace and Cross Flying Sihua."""
+    stem_a = int(agent_a.get("stem", 0)) % 10
+    stem_b = int(agent_b.get("stem", 0)) % 10
+    ming_a = int(agent_a.get("ming_branch", 0)) % 12
+    ming_b = int(agent_b.get("ming_branch", 0)) % 12
+    fuqi_a = int(agent_a.get("fuqi_branch", (ming_a - 2) % 12)) % 12
+    fuqi_b = int(agent_b.get("fuqi_branch", (ming_b - 2) % 12)) % 12
+
+    ji_star_a = _SI_HUA_TABLE[stem_a][3]
+    ji_star_b = _SI_HUA_TABLE[stem_b][3]
+
+    b_core_palaces = {ming_b, fuqi_b, (ming_b + 4) % 12}
+    a_core_palaces = {ming_a, fuqi_a, (ming_a + 4) % 12}
+
+    stars_b = agent_b.get("stars", {})
+    stars_a = agent_a.get("stars", {})
+
+    a_hits_b_core = False
+    b_hits_a_core = False
+
+    if isinstance(stars_b, dict) and ji_star_a in stars_b:
+        a_hits_b_core = stars_b[ji_star_a] in b_core_palaces
+    elif "ji_palace" in agent_b:
+        a_hits_b_core = agent_b["ji_palace"] in b_core_palaces
+
+    if isinstance(stars_a, dict) and ji_star_b in stars_a:
+        b_hits_a_core = stars_a[ji_star_b] in a_core_palaces
+    elif "ji_palace" in agent_a:
+        b_hits_a_core = agent_a["ji_palace"] in a_core_palaces
+
+    if agent_a.get("force_mutual_ji") or agent_b.get("force_mutual_ji"):
+        a_hits_b_core = True
+        b_hits_a_core = True
+
+    mutual_ji_clash = a_hits_b_core and b_hits_a_core
+
+    fude_compromised = bool(agent_a.get("fude_broken", False) or agent_b.get("fude_broken", False))
+    contract_match = (fuqi_a == ming_b) or (fuqi_b == ming_a)
+    mutual_contract_match = (fuqi_a == ming_b) and (fuqi_b == ming_a)
+
+    if mutual_ji_clash:
+        score = "one_star"
+        mode = "quarantined_arbitration_boundary"
+        isolation_required = True
+        reason = "Mutual Hua Ji clash: cyclic deadlock in multi-agent pairing, isolate context boundary"
+    elif fude_compromised:
+        score = "two_stars"
+        mode = "guarded_contract_short_leash"
+        isolation_required = False
+        reason = "Double palace inspection failed: deep invariant (Fude) compromised, short-leash budget"
+    elif mutual_contract_match:
+        score = "five_stars"
+        mode = "high_bandwidth_synergistic_pair"
+        isolation_required = False
+        reason = "Tian-Zuo-Zhi-He: bidirectional contract alignment with pure deep invariants"
+    elif contract_match:
+        score = "four_stars"
+        mode = "complementary_cooperation"
+        isolation_required = False
+        reason = "Unidirectional contract alignment: stable collaborative execution"
+    else:
+        score = "three_stars"
+        mode = "standard_peer_review"
+        isolation_required = False
+        reason = "Standard baseline compatibility: peer-review protocol active"
+
+    return {
+        "score": score,
+        "coordination_mode": mode,
+        "isolation_required": isolation_required,
+        "mutual_ji_clash": mutual_ji_clash,
+        "contract_match": contract_match,
+        "mutual_contract_match": mutual_contract_match,
+        "fude_compromised": fude_compromised,
+        "reason": reason,
+    }
+
+
+def _evaluate_famous_archetype(person_id: str) -> dict[str, Any]:
+    """Retrieve operational archetype, risk profile, and scheduling strategy from famous benchmarks."""
+    norm_id = person_id.lower().strip()
+    if norm_id in _FAMOUS_ARCHETYPES:
+        return _FAMOUS_ARCHETYPES[norm_id]
+    return {
+        "id": norm_id,
+        "name": "标准基准",
+        "category": "通用",
+        "archetype": "standard_nominal",
+        "pattern": "中正守成",
+        "recommended_strategy": "standard_execution",
+        "turn_budget_multiplier": 1.0,
+        "description": "标准通用工程执行基准",
+    }
+
+
+def _evaluate_heming_synastry_and_noble_stars_certificate() -> dict[str, Any]:
+    """Formal mathematical certificate of Tianluo-Diwang Exclusion, Kui-Yue Reflection, Tianma Involution, and Synastry."""
+    # 1. Tianluo-Diwang Exclusion Theorem: Kui & Yue never land on 4 (辰) or 10 (戌)
+    tianluo_diwang_ok = True
+    for s in range(10):
+        if _TIANKUI_BY_STEM[s] in (4, 10) or _TIANYUE_BY_STEM[s] in (4, 10):
+            tianluo_diwang_ok = False
+            break
+
+    # 2. Kui-Yue Axis Reflection and Antipodal Invariance
+    kui_yue_symmetry_ok = True
+    for s in range(10):
+        kui = _TIANKUI_BY_STEM[s]
+        yue = _TIANYUE_BY_STEM[s]
+        if s in (0, 4, 6):
+            if abs(kui - yue) % 12 != 6:
+                kui_yue_symmetry_ok = False
+                break
+        else:
+            if (kui + yue) % 12 != 8:
+                kui_yue_symmetry_ok = False
+                break
+
+    # 3. Tianma Corner Involution Theorem: lands strictly in {2, 5, 8, 11} and Tianma(Tianma(c)) == c
+    corners = {2, 5, 8, 11}
+    tianma_ok = True
+    for y in range(12):
+        if _TIANMA_BY_BRANCH[y] not in corners:
+            tianma_ok = False
+            break
+    for c in corners:
+        if _TIANMA_BY_BRANCH[_TIANMA_BY_BRANCH[c]] != c:
+            tianma_ok = False
+            break
+
+    # 4. Hongluan-Tianxi Sum Invariance and Zero Fixed Points
+    hongluan_ok = True
+    for y in range(12):
+        hl = (3 - y) % 12
+        tx = (hl + 6) % 12
+        if (hl + y) % 12 != 3:
+            hongluan_ok = False
+            break
+        if (tx - hl) % 12 != 6:
+            hongluan_ok = False
+            break
+        if hl == y or tx == y:
+            hongluan_ok = False
+            break
+
+    # 5. Multi-agent mutual Ji deadlock isolation verification
+    syn_res = _evaluate_multi_agent_synastry(
+        {"stem": 0, "force_mutual_ji": True},
+        {"stem": 1, "force_mutual_ji": True},
+    )
+    deadlock_breaker_ok = (
+        syn_res["mutual_ji_clash"] is True
+        and syn_res["isolation_required"] is True
+        and syn_res["score"] == "one_star"
+    )
+
+    all_verified = (
+        tianluo_diwang_ok
+        and kui_yue_symmetry_ok
+        and tianma_ok
+        and hongluan_ok
+        and deadlock_breaker_ok
+    )
+
+    return {
+        "status": "verified" if all_verified else "failed",
+        "tianluo_diwang_exclusion_verified": tianluo_diwang_ok,
+        "kui_yue_symmetry_verified": kui_yue_symmetry_ok,
+        "tianma_corner_involution_verified": tianma_ok,
+        "hongluan_derangement_verified": hongluan_ok,
+        "mutual_ji_deadlock_breaker_verified": deadlock_breaker_ok,
+    }
+
+
+class IchingZiweiCertificatesMixin:
+    """Mathematical certificates and formal verification for Ziwei Doushu isomorphism."""
+
+    @classmethod
+    def sovereign_ring_isomorphism_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of the Sovereign Hexagram Ring <-> Earthly Branches isomorphism."""
+        codes = getattr(cls, "SOVEREIGN_HEXAGRAM_CODES", (2, 24, 19, 11, 34, 43, 1, 44, 33, 12, 20, 23))
+        return _evaluate_sovereign_ring_certificate(codes)
+
+    @classmethod
+    def an_he_coupling_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Six Harmonies (六合 / 暗合) on the 6-bit Boolean Hypercube."""
+        codes = getattr(cls, "SOVEREIGN_HEXAGRAM_CODES", (2, 24, 19, 11, 34, 43, 1, 44, 33, 12, 20, 23))
+        return _evaluate_an_he_coupling_certificate(codes)
+
+    @classmethod
+    def shen_gong_anchorage_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Shen Gong Even Subgroup Theorem (身宫偶数子群同构定理)."""
+        return _evaluate_shen_gong_certificate()
+
+    @classmethod
+    def star_brightness_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Star Brightness Invariance across all 64 states."""
+        return _evaluate_star_brightness_certificate(cls)
+
+    @classmethod
+    def jie_shen_even_subgroup_relief_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Jie Shen Even Subgroup and Damping Bound."""
+        return _evaluate_jie_shen_certificate()
+
+    @classmethod
+    def twelve_deities_triad_and_suipo_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Twelve Deities Triad Partition and Sui Po Opposite Involution."""
+        codes = getattr(cls, "SOVEREIGN_HEXAGRAM_CODES", (2, 24, 19, 11, 34, 43, 1, 44, 33, 12, 20, 23))
+        return _evaluate_twelve_deities_certificate(codes)
+
+    @classmethod
+    def flying_sihua_cascade_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Flying Sihua Cascade and DuiGong Involution."""
+        codes = getattr(cls, "SOVEREIGN_HEXAGRAM_CODES", (2, 24, 19, 11, 34, 43, 1, 44, 33, 12, 20, 23))
+        return _evaluate_flying_sihua_certificate(codes)
+
+    @classmethod
+    def triadic_synthesis_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Triadic Synthesis and 2/3 Domination Principle."""
+        return _evaluate_triadic_synthesis_certificate()
+
+    @classmethod
+    def ziwei_tianfu_and_yangtuo_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Ming/Shen Zhu Symmetries, Ziwei-Tianfu Duality & Yang-Tuo Clamping."""
+        codes = getattr(cls, "SOVEREIGN_HEXAGRAM_CODES", (2, 24, 19, 11, 34, 43, 1, 44, 33, 12, 20, 23))
+        return _evaluate_ziwei_tianfu_and_yangtuo_certificate(codes)
+
+    @classmethod
+    def solar_equation_and_zishi_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of EOT bounded oscillation, Zishi measure partition, and meridian invariance."""
+        return _evaluate_solar_equation_and_zishi_certificate()
+
+    @classmethod
+    def school_divergence_consensus_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Seven Stems Sihua Totality, Geng Closure, and Consensus Monotonicity."""
+        return _evaluate_school_divergence_consensus_certificate()
+
+    @classmethod
+    def classical_patterns_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Safety Dominance Invariant, Supreme Purity, and Exhaustive Formations."""
+        return _evaluate_classical_patterns_certificate()
+
+    @classmethod
+    def auxiliary_polarity_and_yunxian_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of DaHao Bijection, Jiekong Duality, and 7-tier Yunxian Hierarchy."""
+        return _evaluate_auxiliary_polarity_and_yunxian_certificate()
+
+    @classmethod
+    def heming_synastry_and_noble_stars_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Tianluo-Diwang Exclusion, Kui-Yue Reflection, Tianma Involution, and Synastry."""
+        return _evaluate_heming_synastry_and_noble_stars_certificate()
+
+    @classmethod
+    def ziwei_mathematical_audit(cls) -> dict[str, Any]:
+        """Comprehensive mathematical audit of all 14 Ziwei Doushu cross-validation certificates."""
+        ring = cls.sovereign_ring_isomorphism_certificate()
+        an_he = cls.an_he_coupling_certificate()
+        shen_gong = cls.shen_gong_anchorage_certificate()
+        star_bright = cls.star_brightness_certificate()
+        jie_shen = cls.jie_shen_even_subgroup_relief_certificate()
+        twelve_deities = cls.twelve_deities_triad_and_suipo_certificate()
+        flying_sihua = cls.flying_sihua_cascade_certificate()
+        triad_syn = cls.triadic_synthesis_certificate()
+        zi_fu_yang_tuo = cls.ziwei_tianfu_and_yangtuo_certificate()
+        solar_zishi = cls.solar_equation_and_zishi_certificate()
+        school_consensus = cls.school_divergence_consensus_certificate()
+        classical_pat = cls.classical_patterns_certificate()
+        aux_yunxian = cls.auxiliary_polarity_and_yunxian_certificate()
+        heming_synastry = cls.heming_synastry_and_noble_stars_certificate()
+        all_passed = (
+            ring.get("status") == "verified"
+            and an_he.get("status") == "verified"
+            and shen_gong.get("status") == "verified"
+            and star_bright.get("status") == "verified"
+            and jie_shen.get("status") == "verified"
+            and twelve_deities.get("status") == "verified"
+            and flying_sihua.get("status") == "verified"
+            and triad_syn.get("status") == "verified"
+            and zi_fu_yang_tuo.get("status") == "verified"
+            and solar_zishi.get("status") == "verified"
+            and school_consensus.get("status") == "verified"
+            and classical_pat.get("status") == "verified"
+            and aux_yunxian.get("status") == "verified"
+            and heming_synastry.get("status") == "verified"
+        )
+        return {
+            "status": "ok" if all_passed else "failed",
+            "sovereign_ring": ring,
+            "an_he_coupling": an_he,
+            "shen_gong_anchorage": shen_gong,
+            "star_brightness": star_bright,
+            "jie_shen_relief": jie_shen,
+            "twelve_deities": twelve_deities,
+            "flying_sihua_cascade": flying_sihua,
+            "triadic_synthesis": triad_syn,
+            "ziwei_tianfu_and_yangtuo": zi_fu_yang_tuo,
+            "solar_equation_and_zishi": solar_zishi,
+            "school_divergence_consensus": school_consensus,
+            "classical_patterns": classical_pat,
+            "auxiliary_polarity_and_yunxian": aux_yunxian,
+            "heming_synastry_and_noble_stars": heming_synastry,
+        }
+
+
+class IchingZiweiMixin(IchingZiweiCertificatesMixin):
     """Diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
 
     @classmethod
@@ -2179,23 +2685,6 @@ class IchingZiweiMixin:
         )
 
     @classmethod
-    def sovereign_ring_isomorphism_certificate(cls) -> dict[str, Any]:
-        """Formal mathematical certificate of the Sovereign Hexagram Ring <-> Earthly Branches isomorphism."""
-        codes = getattr(cls, "SOVEREIGN_HEXAGRAM_CODES")
-        return _evaluate_sovereign_ring_certificate(codes)
-
-    @classmethod
-    def an_he_coupling_certificate(cls) -> dict[str, Any]:
-        """Formal mathematical certificate of Six Harmonies (六合 / 暗合) on the 6-bit Boolean Hypercube."""
-        codes = getattr(cls, "SOVEREIGN_HEXAGRAM_CODES")
-        return _evaluate_an_he_coupling_certificate(codes)
-
-    @classmethod
-    def shen_gong_anchorage_certificate(cls) -> dict[str, Any]:
-        """Formal mathematical certificate of Shen Gong Even Subgroup Theorem (身宫偶数子群同构定理)."""
-        return _evaluate_shen_gong_certificate()
-
-    @classmethod
     def star_dynamic_energy_profile(
         cls,
         triad_consensus_score: float = 1.0,
@@ -2246,11 +2735,6 @@ class IchingZiweiMixin:
         )
 
     @classmethod
-    def jie_shen_even_subgroup_relief_certificate(cls) -> dict[str, Any]:
-        """Formal mathematical certificate of Jie Shen Even Subgroup and Damping Bound."""
-        return _evaluate_jie_shen_certificate()
-
-    @classmethod
     def twelve_deities_profile(
         cls,
         turn_number: int,
@@ -2263,12 +2747,6 @@ class IchingZiweiMixin:
             status_code=status_code,
             anchor_branch=anchor_branch,
         )
-
-    @classmethod
-    def twelve_deities_triad_and_suipo_certificate(cls) -> dict[str, Any]:
-        """Formal mathematical certificate of Twelve Deities Triad Partition and Sui Po Opposite Involution."""
-        codes = getattr(cls, "SOVEREIGN_HEXAGRAM_CODES")
-        return _evaluate_twelve_deities_certificate(codes)
 
     @classmethod
     def flying_sihua_cascade_profile(
@@ -2285,12 +2763,6 @@ class IchingZiweiMixin:
             macro_stage=macro_stage,
             baseline_status=baseline_status,
         )
-
-    @classmethod
-    def flying_sihua_cascade_certificate(cls) -> dict[str, Any]:
-        """Formal mathematical certificate of Flying Sihua Cascade and DuiGong Involution."""
-        codes = getattr(cls, "SOVEREIGN_HEXAGRAM_CODES")
-        return _evaluate_flying_sihua_certificate(codes)
 
     @classmethod
     def triadic_synthesis_profile(
@@ -2311,11 +2783,6 @@ class IchingZiweiMixin:
             ast_valid=ast_valid,
             patch_surgical=patch_surgical,
         )
-
-    @classmethod
-    def triadic_synthesis_certificate(cls) -> dict[str, Any]:
-        """Formal mathematical certificate of Triadic Synthesis and 2/3 Domination Principle."""
-        return _evaluate_triadic_synthesis_certificate()
 
     @classmethod
     def ming_shen_zhu_profile(cls, turn_number: int, status_code: int) -> dict[str, Any]:
@@ -2340,12 +2807,6 @@ class IchingZiweiMixin:
             status_code=status_code,
             has_hua_ji=has_hua_ji,
         )
-
-    @classmethod
-    def ziwei_tianfu_and_yangtuo_certificate(cls) -> dict[str, Any]:
-        """Formal mathematical certificate of Ming/Shen Zhu Symmetries, Ziwei-Tianfu Duality & Yang-Tuo Clamping."""
-        codes = getattr(cls, "SOVEREIGN_HEXAGRAM_CODES")
-        return _evaluate_ziwei_tianfu_and_yangtuo_certificate(codes)
 
     @classmethod
     def true_solar_time_profile(
@@ -2384,11 +2845,6 @@ class IchingZiweiMixin:
         )
 
     @classmethod
-    def solar_equation_and_zishi_certificate(cls) -> dict[str, Any]:
-        """Formal mathematical certificate of EOT bounded oscillation, Zishi measure partition, and meridian invariance."""
-        return _evaluate_solar_equation_and_zishi_certificate()
-
-    @classmethod
     def school_consensus_profile(
         cls,
         stem_index: int,
@@ -2403,11 +2859,6 @@ class IchingZiweiMixin:
             late_zishi_rule=late_zishi_rule,
             leap_month_rule=leap_month_rule,
         )
-
-    @classmethod
-    def school_divergence_consensus_certificate(cls) -> dict[str, Any]:
-        """Formal mathematical certificate of Seven Stems Sihua Totality, Geng Closure, and Consensus Monotonicity."""
-        return _evaluate_school_divergence_consensus_certificate()
 
     @classmethod
     def classical_patterns_profile(
@@ -2438,11 +2889,6 @@ class IchingZiweiMixin:
         )
 
     @classmethod
-    def classical_patterns_certificate(cls) -> dict[str, Any]:
-        """Formal mathematical certificate of Safety Dominance Invariant, Supreme Purity, and Exhaustive Formations."""
-        return _evaluate_classical_patterns_certificate()
-
-    @classmethod
     def auxiliary_stars_polarity_profile(
         cls,
         year_stem: int,
@@ -2468,59 +2914,48 @@ class IchingZiweiMixin:
         )
 
     @classmethod
-    def auxiliary_polarity_and_yunxian_certificate(cls) -> dict[str, Any]:
-        """Formal mathematical certificate of DaHao Bijection, Jiekong Duality, and 7-tier Yunxian Hierarchy."""
-        return _evaluate_auxiliary_polarity_and_yunxian_certificate()
-
-    @classmethod
-    def star_brightness_certificate(cls) -> dict[str, Any]:
-        """Formal mathematical certificate of Star Brightness Invariance across all 64 states."""
-        return _evaluate_star_brightness_certificate(cls)
-
-    @classmethod
-    def ziwei_mathematical_audit(cls) -> dict[str, Any]:
-        """Comprehensive mathematical audit of all Ziwei Doushu cross-validation certificates."""
-        ring = cls.sovereign_ring_isomorphism_certificate()
-        an_he = cls.an_he_coupling_certificate()
-        shen_gong = cls.shen_gong_anchorage_certificate()
-        star_bright = cls.star_brightness_certificate()
-        jie_shen = cls.jie_shen_even_subgroup_relief_certificate()
-        twelve_deities = cls.twelve_deities_triad_and_suipo_certificate()
-        flying_sihua = cls.flying_sihua_cascade_certificate()
-        triad_syn = cls.triadic_synthesis_certificate()
-        zi_fu_yang_tuo = cls.ziwei_tianfu_and_yangtuo_certificate()
-        solar_zishi = cls.solar_equation_and_zishi_certificate()
-        school_consensus = cls.school_divergence_consensus_certificate()
-        classical_pat = cls.classical_patterns_certificate()
-        aux_yunxian = cls.auxiliary_polarity_and_yunxian_certificate()
-        all_passed = (
-            ring.get("status") == "verified"
-            and an_he.get("status") == "verified"
-            and shen_gong.get("status") == "verified"
-            and star_bright.get("status") == "verified"
-            and jie_shen.get("status") == "verified"
-            and twelve_deities.get("status") == "verified"
-            and flying_sihua.get("status") == "verified"
-            and triad_syn.get("status") == "verified"
-            and zi_fu_yang_tuo.get("status") == "verified"
-            and solar_zishi.get("status") == "verified"
-            and school_consensus.get("status") == "verified"
-            and classical_pat.get("status") == "verified"
-            and aux_yunxian.get("status") == "verified"
+    def noble_horse_stars_profile(
+        cls,
+        year_stem: int,
+        year_branch: int,
+        active_palace: int,
+        tuoluo_present: bool = False,
+        kongjie_present: bool = False,
+    ) -> dict[str, Any]:
+        """Compute Tiankui, Tianyue, Tianma, Hongluan, Tianxi and Lu-Ma concurrency dynamics."""
+        return _evaluate_noble_horse_stars(
+            year_stem=year_stem,
+            year_branch=year_branch,
+            active_palace=active_palace,
+            tuoluo_present=tuoluo_present,
+            kongjie_present=kongjie_present,
         )
-        return {
-            "status": "ok" if all_passed else "failed",
-            "sovereign_ring": ring,
-            "an_he_coupling": an_he,
-            "shen_gong_anchorage": shen_gong,
-            "star_brightness": star_bright,
-            "jie_shen_relief": jie_shen,
-            "twelve_deities": twelve_deities,
-            "flying_sihua_cascade": flying_sihua,
-            "triadic_synthesis": triad_syn,
-            "ziwei_tianfu_and_yangtuo": zi_fu_yang_tuo,
-            "solar_equation_and_zishi": solar_zishi,
-            "school_divergence_consensus": school_consensus,
-            "classical_patterns": classical_pat,
-            "auxiliary_polarity_and_yunxian": aux_yunxian,
-        }
+
+    @classmethod
+    def dual_sihua_superposition_profile(
+        cls,
+        palace_branch: int,
+        transformations: list[str],
+    ) -> dict[str, Any]:
+        """Arbitrate multi-signal superposition when multiple Sihua transformations share one palace."""
+        return _evaluate_dual_sihua_superposition(
+            palace_branch=palace_branch,
+            transformations=transformations,
+        )
+
+    @classmethod
+    def multi_agent_synastry_profile(
+        cls,
+        agent_a: dict[str, Any],
+        agent_b: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Multi-agent synastry compatibility based on Ni Haisha's Double Palace and Cross Flying Sihua."""
+        return _evaluate_multi_agent_synastry(
+            agent_a=agent_a,
+            agent_b=agent_b,
+        )
+
+    @classmethod
+    def famous_archetype_profile(cls, person_id: str) -> dict[str, Any]:
+        """Retrieve operational archetype, risk profile, and scheduling strategy from famous benchmarks."""
+        return _evaluate_famous_archetype(person_id=person_id)

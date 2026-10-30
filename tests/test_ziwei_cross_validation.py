@@ -1102,6 +1102,116 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["jiekong_stem_duality_verified"])
         self.assertTrue(cert["yunxian_7_tier_hierarchy_verified"])
 
+    def test_noble_horse_stars_profile(self):
+        """Test Tiankui, Tianyue, Tianma, Hongluan, Tianxi and concurrency dynamics."""
+        # Year Stem 0 (甲) -> Kui 1 (丑), Yue 7 (未), Lucun 2 (寅)
+        # Year Branch 0 (子) -> Ma 2 (寅), Hongluan 3 (卯), Tianxi 9 (酉)
+        res_kui = IchingKernel.noble_horse_stars_profile(year_stem=0, year_branch=0, active_palace=1)
+        self.assertEqual(res_kui["tiankui_branch"], 1)
+        self.assertEqual(res_kui["tianyue_branch"], 7)
+        self.assertTrue(res_kui["kui_present"])
+        self.assertEqual(res_kui["directive"], "noble_guardian_guided_pass")
+        self.assertEqual(res_kui["throughput_multiplier"], 1.10)
+
+        # Lu-Ma Jiao-Chi at branch 2 (寅) where both Lucun (2) and Tianma (2) meet!
+        res_luma = IchingKernel.noble_horse_stars_profile(year_stem=0, year_branch=0, active_palace=2)
+        self.assertTrue(res_luma["lu_ma_jiaochi"])
+        self.assertEqual(res_luma["directive"], "lu_ma_jiaochi_accelerated_concurrency")
+        self.assertEqual(res_luma["throughput_multiplier"], 1.25)
+
+        # Broken leg horse
+        res_broken = IchingKernel.noble_horse_stars_profile(year_stem=0, year_branch=0, active_palace=2, tuoluo_present=True)
+        self.assertTrue(res_broken["broken_leg_horse"])
+        self.assertEqual(res_broken["directive"], "broken_leg_horse_throttle")
+        self.assertEqual(res_broken["throughput_multiplier"], 0.5)
+
+        # Tianluo Diwang at branch 4 (辰) without Kui/Yue
+        res_tianluo = IchingKernel.noble_horse_stars_profile(year_stem=0, year_branch=0, active_palace=4)
+        self.assertTrue(res_tianluo["in_tianluo_diwang"])
+        self.assertEqual(res_tianluo["directive"], "tianluo_diwang_cautious_step")
+        self.assertEqual(res_tianluo["throughput_multiplier"], 0.75)
+
+    def test_dual_sihua_superposition_profile(self):
+        """Test dual-sihua same palace tensor arbitration."""
+        # Quan + Ji (权忌同宫) -> Guarded authority
+        res_qj = IchingKernel.dual_sihua_superposition_profile(0, ["化忌", "化权"])
+        self.assertEqual(res_qj["composite_action"], "guarded_authority_verification")
+        self.assertTrue(res_qj["write_permission"])
+        self.assertTrue(res_qj["mandatory_audit"])
+
+        # Lu + Ke (禄科同宫) -> Accelerated audited
+        res_lk = IchingKernel.dual_sihua_superposition_profile(0, ["化禄", "化科"])
+        self.assertEqual(res_lk["composite_action"], "accelerated_audited_execution")
+        self.assertTrue(res_lk["write_permission"])
+        self.assertFalse(res_lk["mandatory_audit"])
+
+        # Lu + Quan (禄权同宫) -> Decisive expansion
+        res_lq = IchingKernel.dual_sihua_superposition_profile(0, ["化禄", "化权"])
+        self.assertEqual(res_lq["composite_action"], "decisive_expansion")
+
+        # Ke + Ji (科忌同宫) -> Defensive verification
+        res_kj = IchingKernel.dual_sihua_superposition_profile(0, ["化科", "化忌"])
+        self.assertEqual(res_kj["composite_action"], "defensive_verification")
+        self.assertFalse(res_kj["write_permission"])
+
+        # Lu + Ji (禄忌相冲) -> Entropy dissipation
+        res_lj = IchingKernel.dual_sihua_superposition_profile(0, ["化禄", "化忌"])
+        self.assertEqual(res_lj["composite_action"], "entropy_dissipation_remediation")
+
+    def test_multi_agent_synastry_and_famous_archetypes(self):
+        """Test Ni Haisha Double Palace Synastry and Famous Historical Benchmarks."""
+        # Mutual Ji clash triggers quarantined arbitration
+        agent_a = {"stem": 0, "ming_branch": 0, "force_mutual_ji": True}
+        agent_b = {"stem": 1, "ming_branch": 4, "force_mutual_ji": True}
+        res_clash = IchingKernel.multi_agent_synastry_profile(agent_a, agent_b)
+        self.assertEqual(res_clash["score"], "one_star")
+        self.assertTrue(res_clash["isolation_required"])
+        self.assertEqual(res_clash["coordination_mode"], "quarantined_arbitration_boundary")
+
+        # Compromised deep invariant (Fude)
+        agent_c = {"stem": 0, "ming_branch": 0, "fude_broken": True}
+        agent_d = {"stem": 1, "ming_branch": 4}
+        res_fude = IchingKernel.multi_agent_synastry_profile(agent_c, agent_d)
+        self.assertEqual(res_fude["score"], "two_stars")
+        self.assertEqual(res_fude["coordination_mode"], "guarded_contract_short_leash")
+
+        # Tian-Zuo-Zhi-He mutual match (A fuqi matches B ming, B fuqi matches A ming)
+        # A ming=2 -> fuqi=(2-2)%12=0; B ming=0 -> fuqi=(0-2)%12=10
+        # If A ming=0 -> fuqi=10; B ming=10 -> fuqi=8 (unidirectional)
+        # For bidirectional: A ming=0, fuqi=2; B ming=2, fuqi=0
+        agent_e = {"stem": 0, "ming_branch": 0, "fuqi_branch": 2}
+        agent_f = {"stem": 1, "ming_branch": 2, "fuqi_branch": 0}
+        res_pair = IchingKernel.multi_agent_synastry_profile(agent_e, agent_f)
+        self.assertEqual(res_pair["score"], "five_stars")
+        self.assertEqual(res_pair["coordination_mode"], "high_bandwidth_synergistic_pair")
+
+        # Famous benchmark archetypes
+        mayun = IchingKernel.famous_archetype_profile("ma-yun")
+        self.assertEqual(mayun["archetype"], "po_ge_chong_jian")
+        self.assertEqual(mayun["recommended_strategy"], "high_entropy_refactoring")
+
+        li = IchingKernel.famous_archetype_profile("li-jiacheng")
+        self.assertEqual(li["archetype"], "lu_cun_shou_cai")
+
+        ren = IchingKernel.famous_archetype_profile("ren-zhengfei")
+        self.assertEqual(ren["archetype"], "qi_sha_ru_ming")
+
+        jobs = IchingKernel.famous_archetype_profile("steve-jobs")
+        self.assertEqual(jobs["archetype"], "po_jun_ru_ming")
+
+        musk = IchingKernel.famous_archetype_profile("elon-musk")
+        self.assertEqual(musk["archetype"], "sha_po_lang_tianma")
+
+    def test_heming_synastry_and_noble_stars_certificate(self):
+        """Formal mathematical certificate of Tianluo-Diwang Exclusion, Kui-Yue Reflection, Tianma Involution, and Synastry."""
+        cert = IchingKernel.heming_synastry_and_noble_stars_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["tianluo_diwang_exclusion_verified"])
+        self.assertTrue(cert["kui_yue_symmetry_verified"])
+        self.assertTrue(cert["tianma_corner_involution_verified"])
+        self.assertTrue(cert["hongluan_derangement_verified"])
+        self.assertTrue(cert["mutual_ji_deadlock_breaker_verified"])
+
 
 if __name__ == "__main__":
     unittest.main()

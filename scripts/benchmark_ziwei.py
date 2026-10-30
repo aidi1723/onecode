@@ -49,6 +49,10 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.classical_patterns_profile(1, state)
         _ = IchingKernel.auxiliary_stars_polarity_profile(0, state % 12)
         _ = IchingKernel.nested_yunxian_temporal_profile("liunian", 1, status_code=state)
+        _ = IchingKernel.noble_horse_stars_profile(0, state % 12, 0)
+        _ = IchingKernel.dual_sihua_superposition_profile(0, ["化忌", "化权"])
+        _ = IchingKernel.multi_agent_synastry_profile({"stem": 0, "ming_branch": 0}, {"stem": 1, "ming_branch": 4})
+        _ = IchingKernel.famous_archetype_profile("ma-yun")
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
 
     start_total = time.perf_counter()
@@ -77,6 +81,10 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.classical_patterns_profile(turn, state)
         _ = IchingKernel.auxiliary_stars_polarity_profile(turn - 1, state % 12)
         _ = IchingKernel.nested_yunxian_temporal_profile("liunian", turn, status_code=state)
+        _ = IchingKernel.noble_horse_stars_profile(turn - 1, state % 12, (turn - 1) % 12)
+        _ = IchingKernel.dual_sihua_superposition_profile((turn - 1) % 12, ["化忌", "化权"])
+        _ = IchingKernel.multi_agent_synastry_profile({"stem": (turn - 1) % 10, "ming_branch": (turn - 1) % 12}, {"stem": turn % 10, "ming_branch": (turn + 4) % 12})
+        _ = IchingKernel.famous_archetype_profile("ma-yun")
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
         t1 = time.perf_counter_ns()
         latencies_us.append((t1 - t0) / 1000.0)
@@ -120,6 +128,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
     c_school = IchingKernel.school_divergence_consensus_certificate()
     c_classical = IchingKernel.classical_patterns_certificate()
     c_aux = IchingKernel.auxiliary_polarity_and_yunxian_certificate()
+    c_heming = IchingKernel.heming_synastry_and_noble_stars_certificate()
     
     return {
         "sovereign_ring": c_ring.get("status") == "verified" and c_ring.get("triad_balance_verified") is True,
@@ -135,6 +144,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
         "school_divergence_consensus": c_school.get("status") == "verified" and c_school.get("seven_stems_unanimous_verified") is True and c_school.get("geng_closure_verified") is True,
         "classical_patterns": c_classical.get("status") == "verified" and c_classical.get("safety_dominance_verified") is True and c_classical.get("supreme_purity_verified") is True,
         "auxiliary_polarity_and_yunxian": c_aux.get("status") == "verified" and c_aux.get("dahao_bijection_verified") is True and c_aux.get("jiekong_stem_duality_verified") is True,
+        "heming_synastry_and_noble_stars": c_heming.get("status") == "verified" and c_heming.get("tianluo_diwang_exclusion_verified") is True and c_heming.get("mutual_ji_deadlock_breaker_verified") is True,
     }
 
 

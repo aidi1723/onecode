@@ -838,6 +838,15 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
                 turn_number=turn_number,
                 status_code=iching_status_code,
             ),
+            "noble_horse_stars": IchingKernel.noble_horse_stars_profile(
+                year_stem=turn_number - 1,
+                year_branch=turn_number - 1,
+                active_palace=(turn_number - 1) % 12,
+            ),
+            "multi_agent_synastry": IchingKernel.multi_agent_synastry_profile(
+                agent_a={"stem": (turn_number - 1) % 10, "ming_branch": (turn_number - 1) % 12},
+                agent_b={"stem": turn_number % 10, "ming_branch": (turn_number + 4) % 12},
+            ),
         }
     return telemetry
 
