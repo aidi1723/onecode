@@ -1059,6 +1059,49 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["supreme_purity_verified"])
         self.assertTrue(cert["formation_classification_verified"])
 
+    def test_auxiliary_stars_polarity_profile(self):
+        """Verify auxiliary stars polarity reversal across Yang/Yin stems and branches."""
+        # Jia (stem 0, Yang) and Zi (branch 0, Yang)
+        res_jia_zi = IchingKernel.auxiliary_stars_polarity_profile(year_stem=0, year_branch=0)
+        self.assertEqual(res_jia_zi["stem_polarity"], "yang")
+        self.assertEqual(res_jia_zi["branch_polarity"], "yang")
+        # DaHao for Yang branch: (0 + 6 + 1) % 12 = 7 (午)
+        self.assertEqual(res_jia_zi["dahao_branch"], 7)
+        self.assertEqual(res_jia_zi["dahao_branch_name"], "未")
+        # Jiekong for Jia (Yang stem): Shen (8, Yang), Fujie: You (9, Yin)
+        self.assertEqual(res_jia_zi["jiekong_branch"], 8)
+        self.assertEqual(res_jia_zi["fujie_branch"], 9)
+
+        # Yi (stem 1, Yin) inverts Jiekong/Fujie polarity
+        res_yi = IchingKernel.auxiliary_stars_polarity_profile(year_stem=1, year_branch=0)
+        self.assertEqual(res_yi["stem_polarity"], "yin")
+        # For Yi: pair is Wu(6)/Wei(7). Jiekong is in Yin branch (Wei 7), Fujie in Yang branch (Wu 6)
+        self.assertEqual(res_yi["jiekong_branch"], 7)
+        self.assertEqual(res_yi["fujie_branch"], 6)
+
+    def test_nested_yunxian_temporal_profile(self):
+        """Verify 7-tier nested temporal scopes and containment policies."""
+        res_ming = IchingKernel.nested_yunxian_temporal_profile(view="mingpan", turn_number=1)
+        self.assertEqual(res_ming["scope_rank"], 0)
+        self.assertEqual(res_ming["containment_level"], "macro_governance")
+
+        res_liu = IchingKernel.nested_yunxian_temporal_profile(view="liunian", turn_number=3)
+        self.assertEqual(res_liu["scope_rank"], 2)
+        self.assertEqual(res_liu["containment_level"], "cycle_governance")
+
+        res_shi = IchingKernel.nested_yunxian_temporal_profile(view="liushi", turn_number=1)
+        self.assertEqual(res_shi["scope_rank"], 6)
+        self.assertEqual(res_shi["containment_level"], "micro_action")
+        self.assertEqual(res_shi["isolation_policy"], "atomic_rollback_on_failure")
+
+    def test_auxiliary_polarity_and_yunxian_certificate(self):
+        """Verify DaHao Bijection, Jiekong Duality, and 7-tier Yunxian Hierarchy Certificate."""
+        cert = IchingKernel.auxiliary_polarity_and_yunxian_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["dahao_bijection_verified"])
+        self.assertTrue(cert["jiekong_stem_duality_verified"])
+        self.assertTrue(cert["yunxian_7_tier_hierarchy_verified"])
+
 
 if __name__ == "__main__":
     unittest.main()

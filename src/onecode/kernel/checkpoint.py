@@ -829,6 +829,15 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
                 turn_number=turn_number,
                 status_code=iching_status_code,
             ),
+            "auxiliary_polarity": IchingKernel.auxiliary_stars_polarity_profile(
+                year_stem=turn_number - 1,
+                year_branch=turn_number - 1,
+            ),
+            "nested_yunxian": IchingKernel.nested_yunxian_temporal_profile(
+                view="liunian",
+                turn_number=turn_number,
+                status_code=iching_status_code,
+            ),
         }
     return telemetry
 

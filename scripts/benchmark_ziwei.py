@@ -47,6 +47,8 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.clock_drift_adaptation_profile(0.0)
         _ = IchingKernel.school_consensus_profile(0)
         _ = IchingKernel.classical_patterns_profile(1, state)
+        _ = IchingKernel.auxiliary_stars_polarity_profile(0, state % 12)
+        _ = IchingKernel.nested_yunxian_temporal_profile("liunian", 1, status_code=state)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
 
     start_total = time.perf_counter()
@@ -73,6 +75,8 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.clock_drift_adaptation_profile(5.0)
         _ = IchingKernel.school_consensus_profile(turn - 1)
         _ = IchingKernel.classical_patterns_profile(turn, state)
+        _ = IchingKernel.auxiliary_stars_polarity_profile(turn - 1, state % 12)
+        _ = IchingKernel.nested_yunxian_temporal_profile("liunian", turn, status_code=state)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
         t1 = time.perf_counter_ns()
         latencies_us.append((t1 - t0) / 1000.0)
@@ -115,6 +119,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
     c_solar = IchingKernel.solar_equation_and_zishi_certificate()
     c_school = IchingKernel.school_divergence_consensus_certificate()
     c_classical = IchingKernel.classical_patterns_certificate()
+    c_aux = IchingKernel.auxiliary_polarity_and_yunxian_certificate()
     
     return {
         "sovereign_ring": c_ring.get("status") == "verified" and c_ring.get("triad_balance_verified") is True,
@@ -129,6 +134,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
         "solar_equation_and_zishi": c_solar.get("status") == "verified" and c_solar.get("eot_bounded_oscillation_verified") is True and c_solar.get("zishi_measure_partition_verified") is True,
         "school_divergence_consensus": c_school.get("status") == "verified" and c_school.get("seven_stems_unanimous_verified") is True and c_school.get("geng_closure_verified") is True,
         "classical_patterns": c_classical.get("status") == "verified" and c_classical.get("safety_dominance_verified") is True and c_classical.get("supreme_purity_verified") is True,
+        "auxiliary_polarity_and_yunxian": c_aux.get("status") == "verified" and c_aux.get("dahao_bijection_verified") is True and c_aux.get("jiekong_stem_duality_verified") is True,
     }
 
 

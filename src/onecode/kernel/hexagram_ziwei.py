@@ -1900,6 +1900,158 @@ def _evaluate_classical_patterns_certificate() -> dict[str, Any]:
     }
 
 
+def _evaluate_auxiliary_stars_polarity(
+    year_stem: int,
+    year_branch: int,
+) -> dict[str, Any]:
+    """Compute auxiliary star polarity reversals for DaHao, Jiekong/Fujie, and Xunkong/Fuxun."""
+    s = year_stem % 10
+    y = year_branch % 12
+    is_yang_stem = (s % 2 == 0)
+    is_yang_branch = (y % 2 == 0)
+
+    # 1. DaHao (年支大耗对冲置换)
+    sui_po = (y + 6) % 12
+    dahao_b = (sui_po + 1) % 12 if is_yang_branch else (sui_po + 11) % 12
+
+    # 2. Jiekong / Fujie (截空与副截阴阳干极性对调)
+    k = (4 - (s % 5)) % 6
+    yang_b = (2 * k) % 12
+    yin_b = (2 * k + 1) % 12
+    jiekong_b = yang_b if is_yang_stem else yin_b
+    fujie_b = yin_b if is_yang_stem else yang_b
+
+    # 3. Xunkong / Fuxun (旬空与副旬六十甲子成对划分)
+    d = ((y - s) % 12) // 2
+    xunkong_b = (10 - 2 * d) % 12
+    fuxun_b = (xunkong_b + 1) % 12 if (xunkong_b % 2 == 0) else (xunkong_b - 1) % 12
+
+    return {
+        "year_stem": s,
+        "year_stem_name": _HEAVENLY_STEM_NAMES[s],
+        "year_branch": y,
+        "year_branch_name": _EARTHLY_BRANCH_NAMES[y],
+        "stem_polarity": "yang" if is_yang_stem else "yin",
+        "branch_polarity": "yang" if is_yang_branch else "yin",
+        "dahao_branch": dahao_b,
+        "dahao_branch_name": _EARTHLY_BRANCH_NAMES[dahao_b],
+        "jiekong_branch": jiekong_b,
+        "jiekong_branch_name": _EARTHLY_BRANCH_NAMES[jiekong_b],
+        "fujie_branch": fujie_b,
+        "fujie_branch_name": _EARTHLY_BRANCH_NAMES[fujie_b],
+        "xunkong_branch": xunkong_b,
+        "xunkong_branch_name": _EARTHLY_BRANCH_NAMES[xunkong_b],
+        "fuxun_branch": fuxun_b,
+        "fuxun_branch_name": _EARTHLY_BRANCH_NAMES[fuxun_b],
+        "governance_directive": "polarity_balanced_auxiliary_isolation",
+    }
+
+
+def _evaluate_nested_yunxian_temporal(
+    view: str,
+    turn_number: int,
+    macro_stage: str = "implementation",
+    status_code: int = 7,
+) -> dict[str, Any]:
+    """Evaluate 7-tier nested temporal scopes (运限七层时空嵌套与递进上下文)."""
+    valid_views = ("mingpan", "daxian", "liunian", "xiaoxian", "liuyue", "liuri", "liushi")
+    norm_view = view if view in valid_views else "liunian"
+    rank_map = {
+        "mingpan": 0,
+        "daxian": 1,
+        "liunian": 2,
+        "xiaoxian": 3,
+        "liuyue": 4,
+        "liuri": 5,
+        "liushi": 6,
+    }
+    scope_rank = rank_map[norm_view]
+    scope_descriptions = {
+        "mingpan": "Root architectural invariant contracts and global SLAs.",
+        "daxian": "Macro stage milestone (discover/implement/verify/deliver).",
+        "liunian": "Turn loop iteration budget and agent sovereignty.",
+        "xiaoxian": "Internal retry and exponential cooldown backoff.",
+        "liuyue": "Subtask tool invocation plan batching.",
+        "liuri": "Atomic tool execution tick (read/write/bash).",
+        "liushi": "Microscopic line/token diff unified patch step.",
+    }
+
+    if scope_rank <= 1:
+        containment_level = "macro_governance"
+        isolation_policy = "barrier_synchronization"
+    elif scope_rank <= 3:
+        containment_level = "cycle_governance"
+        isolation_policy = "guarded_step_retry"
+    else:
+        containment_level = "micro_action"
+        isolation_policy = "atomic_rollback_on_failure"
+
+    return {
+        "view": norm_view,
+        "scope_rank": scope_rank,
+        "turn_number": turn_number,
+        "macro_stage": macro_stage,
+        "status_code": status_code & 0b111111,
+        "scope_description": scope_descriptions[norm_view],
+        "containment_level": containment_level,
+        "isolation_policy": isolation_policy,
+        "enclosing_macro_alignment": (macro_stage in {"discovery", "implementation", "verification", "delivery"}),
+    }
+
+
+def _evaluate_auxiliary_polarity_and_yunxian_certificate() -> dict[str, Any]:
+    """Verify DaHao permutation bijection, Jiekong polarity partition, and Yunxian 7-tier hierarchy."""
+    # Theorem 1: DaHao permutation bijection on Z_12 with no fixed points
+    dahao_images = []
+    no_fixed_points = True
+    for y in range(12):
+        res = _evaluate_auxiliary_stars_polarity(0, y)
+        b = res["dahao_branch"]
+        dahao_images.append(b)
+        if b == y:
+            no_fixed_points = False
+            break
+
+    dahao_bijection_ok = (sorted(dahao_images) == list(range(12))) and no_fixed_points
+
+    # Theorem 2: Jiekong & Fujie Yang-Yin stem duality
+    jiekong_duality_ok = True
+    for s in range(10):
+        res = _evaluate_auxiliary_stars_polarity(s, 0)
+        jk = res["jiekong_branch"]
+        fj = res["fujie_branch"]
+        dist = abs(jk - fj)
+        if dist != 1 and dist != 11:
+            jiekong_duality_ok = False
+            break
+        # Yang stem -> Jiekong is Yang branch (even)
+        if (s % 2 == 0) and (jk % 2 != 0):
+            jiekong_duality_ok = False
+            break
+        # Yin stem -> Jiekong is Yin branch (odd)
+        if (s % 2 != 0) and (jk % 2 == 0):
+            jiekong_duality_ok = False
+            break
+
+    # Theorem 3: Yunxian 7-tier hierarchy strict rank ordering
+    views = ("mingpan", "daxian", "liunian", "xiaoxian", "liuyue", "liuri", "liushi")
+    ranks = [_evaluate_nested_yunxian_temporal(v, 1)["scope_rank"] for v in views]
+    yunxian_hierarchy_ok = (ranks == list(range(7)))
+
+    status = (
+        "verified"
+        if (dahao_bijection_ok and jiekong_duality_ok and yunxian_hierarchy_ok)
+        else "failed"
+    )
+
+    return {
+        "status": status,
+        "dahao_bijection_verified": dahao_bijection_ok,
+        "jiekong_stem_duality_verified": jiekong_duality_ok,
+        "yunxian_7_tier_hierarchy_verified": yunxian_hierarchy_ok,
+    }
+
+
 class IchingZiweiMixin:
     """Diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
 
@@ -2291,6 +2443,36 @@ class IchingZiweiMixin:
         return _evaluate_classical_patterns_certificate()
 
     @classmethod
+    def auxiliary_stars_polarity_profile(
+        cls,
+        year_stem: int,
+        year_branch: int,
+    ) -> dict[str, Any]:
+        """Compute auxiliary star polarity reversals for DaHao, Jiekong/Fujie, and Xunkong/Fuxun."""
+        return _evaluate_auxiliary_stars_polarity(year_stem=year_stem, year_branch=year_branch)
+
+    @classmethod
+    def nested_yunxian_temporal_profile(
+        cls,
+        view: str,
+        turn_number: int,
+        macro_stage: str = "implementation",
+        status_code: int = 7,
+    ) -> dict[str, Any]:
+        """Evaluate 7-tier nested temporal scopes (运限七层时空嵌套与递进上下文)."""
+        return _evaluate_nested_yunxian_temporal(
+            view=view,
+            turn_number=turn_number,
+            macro_stage=macro_stage,
+            status_code=status_code,
+        )
+
+    @classmethod
+    def auxiliary_polarity_and_yunxian_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of DaHao Bijection, Jiekong Duality, and 7-tier Yunxian Hierarchy."""
+        return _evaluate_auxiliary_polarity_and_yunxian_certificate()
+
+    @classmethod
     def star_brightness_certificate(cls) -> dict[str, Any]:
         """Formal mathematical certificate of Star Brightness Invariance across all 64 states."""
         return _evaluate_star_brightness_certificate(cls)
@@ -2310,6 +2492,7 @@ class IchingZiweiMixin:
         solar_zishi = cls.solar_equation_and_zishi_certificate()
         school_consensus = cls.school_divergence_consensus_certificate()
         classical_pat = cls.classical_patterns_certificate()
+        aux_yunxian = cls.auxiliary_polarity_and_yunxian_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
@@ -2323,6 +2506,7 @@ class IchingZiweiMixin:
             and solar_zishi.get("status") == "verified"
             and school_consensus.get("status") == "verified"
             and classical_pat.get("status") == "verified"
+            and aux_yunxian.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -2338,4 +2522,5 @@ class IchingZiweiMixin:
             "solar_equation_and_zishi": solar_zishi,
             "school_divergence_consensus": school_consensus,
             "classical_patterns": classical_pat,
+            "auxiliary_polarity_and_yunxian": aux_yunxian,
         }

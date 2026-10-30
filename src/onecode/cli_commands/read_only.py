@@ -127,6 +127,7 @@ def math_audit_payload() -> dict[str, object]:
             "solar_equation_and_zishi",
             "school_divergence_consensus",
             "classical_patterns",
+            "auxiliary_polarity_and_yunxian",
         ],
         "reference_only": [
             "probabilistic_sampling",
