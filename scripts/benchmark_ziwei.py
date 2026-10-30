@@ -79,6 +79,9 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.sha_po_lang_triad_profile(state)
         _ = IchingKernel.ming_zhu_shen_zhu_profile(state)
         _ = IchingKernel.void_and_consumption_stars_profile(state % 10, state % 12, (state + 2) % 12)
+        _ = IchingKernel.pattern_breaking_profile(state)
+        _ = IchingKernel.tri_level_time_flow_profile(age=25 + state % 50, year_branch=state % 12)
+        _ = IchingKernel.palace_star_duality_profile(active_palace=state % 12, ingress_stem=state % 10, ingress_branch=(state + 4) % 12)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
 
     start_total = time.perf_counter()
@@ -137,6 +140,9 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.sha_po_lang_triad_profile(state)
         _ = IchingKernel.ming_zhu_shen_zhu_profile(state)
         _ = IchingKernel.void_and_consumption_stars_profile(state % 10, state % 12, (state + 2) % 12)
+        _ = IchingKernel.pattern_breaking_profile(state)
+        _ = IchingKernel.tri_level_time_flow_profile(age=25 + state % 50, year_branch=state % 12)
+        _ = IchingKernel.palace_star_duality_profile(active_palace=state % 12, ingress_stem=state % 10, ingress_branch=(state + 4) % 12)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
         t1 = time.perf_counter_ns()
         latencies_us.append((t1 - t0) / 1000.0)
@@ -190,6 +196,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
     c_ziwu = IchingKernel.ziwu_liuzhu_and_shengke_certificate()
     c_dipper = IchingKernel.dipper_axes_and_sha_po_lang_certificate()
     c_ming_void = IchingKernel.ming_zhu_shen_zhu_and_void_stars_certificate()
+    c_pattern_break = IchingKernel.pattern_breaking_and_resonance_certificate()
     
     return {
         "sovereign_ring": c_ring.get("status") == "verified" and c_ring.get("triad_balance_verified") is True,
@@ -215,6 +222,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
         "ziwu_liuzhu_and_shengke": c_ziwu.get("status") == "verified" and c_ziwu.get("ziwu_liuzhu_antipodal_involution_verified") is True and c_ziwu.get("five_elements_sheng_cycle_verified") is True and c_ziwu.get("quanshu_14_stars_totality_verified") is True and c_ziwu.get("quanshu_energy_gap_monotonic_verified") is True,
         "dipper_axes_and_sha_po_lang": c_dipper.get("status") == "verified" and c_dipper.get("dipper_five_axes_sum_4_verified") is True and c_dipper.get("auspicious_pairs_sum_2_verified") is True and c_dipper.get("sha_po_lang_equilateral_trine_verified") is True,
         "ming_zhu_shen_zhu_and_void_stars": c_ming_void.get("status") == "verified" and c_ming_void.get("ming_zhu_ziwu_mirror_verified") is True and c_ming_void.get("shen_zhu_period_6_antipodal_verified") is True and c_ming_void.get("jiekong_dyad_contiguity_verified") is True and c_ming_void.get("dahao_suipo_adjacency_verified") is True,
+        "pattern_breaking_and_resonance": c_pattern_break.get("status") == "verified" and c_pattern_break.get("pattern_breaking_monotonicity_verified") is True and c_pattern_break.get("xiaoxian_triad_mod4_invariant_verified") is True and c_pattern_break.get("palace_as_star_totality_verified") is True and c_pattern_break.get("tai_sui_ingress_sihua_verified") is True,
     }
 
 

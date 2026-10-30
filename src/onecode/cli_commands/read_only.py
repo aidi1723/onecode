@@ -138,6 +138,7 @@ def math_audit_payload() -> dict[str, object]:
             "ziwu_liuzhu_and_shengke",
             "dipper_axes_and_sha_po_lang",
             "ming_zhu_shen_zhu_and_void_stars",
+            "pattern_breaking_and_resonance",
         ],
         "reference_only": [
             "probabilistic_sampling",

@@ -1995,6 +1995,65 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["jiekong_dyad_contiguity_verified"])
         self.assertTrue(cert["dahao_suipo_adjacency_verified"])
 
+    def test_pattern_breaking_matrix_monotonicity(self):
+        """Direction T: Classical Pattern Breaking Dynamics and Health Monotonicity."""
+        for state in range(64):
+            res = IchingKernel.pattern_breaking_profile(state)
+            self.assertIn(res["execution_posture"], ["intact_full_execution", "partially_broken_degraded", "severely_broken_quarantine"])
+            self.assertGreater(res["formation_health_score"], 0.0)
+
+        # Direct monotonicity test
+        intact = IchingKernel.pattern_breaking_profile(0, pattern_name="君臣庆会", sha_stars=[])
+        self.assertEqual(intact["formation_health_score"], 1.0)
+        self.assertEqual(intact["execution_posture"], "intact_full_execution")
+
+        one_sha = IchingKernel.pattern_breaking_profile(0, pattern_name="君臣庆会", sha_stars=["地空"])
+        self.assertLess(one_sha["formation_health_score"], intact["formation_health_score"])
+        self.assertEqual(one_sha["execution_posture"], "partially_broken_degraded")
+
+        two_shas = IchingKernel.pattern_breaking_profile(0, pattern_name="君臣庆会", sha_stars=["地空", "地劫"])
+        self.assertLess(two_shas["formation_health_score"], one_sha["formation_health_score"])
+        self.assertEqual(two_shas["execution_posture"], "severely_broken_quarantine")
+
+    def test_tri_level_time_flow_cascade(self):
+        """Direction U: DaXian, XiaoXian, and LiuNian Tri-Level Time Cascade."""
+        for y in range(12):
+            flow = IchingKernel.tri_level_time_flow_profile(age=25, year_branch=y)
+            expected_origin = (10 - 3 * (y % 4)) % 12
+            self.assertEqual(flow["xiaoxian"]["origin_branch"], expected_origin)
+            self.assertIn(flow["resonance_mode"], ["triple_conjunction_maximum_momentum", "triad_harmonic_resonance", "asynchronous_distributed_flow"])
+            self.assertGreaterEqual(flow["gain_multiplier"], 1.0)
+
+        # Check gender direction in XiaoXian
+        male = IchingKernel.tri_level_time_flow_profile(age=2, gender="male", year_branch=0)
+        female = IchingKernel.tri_level_time_flow_profile(age=2, gender="female", year_branch=0)
+        # origin is 10 (戌)
+        # male age 2: (10 + 1) = 11 (亥)
+        # female age 2: (10 - 1) = 9 (酉)
+        self.assertEqual(male["xiaoxian"]["palace_branch"], 11)
+        self.assertEqual(female["xiaoxian"]["palace_branch"], 9)
+
+    def test_palace_as_star_and_tai_sui_ingress(self):
+        """Direction V: Palace-as-Star Duality and Tai Sui Ingress Projection."""
+        for p in range(12):
+            res = IchingKernel.palace_star_duality_profile(active_palace=p)
+            self.assertIn("palace_as_star", res)
+            self.assertIn("governance_domain", res)
+
+        # Test Ingress Sihua
+        jia = IchingKernel.palace_star_duality_profile(ingress_stem=0, ingress_branch=0)
+        self.assertEqual(jia["ingress_entity"]["projected_sihua"]["lu"], "廉贞")
+        self.assertEqual(jia["ingress_entity"]["projected_sihua"]["ji"], "太阳")
+
+    def test_pattern_breaking_and_resonance_certificate(self):
+        """Direction T/U/V: 24th Formal Mathematical Certificate."""
+        cert = IchingKernel.pattern_breaking_and_resonance_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["pattern_breaking_monotonicity_verified"])
+        self.assertTrue(cert["xiaoxian_triad_mod4_invariant_verified"])
+        self.assertTrue(cert["palace_as_star_totality_verified"])
+        self.assertTrue(cert["tai_sui_ingress_sihua_verified"])
+
 
 if __name__ == "__main__":
     unittest.main()

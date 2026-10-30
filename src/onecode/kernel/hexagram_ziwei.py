@@ -4898,6 +4898,300 @@ def _evaluate_dipper_axes_and_sha_po_lang_certificate() -> dict[str, Any]:
     }
 
 
+def _evaluate_pattern_breaking_matrix(
+    hexagram_state: int,
+    pattern_name: str | None = None,
+    sha_stars: list[str] | None = None,
+) -> dict[str, Any]:
+    """Evaluate classical pattern breaking (破格) dynamics and health degradation score."""
+    state_code = hexagram_state & 0b111111
+
+    breaking_catalog = {
+        "君臣庆会": {
+            "required": ["紫微入命", "左辅右弼同会三方四正"],
+            "bonuses": ["文昌文曲", "天魁天钺", "紫微化权"],
+            "breaking_shas": ["地空", "地劫", "擎羊", "陀罗", "火星", "铃星", "化忌"],
+            "breaking_rules": ["紫府宫坐空劫", "紫府宫见双煞同坐", "紫微化忌或冲照化忌"],
+        },
+        "紫府同宫": {
+            "required": ["紫微天府同在寅申"],
+            "bonuses": ["辅弼同宫", "三奇嘉会", "禄马交驰"],
+            "breaking_shas": ["地空", "地劫", "火星", "铃星", "擎羊", "陀罗"],
+            "breaking_rules": ["命宫坐煞星", "三方四正煞星过多", "见空劫散贵"],
+        },
+        "府相朝垣": {
+            "required": ["天府天相三合朝命"],
+            "bonuses": ["禄存昌曲", "化权化禄", "无煞冲破"],
+            "breaking_shas": ["擎羊", "陀罗", "化忌"],
+            "breaking_rules": ["太阳落陷阳梁失辉", "三方煞重", "天相遇刑忌夹印"],
+        },
+        "火贪格": {
+            "required": ["贪狼与火星同宫或会照"],
+            "bonuses": ["贪狼化禄", "三方辅弼", "辰戌庙旺"],
+            "breaking_shas": ["擎羊", "陀罗", "地空", "地劫", "化忌"],
+            "breaking_rules": ["贪狼遇羊陀破横发", "贪狼遇空劫财来财去", "贪狼化忌暴败"],
+        },
+        "机月同梁": {
+            "required": ["天机太阴天同天梁三方聚会"],
+            "bonuses": ["化科化权", "昌曲魁钺", "禄存文星"],
+            "breaking_shas": ["擎羊", "陀罗", "火星", "铃星", "化忌"],
+            "breaking_rules": ["机月同梁最忌煞冲", "命宫坐煞变狡黠", "天同化忌损寿福"],
+        },
+        "石中隐玉": {
+            "required": ["巨门在子午坐命"],
+            "bonuses": ["巨门化禄", "巨门化权", "禄存三方"],
+            "breaking_shas": ["擎羊", "陀罗", "化忌"],
+            "breaking_rules": ["巨门化忌玉藏深泥", "命坐煞星招口舌官非", "早年孤蹇"],
+        },
+    }
+
+    target_pattern = pattern_name or "君臣庆会"
+    if target_pattern not in breaking_catalog:
+        target_pattern = "君臣庆会"
+
+    pat_info = breaking_catalog[target_pattern]
+    active_shas = list(sha_stars) if sha_stars is not None else []
+    if sha_stars is None:
+        if (state_code & 0b000001) != 0:
+            active_shas.append("擎羊")
+        if (state_code & 0b000010) != 0:
+            active_shas.append("地空")
+        if (state_code & 0b000100) != 0:
+            active_shas.append("化忌")
+
+    breaking_hits = [s for s in active_shas if s in pat_info["breaking_shas"]]
+    breaking_count = len(breaking_hits)
+    bonus_count = 1 if (state_code & 0b001000) != 0 else 0
+
+    health_score = round((1.0 + 0.15 * bonus_count) / (1.0 + 0.40 * breaking_count), 4)
+    is_broken = breaking_count > 0
+
+    if health_score >= 1.0:
+        execution_posture = "intact_full_execution"
+        directive = "proceed_full_generative_plan_and_refactoring"
+    elif health_score >= 0.60:
+        execution_posture = "partially_broken_degraded"
+        directive = "degrade_to_surgical_patch_only_disallow_full_file_rewrites"
+    else:
+        execution_posture = "severely_broken_quarantine"
+        directive = "quarantine_execution_read_only_audit_and_rollback"
+
+    return {
+        "hexagram_state": state_code,
+        "pattern_name": target_pattern,
+        "required_conditions": pat_info["required"],
+        "active_shas": active_shas,
+        "breaking_shas_hit": breaking_hits,
+        "breaking_count": breaking_count,
+        "bonus_count": bonus_count,
+        "formation_health_score": health_score,
+        "is_broken": is_broken,
+        "execution_posture": execution_posture,
+        "governance_directive": directive,
+    }
+
+
+def _evaluate_tri_level_time_flow(
+    age: int = 30,
+    gender: str = "male",
+    year_branch: int = 0,
+    bureau: int = 2,
+    ming_branch: int = 2,
+    calendar_year_branch: int = 6,
+) -> dict[str, Any]:
+    """Evaluate DaXian, XiaoXian, and LiuNian tri-level time progression cascade."""
+    branch_names = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+    b = bureau if bureau in (2, 3, 4, 5, 6) else 2
+    cur_age = max(1, age)
+    y_branch = year_branch % 12
+    m_branch = ming_branch % 12
+    cal_branch = calendar_year_branch % 12
+
+    is_yang_year = (y_branch % 2) == 0
+    is_male = gender.casefold() == "male"
+    clockwise_daxian = (is_yang_year and is_male) or (not is_yang_year and not is_male)
+
+    if cur_age < b:
+        daxian_index = 0
+        daxian_palace = m_branch
+    else:
+        daxian_index = (cur_age - b) // 10
+        step = daxian_index if clockwise_daxian else -daxian_index
+        daxian_palace = (m_branch + step) % 12
+
+    xiaoxian_origin = (10 - 3 * (y_branch % 4)) % 12
+    if is_male:
+        xiaoxian_palace = (xiaoxian_origin + (cur_age - 1)) % 12
+    else:
+        xiaoxian_palace = (xiaoxian_origin - (cur_age - 1)) % 12
+
+    liunian_palace = cal_branch
+
+    d_dx_xx = min(abs(daxian_palace - xiaoxian_palace), 12 - abs(daxian_palace - xiaoxian_palace))
+    d_xx_ln = min(abs(xiaoxian_palace - liunian_palace), 12 - abs(xiaoxian_palace - liunian_palace))
+    d_dx_ln = min(abs(daxian_palace - liunian_palace), 12 - abs(daxian_palace - liunian_palace))
+
+    is_triad_resonance = (d_dx_xx in (0, 4) and d_xx_ln in (0, 4) and d_dx_ln in (0, 4))
+    is_conjunction = (daxian_palace == xiaoxian_palace == liunian_palace)
+
+    if is_conjunction:
+        resonance_mode = "triple_conjunction_maximum_momentum"
+        gain_multiplier = 2.0
+    elif is_triad_resonance:
+        resonance_mode = "triad_harmonic_resonance"
+        gain_multiplier = 1.5
+    else:
+        resonance_mode = "asynchronous_distributed_flow"
+        gain_multiplier = 1.0
+
+    return {
+        "age": cur_age,
+        "gender": "male" if is_male else "female",
+        "bureau": b,
+        "daxian": {
+            "index": daxian_index,
+            "palace_branch": daxian_palace,
+            "palace_name": branch_names[daxian_palace],
+            "step_direction": "clockwise" if clockwise_daxian else "counter_clockwise",
+        },
+        "xiaoxian": {
+            "origin_branch": xiaoxian_origin,
+            "origin_branch_name": branch_names[xiaoxian_origin],
+            "palace_branch": xiaoxian_palace,
+            "palace_name": branch_names[xiaoxian_palace],
+        },
+        "liunian": {
+            "palace_branch": liunian_palace,
+            "palace_name": branch_names[liunian_palace],
+        },
+        "angular_distances": [d_dx_xx, d_xx_ln, d_dx_ln],
+        "is_triple_conjunction": is_conjunction,
+        "is_triad_resonance": is_triad_resonance,
+        "resonance_mode": resonance_mode,
+        "gain_multiplier": gain_multiplier,
+    }
+
+
+def _evaluate_palace_as_star_and_ingress(
+    active_palace: int = 5,
+    ingress_stem: int = 0,
+    ingress_branch: int = 0,
+) -> dict[str, Any]:
+    """Evaluate Ni Haixia's 'Palace-as-Star' duality and Tai Sui Ingress Method."""
+    palace_order = [
+        "命宫", "兄弟宫", "夫妻宫", "子女宫", "财帛宫", "疾厄宫",
+        "迁移宫", "交友宫", "官禄宫", "田宅宫", "福德宫", "父母宫"
+    ]
+    p_idx = active_palace % 12
+    p_name = palace_order[p_idx]
+
+    palace_operator_map = {
+        "命宫": {"as_star_archetype": "核心系统主控星", "governance_domain": "system_sovereignty_and_kernel_dispatch"},
+        "兄弟宫": {"as_star_archetype": "并发并联协同星", "governance_domain": "peer_agent_cooperation_and_cash_reserve"},
+        "夫妻宫": {"as_star_archetype": "双边协作契约星", "governance_domain": "interface_contract_and_peer_arbitration"},
+        "子女宫": {"as_star_archetype": "子任务生成衍生星", "governance_domain": "subagent_spawning_and_delegation"},
+        "财帛宫": {"as_star_archetype": "资源通量资本星", "governance_domain": "token_consumption_and_computational_budget"},
+        "疾厄宫": {"as_star_archetype": "体质健康诊断星", "governance_domain": "pathology_memory_leak_and_stack_trace_audit"},
+        "迁移宫": {"as_star_archetype": "外向交互空间星", "governance_domain": "remote_rpc_network_and_cross_host_io"},
+        "交友宫": {"as_star_archetype": "从属协议服务星", "governance_domain": "worker_pool_and_downstream_subscription"},
+        "官禄宫": {"as_star_archetype": "任务使命执行星", "governance_domain": "tool_execution_plan_and_deliverable_dispatch"},
+        "田宅宫": {"as_star_archetype": "持久基石存储星", "governance_domain": "git_workspace_wal_checkpoints_and_filesystem"},
+        "福德宫": {"as_star_archetype": "自愈韧性决策星", "governance_domain": "recovery_policy_tolerance_and_entropy_gate"},
+        "父母宫": {"as_star_archetype": "上级守护治理星", "governance_domain": "supervisor_approval_and_human_in_the_loop"},
+    }
+
+    star_duality = palace_operator_map[p_name]
+    s_ext = ingress_stem % 10
+    b_ext = ingress_branch % 12
+    ingress_target_palace = palace_order[b_ext]
+
+    sihua_table = {
+        0: {"lu": "廉贞", "quan": "破军", "ke": "武曲", "ji": "太阳"},
+        1: {"lu": "天机", "quan": "天梁", "ke": "紫微", "ji": "太阴"},
+        2: {"lu": "天同", "quan": "天机", "ke": "文昌", "ji": "廉贞"},
+        3: {"lu": "太阴", "quan": "天同", "ke": "天机", "ji": "巨门"},
+        4: {"lu": "贪狼", "quan": "太阴", "ke": "右弼", "ji": "天机"},
+        5: {"lu": "武曲", "quan": "贪狼", "ke": "天梁", "ji": "文曲"},
+        6: {"lu": "太阳", "quan": "武曲", "ke": "太阴", "ji": "天同"},
+        7: {"lu": "巨门", "quan": "太阳", "ke": "文曲", "ji": "文昌"},
+        8: {"lu": "天梁", "quan": "紫微", "ke": "左辅", "ji": "武曲"},
+        9: {"lu": "破军", "quan": "巨门", "ke": "太阴", "ji": "贪狼"},
+    }
+    ext_sihua = sihua_table[s_ext]
+    sensitive_palaces = {"命宫", "疾厄宫", "官禄宫", "田宅宫"}
+    is_ji_sensitive = ingress_target_palace in sensitive_palaces
+
+    return {
+        "active_palace_index": p_idx,
+        "active_palace_name": p_name,
+        "palace_as_star": star_duality["as_star_archetype"],
+        "governance_domain": star_duality["governance_domain"],
+        "ingress_entity": {
+            "stem": s_ext,
+            "branch": b_ext,
+            "target_palace": ingress_target_palace,
+            "projected_sihua": ext_sihua,
+        },
+        "is_ji_on_sensitive_palace": is_ji_sensitive,
+        "ingress_governance_directive": (
+            "apply_tai_sui_ji_damping_barrier"
+            if is_ji_sensitive
+            else "admit_tai_sui_ingress_flow"
+        ),
+    }
+
+
+def _evaluate_pattern_breaking_and_resonance_certificate() -> dict[str, Any]:
+    """24th Formal mathematical certificate: Pattern Breaking Health Monotonicity, XiaoXian Triad Invariant & Ingress Totality."""
+    breaking_monotonic_ok = True
+    base_res = _evaluate_pattern_breaking_matrix(0, pattern_name="君臣庆会", sha_stars=[])
+    one_sha_res = _evaluate_pattern_breaking_matrix(0, pattern_name="君臣庆会", sha_stars=["地空"])
+    two_sha_res = _evaluate_pattern_breaking_matrix(0, pattern_name="君臣庆会", sha_stars=["地空", "地劫"])
+    if not (base_res["formation_health_score"] > one_sha_res["formation_health_score"] > two_sha_res["formation_health_score"]):
+        breaking_monotonic_ok = False
+
+    xiaoxian_formula_ok = True
+    for y in range(12):
+        res = _evaluate_tri_level_time_flow(age=20, year_branch=y)
+        expected = (10 - 3 * (y % 4)) % 12
+        if res["xiaoxian"]["origin_branch"] != expected:
+            xiaoxian_formula_ok = False
+            break
+
+    palace_totality_ok = True
+    seen_domains = set()
+    for p in range(12):
+        p_res = _evaluate_palace_as_star_and_ingress(active_palace=p)
+        domain = p_res["governance_domain"]
+        if domain in seen_domains or not domain:
+            palace_totality_ok = False
+            break
+        seen_domains.add(domain)
+
+    ingress_sihua_ok = True
+    for s in range(10):
+        ing_res = _evaluate_palace_as_star_and_ingress(ingress_stem=s)
+        sihua = ing_res["ingress_entity"]["projected_sihua"]
+        if len(sihua) != 4 or not sihua.get("lu") or not sihua.get("ji"):
+            ingress_sihua_ok = False
+            break
+
+    all_verified = (
+        breaking_monotonic_ok
+        and xiaoxian_formula_ok
+        and palace_totality_ok
+        and ingress_sihua_ok
+    )
+
+    return {
+        "status": "verified" if all_verified else "failed",
+        "pattern_breaking_monotonicity_verified": breaking_monotonic_ok,
+        "xiaoxian_triad_mod4_invariant_verified": xiaoxian_formula_ok,
+        "palace_as_star_totality_verified": palace_totality_ok,
+        "tai_sui_ingress_sihua_verified": ingress_sihua_ok,
+    }
+
+
 class IchingZiweiCertificatesMixin:
     """Mathematical certificates and formal verification for Ziwei Doushu isomorphism."""
 
@@ -5022,8 +5316,13 @@ class IchingZiweiCertificatesMixin:
         return _evaluate_ming_zhu_void_stars_certificate()
 
     @classmethod
+    def pattern_breaking_and_resonance_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate for Pattern Breaking Health Monotonicity & Tri-Level Ingress."""
+        return _evaluate_pattern_breaking_and_resonance_certificate()
+
+    @classmethod
     def ziwei_mathematical_audit(cls) -> dict[str, Any]:
-        """Comprehensive mathematical audit of all 23 Ziwei Doushu cross-validation certificates."""
+        """Comprehensive mathematical audit of all 24 Ziwei Doushu cross-validation certificates."""
         ring = cls.sovereign_ring_isomorphism_certificate()
         an_he = cls.an_he_coupling_certificate()
         shen_gong = cls.shen_gong_anchorage_certificate()
@@ -5047,6 +5346,7 @@ class IchingZiweiCertificatesMixin:
         ziwu_shengke = cls.ziwu_liuzhu_and_shengke_certificate()
         dipper_spl = cls.dipper_axes_and_sha_po_lang_certificate()
         ming_zhu_void = cls.ming_zhu_shen_zhu_and_void_stars_certificate()
+        pattern_break = cls.pattern_breaking_and_resonance_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
@@ -5071,6 +5371,7 @@ class IchingZiweiCertificatesMixin:
             and ziwu_shengke.get("status") == "verified"
             and dipper_spl.get("status") == "verified"
             and ming_zhu_void.get("status") == "verified"
+            and pattern_break.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -5097,6 +5398,7 @@ class IchingZiweiCertificatesMixin:
             "ziwu_liuzhu_and_shengke": ziwu_shengke,
             "dipper_axes_and_sha_po_lang": dipper_spl,
             "ming_zhu_shen_zhu_and_void_stars": ming_zhu_void,
+            "pattern_breaking_and_resonance": pattern_break,
         }
 
 
@@ -5526,7 +5828,59 @@ class IchingZiweiCoreMixin(IchingZiweiCertificatesMixin):
         return _evaluate_ziwei_tianfu_duality(status_code=status_code)
 
 
-class IchingZiweiMixin(IchingZiweiCoreMixin):
+class IchingZiweiDynamicMixin(IchingZiweiCoreMixin):
+    """Dynamic time cascades, pattern breaking and ingress projections."""
+
+    @classmethod
+    def pattern_breaking_profile(
+        cls,
+        hexagram_state: int,
+        pattern_name: str | None = None,
+        sha_stars: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Evaluate classical pattern breaking (破格) dynamics and health degradation score."""
+        return _evaluate_pattern_breaking_matrix(
+            hexagram_state=hexagram_state,
+            pattern_name=pattern_name,
+            sha_stars=sha_stars,
+        )
+
+    @classmethod
+    def tri_level_time_flow_profile(
+        cls,
+        age: int = 30,
+        gender: str = "male",
+        year_branch: int = 0,
+        bureau: int = 2,
+        ming_branch: int = 2,
+        calendar_year_branch: int = 6,
+    ) -> dict[str, Any]:
+        """Evaluate DaXian, XiaoXian, and LiuNian tri-level time progression cascade."""
+        return _evaluate_tri_level_time_flow(
+            age=age,
+            gender=gender,
+            year_branch=year_branch,
+            bureau=bureau,
+            ming_branch=ming_branch,
+            calendar_year_branch=calendar_year_branch,
+        )
+
+    @classmethod
+    def palace_star_duality_profile(
+        cls,
+        active_palace: int = 5,
+        ingress_stem: int = 0,
+        ingress_branch: int = 0,
+    ) -> dict[str, Any]:
+        """Evaluate Ni Haixia's 'Palace-as-Star' duality and Tai Sui Ingress Method."""
+        return _evaluate_palace_as_star_and_ingress(
+            active_palace=active_palace,
+            ingress_stem=ingress_stem,
+            ingress_branch=ingress_branch,
+        )
+
+
+class IchingZiweiMixin(IchingZiweiDynamicMixin):
     """Extended diagnostic, synastric, and environmental extensions based on Ziwei Doushu."""
 
     @classmethod
