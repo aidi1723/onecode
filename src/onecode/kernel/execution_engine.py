@@ -337,6 +337,66 @@ def execute_step(
     )
 
 
+def _partition_non_conflicting_steps(steps: list[ExecutionStep], registry: ToolRegistry) -> list[ExecutionStep]:
+    chosen: list[ExecutionStep] = []
+    seen_write_paths: set[str] = set()
+    seen_all_paths: set[str] = set()
+    for step in steps:
+        step_paths: set[str] = set()
+        step_writes: set[str] = set()
+        for tc in step.tool_calls:
+            tool = registry.get(tc.tool_name)
+            if tool:
+                action = tool.plan_action(tc.params)
+                p = action.get("path")
+                if isinstance(p, str):
+                    norm_p = p.replace("\\", "/").casefold()
+                    step_paths.add(norm_p)
+                    if action.get("action_type") in {"write_text", "patch_text"}:
+                        step_writes.add(norm_p)
+        if (step_writes & seen_all_paths) or (step_paths & seen_write_paths):
+            continue
+        seen_write_paths.update(step_writes)
+        seen_all_paths.update(step_paths)
+        chosen.append(step)
+    return chosen or steps[:1]
+
+
+def _build_execution_trace(
+    plan: ExecutionPlan,
+    workspace: Path,
+    run_id: str | None,
+    resume_from_run_id: str | None,
+    step_results: list[StepResult],
+    runner_results: list[dict],
+) -> ExecutionTrace:
+    success = bool(step_results) and all(result.status == "completed" for result in step_results)
+    reason = None if success else next((result.reason for result in step_results if result.reason), None)
+    status_codes = [_recorded_status_code(step) for step in step_results]
+    entropy_regulated = IchingKernel.entropy_regulated_status(status_codes)
+    global_status_code = (
+        IchingKernel.aggregate_status(status_codes) if status_codes else int(entropy_regulated["status_code"])
+    )
+    trace = ExecutionTrace(
+        task=plan.task,
+        success=success,
+        step_results=step_results,
+        runner_results=runner_results,
+        reason=reason,
+        global_status_code=global_status_code,
+        global_transition=IchingKernel.transition(global_status_code),
+        global_entropy=float(entropy_regulated["entropy"]),
+        global_entropy_decision=str(entropy_regulated["decision"]),
+        global_entropy_reason=(
+            str(entropy_regulated["reason"])
+            if isinstance(entropy_regulated.get("reason"), str)
+            else None
+        ),
+    )
+    write_execution_plan_ledger(plan, workspace, run_id, resume_from_run_id, trace)
+    return trace
+
+
 def execute_plan(
     plan: ExecutionPlan,
     workspace: Path,
@@ -420,6 +480,8 @@ def execute_plan(
         )
         if path_breach_step is not None:
             approved_layer = [path_breach_step]
+        else:
+            approved_layer = _partition_non_conflicting_steps(approved_layer, registry)
 
         layer_results: dict[str, tuple[StepResult, list[dict]]] = {}
         with ThreadPoolExecutor(max_workers=len(approved_layer)) as executor:
@@ -470,28 +532,4 @@ def execute_plan(
         if safety_break:
             break
 
-    success = bool(step_results) and all(result.status == "completed" for result in step_results)
-    reason = None if success else next((result.reason for result in step_results if result.reason), None)
-    status_codes = [_recorded_status_code(step) for step in step_results]
-    entropy_regulated = IchingKernel.entropy_regulated_status(status_codes)
-    global_status_code = (
-        IchingKernel.aggregate_status(status_codes) if status_codes else int(entropy_regulated["status_code"])
-    )
-    trace = ExecutionTrace(
-        task=plan.task,
-        success=success,
-        step_results=step_results,
-        runner_results=runner_results,
-        reason=reason,
-        global_status_code=global_status_code,
-        global_transition=IchingKernel.transition(global_status_code),
-        global_entropy=float(entropy_regulated["entropy"]),
-        global_entropy_decision=str(entropy_regulated["decision"]),
-        global_entropy_reason=(
-            str(entropy_regulated["reason"])
-            if isinstance(entropy_regulated.get("reason"), str)
-            else None
-        ),
-    )
-    write_execution_plan_ledger(plan, workspace, run_id, resume_from_run_id, trace)
-    return trace
+    return _build_execution_trace(plan, workspace, run_id, resume_from_run_id, step_results, runner_results)

@@ -1,4 +1,5 @@
 import os
+import shlex
 from pathlib import Path
 import difflib
 import functools
@@ -550,6 +551,15 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
                 f"- Causal root trace (来因宫 {cause['incoming_branch']}): Error originates from modifications in {cause['culprit_file']} (Turn {cause['incoming_turn_id']}). Focus patches on resolving this file."
             )
 
+    # Water Nourishing Wood: Extract targeted assertion discrepancy (水生木·精准断言)
+    for ep in error_parts:
+        m = re.search(r"(AssertionError: [^\n]+)", ep)
+        if m:
+            guidance.append(
+                f"- Precision assertion target (水生木·精准断言): {m.group(1).strip()}. Focus surgical edit directly on resolving this discrepancy; do not repeat previous values."
+            )
+            break
+
     # 2. Comprehensive Ziwei Pattern Matrix Guidance (格局矩阵诊断)
     str_result = str(failed_result).lower()
     combined_details = " ".join(failure_details).lower()
@@ -626,33 +636,53 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
             "- Opposite clash alert (化忌冲破): Opposite palace clash detected. Do not modify peripheral files; isolate changes to the culprit module."
         )
 
-    # 6. Pattern Breaking & Disruption Alerts (破格警示与结构衰减)
+    # 6. Structural & Coupling Alerts (破格/把宫当星/全参数联动)
+    guidance.extend(_ziwei_structural_alerts(resolved_status))
+
+    # 7. Jie Shen Relief & Sui Po Defense (解神化煞与岁破防御)
+    guidance.extend(_recovery_defense_alerts(has_verifier_fail, turn_history))
+
+    return guidance
+
+
+def _ziwei_structural_alerts(resolved_status: int) -> list[str]:
+    alerts: list[str] = []
     breaking_profile = IchingKernel.pattern_breaking_profile(resolved_status)
     if breaking_profile.get("is_broken"):
         shas_str = "、".join(breaking_profile.get("breaking_shas_hit", []))
-        guidance.append(
+        alerts.append(
             f"- Formation broken alert (格局破格·{shas_str}): Health score {breaking_profile['formation_health_score']}. "
             f"{breaking_profile['governance_directive']}. Emit minimal search_block/replace_block patches; do NOT rewrite the file."
         )
-
-    # 7. Palace-as-Star Operational Domain (倪海厦把宫当星看)
     palace_star = IchingKernel.palace_star_duality_profile(active_palace=resolved_status % 12)
-    guidance.append(
+    alerts.append(
         f"- Active operational domain (把宫当星·{palace_star['palace_as_star']}): Focus on {palace_star['governance_domain']}."
     )
-
-    # 8. Systemic Coupling & Yin-Yang Balance Alert (全参数联动与阴阳平衡警示)
     coupling = IchingKernel.systemic_coupling_profile(hexagram_state=resolved_status)
     if coupling["governance_posture"] == "yang_overload_cooldown_governance":
-        guidance.append(
-            "- Yang overload alert (纯阳亢进): System entropy too high. Enforce cooldown and surgical micro-patches."
-        )
+        alerts.append("- Yang overload alert (纯阳亢进): System entropy too high. Enforce cooldown and surgical micro-patches.")
     elif coupling["governance_posture"] == "yin_excess_checkpoint_preservation":
-        guidance.append(
-            "- Yin excess alert (重阴凝滞): System inertia high. Enforce state preservation and incremental commit."
-        )
+        alerts.append("- Yin excess alert (重阴凝滞): System inertia high. Enforce state preservation and incremental commit.")
+    return alerts
 
-    return guidance
+
+def _recovery_defense_alerts(has_verifier_fail: bool, turn_history: list[dict[str, Any]]) -> list[str]:
+    alerts: list[str] = []
+    try:
+        from onecode.kernel.recovery_policy import recovery_status
+
+        scenario = "verifier_failure" if has_verifier_fail else "provider_failure"
+        turn_num = len(turn_history) + 1
+        rec = recovery_status(scenario, turn_number=turn_num, attempted=True, attempt_count=len(turn_history))
+        jie = rec.get("jie_shen_relief", {})
+        if jie.get("relief_effective"):
+            alerts.append(f"- Jie Shen relief active (解神化煞): {jie.get('reason')} Apply damping {jie.get('damping_factor')}.")
+        deities = rec.get("twelve_deities", {})
+        if deities.get("suipo_clash"):
+            alerts.append(f"- Sui Po clash barrier (岁破隔离): {deities.get('reason')}")
+    except Exception:
+        pass
+    return alerts
 
 
 @functools.lru_cache(maxsize=32)
@@ -804,6 +834,25 @@ def merge_repair_result(
     repair_result: dict[str, Any],
     repair_attempt_count: int,
 ) -> dict[str, Any]:
+    history = list(initial_result.get("turn_history", []))
+    branches = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
+    if not history:
+        history.append({
+            "turn_id": 1,
+            "branch_name": branches[0],
+            "modified_files": _modified_paths_from_result(initial_result),
+            "status": initial_result.get("status"),
+            "reason": initial_result.get("reason"),
+        })
+    turn_id = repair_attempt_count + 1
+    branch_idx = (turn_id - 1) % 12
+    history.append({
+        "turn_id": turn_id,
+        "branch_name": branches[branch_idx],
+        "modified_files": _modified_paths_from_result(repair_result),
+        "status": repair_result.get("status"),
+        "reason": repair_result.get("reason"),
+    })
     return {
         **repair_result,
         "repaired": repair_result.get("status") == "completed",
@@ -811,6 +860,7 @@ def merge_repair_result(
         "initial_status": initial_result.get("status"),
         "initial_reason": initial_result.get("reason"),
         "initial_execution_trace": initial_result.get("execution_trace"),
+        "turn_history": history,
     }
 
 
@@ -1750,22 +1800,34 @@ def _initial_model_plan(
         span_id="model-call",
     )
     narrowed = False
-    if failure is not None and max_repair_attempts > 0 and failure["failure_kind"] in {
-        "resource_budget_exceeded",
-        "invalid_model_plan",
-    }:
-        narrowed = True
-        plan, failure = traced_provider_plan_retrying(
-            provider=provider,
-            task=narrow_plan_prompt(task, failure),
-            model_context=model_context,
-            trace_path=trace_path,
-            provider_config=provider_config,
-            resolved_model=resolved_model,
-            http_timeout_seconds=http_timeout_seconds,
-            planning_context=planning_context,
-            span_id="model-narrow-1",
-        )
+    if failure is not None and max_repair_attempts > 0:
+        kind = failure.get("failure_kind")
+        if kind in {"resource_budget_exceeded", "invalid_model_plan"}:
+            narrowed = True
+            plan, failure = traced_provider_plan_retrying(
+                provider=provider,
+                task=narrow_plan_prompt(task, failure),
+                model_context=model_context,
+                trace_path=trace_path,
+                provider_config=provider_config,
+                resolved_model=resolved_model,
+                http_timeout_seconds=http_timeout_seconds,
+                planning_context=planning_context,
+                span_id="model-narrow-1",
+            )
+        elif kind in {"http_timeout", "provider_failure"} and http_timeout_seconds > 0.05:
+            probe_prompt = f"Simplified instruction: {task.strip()[:1000]}\nProvide minimal valid JSON model plan."
+            plan, failure = traced_provider_plan_retrying(
+                provider=provider,
+                task=probe_prompt,
+                model_context=model_context,
+                trace_path=trace_path,
+                provider_config=provider_config,
+                resolved_model=resolved_model,
+                http_timeout_seconds=min(http_timeout_seconds, 15.0),
+                planning_context=planning_context,
+                span_id="model-call-probe-1",
+            )
     return plan, failure, narrowed
 
 
@@ -1802,14 +1864,26 @@ def _finish_verified_task(
     checked = _with_sandbox_tests(result, workspace, sandbox_config)
     if checked.get("reason") != "verifier_failed" or max_repair_attempts <= 0 or sandbox_config is None:
         return checked
-    current_checked = checked
-    current_result = result
+    current_checked = dict(checked)
+    current_result = dict(result)
+    if "turn_history" not in current_checked:
+        branches = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
+        initial_history = [{
+            "turn_id": 1,
+            "branch_name": branches[0],
+            "modified_files": modified,
+            "status": checked.get("status"),
+            "reason": checked.get("reason"),
+        }]
+        current_checked["turn_history"] = initial_history
+        current_result["turn_history"] = initial_history
     bureau_budget = run_metadata.get("bureau_turn_budget", max_repair_attempts)
     effective_attempts = min(max_repair_attempts, bureau_budget) if max_repair_attempts > 0 else 0
     for attempt in range(1, effective_attempts + 1):
         cooldown_ms = run_metadata.get("cooldown_pause_ms", 0)
+        if attempt >= 2 and cooldown_ms < 50:
+            cooldown_ms = min(200, 50 * (attempt - 1))
         if cooldown_ms > 0:
-            import time
             time.sleep(cooldown_ms / 1000.0)
         tails = [
             str(item.get("stderr_tail"))[-400:]
@@ -1848,10 +1922,12 @@ def _finish_verified_task(
             }
         failed_status = current_checked.get("iching_status_code") or current_checked.get("task_status_code")
         failed_code = int(failed_status) if failed_status is not None else 32
+        if attempt >= 2:
+            failed_code = 47
         repair_brightness = IchingKernel.star_brightness_profile(failed_code)
         repair_gov_mode = (
             "degraded"
-            if run_metadata.get("governance_mode") == "degraded"
+            if attempt >= 2 or run_metadata.get("governance_mode") == "degraded"
             else repair_brightness.get("governance_mode", "autonomous")
         )
         repair_metadata = {
@@ -1894,23 +1970,36 @@ def _finish_verified_task(
 
 
 def _with_sandbox_tests(result: dict[str, Any], workspace: Path, sandbox_config: Any | None) -> dict[str, Any]:
-    if sandbox_config is None or result.get("status") != "completed" or not (workspace / "tests").is_dir():
+    if sandbox_config is None or result.get("status") != "completed":
         return result
     from onecode.kernel.preset_tests import preset_test_hashes
     from onecode.kernel.run_inspection import apply_verifier_evidence
     from onecode.kernel.verifier import VerifierSpec, run_verifier
 
-    checked = run_verifier(
-        workspace,
-        VerifierSpec(
+    has_internal_tests = (workspace / "tests").is_dir()
+    host_cmd_env = os.environ.get("ONECODE_HOST_VERIFIER_CMD")
+    has_host_verifier = bool(host_cmd_env) or (workspace / "verifier.py").is_file()
+    if not has_internal_tests and not has_host_verifier:
+        return result
+
+    if has_internal_tests:
+        spec = VerifierSpec(
             id="python-unittest",
             command=["python3", "-m", "unittest", "discover", "-s", "tests"],
             cwd=".",
             timeout_ms=max(1000, int(sandbox_config.timeout_seconds * 1000)),
-        ),
-        sandbox_config=sandbox_config,
-    )
-    verified = {**result, "preset_test_hashes": preset_test_hashes(workspace)} if checked.status == "passed" else result
+        )
+    else:
+        cmd = shlex.split(host_cmd_env) if host_cmd_env else ["python3", "verifier.py"]
+        spec = VerifierSpec(
+            id="host-verifier",
+            command=cmd,
+            cwd=".",
+            timeout_ms=max(1000, int(sandbox_config.timeout_seconds * 1000)),
+        )
+
+    checked = run_verifier(workspace, spec, sandbox_config=sandbox_config)
+    verified = {**result, "preset_test_hashes": preset_test_hashes(workspace)} if checked.status == "passed" and has_internal_tests else result
     return apply_verifier_evidence(verified, workspace, [checked])
 
 
@@ -2138,13 +2227,23 @@ def _run_model_task_repair_loop(
     on_turn: Callable[[dict[str, Any]], None] | None,
     sandbox_config: Any | None,
 ) -> dict[str, Any]:
-    failed_result = result
+    failed_result = dict(result)
+    if "turn_history" not in failed_result:
+        branches = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
+        failed_result["turn_history"] = [{
+            "turn_id": 1,
+            "branch_name": branches[0],
+            "modified_files": _modified_paths_from_result(result),
+            "status": result.get("status"),
+            "reason": result.get("reason"),
+        }]
     bureau_budget = run_metadata.get("bureau_turn_budget", max_repair_attempts)
     effective_attempts = min(max_repair_attempts, bureau_budget) if max_repair_attempts > 0 else 0
     for attempt in range(1, effective_attempts + 1):
         cooldown_ms = run_metadata.get("cooldown_pause_ms", 0)
+        if attempt >= 2 and cooldown_ms < 50:
+            cooldown_ms = min(200, 50 * (attempt - 1))
         if cooldown_ms > 0:
-            import time
             time.sleep(cooldown_ms / 1000.0)
         repair_plan, failure = traced_provider_plan(
             provider=active_provider,
@@ -2162,17 +2261,19 @@ def _run_model_task_repair_loop(
         assert repair_plan is not None
         if not is_patch_only_repair_plan(repair_plan):
             return repair_rejected_result(
-                result,
+                failed_result,
                 run_id,
                 "repair_plan_must_use_patches_only",
                 repair_attempt_count=attempt,
             )
         failed_status = failed_result.get("iching_status_code") or failed_result.get("task_status_code")
         failed_code = int(failed_status) if failed_status is not None else 32
+        if attempt >= 2:
+            failed_code = 47
         repair_brightness = IchingKernel.star_brightness_profile(failed_code)
         repair_gov_mode = (
             "degraded"
-            if run_metadata.get("governance_mode") == "degraded"
+            if attempt >= 2 or run_metadata.get("governance_mode") == "degraded"
             else repair_brightness.get("governance_mode", "autonomous")
         )
         repair_metadata = {
@@ -2206,7 +2307,7 @@ def _run_model_task_repair_loop(
             approval_callback=execution_approval,
             on_turn=on_turn,
         )
-        merged = merge_repair_result(result, repair_result, repair_attempt_count=attempt)
+        merged = merge_repair_result(failed_result, repair_result, repair_attempt_count=attempt)
         if repair_result.get("status") == "completed":
             return _with_sandbox_tests(merged, workspace, sandbox_config)
         failed_result = merged

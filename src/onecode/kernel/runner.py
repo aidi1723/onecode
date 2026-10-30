@@ -874,6 +874,8 @@ def _observe_intents(
                 entry_payload,
             )
         )
+        if iching_transition.action == "cooldown" and simulated_action_seconds <= 0:
+            time.sleep(0.01)
         if IchingKernel.dispatch_decision(iching_transition) == "stop":
             break
 

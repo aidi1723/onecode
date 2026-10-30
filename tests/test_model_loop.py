@@ -2534,6 +2534,109 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
         self.assertIn("Formation broken alert", guidance_text)
         self.assertIn("Active operational domain", guidance_text)
 
+    def test_merge_repair_result_accumulates_turn_history(self):
+        from onecode.kernel.model_loop import merge_repair_result
+
+        initial = {
+            "status": "failed",
+            "reason": "verifier_failed",
+            "assets": [{"path": "src/core.py", "content": "x = 1\n"}],
+        }
+        repair1 = {
+            "status": "failed",
+            "reason": "syntax_error",
+            "patches": [{"path": "src/core.py", "search_block": "x = 1", "replace_block": "x = 2"}],
+        }
+        merged1 = merge_repair_result(initial, repair1, repair_attempt_count=1)
+        self.assertIn("turn_history", merged1)
+        self.assertEqual(len(merged1["turn_history"]), 2)
+        self.assertEqual(merged1["turn_history"][0]["turn_id"], 1)
+        self.assertEqual(merged1["turn_history"][0]["branch_name"], "子")
+        self.assertEqual(merged1["turn_history"][0]["modified_files"], ["src/core.py"])
+        self.assertEqual(merged1["turn_history"][1]["turn_id"], 2)
+        self.assertEqual(merged1["turn_history"][1]["branch_name"], "丑")
+        self.assertEqual(merged1["turn_history"][1]["modified_files"], ["src/core.py"])
+
+        repair2 = {
+            "status": "completed",
+            "reason": None,
+            "patches": [{"path": "src/utils.py", "search_block": "y = 1", "replace_block": "y = 2"}],
+        }
+        merged2 = merge_repair_result(merged1, repair2, repair_attempt_count=2)
+        self.assertEqual(len(merged2["turn_history"]), 3)
+        self.assertEqual(merged2["turn_history"][2]["turn_id"], 3)
+        self.assertEqual(merged2["turn_history"][2]["branch_name"], "寅")
+        self.assertEqual(merged2["turn_history"][2]["modified_files"], ["src/utils.py"])
+
+    def test_format_ziwei_repair_guidance_extracts_precision_assertion(self):
+        from onecode.kernel.model_loop import _format_ziwei_repair_guidance
+
+        failed_res = {
+            "status": "failed",
+            "reason": "verifier_failed",
+            "verifier_results": [
+                {
+                    "stderr_tail": "Traceback:\n  File test_foo.py, line 10\nAssertionError: 42 != 100\n",
+                    "reason": "assertion_error",
+                }
+            ],
+            "turn_history": [
+                {"turn_id": 1, "branch_name": "子", "modified_files": ["src/calculator.py"]},
+            ],
+        }
+        guidance = _format_ziwei_repair_guidance(failed_res, ["assertion_error"])
+        guidance_text = " ".join(guidance)
+        self.assertIn("Precision assertion target (水生木·精准断言)", guidance_text)
+        self.assertIn("AssertionError: 42 != 100", guidance_text)
+
+    def test_with_sandbox_tests_executes_host_verifier_when_internal_tests_absent(self):
+        from onecode.kernel.model_loop import _with_sandbox_tests
+        from onecode.kernel.sandbox import SandboxConfig
+        from onecode.kernel.verifier import VerifierResult
+        from unittest.mock import patch
+        import tempfile
+        import os
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "script.py").write_text("print('hello')\n", encoding="utf-8")
+            sandbox_cfg = SandboxConfig(workspace=workspace, timeout_seconds=5)
+
+            # Case 1: Neither tests/ nor host verifier
+            res = {"status": "completed", "assets": [], "run_id": "test-run"}
+            out = _with_sandbox_tests(res, workspace, sandbox_cfg)
+            self.assertEqual(out["status"], "completed")
+
+            # Case 2: Host verifier via ONECODE_HOST_VERIFIER_CMD
+            prev = os.environ.get("ONECODE_HOST_VERIFIER_CMD")
+            try:
+                os.environ["ONECODE_HOST_VERIFIER_CMD"] = "python3 verifier.py"
+                failed_res = VerifierResult(
+                    id="host-verifier",
+                    status="failed",
+                    reason="verifier_failed",
+                    failure_kind="test_failure",
+                    exit_code=1,
+                    duration_ms=10,
+                    stdout_tail="",
+                    stderr_tail="AssertionError: host check failed",
+                    stdout_sha256="",
+                    stderr_sha256="",
+                    cwd=".",
+                    command=["python3", "verifier.py"],
+                )
+                with patch("onecode.kernel.verifier.run_verifier", return_value=failed_res) as mock_ver:
+                    out_host = _with_sandbox_tests(res, workspace, sandbox_cfg)
+                    self.assertEqual(out_host["status"], "halted")
+                    self.assertEqual(out_host["reason"], "verifier_failed")
+                    self.assertTrue(any("AssertionError: host check failed" in str(v.get("stderr_tail")) for v in out_host.get("verifier_results", [])))
+                    mock_ver.assert_called_once()
+            finally:
+                if prev is not None:
+                    os.environ["ONECODE_HOST_VERIFIER_CMD"] = prev
+                else:
+                    os.environ.pop("ONECODE_HOST_VERIFIER_CMD", None)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 
@@ -385,7 +386,14 @@ def build_run_plan_repair_prompt(
 ) -> str:
     failed_verifiers = [verifier for verifier in verifier_results if verifier.get("status") != "passed"]
     verifier_lines = []
+    precision_targets = []
     for verifier in failed_verifiers:
+        tail = str(verifier.get("stderr_tail") or "")
+        m = re.search(r"(AssertionError: [^\n]+)", tail)
+        if m and not precision_targets:
+            precision_targets.append(
+                f"- Precision assertion target (水生木·精准断言): {m.group(1).strip()}. Focus surgical edit directly on resolving this discrepancy; do not repeat previous values."
+            )
         verifier_lines.append(
             "\n".join(
                 [
@@ -398,6 +406,7 @@ def build_run_plan_repair_prompt(
                 ]
             )
         )
+    target_block = ("\n" + "\n".join(precision_targets) + "\n") if precision_targets else ""
     return (
         "Repair the OneCode run-plan verifier failure using patches only.\n"
         f"Original task: {task}\n"
@@ -409,6 +418,7 @@ def build_run_plan_repair_prompt(
         f"Task resume decisions: {json.dumps(result.get('task_resume_decisions', []), ensure_ascii=False)}\n"
         "Failed verifier evidence:\n"
         f"{chr(10).join(verifier_lines) if verifier_lines else '- unavailable'}\n"
+        f"{target_block}"
         "Return JSON with patches only. Do not return assets or execution_plan."
     )
 
@@ -448,6 +458,8 @@ def apply_run_plan_repair(
     effective_attempts = min(args.max_repair_attempts, bureau_budget) if args.max_repair_attempts > 0 else 0
 
     for attempt in range(1, effective_attempts + 1):
+        if attempt >= 2:
+            time.sleep(0.05)
         prompt = build_run_plan_repair_prompt(task, current_result, current_verifiers, planned_asset_paths)
         prompt_evidence.append(
             {
@@ -480,7 +492,10 @@ def apply_run_plan_repair(
             http_timeout_seconds=http_timeout_seconds,
             run_id=current_result["run_id"],
             resume_from_run_id=current_result.get("resumed_from"),
-            run_metadata={"repair_attempt": attempt},
+            run_metadata={
+                "repair_attempt": attempt,
+                "governance_mode": "degraded" if attempt >= 2 else "autonomous",
+            },
             approval_callback=lambda step: True,
         )
         repair_results.append(repair_result)
