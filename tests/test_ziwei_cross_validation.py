@@ -575,6 +575,7 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
             self.assertIn("system_pathology", telemetry)
             self.assertIn("six_channel_healing", telemetry)
             self.assertIn("doujun_chronology", telemetry)
+            self.assertIn("auxiliary_stars_pairs", telemetry)
             sg = telemetry["shen_gong_anchorage"]
             self.assertIn("active_index", sg)
             self.assertIn("palace_name", sg)
@@ -1642,6 +1643,73 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["childhood_guard_boundary_verified"])
         self.assertTrue(cert["solar_lichun_boundary_switch_verified"])
         self.assertTrue(cert["solar_lunar_skew_boundedness_verified"])
+
+    def test_auxiliary_stars_pairs_and_invariants(self):
+        """Direction O: Auxiliary Stars Conservation Pairs, Phase Invariants & Tianshang-Tianshi Clamping."""
+        # 1. Tianxing-Tianyao constant phase difference 8 across all 12 months
+        for m in range(1, 13):
+            p = IchingKernel.auxiliary_stars_pairs_profile(birth_month=m, birth_day=1, ming_branch=0)
+            self.assertTrue(p["phase_difference_invariant_verified"])
+            self.assertEqual(p["tianxing_tianyao_phase_difference"], 8)
+
+        # 2. Santai-Bazuo sum conservation across day changes
+        p_d1 = IchingKernel.auxiliary_stars_pairs_profile(birth_month=1, birth_day=1, ming_branch=0)
+        p_d15 = IchingKernel.auxiliary_stars_pairs_profile(birth_month=1, birth_day=15, ming_branch=0)
+        self.assertTrue(p_d1["santai_bazuo_sum_conserved"])
+        self.assertTrue(p_d15["santai_bazuo_sum_conserved"])
+        self.assertEqual(p_d1["santai_bazuo_sum"], p_d15["santai_bazuo_sum"])
+
+        # 3. Enguang-Tiangui difference conservation
+        p_eg1 = IchingKernel.auxiliary_stars_pairs_profile(birth_month=1, birth_day=1, ming_branch=0, birth_hour=0)
+        p_eg15 = IchingKernel.auxiliary_stars_pairs_profile(birth_month=1, birth_day=15, ming_branch=0, birth_hour=0)
+        self.assertTrue(p_eg1["enguang_tiangui_diff_conserved"])
+        self.assertTrue(p_eg15["enguang_tiangui_diff_conserved"])
+        self.assertEqual(p_eg1["enguang_tiangui_diff"], p_eg15["enguang_tiangui_diff"])
+
+        # 4. Tianshang & Tianshi strictly sandwich Migration Palace (迁移宫)
+        for mb in range(12):
+            p_clamp = IchingKernel.auxiliary_stars_pairs_profile(birth_month=1, birth_day=1, ming_branch=mb)
+            self.assertTrue(p_clamp["migration_sandwiched"])
+            self.assertEqual(p_clamp["migration_branch"], (mb - 6) % 12)
+            self.assertEqual((p_clamp["tianshi_branch"] - p_clamp["tianshang_branch"]) % 12, 2)
+
+    def test_city_true_solar_precision_and_dst(self):
+        """Direction O: Major Cities Longitude Auto-Resolution and Historical DST Precision."""
+        # 1. Beijing (116.4 E)
+        bj = IchingKernel.city_true_solar_profile("北京", 2026, 6, 15, 12, 0, auto_dst=False)
+        self.assertTrue(bj["city_known"])
+        self.assertEqual(bj["longitude"], 116.4)
+        # Offset (116.4 - 120.0) * 4 = -14.4 min
+        self.assertAlmostEqual(bj["drift_minutes"], -14.4, delta=1.0)
+
+        # 2. Shanghai (121.5 E)
+        sh = IchingKernel.city_true_solar_profile("上海", 2026, 6, 15, 12, 0, auto_dst=False)
+        self.assertEqual(sh["longitude"], 121.5)
+        # Offset (121.5 - 120.0) * 4 = +6.0 min
+        self.assertAlmostEqual(sh["drift_minutes"], 6.0, delta=1.0)
+
+        # 3. Urumqi (87.6 E) - westernmost major city
+        wq = IchingKernel.city_true_solar_profile("乌鲁木齐", 2026, 6, 15, 12, 0, auto_dst=False)
+        self.assertEqual(wq["longitude"], 87.6)
+        # Offset (87.6 - 120.0) * 4 = -129.6 min
+        self.assertAlmostEqual(wq["drift_minutes"], -129.6, delta=2.0)
+
+        # 4. Automatic DST Detection in 1988 Summer (Beijing)
+        bj_dst = IchingKernel.city_true_solar_profile("北京", 1988, 6, 1, 12, 0, auto_dst=True)
+        self.assertTrue(bj_dst["dst_active"])
+        self.assertEqual(bj_dst["dst_shift_minutes"], -60)
+        self.assertEqual(bj_dst["standard_clock_time"], "11:00")
+
+    def test_auxiliary_pairs_and_city_solar_certificate(self):
+        """Direction O: Formal Mathematical Certificate of Auxiliary Pairs & City Solar Precision."""
+        cert = IchingKernel.auxiliary_pairs_and_city_solar_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["tianxing_tianyao_constant_phase_verified"])
+        self.assertTrue(cert["santai_bazuo_sum_conservation_verified"])
+        self.assertTrue(cert["enguang_tiangui_difference_conservation_verified"])
+        self.assertTrue(cert["tianshang_tianshi_migration_sandwiching_verified"])
+        self.assertTrue(cert["major_cities_geodetic_bounds_verified"])
+        self.assertTrue(cert["china_dst_automatic_shift_verified"])
 
 
 if __name__ == "__main__":

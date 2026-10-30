@@ -866,6 +866,12 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
                 flowing_hour=(iching_status_code % 12),
                 ming_branch=(turn_number - 1) % 12,
             ),
+            "auxiliary_stars_pairs": IchingKernel.auxiliary_stars_pairs_profile(
+                birth_month=1,
+                birth_day=max(1, turn_number),
+                ming_branch=(turn_number - 1) % 12,
+                birth_hour=(iching_status_code % 12),
+            ),
         }
     return telemetry
 

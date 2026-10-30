@@ -67,6 +67,8 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.doujun_chronology_profile(0, 1, 0, 1, 1, 0)
         _ = IchingKernel.childhood_guard_profile(2, 1, 0)
         _ = IchingKernel.solar_lichun_boundary_profile(2026, 2, 4, 12, 0)
+        _ = IchingKernel.auxiliary_stars_pairs_profile(1, 1, 0, 0)
+        _ = IchingKernel.city_true_solar_profile("北京", 2026, 6, 15, 12, 0)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
 
     start_total = time.perf_counter()
@@ -113,6 +115,8 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.doujun_chronology_profile(0, 1, 0, 1, 1, 0)
         _ = IchingKernel.childhood_guard_profile(2, 1, 0)
         _ = IchingKernel.solar_lichun_boundary_profile(2026, 2, 4, 12, 0)
+        _ = IchingKernel.auxiliary_stars_pairs_profile(1, 1, 0, 0)
+        _ = IchingKernel.city_true_solar_profile("北京", 2026, 6, 15, 12, 0)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
         t1 = time.perf_counter_ns()
         latencies_us.append((t1 - t0) / 1000.0)
@@ -161,6 +165,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
     c_pathology = IchingKernel.pathology_and_environmental_certificate()
     c_sixchan = IchingKernel.six_channel_and_empty_palace_certificate()
     c_doujun = IchingKernel.doujun_and_solar_boundary_certificate()
+    c_aux_city = IchingKernel.auxiliary_pairs_and_city_solar_certificate()
     
     return {
         "sovereign_ring": c_ring.get("status") == "verified" and c_ring.get("triad_balance_verified") is True,
@@ -181,6 +186,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
         "pathology_and_environmental": c_pathology.get("status") == "verified" and c_pathology.get("five_element_pathology_totality_verified") is True and c_pathology.get("fourteen_partner_stars_contract_verified") is True,
         "six_channel_and_empty_palace": c_sixchan.get("status") == "verified" and c_sixchan.get("six_channel_transmission_order_verified") is True and c_sixchan.get("nayin_60_jiazi_equipartition_verified") is True,
         "doujun_and_solar_boundary": c_doujun.get("status") == "verified" and c_doujun.get("doujun_surjective_coverage_verified") is True and c_doujun.get("solar_lichun_boundary_switch_verified") is True,
+        "auxiliary_pairs_and_city_solar": c_aux_city.get("status") == "verified" and c_aux_city.get("tianxing_tianyao_constant_phase_verified") is True and c_aux_city.get("santai_bazuo_sum_conservation_verified") is True and c_aux_city.get("tianshang_tianshi_migration_sandwiching_verified") is True and c_aux_city.get("major_cities_geodetic_bounds_verified") is True,
     }
 
 
