@@ -801,6 +801,10 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
                 turn_number=turn_number,
                 status_code=iching_status_code,
             ),
+            "flying_sihua": IchingKernel.flying_sihua_cascade_profile(
+                turn_number=turn_number,
+                status_code=iching_status_code,
+            ),
         }
     return telemetry
 

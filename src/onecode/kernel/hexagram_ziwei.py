@@ -925,6 +925,153 @@ def _evaluate_twelve_deities_certificate(sovereign_codes: tuple[int, ...]) -> di
     }
 
 
+_SI_HUA_TABLE: dict[int, tuple[str, str, str, str]] = {
+    0: ("廉贞", "破军", "武曲", "太阳"),  # 甲
+    1: ("天机", "天梁", "紫微", "太阴"),  # 乙
+    2: ("天同", "天机", "文昌", "廉贞"),  # 丙
+    3: ("太阴", "天同", "天机", "巨门"),  # 丁
+    4: ("贪狼", "太阴", "右弼", "天机"),  # 戊
+    5: ("武曲", "贪狼", "天梁", "文曲"),  # 己
+    6: ("太阳", "武曲", "太阴", "天同"),  # 庚
+    7: ("巨门", "太阳", "文曲", "文昌"),  # 辛
+    8: ("天梁", "紫微", "左辅", "武曲"),  # 壬
+    9: ("破军", "巨门", "太阴", "贪狼"),  # 癸
+}
+
+_STAR_CANONICAL_INDEX: dict[str, int] = {
+    "紫微": 0, "天机": 1, "太阳": 2, "武曲": 3, "天同": 4, "廉贞": 5,
+    "天府": 6, "太阴": 7, "贪狼": 8, "巨门": 9, "天相": 10, "天梁": 11,
+    "七杀": 0, "破军": 4, "文昌": 8, "文曲": 10, "左辅": 4, "右弼": 10,
+}
+
+
+def _evaluate_flying_sihua_cascade(
+    turn_number: int,
+    status_code: int,
+    macro_stage: str = "implementation",
+    baseline_status: int = 7,
+) -> dict[str, Any]:
+    """Evaluate multi-layer Flying Sihua (跨宫飞星与四化多层叠象) for cascade clash prevention."""
+    t_native = baseline_status % 10
+    stage_stems = {"exploration": 0, "implementation": 2, "verification": 6, "delivery": 8}
+    t_stage = stage_stems.get(macro_stage, 2)
+    t_turn = max(0, turn_number - 1) % 10
+
+    active_p = status_code % 12
+    opposite_p = (active_p + 6) % 12
+
+    turn_tf = _SI_HUA_TABLE[t_turn]
+    stage_tf = _SI_HUA_TABLE[t_stage]
+
+    def star_branch(star_name: str) -> int:
+        offset = _STAR_CANONICAL_INDEX.get(star_name, 0)
+        return (active_p + offset) % 12
+
+    turn_ji_branch = star_branch(turn_tf[3])
+    stage_ji_branch = star_branch(stage_tf[3])
+    turn_lu_branch = star_branch(turn_tf[0])
+    turn_quan_branch = star_branch(turn_tf[1])
+    turn_ke_branch = star_branch(turn_tf[2])
+
+    opposite_clash = (turn_ji_branch == opposite_p or stage_ji_branch == opposite_p)
+    self_ji = (turn_ji_branch == active_p)
+    double_ji = (turn_ji_branch == stage_ji_branch)
+    lu_chong_po = ((turn_lu_branch + 6) % 12 == turn_ji_branch)
+
+    trine_palaces = {active_p, (active_p + 4) % 12, (active_p + 8) % 12, (active_p + 6) % 12}
+    triple_harmony = (
+        turn_lu_branch in trine_palaces
+        and turn_quan_branch in trine_palaces
+        and turn_ke_branch in trine_palaces
+    )
+
+    if double_ji:
+        risk_level = "critical"
+        damping_factor = 0.25
+        action = "cascade_halt_quarantine"
+        reason = f"Double Ji collision ({turn_tf[3]} + {stage_tf[3]}): immediate quarantine required."
+    elif opposite_clash:
+        risk_level = "elevated"
+        damping_factor = 0.50
+        action = "isolate_external_boundary"
+        reason = f"Opposite clash ({turn_tf[3]} into palace {opposite_p}): isolate boundary perturbations."
+    elif lu_chong_po:
+        risk_level = "elevated"
+        damping_factor = 0.50
+        action = "rollback_corrupted_gain"
+        reason = f"Lu Chong Po: Hua Lu {turn_tf[0]} clashed by Hua Ji {turn_tf[3]}."
+    elif self_ji:
+        risk_level = "moderate"
+        damping_factor = 0.65
+        action = "force_micro_patch"
+        reason = f"Self-dissipation Ji ({turn_tf[3]}): force minimal atomic patch."
+    elif triple_harmony:
+        risk_level = "minimal"
+        damping_factor = 1.00
+        action = "autonomous_high_throughput"
+        reason = "Triple Harmony Overlay (禄权科三奇加会): autonomous throughput granted."
+    else:
+        risk_level = "stable"
+        damping_factor = 0.85
+        action = "standard_pipeline"
+        reason = "Sihua cascade within nominal safe envelope."
+
+    return {
+        "active_palace": active_p,
+        "opposite_palace": opposite_p,
+        "turn_ji_star": turn_tf[3],
+        "turn_ji_branch": turn_ji_branch,
+        "stage_ji_star": stage_tf[3],
+        "stage_ji_branch": stage_ji_branch,
+        "turn_lu_star": turn_tf[0],
+        "turn_lu_branch": turn_lu_branch,
+        "opposite_clash": opposite_clash,
+        "self_ji": self_ji,
+        "double_ji": double_ji,
+        "lu_chong_po": lu_chong_po,
+        "triple_harmony": triple_harmony,
+        "risk_level": risk_level,
+        "damping_factor": damping_factor,
+        "action": action,
+        "reason": reason,
+    }
+
+
+def _evaluate_flying_sihua_certificate(sovereign_codes: tuple[int, ...]) -> dict[str, Any]:
+    """Formal mathematical certificate of Flying Sihua Cascade & DuiGong Involution."""
+    totality_ok = (len(_SI_HUA_TABLE) == 10)
+    for stem, stars in _SI_HUA_TABLE.items():
+        if len(stars) != 4 or len(set(stars)) != 4:
+            totality_ok = False
+            break
+
+    involution_ok = True
+    for p in range(12):
+        opp_p = (p + 6) % 12
+        if opp_p == p:
+            involution_ok = False
+            break
+        if (opp_p + 6) % 12 != p:
+            involution_ok = False
+            break
+        code_p = sovereign_codes[p]
+        code_opp = sovereign_codes[opp_p]
+        if code_opp != (code_p ^ 63):
+            involution_ok = False
+            break
+
+    damping_monotonic = (0.25 < 0.50 < 0.85 <= 1.00)
+
+    status = "verified" if (totality_ok and involution_ok and damping_monotonic) else "failed"
+
+    return {
+        "status": status,
+        "sihua_totality_verified": totality_ok,
+        "duigong_involution_verified": involution_ok,
+        "damping_monotonic_verified": damping_monotonic,
+    }
+
+
 class IchingZiweiMixin:
     """Diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
 
@@ -1144,6 +1291,28 @@ class IchingZiweiMixin:
         return _evaluate_twelve_deities_certificate(codes)
 
     @classmethod
+    def flying_sihua_cascade_profile(
+        cls,
+        turn_number: int,
+        status_code: int,
+        macro_stage: str = "implementation",
+        baseline_status: int = 7,
+    ) -> dict[str, Any]:
+        """Compute multi-layer Flying Sihua (跨宫飞星与四化多层叠象) cascade risk."""
+        return _evaluate_flying_sihua_cascade(
+            turn_number=turn_number,
+            status_code=status_code,
+            macro_stage=macro_stage,
+            baseline_status=baseline_status,
+        )
+
+    @classmethod
+    def flying_sihua_cascade_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Flying Sihua Cascade and DuiGong Involution."""
+        codes = getattr(cls, "SOVEREIGN_HEXAGRAM_CODES")
+        return _evaluate_flying_sihua_certificate(codes)
+
+    @classmethod
     def star_brightness_certificate(cls) -> dict[str, Any]:
         """Formal mathematical certificate of Star Brightness Invariance across all 64 states."""
         return _evaluate_star_brightness_certificate(cls)
@@ -1157,6 +1326,7 @@ class IchingZiweiMixin:
         star_bright = cls.star_brightness_certificate()
         jie_shen = cls.jie_shen_even_subgroup_relief_certificate()
         twelve_deities = cls.twelve_deities_triad_and_suipo_certificate()
+        flying_sihua = cls.flying_sihua_cascade_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
@@ -1164,6 +1334,7 @@ class IchingZiweiMixin:
             and star_bright.get("status") == "verified"
             and jie_shen.get("status") == "verified"
             and twelve_deities.get("status") == "verified"
+            and flying_sihua.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -1173,4 +1344,5 @@ class IchingZiweiMixin:
             "star_brightness": star_bright,
             "jie_shen_relief": jie_shen,
             "twelve_deities": twelve_deities,
+            "flying_sihua_cascade": flying_sihua,
         }

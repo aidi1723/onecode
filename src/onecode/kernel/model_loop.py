@@ -612,6 +612,20 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
             f"- Degraded protection mode (星曜落陷·{brightness['brightness_label']}): Energy unstable. Disallow full-file rewrite; limit actions to surgical diff or traceback inspection."
         )
 
+    # 5. Flying Sihua Cascade & Dynamic Clash Defense (跨宫飞星与级联四化防御)
+    cascade = IchingKernel.flying_sihua_cascade_profile(
+        turn_number=len(turn_history) + 1,
+        status_code=resolved_status,
+    )
+    if cascade.get("double_ji"):
+        guidance.append(
+            "- Double Ji cascade alert (双忌重叠): Major stage and micro turn collide. Halt all non-essential changes and focus strictly on minimal regression repair."
+        )
+    elif cascade.get("opposite_clash"):
+        guidance.append(
+            "- Opposite clash alert (化忌冲破): Opposite palace clash detected. Do not modify peripheral files; isolate changes to the culprit module."
+        )
+
     return guidance
 
 

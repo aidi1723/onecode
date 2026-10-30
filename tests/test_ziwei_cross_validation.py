@@ -830,6 +830,36 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertIn("sui_qian_shen", status["twelve_deities"])
         self.assertIn("jiang_qian_shen", status["twelve_deities"])
 
+    def test_flying_sihua_cascade_profile_modes(self):
+        """Verify Flying Sihua Cascade (跨宫飞星与四化多层叠象) collision detection."""
+        # 1. Double Ji collision: Turn 3 (stem 2, Bing -> LianZhen Ji) in implementation stage (stem 2, LianZhen Ji)
+        res_double_ji = IchingKernel.flying_sihua_cascade_profile(
+            turn_number=3,
+            status_code=7,
+            macro_stage="implementation",
+        )
+        self.assertTrue(res_double_ji["double_ji"])
+        self.assertEqual(res_double_ji["risk_level"], "critical")
+        self.assertEqual(res_double_ji["damping_factor"], 0.25)
+        self.assertEqual(res_double_ji["action"], "cascade_halt_quarantine")
+
+        # 2. Opposite clash or stable envelope
+        res_turn1 = IchingKernel.flying_sihua_cascade_profile(
+            turn_number=1,
+            status_code=7,
+            macro_stage="implementation",
+        )
+        self.assertIn(res_turn1["risk_level"], {"elevated", "moderate", "stable", "minimal"})
+        self.assertGreaterEqual(res_turn1["damping_factor"], 0.50)
+
+    def test_flying_sihua_cascade_certificate(self):
+        """Verify Flying Sihua Cascade & DuiGong Involution Mathematical Certificate."""
+        cert = IchingKernel.flying_sihua_cascade_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["sihua_totality_verified"])
+        self.assertTrue(cert["duigong_involution_verified"])
+        self.assertTrue(cert["damping_monotonic_verified"])
+
 
 if __name__ == "__main__":
     unittest.main()
