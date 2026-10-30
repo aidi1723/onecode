@@ -122,6 +122,7 @@ def math_audit_payload() -> dict[str, object]:
             "jie_shen_even_subgroup_relief",
             "twelve_deities_triad_and_suipo",
             "flying_sihua_cascade",
+            "triadic_synthesis",
         ],
         "reference_only": [
             "probabilistic_sampling",

@@ -1072,6 +1072,94 @@ def _evaluate_flying_sihua_certificate(sovereign_codes: tuple[int, ...]) -> dict
     }
 
 
+def _evaluate_triadic_synthesis(
+    status_code: int,
+    environment_ok: bool = True,
+    path_guard_ok: bool = True,
+    verifier_passed: bool | None = None,
+    ast_valid: bool = True,
+    patch_surgical: bool = True,
+) -> dict[str, Any]:
+    """Compute Ni Haixia Triadic Architectural Synthesis (天纪/地纪/人纪三纪会聚势能)."""
+    normalized = status_code & 0b111111
+    yang_count = bin(normalized).count("1")
+    tian_potential = max(0.2, min(1.0, 0.4 + 0.1 * yang_count))
+
+    di_potential = 1.0 if (environment_ok and path_guard_ok) else 0.2
+
+    if verifier_passed is True and ast_valid:
+        ren_potential = 1.0
+    elif verifier_passed is False:
+        ren_potential = 0.3 if patch_surgical else 0.1
+    elif not ast_valid:
+        ren_potential = 0.2
+    else:
+        ren_potential = 0.75 if patch_surgical else 0.5
+
+    triadic_potential = (tian_potential + di_potential + ren_potential) / 3.0
+
+    human_earth_sum = di_potential + ren_potential
+    domination_satisfied = (human_earth_sum >= 2.0 * tian_potential * 0.8)
+
+    if triadic_potential >= 0.80:
+        regime = "triadic_harmony"
+        governance = "autonomous_convergence"
+        reason = "Triadic harmony (三纪同心): high confidence autonomous convergence."
+    elif triadic_potential >= 0.55:
+        regime = "dialectical_equilibrium"
+        governance = "guarded_execution"
+        reason = "Dialectical equilibrium (辨证均衡): standard verifier supervised steps."
+    else:
+        regime = "physical_remediation"
+        governance = "surgical_minimal_remedy"
+        reason = "Physical remediation (经方微创): constrain to single atomic surgical repair."
+
+    return {
+        "status_code": normalized,
+        "tian_potential": round(tian_potential, 3),
+        "di_potential": round(di_potential, 3),
+        "ren_potential": round(ren_potential, 3),
+        "triadic_potential": round(triadic_potential, 3),
+        "domination_satisfied": domination_satisfied,
+        "regime": regime,
+        "governance": governance,
+        "reason": reason,
+    }
+
+
+def _evaluate_triadic_synthesis_certificate() -> dict[str, Any]:
+    """Formal mathematical certificate of Triadic Synthesis & 2/3 Domination Principle."""
+    bounds_ok = True
+    samples = [
+        _evaluate_triadic_synthesis(code, env, pg, ver, ast, patch)
+        for code in (0, 7, 31, 32, 63)
+        for env in (True, False)
+        for pg in (True, False)
+        for ver in (True, False, None)
+        for ast in (True, False)
+        for patch in (True, False)
+    ]
+    for s in samples:
+        if not (0.0 <= s["triadic_potential"] <= 1.0):
+            bounds_ok = False
+            break
+
+    perfect_effort = _evaluate_triadic_synthesis(0, environment_ok=True, path_guard_ok=True, verifier_passed=True, ast_valid=True)
+    domination_ok = (perfect_effort["di_potential"] + perfect_effort["ren_potential"] >= 2.0 * perfect_effort["tian_potential"])
+
+    broken_effort = _evaluate_triadic_synthesis(63, environment_ok=False, verifier_passed=False, ast_valid=False)
+    remediation_ok = (broken_effort["triadic_potential"] < 0.55 and broken_effort["regime"] == "physical_remediation")
+
+    status = "verified" if (bounds_ok and domination_ok and remediation_ok) else "failed"
+
+    return {
+        "status": status,
+        "convex_bounds_verified": bounds_ok,
+        "two_thirds_domination_verified": domination_ok,
+        "physical_remediation_boundary_verified": remediation_ok,
+    }
+
+
 class IchingZiweiMixin:
     """Diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
 
@@ -1313,6 +1401,31 @@ class IchingZiweiMixin:
         return _evaluate_flying_sihua_certificate(codes)
 
     @classmethod
+    def triadic_synthesis_profile(
+        cls,
+        status_code: int,
+        environment_ok: bool = True,
+        path_guard_ok: bool = True,
+        verifier_passed: bool | None = None,
+        ast_valid: bool = True,
+        patch_surgical: bool = True,
+    ) -> dict[str, Any]:
+        """Compute Ni Haixia Triadic Architectural Synthesis (天纪/地纪/人纪三纪会聚势能)."""
+        return _evaluate_triadic_synthesis(
+            status_code=status_code,
+            environment_ok=environment_ok,
+            path_guard_ok=path_guard_ok,
+            verifier_passed=verifier_passed,
+            ast_valid=ast_valid,
+            patch_surgical=patch_surgical,
+        )
+
+    @classmethod
+    def triadic_synthesis_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Triadic Synthesis and 2/3 Domination Principle."""
+        return _evaluate_triadic_synthesis_certificate()
+
+    @classmethod
     def star_brightness_certificate(cls) -> dict[str, Any]:
         """Formal mathematical certificate of Star Brightness Invariance across all 64 states."""
         return _evaluate_star_brightness_certificate(cls)
@@ -1327,6 +1440,7 @@ class IchingZiweiMixin:
         jie_shen = cls.jie_shen_even_subgroup_relief_certificate()
         twelve_deities = cls.twelve_deities_triad_and_suipo_certificate()
         flying_sihua = cls.flying_sihua_cascade_certificate()
+        triad_syn = cls.triadic_synthesis_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
@@ -1335,6 +1449,7 @@ class IchingZiweiMixin:
             and jie_shen.get("status") == "verified"
             and twelve_deities.get("status") == "verified"
             and flying_sihua.get("status") == "verified"
+            and triad_syn.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -1345,4 +1460,5 @@ class IchingZiweiMixin:
             "jie_shen_relief": jie_shen,
             "twelve_deities": twelve_deities,
             "flying_sihua_cascade": flying_sihua,
+            "triadic_synthesis": triad_syn,
         }

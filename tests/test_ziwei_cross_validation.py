@@ -860,6 +860,40 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["duigong_involution_verified"])
         self.assertTrue(cert["damping_monotonic_verified"])
 
+    def test_triadic_synthesis_profile_and_regimes(self):
+        """Verify Ni Haixia Triadic Architectural Synthesis (天/地/人三纪会聚势能)."""
+        # 1. Triadic harmony: Clean verification, safe environment, valid AST
+        res_harmony = IchingKernel.triadic_synthesis_profile(
+            status_code=7,
+            environment_ok=True,
+            path_guard_ok=True,
+            verifier_passed=True,
+            ast_valid=True,
+        )
+        self.assertEqual(res_harmony["regime"], "triadic_harmony")
+        self.assertGreaterEqual(res_harmony["triadic_potential"], 0.80)
+        self.assertTrue(res_harmony["domination_satisfied"])
+
+        # 2. Physical minimal remediation: Verifier failed and environmental issues
+        res_remedy = IchingKernel.triadic_synthesis_profile(
+            status_code=32,
+            environment_ok=False,
+            path_guard_ok=False,
+            verifier_passed=False,
+            ast_valid=False,
+        )
+        self.assertEqual(res_remedy["regime"], "physical_remediation")
+        self.assertLess(res_remedy["triadic_potential"], 0.55)
+        self.assertEqual(res_remedy["governance"], "surgical_minimal_remedy")
+
+    def test_triadic_synthesis_certificate(self):
+        """Verify Triadic Synthesis and 2/3 Domination Mathematical Certificate."""
+        cert = IchingKernel.triadic_synthesis_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["convex_bounds_verified"])
+        self.assertTrue(cert["two_thirds_domination_verified"])
+        self.assertTrue(cert["physical_remediation_boundary_verified"])
+
 
 if __name__ == "__main__":
     unittest.main()

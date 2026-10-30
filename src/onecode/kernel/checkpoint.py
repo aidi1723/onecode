@@ -805,6 +805,9 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
                 turn_number=turn_number,
                 status_code=iching_status_code,
             ),
+            "triadic_synthesis": IchingKernel.triadic_synthesis_profile(
+                status_code=iching_status_code,
+            ),
         }
     return telemetry
 

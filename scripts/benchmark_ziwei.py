@@ -39,6 +39,7 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.jie_shen_relief_profile(1, state)
         _ = IchingKernel.twelve_deities_profile(1, state)
         _ = IchingKernel.flying_sihua_cascade_profile(1, state)
+        _ = IchingKernel.triadic_synthesis_profile(state)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
 
     start_total = time.perf_counter()
@@ -57,6 +58,7 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.jie_shen_relief_profile(turn, state)
         _ = IchingKernel.twelve_deities_profile(turn, state)
         _ = IchingKernel.flying_sihua_cascade_profile(turn, state)
+        _ = IchingKernel.triadic_synthesis_profile(state)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
         t1 = time.perf_counter_ns()
         latencies_us.append((t1 - t0) / 1000.0)
@@ -86,7 +88,7 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
 
 
 def verify_mathematical_certificates() -> dict[str, bool]:
-    """Verify all 7 mathematical certificates directly."""
+    """Verify all 8 mathematical certificates directly."""
     c_ring = IchingKernel.sovereign_ring_isomorphism_certificate()
     c_anhe = IchingKernel.an_he_coupling_certificate()
     c_shengong = IchingKernel.shen_gong_anchorage_certificate()
@@ -94,6 +96,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
     c_jieshen = IchingKernel.jie_shen_even_subgroup_relief_certificate()
     c_twelve = IchingKernel.twelve_deities_triad_and_suipo_certificate()
     c_flying = IchingKernel.flying_sihua_cascade_certificate()
+    c_triad = IchingKernel.triadic_synthesis_certificate()
     
     return {
         "sovereign_ring": c_ring.get("status") == "verified" and c_ring.get("triad_balance_verified") is True,
@@ -103,6 +106,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
         "jie_shen_even_subgroup_relief": c_jieshen.get("status") == "verified" and c_jieshen.get("odd_palace_exclusion_verified") is True,
         "twelve_deities_triad_and_suipo": c_twelve.get("status") == "verified" and c_twelve.get("triad_partition_verified") is True and c_twelve.get("suipo_opposite_involution_verified") is True,
         "flying_sihua_cascade": c_flying.get("status") == "verified" and c_flying.get("sihua_totality_verified") is True and c_flying.get("duigong_involution_verified") is True,
+        "triadic_synthesis": c_triad.get("status") == "verified" and c_triad.get("convex_bounds_verified") is True and c_triad.get("two_thirds_domination_verified") is True,
     }
 
 
