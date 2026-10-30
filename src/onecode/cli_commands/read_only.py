@@ -129,6 +129,7 @@ def math_audit_payload() -> dict[str, object]:
             "classical_patterns",
             "auxiliary_polarity_and_yunxian",
             "heming_synastry_and_noble_stars",
+            "deep_computation_and_graph",
         ],
         "reference_only": [
             "probabilistic_sampling",

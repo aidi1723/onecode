@@ -571,6 +571,7 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
             data = json.loads(chk_path.read_text(encoding="utf-8"))
             telemetry = data["telemetry"]
             self.assertIn("shen_gong_anchorage", telemetry)
+            self.assertIn("full_sihua_graph", telemetry)
             sg = telemetry["shen_gong_anchorage"]
             self.assertIn("active_index", sg)
             self.assertIn("palace_name", sg)
@@ -1211,6 +1212,111 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["tianma_corner_involution_verified"])
         self.assertTrue(cert["hongluan_derangement_verified"])
         self.assertTrue(cert["mutual_ji_deadlock_breaker_verified"])
+
+    def test_full_sihua_graph_and_conservation(self):
+        """Direction K: Full 48-Ray Directed Sihua Graph and Degree Conservation."""
+        graph = IchingKernel.full_sihua_graph_profile(year_stem=0)
+        self.assertEqual(len(graph["edges"]), 48)
+        self.assertEqual(graph["total_edges"], 48)
+        # Out-degree regularity: each of the 12 palaces has exactly 4 outgoing transformations
+        self.assertEqual(len(graph["out_degrees"]), 12)
+        for out_deg in graph["out_degrees"]:
+            self.assertEqual(out_deg, 4)
+
+        # In-degree sum must equal out-degree sum = 48
+        self.assertEqual(len(graph["in_degrees"]), 12)
+        self.assertEqual(sum(graph["in_degrees"]), 48)
+
+        # Five Tigers stem distribution: exactly 2 stems appear twice, 8 stems appear once (surjection)
+        counts = {}
+        for stem in graph["palace_stems"]:
+            counts[stem] = counts.get(stem, 0) + 1
+        two_count = sum(1 for c in counts.values() if c == 2)
+        one_count = sum(1 for c in counts.values() if c == 1)
+        self.assertEqual(two_count, 2)
+        self.assertEqual(one_count, 8)
+
+        # Verify self-transformations, opposite projections, and cycle detection
+        self.assertIsInstance(graph["self_transformations"], list)
+        self.assertIsInstance(graph["opposite_projections"], list)
+        self.assertIsInstance(graph["ji_cycles"], list)
+
+    def test_bipartite_synastry_tensor_and_deadlocks(self):
+        """Direction K: 144-Cell Bipartite Synastry Tensor and 96 Cross-Flying Rays."""
+        agent_a = {"stem": 0, "ming_branch": 0, "fuqi_branch": 2}
+        agent_b = {"stem": 1, "ming_branch": 6, "fuqi_branch": 8}
+        syn = IchingKernel.bipartite_synastry_tensor_profile(agent_a, agent_b)
+
+        # 144-cell tensor
+        self.assertEqual(len(syn["tensor_12x12"]), 12)
+        self.assertTrue(all(len(row) == 12 for row in syn["tensor_12x12"]))
+        total_cells = sum(len(row) for row in syn["tensor_12x12"])
+        self.assertEqual(total_cells, 144)
+
+        # 96 cross-flying rays (48 A->B and 48 B->A)
+        self.assertEqual(syn["total_cross_rays"], 96)
+        self.assertEqual(syn["rays_a_to_b_count"], 48)
+        self.assertEqual(syn["rays_b_to_a_count"], 48)
+
+        # Deadlock detection and consensus metrics
+        self.assertIn("cross_deadlocks", syn)
+        self.assertIn("has_cross_deadlock", syn)
+        self.assertIn("mean_alignment", syn)
+        self.assertIn("coordination_directive", syn)
+
+    def test_full_palace_patterns_profile(self):
+        """Direction K: Exhaustive 12-Palace San Fang Si Zheng Quad-Chord Scanning."""
+        chart_res = IchingKernel.full_palace_patterns_profile(
+            turn_number=1,
+            status_code=7,
+        )
+        self.assertEqual(chart_res["total_palaces_scanned"], 12)
+        self.assertEqual(len(chart_res["palace_reports"]), 12)
+        self.assertIn("breaking_palaces_count", chart_res)
+        self.assertIn("auspicious_palaces_count", chart_res)
+        self.assertIn("system_equilibrium", chart_res)
+
+    def test_china_dst_and_aphorism_knowledge(self):
+        """Direction K: Historical China DST Database (1935-1991) and Classical Aphorisms."""
+        # 1988 summer: DST active
+        dst_1988 = IchingKernel.china_dst_profile(1988, 6, 1)
+        self.assertTrue(dst_1988["is_dst"])
+        self.assertEqual(dst_1988["clock_adjustment_hours"], 1)
+
+        # 1988 winter: DST inactive
+        dst_1988_winter = IchingKernel.china_dst_profile(1988, 1, 1)
+        self.assertFalse(dst_1988_winter["is_dst"])
+        self.assertEqual(dst_1988_winter["clock_adjustment_hours"], 0)
+
+        # Modern era (2026): DST abolished
+        dst_2026 = IchingKernel.china_dst_profile(2026, 6, 1)
+        self.assertFalse(dst_2026["is_dst"])
+        self.assertEqual(dst_2026["clock_adjustment_hours"], 0)
+
+        # Classical Aphorisms Retrieval
+        aph_zifu = IchingKernel.aphorism_knowledge_profile("紫微在子")
+        self.assertTrue(aph_zifu["found"])
+        self.assertIn("孤君无辅", aph_zifu["quote"])
+
+        aph_rm = IchingKernel.aphorism_knowledge_profile("日月并明")
+        self.assertTrue(aph_rm["found"])
+        self.assertIn("明珠出海", aph_rm["quote"])
+
+        aph_jc = IchingKernel.aphorism_knowledge_profile("君臣庆会")
+        self.assertTrue(aph_jc["found"])
+        self.assertIn("君臣庆会", aph_jc["quote"])
+
+    def test_deep_computation_and_graph_certificate(self):
+        """Direction K: Formal Mathematical Certificate of 48-Ray Graph, 144-Cell Bipartite Tensor & China DST."""
+        cert = IchingKernel.deep_computation_and_graph_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["sihua_48_rays_conservation_verified"])
+        self.assertTrue(cert["five_tigers_ten_to_twelve_duality_verified"])
+        self.assertTrue(cert["bipartite_96_rays_conservation_verified"])
+        self.assertTrue(cert["cross_deadlock_decidability_verified"])
+        self.assertTrue(cert["full_12_palace_patterns_verified"])
+        self.assertTrue(cert["china_dst_soundness_verified"])
+        self.assertTrue(cert["aphorism_knowledge_coverage_verified"])
 
 
 if __name__ == "__main__":

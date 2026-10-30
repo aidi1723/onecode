@@ -53,6 +53,11 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.dual_sihua_superposition_profile(0, ["化忌", "化权"])
         _ = IchingKernel.multi_agent_synastry_profile({"stem": 0, "ming_branch": 0}, {"stem": 1, "ming_branch": 4})
         _ = IchingKernel.famous_archetype_profile("ma-yun")
+        _ = IchingKernel.full_sihua_graph_profile(0, state)
+        _ = IchingKernel.bipartite_synastry_tensor_profile({"stem": 0}, {"stem": 1}, state)
+        _ = IchingKernel.full_palace_patterns_profile(1, state)
+        _ = IchingKernel.china_dst_profile(1988, 6, 1)
+        _ = IchingKernel.aphorism_knowledge_profile("紫微在子")
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
 
     start_total = time.perf_counter()
@@ -85,6 +90,11 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.dual_sihua_superposition_profile((turn - 1) % 12, ["化忌", "化权"])
         _ = IchingKernel.multi_agent_synastry_profile({"stem": (turn - 1) % 10, "ming_branch": (turn - 1) % 12}, {"stem": turn % 10, "ming_branch": (turn + 4) % 12})
         _ = IchingKernel.famous_archetype_profile("ma-yun")
+        _ = IchingKernel.full_sihua_graph_profile(turn - 1, state)
+        _ = IchingKernel.bipartite_synastry_tensor_profile({"stem": (turn - 1) % 10}, {"stem": turn % 10}, state)
+        _ = IchingKernel.full_palace_patterns_profile(turn, state)
+        _ = IchingKernel.china_dst_profile(1988, 6, 1)
+        _ = IchingKernel.aphorism_knowledge_profile("紫微在子")
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
         t1 = time.perf_counter_ns()
         latencies_us.append((t1 - t0) / 1000.0)
@@ -129,6 +139,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
     c_classical = IchingKernel.classical_patterns_certificate()
     c_aux = IchingKernel.auxiliary_polarity_and_yunxian_certificate()
     c_heming = IchingKernel.heming_synastry_and_noble_stars_certificate()
+    c_deep = IchingKernel.deep_computation_and_graph_certificate()
     
     return {
         "sovereign_ring": c_ring.get("status") == "verified" and c_ring.get("triad_balance_verified") is True,
@@ -145,6 +156,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
         "classical_patterns": c_classical.get("status") == "verified" and c_classical.get("safety_dominance_verified") is True and c_classical.get("supreme_purity_verified") is True,
         "auxiliary_polarity_and_yunxian": c_aux.get("status") == "verified" and c_aux.get("dahao_bijection_verified") is True and c_aux.get("jiekong_stem_duality_verified") is True,
         "heming_synastry_and_noble_stars": c_heming.get("status") == "verified" and c_heming.get("tianluo_diwang_exclusion_verified") is True and c_heming.get("mutual_ji_deadlock_breaker_verified") is True,
+        "deep_computation_and_graph": c_deep.get("status") == "verified" and c_deep.get("sihua_48_rays_conservation_verified") is True and c_deep.get("bipartite_96_rays_conservation_verified") is True,
     }
 
 

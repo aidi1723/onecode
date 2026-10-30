@@ -847,6 +847,10 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
                 agent_a={"stem": (turn_number - 1) % 10, "ming_branch": (turn_number - 1) % 12},
                 agent_b={"stem": turn_number % 10, "ming_branch": (turn_number + 4) % 12},
             ),
+            "full_sihua_graph": IchingKernel.full_sihua_graph_profile(
+                year_stem=turn_number - 1,
+                status_code=iching_status_code,
+            ),
         }
     return telemetry
 
