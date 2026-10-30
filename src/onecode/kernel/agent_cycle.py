@@ -27,11 +27,31 @@ Execute = Callable[[str, dict[str, Any]], dict[str, Any]]
 Approve = Callable[[str, dict[str, Any]], bool]
 
 
+def _resolve_default_turns(workspace: Path | None, max_turns: int | None) -> int:
+    if max_turns is None:
+        if workspace is not None:
+            try:
+                from onecode.kernel.model_loop import resolve_task_bureau
+                bureau = resolve_task_bureau(workspace)
+                return int(bureau.get("turn_budget", 8))
+            except Exception:
+                return 8
+        return 8
+    if os.environ.get("ONECODE_BUREAU_BUDGET") == "1" and workspace is not None:
+        try:
+            from onecode.kernel.model_loop import resolve_task_bureau
+            bureau = resolve_task_bureau(workspace)
+            return min(max_turns, int(bureau.get("turn_budget", max_turns)))
+        except Exception:
+            return max_turns
+    return max_turns
+
+
 def run_agent_cycle(
     *,
     propose: Propose,
     execute: Execute,
-    max_turns: int = 8,
+    max_turns: int | None = None,
     task: str = "",
     max_history_chars: int | None = None,
     workspace: Path | None = None,
@@ -45,7 +65,8 @@ def run_agent_cycle(
     max_read_misses: int = 2,
     output_limit: int = OUTPUT_LIMIT,
 ) -> dict[str, Any]:
-    if isinstance(max_turns, bool) or not isinstance(max_turns, int) or max_turns <= 0:
+    effective_max_turns = _resolve_default_turns(workspace, max_turns)
+    if isinstance(effective_max_turns, bool) or not isinstance(effective_max_turns, int) or effective_max_turns <= 0:
         raise ValueError("max_turns must be a positive integer")
     if isinstance(max_read_misses, bool) or not isinstance(max_read_misses, int) or max_read_misses <= 0:
         raise ValueError("max_read_misses must be a positive integer")
@@ -76,12 +97,18 @@ def run_agent_cycle(
         "retry_streak": 0,
     }
     granted = granted_approval_ids or frozenset()
-    for _turn in range(max_turns):
+    for _turn in range(effective_max_turns):
         visible = _visible_history(task, history, max_history_chars)
         proposal = list(propose(visible, allowed) or [])
         if not proposal:
             if _stop_is_success(history):
-                result = {"status": "completed", "reason": None, "turn_count": len(history) + 1, "turns": history}
+                result = {
+                    "status": "completed",
+                    "reason": None,
+                    "turn_count": len(history) + 1,
+                    "turns": history,
+                    "turn_budget": effective_max_turns,
+                }
                 _maybe_remember(workspace, remember, {"role": "task", "text": task}, "model_continue", result)
                 return result
             return _halt("no_progress", history)
@@ -107,6 +134,7 @@ def run_agent_cycle(
         "reason": "resource_budget_exceeded",
         "turn_count": len(history),
         "turns": history,
+        "turn_budget": effective_max_turns,
         "cycle": decision,
     }
 

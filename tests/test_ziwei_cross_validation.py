@@ -637,6 +637,93 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
             self.assertEqual(count2, 1)
             self.assertEqual(loc2, 2)
 
+    def test_executor_degraded_mode_blocks_full_file_rewrite(self):
+        """Verify executor mechanically intercepts full-file rewrites when in degraded mode (落陷)."""
+        from onecode.kernel.model_loop import execute_model_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset, ModelPlanPatch, ModelExecutionStep, ModelToolCall
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = Path(tmp)
+            target = ws / "module.py"
+            target.write_text("INITIAL_CONTENT = True\n", encoding="utf-8")
+
+            # 1. Full-file rewrite via assets in degraded mode must be mechanically rejected
+            rewrite_plan = ModelPlan(
+                task="rewrite module",
+                assets=[ModelPlanAsset(path="module.py", content="NEW_CONTENT = False\n")],
+            )
+            halted_res = execute_model_plan(
+                rewrite_plan,
+                workspace=ws,
+                http_timeout_seconds=5,
+                run_id="degraded-asset-rewrite",
+                resume_from_run_id=None,
+                run_metadata={"governance_mode": "degraded"},
+            )
+            self.assertEqual(halted_res["status"], "halted")
+            self.assertEqual(halted_res["reason"], "degraded_mode_disallows_full_file_rewrite")
+            self.assertEqual(target.read_text(encoding="utf-8"), "INITIAL_CONTENT = True\n")
+
+            # 2. Full-file rewrite via execution steps write_text in degraded mode
+            step_plan = ModelPlan(
+                task="rewrite via step",
+                execution_steps=[
+                    ModelExecutionStep(
+                        id="step-1",
+                        description="overwrite file",
+                        tool_calls=[ModelToolCall(tool_name="write_text", params={"path": "module.py", "content": "FAIL"})],
+                    )
+                ],
+            )
+            halted_step = execute_model_plan(
+                step_plan,
+                workspace=ws,
+                http_timeout_seconds=5,
+                run_id="degraded-step-rewrite",
+                resume_from_run_id=None,
+                run_metadata={"governance_mode": "degraded"},
+            )
+            self.assertEqual(halted_step["status"], "halted")
+            self.assertEqual(halted_step["reason"], "degraded_mode_disallows_full_file_rewrite")
+
+            # 3. Patching in degraded mode is permitted
+            patch_plan = ModelPlan(
+                task="surgical patch",
+                patches=[ModelPlanPatch(path="module.py", search_block="INITIAL_CONTENT = True\n", replace_block="INITIAL_CONTENT = False\n")],
+            )
+            ok_res = execute_model_plan(
+                patch_plan,
+                workspace=ws,
+                http_timeout_seconds=5,
+                run_id="degraded-patch-allowed",
+                resume_from_run_id=None,
+                run_metadata={"governance_mode": "degraded"},
+                require_explicit_approval=False,
+            )
+            self.assertEqual(ok_res["status"], "completed")
+            self.assertIn("INITIAL_CONTENT = False", target.read_text(encoding="utf-8"))
+
+    def test_agent_cycle_bureau_turn_budget_adaptation(self):
+        """Verify run_agent_cycle modulates default turn limit based on Five Elements Bureau."""
+        from onecode.kernel.agent_cycle import run_agent_cycle
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = Path(tmp)
+            (ws / "main.py").write_text("print('hello')\n", encoding="utf-8")
+            # Small workspace -> 水二局 -> turn_budget = 3
+            calls = []
+            def propose(hist, allowed):
+                calls.append(len(hist))
+                return [{"tool_name": "read_text", "params": {"path": f"f{len(hist)}.txt"}}]
+            def execute(t, p):
+                return {"status": "completed", "reason": None, "content": "sample"}
+
+            result = run_agent_cycle(propose=propose, execute=execute, workspace=ws)
+            self.assertEqual(result["turn_budget"], 3)
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "resource_budget_exceeded")
+            self.assertEqual(result["turn_count"], 3)
+
 
 if __name__ == "__main__":
     unittest.main()

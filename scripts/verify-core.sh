@@ -26,6 +26,7 @@ PYTHONPATH=src "$PYTHON_BIN" -m unittest \
   tests.test_iching_kernel_integration \
   tests.test_resumption \
   tests.test_task_resume \
+  tests.test_ziwei_cross_validation \
   -v
 
 echo "doctor"

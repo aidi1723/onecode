@@ -247,6 +247,26 @@ def execute_step(
             )
             break
 
+        if tool_call.tool_name == "write_text":
+            path_val = tool_call.params.get("path")
+            if isinstance(path_val, str):
+                target = workspace / path_val
+                if target.is_file() and target.stat().st_size > 0:
+                    status_code = _tagged_status_code(step, registry)
+                    if status_code is not None:
+                        brightness = IchingKernel.star_brightness_profile(status_code)
+                        if brightness.get("governance_mode") == "degraded":
+                            step_failed_reason = "degraded_mode_disallows_full_file_rewrite"
+                            tool_results.append(
+                                ToolResult(
+                                    tool_name=tool_call.tool_name,
+                                    success=False,
+                                    output={"status": "halted", "reason": step_failed_reason, "governance_mode": "degraded"},
+                                    reason=step_failed_reason,
+                                )
+                            )
+                            break
+
         try:
             action = tool.plan_action(tool_call.params)
             if tool.runner_managed:

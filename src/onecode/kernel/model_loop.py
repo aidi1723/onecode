@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import difflib
 import functools
@@ -773,6 +774,44 @@ def merge_repair_result(
     }
 
 
+def _plan_has_existing_file_rewrite(plan: ModelPlan, workspace: Path) -> bool:
+    """Return True if plan attempts to fully rewrite an existing file with write_text/asset."""
+    for asset in plan.assets:
+        target = workspace / asset.path
+        if target.is_file() and target.stat().st_size > 0:
+            return True
+    for step in plan.execution_steps:
+        for tool_call in step.tool_calls:
+            if tool_call.tool_name == "write_text":
+                path_val = tool_call.params.get("path")
+                if isinstance(path_val, str):
+                    target = workspace / path_val
+                    if target.is_file() and target.stat().st_size > 0:
+                        return True
+    return False
+
+
+def _resolve_governance_mode(run_metadata: dict[str, Any]) -> str:
+    """Resolve governance mode from metadata or status code."""
+    mode = run_metadata.get("governance_mode")
+    if isinstance(mode, str):
+        return mode
+    brightness = run_metadata.get("star_brightness")
+    if isinstance(brightness, dict) and isinstance(brightness.get("governance_mode"), str):
+        return str(brightness["governance_mode"])
+    raw_status = run_metadata.get("iching_status_code")
+    if raw_status is None:
+        raw_status = run_metadata.get("task_status_code")
+    if raw_status is not None:
+        try:
+            return str(IchingKernel.star_brightness_profile(int(raw_status)).get("governance_mode", "autonomous"))
+        except Exception:
+            pass
+    if os.environ.get("ONECODE_GOVERNANCE_MODE"):
+        return os.environ["ONECODE_GOVERNANCE_MODE"]
+    return "autonomous"
+
+
 def execute_model_plan(
     plan: ModelPlan,
     workspace: Path,
@@ -784,6 +823,22 @@ def execute_model_plan(
     approval_callback: Callable[[ExecutionStep], bool] | None = None,
     on_turn: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
+    governance_mode = _resolve_governance_mode(run_metadata)
+    if governance_mode == "degraded" and _plan_has_existing_file_rewrite(plan, workspace):
+        total_items = len(plan.assets) + len(plan.patches) + len(plan.execution_steps)
+        return {
+            "run_id": run_id,
+            "status": "halted",
+            "reason": "degraded_mode_disallows_full_file_rewrite",
+            "partial": True,
+            "governance_mode": "degraded",
+            "permitted_actions": ["read", "diagnose", "minimal_patch"],
+            "requested_count": total_items,
+            "completed_count": 0,
+            "skipped_count": total_items,
+            "failed_count": 0,
+            "assets": [],
+        } | run_metadata
     if plan.execution_steps:
         context = create_context(workspace_root=workspace, run_id=run_id, resume_from_run_id=resume_from_run_id)
         trace = execute_plan(
@@ -1738,13 +1793,21 @@ def _finish_verified_task(
                 "iching_transition_action": transition.action,
                 "iching_transition_reason": transition.reason,
             }
+        failed_status = current_checked.get("iching_status_code") or current_checked.get("task_status_code")
+        failed_code = int(failed_status) if failed_status is not None else 32
+        repair_brightness = IchingKernel.star_brightness_profile(failed_code)
+        repair_metadata = {
+            **run_metadata,
+            "governance_mode": repair_brightness.get("governance_mode", "autonomous"),
+            "star_brightness": repair_brightness,
+        }
         repaired = execute_model_plan(
             plan,
             workspace=workspace,
             http_timeout_seconds=http_timeout_seconds,
             run_id=run_id,
             resume_from_run_id=resume_from_run_id,
-            run_metadata=run_metadata,
+            run_metadata=repair_metadata,
             require_explicit_approval=require_explicit_approval,
             approval_callback=execution_approval,
             on_turn=on_turn,
@@ -1815,6 +1878,19 @@ def _run_plan_metadata(provider_config: Any, resolved_model: str, plan: ModelPla
     }
 
 
+def _enrich_bureau_and_brightness_metadata(workspace: Path, run_metadata: dict[str, Any]) -> None:
+    bureau = resolve_task_bureau(workspace)
+    run_metadata["task_bureau"] = bureau["bureau_name"]
+    run_metadata["task_scale"] = bureau["scale"]
+    run_metadata["bureau_turn_budget"] = bureau["turn_budget"]
+    run_metadata["bureau_patch_strategy"] = bureau["patch_strategy"]
+    status_code = run_metadata.get("iching_status_code")
+    if status_code is not None:
+        brightness = IchingKernel.star_brightness_profile(int(status_code))
+        run_metadata["star_brightness"] = brightness
+        run_metadata.setdefault("governance_mode", brightness.get("governance_mode", "autonomous"))
+
+
 def run_model_task(
     task: str,
     workspace: Path,
@@ -1876,11 +1952,7 @@ def run_model_task(
     if plan_approval is not None and not plan_approval(plan):
         return _plan_user_rejected_result(plan, run_id, provider_config, resolved_model)
     run_metadata = _run_plan_metadata(provider_config, resolved_model, plan, planning_context["safe_agent"])
-    bureau = resolve_task_bureau(workspace)
-    run_metadata["task_bureau"] = bureau["bureau_name"]
-    run_metadata["task_scale"] = bureau["scale"]
-    run_metadata["bureau_turn_budget"] = bureau["turn_budget"]
-    run_metadata["bureau_patch_strategy"] = bureau["patch_strategy"]
+    _enrich_bureau_and_brightness_metadata(workspace, run_metadata)
     callback = execution_approval
     if callback is None and approval_mode == "scoped_auto":
         callback = lambda _step: True
@@ -1941,8 +2013,13 @@ def run_model_task(
                 "repair_plan_must_use_patches_only",
                 repair_attempt_count=attempt,
             )
+        failed_status = failed_result.get("iching_status_code") or failed_result.get("task_status_code")
+        failed_code = int(failed_status) if failed_status is not None else 32
+        repair_brightness = IchingKernel.star_brightness_profile(failed_code)
         repair_metadata = {
             **run_metadata,
+            "governance_mode": repair_brightness.get("governance_mode", "autonomous"),
+            "star_brightness": repair_brightness,
             "model_plan_task": repair_plan.task,
             "model_plan_asset_count": len(repair_plan.assets),
             "model_plan_patch_count": len(repair_plan.patches),
