@@ -136,6 +136,7 @@ def math_audit_payload() -> dict[str, object]:
             "auxiliary_pairs_and_city_solar",
             "changsheng_and_expanded_patterns",
             "ziwu_liuzhu_and_shengke",
+            "dipper_axes_and_sha_po_lang",
         ],
         "reference_only": [
             "probabilistic_sampling",

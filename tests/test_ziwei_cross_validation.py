@@ -580,6 +580,8 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
             self.assertIn("guchen_guasu_huagai", telemetry)
             self.assertIn("ziwu_liuzhu", telemetry)
             self.assertIn("five_elements_shengke", telemetry)
+            self.assertIn("dipper_axis_invariants", telemetry)
+            self.assertIn("sha_po_lang_triad", telemetry)
             sg = telemetry["shen_gong_anchorage"]
             self.assertIn("active_index", sg)
             self.assertIn("palace_name", sg)
@@ -1898,6 +1900,45 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["quanshu_14_stars_totality_verified"])
         self.assertTrue(cert["quanshu_energy_gap_monotonic_verified"])
         self.assertGreaterEqual(cert["energy_gap"], 0.10)
+
+    def test_dipper_axis_pairwise_invariants(self):
+        """Direction R: Northern-Southern Dipper pairwise axis sum invariants and auxiliary conservation."""
+        for state in range(64):
+            res = IchingKernel.dipper_axis_invariants_profile(state)
+            self.assertTrue(res["all_five_axes_conserved"])
+            self.assertTrue(res["auxiliary_pairs_conserved"])
+            self.assertEqual(res["chang_qu_sum"], 2)
+            self.assertEqual(res["zuo_bi_sum"], 2)
+            self.assertEqual(res["governance_harmony"], "perfect_dipper_symmetry")
+
+            axes = res["five_axes"]
+            self.assertEqual(axes["sovereign_treasury"]["sum_mod_12"], 4)
+            self.assertEqual(axes["strategy_memory"]["sum_mod_12"], 4)
+            self.assertEqual(axes["visibility_critic"]["sum_mod_12"], 4)
+            self.assertEqual(axes["execution_proxy"]["sum_mod_12"], 4)
+            self.assertEqual(axes["assistance_auditor"]["sum_mod_12"], 4)
+
+    def test_sha_po_lang_equilateral_trine(self):
+        """Direction R: Sha-Po-Lang Equilateral Triad Engine and dynamic transformation."""
+        for state in range(64):
+            spl = IchingKernel.sha_po_lang_triad_profile(state)
+            self.assertTrue(spl["is_equilateral_trine"])
+            self.assertEqual(spl["angular_distances"], [4, 4, 4])
+
+        # Test active SPL transformation mode when ming_branch in triad:
+        spl_active = IchingKernel.sha_po_lang_triad_profile(0, ming_branch=10)  # 七杀 is at 10 in state 0
+        self.assertTrue(spl_active["ming_in_triad"])
+        self.assertTrue(spl_active["is_active_spl"])
+        self.assertEqual(spl_active["dynamic_mode"], "sha_po_lang_transformation")
+        self.assertEqual(spl_active["innovation_index"], 1.25)
+
+    def test_dipper_axes_and_sha_po_lang_certificate(self):
+        """Direction R: Formal Mathematical Certificate for Dipper Axes and Sha-Po-Lang."""
+        cert = IchingKernel.dipper_axes_and_sha_po_lang_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["dipper_five_axes_sum_4_verified"])
+        self.assertTrue(cert["auspicious_pairs_sum_2_verified"])
+        self.assertTrue(cert["sha_po_lang_equilateral_trine_verified"])
 
 
 if __name__ == "__main__":

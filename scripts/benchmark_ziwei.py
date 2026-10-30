@@ -75,6 +75,8 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.ziwu_liuzhu_chronobiology_profile(state % 12)
         _ = IchingKernel.five_elements_shengke_profile(state % 5, (state + 1) % 5)
         _ = IchingKernel.quanshu_star_brightness_profile(state)
+        _ = IchingKernel.dipper_axis_invariants_profile(state)
+        _ = IchingKernel.sha_po_lang_triad_profile(state)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
 
     start_total = time.perf_counter()
@@ -129,6 +131,8 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.ziwu_liuzhu_chronobiology_profile(state % 12)
         _ = IchingKernel.five_elements_shengke_profile(state % 5, (state + 1) % 5)
         _ = IchingKernel.quanshu_star_brightness_profile(state)
+        _ = IchingKernel.dipper_axis_invariants_profile(state)
+        _ = IchingKernel.sha_po_lang_triad_profile(state)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
         t1 = time.perf_counter_ns()
         latencies_us.append((t1 - t0) / 1000.0)
@@ -180,6 +184,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
     c_aux_city = IchingKernel.auxiliary_pairs_and_city_solar_certificate()
     c_cs_pat = IchingKernel.changsheng_and_expanded_patterns_certificate()
     c_ziwu = IchingKernel.ziwu_liuzhu_and_shengke_certificate()
+    c_dipper = IchingKernel.dipper_axes_and_sha_po_lang_certificate()
     
     return {
         "sovereign_ring": c_ring.get("status") == "verified" and c_ring.get("triad_balance_verified") is True,
@@ -203,6 +208,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
         "auxiliary_pairs_and_city_solar": c_aux_city.get("status") == "verified" and c_aux_city.get("tianxing_tianyao_constant_phase_verified") is True and c_aux_city.get("santai_bazuo_sum_conservation_verified") is True and c_aux_city.get("tianshang_tianshi_migration_sandwiching_verified") is True and c_aux_city.get("major_cities_geodetic_bounds_verified") is True,
         "changsheng_and_expanded_patterns": c_cs_pat.get("status") == "verified" and c_cs_pat.get("changsheng_origins_four_horses_verified") is True and c_cs_pat.get("guchen_guasu_angular_distance_4_verified") is True and c_cs_pat.get("huagai_four_earth_tombs_verified") is True and c_cs_pat.get("expanded_patterns_safety_dominance_verified") is True,
         "ziwu_liuzhu_and_shengke": c_ziwu.get("status") == "verified" and c_ziwu.get("ziwu_liuzhu_antipodal_involution_verified") is True and c_ziwu.get("five_elements_sheng_cycle_verified") is True and c_ziwu.get("quanshu_14_stars_totality_verified") is True and c_ziwu.get("quanshu_energy_gap_monotonic_verified") is True,
+        "dipper_axes_and_sha_po_lang": c_dipper.get("status") == "verified" and c_dipper.get("dipper_five_axes_sum_4_verified") is True and c_dipper.get("auspicious_pairs_sum_2_verified") is True and c_dipper.get("sha_po_lang_equilateral_trine_verified") is True,
     }
 
 

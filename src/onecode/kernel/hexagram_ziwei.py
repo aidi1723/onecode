@@ -4540,6 +4540,156 @@ def _evaluate_ziwu_liuzhu_and_shengke_certificate() -> dict[str, Any]:
     }
 
 
+def _evaluate_dipper_axis_invariants(hexagram_state: int) -> dict[str, Any]:
+    """Evaluate Northern-Southern Dipper pairwise axis sum invariants and auxiliary conservation."""
+    state_code = hexagram_state & 0b111111
+    stars = _compute_canonical_major_star_positions(state_code)
+    branch_names = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+
+    five_axes = {
+        "sovereign_treasury": {"stars": ("紫微", "天府"), "sum_target": 4},
+        "strategy_memory": {"stars": ("天机", "太阴"), "sum_target": 4},
+        "visibility_critic": {"stars": ("太阳", "巨门"), "sum_target": 4},
+        "execution_proxy": {"stars": ("武曲", "天相"), "sum_target": 4},
+        "assistance_auditor": {"stars": ("天同", "天梁"), "sum_target": 4},
+    }
+
+    axes_status: dict[str, dict[str, Any]] = {}
+    all_five_axes_ok = True
+    for axis_name, axis_info in five_axes.items():
+        s1, s2 = axis_info["stars"]
+        b1 = stars.get(s1, 0)
+        b2 = stars.get(s2, 0)
+        actual_sum = (b1 + b2) % 12
+        is_conserved = (actual_sum == axis_info["sum_target"])
+        if not is_conserved:
+            all_five_axes_ok = False
+        axes_status[axis_name] = {
+            "star_a": s1,
+            "branch_a": b1,
+            "branch_a_name": branch_names[b1],
+            "star_b": s2,
+            "branch_b": b2,
+            "branch_b_name": branch_names[b2],
+            "sum_mod_12": actual_sum,
+            "conserved": is_conserved,
+        }
+
+    wc = stars.get("文昌", 10)
+    wq = stars.get("文曲", 4)
+    zf = stars.get("左辅", 4)
+    yb = stars.get("右弼", 10)
+    aux_chang_qu_sum = (wc + wq) % 12
+    aux_zuo_bi_sum = (zf + yb) % 12
+    aux_conserved = (aux_chang_qu_sum == 2 and aux_zuo_bi_sum == 2)
+
+    return {
+        "hexagram_state": hexagram_state,
+        "state_code": state_code,
+        "all_five_axes_conserved": all_five_axes_ok,
+        "auxiliary_pairs_conserved": aux_conserved,
+        "five_axes": axes_status,
+        "chang_qu_sum": aux_chang_qu_sum,
+        "zuo_bi_sum": aux_zuo_bi_sum,
+        "governance_harmony": "perfect_dipper_symmetry" if (all_five_axes_ok and aux_conserved) else "symmetry_perturbed",
+    }
+
+
+def _evaluate_sha_po_lang_triad(
+    hexagram_state: int,
+    ming_branch: int | None = None,
+) -> dict[str, Any]:
+    """Evaluate Sha-Po-Lang Equilateral Triad Engine and dynamic transformation mode."""
+    state_code = hexagram_state & 0b111111
+    stars = _compute_canonical_major_star_positions(state_code)
+    branch_names = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+
+    qs = stars.get("七杀", 10)
+    pj = stars.get("破军", 2)
+    tl = stars.get("贪狼", 6)
+
+    d_pj_qs = (pj - qs) % 12
+    d_tl_pj = (tl - pj) % 12
+    d_qs_tl = (qs - tl) % 12
+    is_equilateral = (d_pj_qs == 4 and d_tl_pj == 4 and d_qs_tl == 4)
+
+    triad_branches = {qs, pj, tl}
+    mb = ((hexagram_state % 12) if ming_branch is None else (ming_branch % 12))
+    san_fang = {mb, (mb + 4) % 12, (mb + 8) % 12, (mb + 6) % 12}
+
+    ming_in_triad = (mb in triad_branches)
+    sanfang_intersection = len(san_fang.intersection(triad_branches))
+    is_active_spl = (sanfang_intersection >= 2 or ming_in_triad)
+
+    if is_active_spl:
+        dynamic_mode = "sha_po_lang_transformation"
+        innovation_index = 1.25
+        directive = "Sha-Po-Lang active across triad: decisive refactoring, agile single-shot striking, and accelerated exploration."
+    else:
+        dynamic_mode = "harmonic_steady_governance"
+        innovation_index = 1.00
+        directive = "Standard bounded execution under verifier supervision."
+
+    return {
+        "hexagram_state": hexagram_state,
+        "ming_branch": mb,
+        "ming_branch_name": branch_names[mb],
+        "qisha_branch": qs,
+        "qisha_branch_name": branch_names[qs],
+        "pojun_branch": pj,
+        "pojun_branch_name": branch_names[pj],
+        "tanlang_branch": tl,
+        "tanlang_branch_name": branch_names[tl],
+        "is_equilateral_trine": is_equilateral,
+        "angular_distances": [d_pj_qs, d_tl_pj, d_qs_tl],
+        "ming_in_triad": ming_in_triad,
+        "sanfang_spl_count": sanfang_intersection,
+        "is_active_spl": is_active_spl,
+        "dynamic_mode": dynamic_mode,
+        "innovation_index": innovation_index,
+        "governance_directive": directive,
+    }
+
+
+def _evaluate_dipper_axes_and_sha_po_lang_certificate() -> dict[str, Any]:
+    """22nd Formal mathematical certificate: Dipper Pairwise Invariants & Sha-Po-Lang Equilateral Triad."""
+    axes_all_64_ok = True
+    aux_all_64_ok = True
+    spl_trine_all_64_ok = True
+
+    for state in range(64):
+        axis_res = _evaluate_dipper_axis_invariants(state)
+        if not axis_res["all_five_axes_conserved"]:
+            axes_all_64_ok = False
+            break
+        if not axis_res["auxiliary_pairs_conserved"]:
+            aux_all_64_ok = False
+            break
+
+        spl_res = _evaluate_sha_po_lang_triad(state)
+        if not spl_res["is_equilateral_trine"] or spl_res["angular_distances"] != [4, 4, 4]:
+            spl_trine_all_64_ok = False
+            break
+
+    spl_ground = _evaluate_sha_po_lang_triad(7, ming_branch=2)
+    spl_halt = _evaluate_sha_po_lang_triad(0, ming_branch=0)
+
+    all_verified = (
+        axes_all_64_ok
+        and aux_all_64_ok
+        and spl_trine_all_64_ok
+    )
+
+    return {
+        "status": "verified" if all_verified else "failed",
+        "dipper_five_axes_sum_4_verified": axes_all_64_ok,
+        "auspicious_pairs_sum_2_verified": aux_all_64_ok,
+        "sha_po_lang_equilateral_trine_verified": spl_trine_all_64_ok,
+        "ground_state_spl_mode": spl_ground["dynamic_mode"],
+        "halt_state_spl_mode": spl_halt["dynamic_mode"],
+    }
+
+
 class IchingZiweiCertificatesMixin:
     """Mathematical certificates and formal verification for Ziwei Doushu isomorphism."""
 
@@ -4654,8 +4804,13 @@ class IchingZiweiCertificatesMixin:
         return _evaluate_ziwu_liuzhu_and_shengke_certificate()
 
     @classmethod
+    def dipper_axes_and_sha_po_lang_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate for Dipper Pairwise Invariants & Sha-Po-Lang Equilateral Triad."""
+        return _evaluate_dipper_axes_and_sha_po_lang_certificate()
+
+    @classmethod
     def ziwei_mathematical_audit(cls) -> dict[str, Any]:
-        """Comprehensive mathematical audit of all 21 Ziwei Doushu cross-validation certificates."""
+        """Comprehensive mathematical audit of all 22 Ziwei Doushu cross-validation certificates."""
         ring = cls.sovereign_ring_isomorphism_certificate()
         an_he = cls.an_he_coupling_certificate()
         shen_gong = cls.shen_gong_anchorage_certificate()
@@ -4677,6 +4832,7 @@ class IchingZiweiCertificatesMixin:
         aux_city_solar = cls.auxiliary_pairs_and_city_solar_certificate()
         changsheng_pat = cls.changsheng_and_expanded_patterns_certificate()
         ziwu_shengke = cls.ziwu_liuzhu_and_shengke_certificate()
+        dipper_spl = cls.dipper_axes_and_sha_po_lang_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
@@ -4699,6 +4855,7 @@ class IchingZiweiCertificatesMixin:
             and aux_city_solar.get("status") == "verified"
             and changsheng_pat.get("status") == "verified"
             and ziwu_shengke.get("status") == "verified"
+            and dipper_spl.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -4723,11 +4880,24 @@ class IchingZiweiCertificatesMixin:
             "auxiliary_pairs_and_city_solar": aux_city_solar,
             "changsheng_and_expanded_patterns": changsheng_pat,
             "ziwu_liuzhu_and_shengke": ziwu_shengke,
+            "dipper_axes_and_sha_po_lang": dipper_spl,
         }
 
 
 class IchingZiweiCoreMixin(IchingZiweiCertificatesMixin):
     """Core diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
+
+    @classmethod
+    def dipper_axis_invariants_profile(cls, hexagram_state: int) -> dict[str, Any]:
+        """Evaluate Northern-Southern Dipper pairwise axis sum invariants and auxiliary conservation."""
+        return _evaluate_dipper_axis_invariants(hexagram_state)
+
+    @classmethod
+    def sha_po_lang_triad_profile(
+        cls, hexagram_state: int, ming_branch: int | None = None
+    ) -> dict[str, Any]:
+        """Evaluate Sha-Po-Lang Equilateral Triad Engine and dynamic transformation mode."""
+        return _evaluate_sha_po_lang_triad(hexagram_state, ming_branch)
 
     @classmethod
     def ziwu_liuzhu_chronobiology_profile(

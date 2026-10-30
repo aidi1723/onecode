@@ -888,6 +888,13 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
                 element_a=(turn_number - 1) % 5,
                 element_b=(iching_status_code % 5),
             ),
+            "dipper_axis_invariants": IchingKernel.dipper_axis_invariants_profile(
+                hexagram_state=iching_status_code,
+            ),
+            "sha_po_lang_triad": IchingKernel.sha_po_lang_triad_profile(
+                hexagram_state=iching_status_code,
+                ming_branch=(turn_number - 1) % 12,
+            ),
         }
     return telemetry
 
