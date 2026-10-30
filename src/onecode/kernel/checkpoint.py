@@ -819,6 +819,9 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
                 turn_number=turn_number,
                 status_code=iching_status_code,
             ),
+            "clock_drift_adaptation": IchingKernel.clock_drift_adaptation_profile(
+                clock_drift_seconds=0.0,
+            ),
         }
     return telemetry
 

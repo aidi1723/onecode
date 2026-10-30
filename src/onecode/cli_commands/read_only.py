@@ -124,6 +124,7 @@ def math_audit_payload() -> dict[str, object]:
             "flying_sihua_cascade",
             "triadic_synthesis",
             "ziwei_tianfu_and_yangtuo",
+            "solar_equation_and_zishi",
         ],
         "reference_only": [
             "probabilistic_sampling",

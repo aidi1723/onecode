@@ -953,6 +953,56 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["tai_pi_fixed_points_verified"])
         self.assertTrue(cert["yang_tuo_clamping_midpoint_verified"])
 
+    def test_true_solar_time_and_zishi_boundary(self):
+        """Verify True Solar Time computation, meridian shifts, and Zishi boundaries."""
+        # Noon at reference 120 deg meridian
+        res_noon = IchingKernel.true_solar_time_profile(2026, 6, 15, 12, 0, longitude=120.0)
+        self.assertEqual(res_noon["branch"], 6)  # Wu (午)
+        self.assertEqual(res_noon["branch_name"], "午")
+        self.assertEqual(res_noon["longitude_correction_minutes"], 0.0)
+
+        # Early Zishi (00:30)
+        res_early = IchingKernel.true_solar_time_profile(2026, 1, 1, 0, 30, longitude=120.0)
+        self.assertEqual(res_early["branch"], 0)  # Zi (子)
+        self.assertTrue(res_early["is_early_zishi"])
+        self.assertFalse(res_early["is_late_zishi"])
+
+        # Late Zishi (23:45)
+        res_late = IchingKernel.true_solar_time_profile(2026, 1, 1, 23, 45, longitude=120.0)
+        self.assertEqual(res_late["branch"], 0)  # Zi (子)
+        self.assertTrue(res_late["is_late_zishi"])
+        self.assertFalse(res_late["is_early_zishi"])
+
+        # Meridian shift: Urumqi (87.6 deg) is (87.6 - 120) * 4 = -129.6 minutes behind
+        res_urumqi = IchingKernel.true_solar_time_profile(2026, 6, 15, 12, 0, longitude=87.6)
+        self.assertAlmostEqual(res_urumqi["longitude_correction_minutes"], -129.6, places=1)
+        self.assertNotEqual(res_urumqi["branch"], res_noon["branch"])
+
+    def test_clock_drift_adaptation_regimes(self):
+        """Verify clock drift classification into nominal, moderate, and critical WAL regimes."""
+        res_nom = IchingKernel.clock_drift_adaptation_profile(clock_drift_seconds=5.0)
+        self.assertEqual(res_nom["drift_severity"], "nominal")
+        self.assertEqual(res_nom["wal_action"], "standard_append")
+
+        res_mod = IchingKernel.clock_drift_adaptation_profile(clock_drift_seconds=120.0)
+        self.assertEqual(res_mod["drift_severity"], "moderate_drift")
+        self.assertEqual(res_mod["wal_action"], "append_skew_metadata")
+
+        res_crit = IchingKernel.clock_drift_adaptation_profile(clock_drift_seconds=-1200.0)
+        self.assertEqual(res_crit["drift_severity"], "critical_drift")
+        self.assertEqual(res_crit["wal_action"], "barrier_wal_rotate")
+        self.assertEqual(res_crit["governance_directive"], "clock_resync_rebase_epoch")
+
+    def test_solar_equation_and_zishi_certificate(self):
+        """Verify Solar Equation and Zishi Measure Partition Mathematical Certificate."""
+        cert = IchingKernel.solar_equation_and_zishi_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["eot_bounded_oscillation_verified"])
+        self.assertTrue(cert["zishi_measure_partition_verified"])
+        self.assertTrue(cert["meridian_linear_invariance_verified"])
+        self.assertEqual(len(cert["branch_minute_counts"]), 12)
+        self.assertTrue(all(cnt == 120 for cnt in cert["branch_minute_counts"]))
+
 
 if __name__ == "__main__":
     unittest.main()

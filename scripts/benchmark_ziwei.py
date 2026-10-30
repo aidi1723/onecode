@@ -43,6 +43,8 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.ming_shen_zhu_profile(1, state)
         _ = IchingKernel.ziwei_tianfu_duality_profile(state)
         _ = IchingKernel.yang_tuo_clamping_profile(1, state)
+        _ = IchingKernel.true_solar_time_profile(2026, 6, 15, 12, 0)
+        _ = IchingKernel.clock_drift_adaptation_profile(0.0)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
 
     start_total = time.perf_counter()
@@ -65,6 +67,8 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.ming_shen_zhu_profile(turn, state)
         _ = IchingKernel.ziwei_tianfu_duality_profile(state)
         _ = IchingKernel.yang_tuo_clamping_profile(turn, state)
+        _ = IchingKernel.true_solar_time_profile(2026, 6, 15, (turn * 2) % 24, 30)
+        _ = IchingKernel.clock_drift_adaptation_profile(5.0)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
         t1 = time.perf_counter_ns()
         latencies_us.append((t1 - t0) / 1000.0)
@@ -104,6 +108,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
     c_flying = IchingKernel.flying_sihua_cascade_certificate()
     c_triad = IchingKernel.triadic_synthesis_certificate()
     c_zifu = IchingKernel.ziwei_tianfu_and_yangtuo_certificate()
+    c_solar = IchingKernel.solar_equation_and_zishi_certificate()
     
     return {
         "sovereign_ring": c_ring.get("status") == "verified" and c_ring.get("triad_balance_verified") is True,
@@ -115,6 +120,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
         "flying_sihua_cascade": c_flying.get("status") == "verified" and c_flying.get("sihua_totality_verified") is True and c_flying.get("duigong_involution_verified") is True,
         "triadic_synthesis": c_triad.get("status") == "verified" and c_triad.get("convex_bounds_verified") is True and c_triad.get("two_thirds_domination_verified") is True,
         "ziwei_tianfu_and_yangtuo": c_zifu.get("status") == "verified" and c_zifu.get("ziwei_tianfu_involution_verified") is True and c_zifu.get("tai_pi_fixed_points_verified") is True and c_zifu.get("yang_tuo_clamping_midpoint_verified") is True,
+        "solar_equation_and_zishi": c_solar.get("status") == "verified" and c_solar.get("eot_bounded_oscillation_verified") is True and c_solar.get("zishi_measure_partition_verified") is True,
     }
 
 

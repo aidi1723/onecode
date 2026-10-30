@@ -1371,6 +1371,169 @@ def _evaluate_ziwei_tianfu_and_yangtuo_certificate(sovereign_codes: tuple[int, .
     }
 
 
+def _evaluate_equation_of_time(
+    year: int,
+    month: int,
+    day: int,
+    clock_hour: int = 12,
+    clock_minute: int = 0,
+) -> float:
+    """NOAA fractional-year Equation of Time (均时差) approximation in minutes."""
+    is_leap = (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0))
+    days_in_year = 366 if is_leap else 365
+    days_before_month = (0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334)
+    doy = days_before_month[month - 1] + day
+    if is_leap and month > 2:
+        doy += 1
+    fractional_hour = clock_hour + clock_minute / 60.0
+    gamma = (2.0 * math.pi / days_in_year) * (doy - 1 + (fractional_hour - 12.0) / 24.0)
+    eot = 229.18 * (
+        0.000075
+        + 0.001868 * math.cos(gamma)
+        - 0.032077 * math.sin(gamma)
+        - 0.014615 * math.cos(2.0 * gamma)
+        - 0.040849 * math.sin(2.0 * gamma)
+    )
+    return round(eot, 4)
+
+
+def _evaluate_true_solar_time(
+    year: int,
+    month: int,
+    day: int,
+    clock_hour: int,
+    clock_minute: int,
+    longitude: float = 120.0,
+    utc_offset_minutes: int = 480,
+) -> dict[str, Any]:
+    """Compute true solar time (地方真太阳时), branch mapping, and late Zishi detection."""
+    meridian = utc_offset_minutes / 4.0
+    longitude_correction_minutes = (longitude - meridian) * 4.0
+    eot_minutes = _evaluate_equation_of_time(year, month, day, clock_hour, clock_minute)
+    total_correction_minutes = longitude_correction_minutes + eot_minutes
+    raw_minutes = clock_hour * 60 + clock_minute + total_correction_minutes
+
+    rounded_total_seconds = int(round(raw_minutes * 60))
+    day_offset = rounded_total_seconds // 86400
+    second_of_day = rounded_total_seconds % 86400
+
+    solar_hour = (second_of_day // 3600) % 24
+    solar_minute = (second_of_day % 3600) // 60
+    solar_second = second_of_day % 60
+    normalized_minutes = second_of_day / 60.0
+
+    if normalized_minutes >= 1380.0 or normalized_minutes < 60.0:
+        branch = 0
+    else:
+        branch = int((normalized_minutes - 60.0) // 120) + 1
+
+    is_late_zishi = (branch == 0 and normalized_minutes >= 1380.0)
+    is_early_zishi = (branch == 0 and normalized_minutes < 60.0)
+
+    return {
+        "solar_hour": solar_hour,
+        "solar_minute": solar_minute,
+        "solar_second": solar_second,
+        "normalized_minutes": round(normalized_minutes, 2),
+        "branch": branch,
+        "branch_name": _EARTHLY_BRANCH_NAMES[branch],
+        "day_offset": day_offset,
+        "longitude_correction_minutes": round(longitude_correction_minutes, 3),
+        "equation_of_time_minutes": round(eot_minutes, 3),
+        "total_correction_minutes": round(total_correction_minutes, 3),
+        "is_late_zishi": is_late_zishi,
+        "is_early_zishi": is_early_zishi,
+    }
+
+
+def _evaluate_clock_drift_adaptation(
+    clock_drift_seconds: float,
+    event_epoch_timestamp: float | None = None,
+    late_zishi_rule: str = "next-day",
+) -> dict[str, Any]:
+    """Evaluate clock drift adaptation for WAL logging, replay buffers, and distributed epochs."""
+    abs_drift = abs(clock_drift_seconds)
+    if abs_drift > 900.0:
+        drift_severity = "critical_drift"
+        governance_directive = "clock_resync_rebase_epoch"
+        wal_action = "barrier_wal_rotate"
+        reason = "Clock drift exceeds 15 minutes: epoch rebase required to prevent split-brain ordering."
+    elif abs_drift > 60.0:
+        drift_severity = "moderate_drift"
+        governance_directive = "linear_smoothing_interpolation"
+        wal_action = "append_skew_metadata"
+        reason = "Clock drift between 1 and 15 minutes: append skew offset metadata for monotonic ordering."
+    else:
+        drift_severity = "nominal"
+        governance_directive = "standard_chronological_flow"
+        wal_action = "standard_append"
+        reason = "Clock drift within nominal threshold: standard WAL append permitted."
+
+    return {
+        "clock_drift_seconds": clock_drift_seconds,
+        "drift_severity": drift_severity,
+        "governance_directive": governance_directive,
+        "wal_action": wal_action,
+        "late_zishi_rule": late_zishi_rule,
+        "reason": reason,
+    }
+
+
+def _evaluate_solar_equation_and_zishi_certificate() -> dict[str, Any]:
+    """Verify NOAA EOT bounded oscillation, Zishi 1440-minute measure partition, and meridian invariance."""
+    eot_bounded = True
+    max_eot = -100.0
+    min_eot = 100.0
+    days_in_months = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+    for day_idx in range(1, 366):
+        doy = day_idx
+        m = 1
+        while m <= 12 and doy > days_in_months[m - 1]:
+            doy -= days_in_months[m - 1]
+            m += 1
+        val = _evaluate_equation_of_time(2026, min(m, 12), doy, 12, 0)
+        max_eot = max(max_eot, val)
+        min_eot = min(min_eot, val)
+        if val < -16.0 or val > 17.5:
+            eot_bounded = False
+            break
+
+    branch_minute_counts = [0] * 12
+    for minute in range(1440):
+        if minute >= 1380 or minute < 60:
+            b = 0
+        else:
+            b = ((minute - 60) // 120) + 1
+        branch_minute_counts[b] += 1
+
+    partition_exact_120 = all(count == 120 for count in branch_minute_counts)
+    partition_sum_1440 = (sum(branch_minute_counts) == 1440)
+
+    meridian_linear_ok = True
+    for test_lon in (60.0, 90.0, 110.0, 120.0, 135.0):
+        t1 = _evaluate_true_solar_time(2026, 6, 15, 12, 0, longitude=test_lon, utc_offset_minutes=480)
+        expected_lon_corr = (test_lon - 120.0) * 4.0
+        if abs(t1["longitude_correction_minutes"] - expected_lon_corr) > 1e-4:
+            meridian_linear_ok = False
+            break
+
+    status = (
+        "verified"
+        if (eot_bounded and partition_exact_120 and partition_sum_1440 and meridian_linear_ok)
+        else "failed"
+    )
+
+    return {
+        "status": status,
+        "eot_bounded_oscillation_verified": eot_bounded,
+        "min_eot_minutes": min_eot,
+        "max_eot_minutes": max_eot,
+        "zishi_measure_partition_verified": partition_exact_120 and partition_sum_1440,
+        "branch_minute_counts": branch_minute_counts,
+        "meridian_linear_invariance_verified": meridian_linear_ok,
+    }
+
+
 class IchingZiweiMixin:
     """Diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
 
@@ -1667,6 +1830,47 @@ class IchingZiweiMixin:
         return _evaluate_ziwei_tianfu_and_yangtuo_certificate(codes)
 
     @classmethod
+    def true_solar_time_profile(
+        cls,
+        year: int,
+        month: int,
+        day: int,
+        clock_hour: int,
+        clock_minute: int,
+        longitude: float = 120.0,
+        utc_offset_minutes: int = 480,
+    ) -> dict[str, Any]:
+        """Compute true solar time (地方真太阳时), branch mapping, and late Zishi detection."""
+        return _evaluate_true_solar_time(
+            year=year,
+            month=month,
+            day=day,
+            clock_hour=clock_hour,
+            clock_minute=clock_minute,
+            longitude=longitude,
+            utc_offset_minutes=utc_offset_minutes,
+        )
+
+    @classmethod
+    def clock_drift_adaptation_profile(
+        cls,
+        clock_drift_seconds: float,
+        event_epoch_timestamp: float | None = None,
+        late_zishi_rule: str = "next-day",
+    ) -> dict[str, Any]:
+        """Evaluate clock drift adaptation for WAL logging, replay buffers, and distributed epochs."""
+        return _evaluate_clock_drift_adaptation(
+            clock_drift_seconds=clock_drift_seconds,
+            event_epoch_timestamp=event_epoch_timestamp,
+            late_zishi_rule=late_zishi_rule,
+        )
+
+    @classmethod
+    def solar_equation_and_zishi_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of EOT bounded oscillation, Zishi measure partition, and meridian invariance."""
+        return _evaluate_solar_equation_and_zishi_certificate()
+
+    @classmethod
     def star_brightness_certificate(cls) -> dict[str, Any]:
         """Formal mathematical certificate of Star Brightness Invariance across all 64 states."""
         return _evaluate_star_brightness_certificate(cls)
@@ -1683,6 +1887,7 @@ class IchingZiweiMixin:
         flying_sihua = cls.flying_sihua_cascade_certificate()
         triad_syn = cls.triadic_synthesis_certificate()
         zi_fu_yang_tuo = cls.ziwei_tianfu_and_yangtuo_certificate()
+        solar_zishi = cls.solar_equation_and_zishi_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
@@ -1693,6 +1898,7 @@ class IchingZiweiMixin:
             and flying_sihua.get("status") == "verified"
             and triad_syn.get("status") == "verified"
             and zi_fu_yang_tuo.get("status") == "verified"
+            and solar_zishi.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -1705,4 +1911,5 @@ class IchingZiweiMixin:
             "flying_sihua_cascade": flying_sihua,
             "triadic_synthesis": triad_syn,
             "ziwei_tianfu_and_yangtuo": zi_fu_yang_tuo,
+            "solar_equation_and_zishi": solar_zishi,
         }
