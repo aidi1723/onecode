@@ -1031,6 +1031,34 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["geng_closure_verified"])
         self.assertTrue(cert["consensus_monotonicity_verified"])
 
+    def test_classical_patterns_safety_dominance_and_tiers(self):
+        """Verify 3-tier conditions and safety dominance of classical formation engine."""
+        # Breaking pattern forces caution even with high status code
+        res_breaking = IchingKernel.classical_patterns_profile(
+            turn_number=1, status_code=63, fatal_regression=True
+        )
+        self.assertEqual(res_breaking["composite_pattern_level"], "caution")
+        self.assertTrue(res_breaking["safety_dominance_active"])
+        self.assertEqual(res_breaking["engineering_directive"], "defensive_minimal_diff_and_step_freeze")
+        self.assertTrue(any(p["name"] == "铃昌陀武" for p in res_breaking["active_patterns"]))
+
+        # Supreme Zi Fu cohabitation
+        res_supreme = IchingKernel.classical_patterns_profile(
+            turn_number=3, status_code=7, ast_valid=True, token_budget_ok=True, verifier_passed=True, environment_ok=True
+        )
+        self.assertEqual(res_supreme["composite_pattern_level"], "excellent")
+        self.assertFalse(res_supreme["safety_dominance_active"])
+        self.assertEqual(res_supreme["engineering_directive"], "high_speed_autonomous_pipeline")
+        self.assertTrue(any(p["name"] == "紫府同宫" for p in res_supreme["active_patterns"]))
+
+    def test_classical_patterns_certificate(self):
+        """Verify Classical Formations Safety Dominance and Supreme Purity Mathematical Certificate."""
+        cert = IchingKernel.classical_patterns_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["safety_dominance_verified"])
+        self.assertTrue(cert["supreme_purity_verified"])
+        self.assertTrue(cert["formation_classification_verified"])
+
 
 if __name__ == "__main__":
     unittest.main()

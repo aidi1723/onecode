@@ -825,6 +825,10 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
             "school_consensus": IchingKernel.school_consensus_profile(
                 stem_index=turn_number - 1,
             ),
+            "classical_patterns": IchingKernel.classical_patterns_profile(
+                turn_number=turn_number,
+                status_code=iching_status_code,
+            ),
         }
     return telemetry
 

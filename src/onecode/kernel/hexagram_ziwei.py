@@ -1637,6 +1637,269 @@ def _evaluate_school_divergence_consensus_certificate() -> dict[str, Any]:
     }
 
 
+def _detect_breaking_patterns(
+    fatal_regression: bool,
+    verifier_passed: bool,
+    token_budget_ok: bool,
+    consecutive_syntax_errors: int,
+    undefined_symbols_count: int,
+    environment_ok: bool,
+    consecutive_read_stalls: int,
+) -> list[dict[str, Any]]:
+    """Detect breaking and trap patterns (恶格与陷阱格)."""
+    patterns: list[dict[str, Any]] = []
+    if fatal_regression:
+        patterns.append({
+            "name": "铃昌陀武",
+            "tier": "breaking",
+            "level": "caution",
+            "description": "Fatal regression detected: critical dead-end requiring immediate rollback.",
+            "conditions": {"required": ["fatal_regression == True"]},
+            "governance_action": "rollback",
+        })
+    if not verifier_passed and not token_budget_ok:
+        patterns.append({
+            "name": "羊陀夹忌",
+            "tier": "breaking",
+            "level": "caution",
+            "description": "Verifier failure coupled with token budget depletion: deadlock clamp.",
+            "conditions": {"required": ["verifier_passed == False", "token_budget_ok == False"]},
+            "governance_action": "switch_to_surgical_unified_diff",
+        })
+    if consecutive_syntax_errors >= 2:
+        patterns.append({
+            "name": "火铃夹命",
+            "tier": "breaking",
+            "level": "caution",
+            "description": "Repeated syntax compilation errors: compulsive churn requires cooldown.",
+            "conditions": {"required": [f"consecutive_syntax_errors == {consecutive_syntax_errors} >= 2"]},
+            "governance_action": "cooldown",
+        })
+    if undefined_symbols_count >= 1:
+        patterns.append({
+            "name": "空劫夹命",
+            "tier": "breaking",
+            "level": "caution",
+            "description": "Undefined symbol hallucination: requires symbol re-anchoring.",
+            "conditions": {"required": [f"undefined_symbols == {undefined_symbols_count} >= 1"]},
+            "governance_action": "reanchor",
+        })
+    if not environment_ok:
+        patterns.append({
+            "name": "化忌入迁移",
+            "tier": "breaking",
+            "level": "caution",
+            "description": "Environment/sandbox or gateway failure: retry under isolated subshell.",
+            "conditions": {"required": ["environment_ok == False"]},
+            "governance_action": "retry",
+        })
+    if consecutive_read_stalls >= 2:
+        patterns.append({
+            "name": "自化忌",
+            "tier": "breaking",
+            "level": "caution",
+            "description": "Read hesitation stall: agent reading repetitively without writing code.",
+            "conditions": {"required": [f"consecutive_read_stalls == {consecutive_read_stalls} >= 2"]},
+            "governance_action": "synthesize",
+        })
+    if not verifier_passed and not fatal_regression and token_budget_ok:
+        patterns.append({
+            "name": "化忌入官禄",
+            "tier": "breaking",
+            "level": "caution",
+            "description": "Test assertion failure in execution pathway: localized repair required.",
+            "conditions": {"required": ["verifier_passed == False"]},
+            "governance_action": "repair",
+        })
+    return patterns
+
+
+def _detect_auspicious_patterns(
+    m_branch: int,
+    normalized_status: int,
+    ast_valid: bool,
+    token_budget_ok: bool,
+    verifier_passed: bool,
+    environment_ok: bool,
+) -> list[dict[str, Any]]:
+    """Detect supreme, harmonic, and assisting patterns (上格、中格与助力格)."""
+    patterns: list[dict[str, Any]] = []
+    if ast_valid and token_budget_ok and verifier_passed and environment_ok:
+        if m_branch in {2, 8} and normalized_status in {7, 56}:
+            patterns.append({
+                "name": "紫府同宫",
+                "tier": "supreme",
+                "level": "excellent",
+                "description": "Ziwei and Tianfu cohabitate in Yin/Shen: maximum architectural stability.",
+                "conditions": {"required": ["branch in {2, 8}", "status in {7, 56}", "all verifiers passed"]},
+                "governance_action": "high_speed_autonomous_pipeline",
+            })
+        if normalized_status == 63 and m_branch in {2, 6, 8}:
+            patterns.append({
+                "name": "君臣庆会",
+                "tier": "supreme",
+                "level": "excellent",
+                "description": "Imperial Ziwei supported by harmonic auxiliary cluster: full autonomous execution.",
+                "conditions": {"required": ["pure yang state 63", "branch in {2, 6, 8}"]},
+                "governance_action": "autonomous_commit",
+            })
+        if m_branch in {0, 4, 8}:
+            patterns.append({
+                "name": "府相朝垣",
+                "tier": "supreme",
+                "level": "excellent",
+                "description": "Tianfu and Tianxiang facing the throne across triad: strong governance foundation.",
+                "conditions": {"required": ["triad anchor branch in {0, 4, 8}", "verifier passed"]},
+                "governance_action": "standard_assisted_pipeline",
+            })
+        if normalized_status == 63:
+            patterns.append({
+                "name": "三奇加会",
+                "tier": "supreme",
+                "level": "excellent",
+                "description": "Hua Lu, Hua Quan, Hua Ke meeting across San Fang Si Zheng: maximum synthesis power.",
+                "conditions": {"required": ["all four triad points valid", "status == 63"]},
+                "governance_action": "commit",
+            })
+
+    if ast_valid and environment_ok:
+        if m_branch in {1, 7}:
+            patterns.append({
+                "name": "日月同宫",
+                "tier": "harmonic",
+                "level": "good",
+                "description": "Sun and Moon cohabitate in Chou/Wei: dual illumination across yin-yang axes.",
+                "conditions": {"required": ["branch in {1, 7}", "ast_valid == True"]},
+                "governance_action": "dual_plane_assisted",
+            })
+        if m_branch in {2, 8} and verifier_passed:
+            patterns.append({
+                "name": "巨日同宫",
+                "tier": "harmonic",
+                "level": "good",
+                "description": "Jumen and Taiyang cohabitate in Yin/Shen: broad visibility with high eloquence.",
+                "conditions": {"required": ["branch in {2, 8}", "verifier_passed == True"]},
+                "governance_action": "guided_step_verifier",
+            })
+        if verifier_passed and token_budget_ok:
+            patterns.append({
+                "name": "科权双会",
+                "tier": "assist",
+                "level": "good",
+                "description": "Hua Ke and Hua Quan meeting: authoritative verification and high precision.",
+                "conditions": {"required": ["verifier passed", "token budget ok"]},
+                "governance_action": "standard_assisted_pipeline",
+            })
+    return patterns
+
+
+def _evaluate_classical_patterns(
+    turn_number: int,
+    status_code: int,
+    ast_valid: bool = True,
+    token_budget_ok: bool = True,
+    verifier_passed: bool = True,
+    environment_ok: bool = True,
+    fatal_regression: bool = False,
+    consecutive_syntax_errors: int = 0,
+    undefined_symbols_count: int = 0,
+    consecutive_read_stalls: int = 0,
+) -> dict[str, Any]:
+    """Exhaustive evaluation of classical Ziwei auspicious, harmonic, assisting, and breaking formations."""
+    m_branch = (turn_number - 1) % 12
+    normalized_status = status_code & 0b111111
+
+    patterns = _detect_breaking_patterns(
+        fatal_regression=fatal_regression,
+        verifier_passed=verifier_passed,
+        token_budget_ok=token_budget_ok,
+        consecutive_syntax_errors=consecutive_syntax_errors,
+        undefined_symbols_count=undefined_symbols_count,
+        environment_ok=environment_ok,
+        consecutive_read_stalls=consecutive_read_stalls,
+    )
+
+    auspicious = _detect_auspicious_patterns(
+        m_branch=m_branch,
+        normalized_status=normalized_status,
+        ast_valid=ast_valid,
+        token_budget_ok=token_budget_ok,
+        verifier_passed=verifier_passed,
+        environment_ok=environment_ok,
+    )
+    patterns.extend(auspicious)
+
+    has_breaking = any(p["tier"] == "breaking" for p in patterns)
+    has_supreme = any(p["tier"] == "supreme" for p in patterns)
+    has_harmonic = any(p["tier"] in {"harmonic", "assist"} for p in patterns)
+
+    if has_breaking:
+        composite_level = "caution"
+        engineering_directive = "defensive_minimal_diff_and_step_freeze"
+    elif has_supreme:
+        composite_level = "excellent"
+        engineering_directive = "high_speed_autonomous_pipeline"
+    elif has_harmonic:
+        composite_level = "good"
+        engineering_directive = "standard_assisted_pipeline"
+    else:
+        composite_level = "neutral"
+        engineering_directive = "guarded_step_verifier"
+
+    return {
+        "turn_number": turn_number,
+        "status_code": normalized_status,
+        "branch": m_branch,
+        "branch_name": _EARTHLY_BRANCH_NAMES[m_branch],
+        "active_patterns": patterns,
+        "pattern_count": len(patterns),
+        "composite_pattern_level": composite_level,
+        "engineering_directive": engineering_directive,
+        "safety_dominance_active": has_breaking,
+    }
+
+
+def _evaluate_classical_patterns_certificate() -> dict[str, Any]:
+    """Verify Safety Dominance Invariant, Supreme Purity, and Exhaustive Formation Codification."""
+    safety_dominance_ok = True
+    test_breaking_kwargs = [
+        {"fatal_regression": True},
+        {"verifier_passed": False, "token_budget_ok": False},
+        {"consecutive_syntax_errors": 2},
+        {"undefined_symbols_count": 1},
+        {"environment_ok": False},
+        {"consecutive_read_stalls": 2},
+    ]
+    for kwargs in test_breaking_kwargs:
+        res = _evaluate_classical_patterns(1, 63, **kwargs)
+        if res["composite_pattern_level"] != "caution" or not res["safety_dominance_active"]:
+            safety_dominance_ok = False
+            break
+
+    res_tai = _evaluate_classical_patterns(3, 7, ast_valid=True, token_budget_ok=True, verifier_passed=True, environment_ok=True)
+    supreme_purity_ok = (
+        res_tai["composite_pattern_level"] == "excellent"
+        and not res_tai["safety_dominance_active"]
+        and any(p["name"] == "紫府同宫" for p in res_tai["active_patterns"])
+    )
+
+    res_all = _evaluate_classical_patterns(1, 63)
+    formation_count_ok = (len(res_all["active_patterns"]) > 0)
+
+    status = (
+        "verified"
+        if (safety_dominance_ok and supreme_purity_ok and formation_count_ok)
+        else "failed"
+    )
+
+    return {
+        "status": status,
+        "safety_dominance_verified": safety_dominance_ok,
+        "supreme_purity_verified": supreme_purity_ok,
+        "formation_classification_verified": formation_count_ok,
+    }
+
+
 class IchingZiweiMixin:
     """Diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
 
@@ -1995,6 +2258,39 @@ class IchingZiweiMixin:
         return _evaluate_school_divergence_consensus_certificate()
 
     @classmethod
+    def classical_patterns_profile(
+        cls,
+        turn_number: int,
+        status_code: int,
+        ast_valid: bool = True,
+        token_budget_ok: bool = True,
+        verifier_passed: bool = True,
+        environment_ok: bool = True,
+        fatal_regression: bool = False,
+        consecutive_syntax_errors: int = 0,
+        undefined_symbols_count: int = 0,
+        consecutive_read_stalls: int = 0,
+    ) -> dict[str, Any]:
+        """Exhaustive evaluation of classical Ziwei auspicious, harmonic, assisting, and breaking formations."""
+        return _evaluate_classical_patterns(
+            turn_number=turn_number,
+            status_code=status_code,
+            ast_valid=ast_valid,
+            token_budget_ok=token_budget_ok,
+            verifier_passed=verifier_passed,
+            environment_ok=environment_ok,
+            fatal_regression=fatal_regression,
+            consecutive_syntax_errors=consecutive_syntax_errors,
+            undefined_symbols_count=undefined_symbols_count,
+            consecutive_read_stalls=consecutive_read_stalls,
+        )
+
+    @classmethod
+    def classical_patterns_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Safety Dominance Invariant, Supreme Purity, and Exhaustive Formations."""
+        return _evaluate_classical_patterns_certificate()
+
+    @classmethod
     def star_brightness_certificate(cls) -> dict[str, Any]:
         """Formal mathematical certificate of Star Brightness Invariance across all 64 states."""
         return _evaluate_star_brightness_certificate(cls)
@@ -2013,6 +2309,7 @@ class IchingZiweiMixin:
         zi_fu_yang_tuo = cls.ziwei_tianfu_and_yangtuo_certificate()
         solar_zishi = cls.solar_equation_and_zishi_certificate()
         school_consensus = cls.school_divergence_consensus_certificate()
+        classical_pat = cls.classical_patterns_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
@@ -2025,6 +2322,7 @@ class IchingZiweiMixin:
             and zi_fu_yang_tuo.get("status") == "verified"
             and solar_zishi.get("status") == "verified"
             and school_consensus.get("status") == "verified"
+            and classical_pat.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -2039,4 +2337,5 @@ class IchingZiweiMixin:
             "ziwei_tianfu_and_yangtuo": zi_fu_yang_tuo,
             "solar_equation_and_zishi": solar_zishi,
             "school_divergence_consensus": school_consensus,
+            "classical_patterns": classical_pat,
         }

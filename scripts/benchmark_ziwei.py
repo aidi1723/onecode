@@ -46,6 +46,7 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.true_solar_time_profile(2026, 6, 15, 12, 0)
         _ = IchingKernel.clock_drift_adaptation_profile(0.0)
         _ = IchingKernel.school_consensus_profile(0)
+        _ = IchingKernel.classical_patterns_profile(1, state)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
 
     start_total = time.perf_counter()
@@ -71,6 +72,7 @@ def run_microbenchmark(iterations: int = 10_000) -> dict[str, float | int]:
         _ = IchingKernel.true_solar_time_profile(2026, 6, 15, (turn * 2) % 24, 30)
         _ = IchingKernel.clock_drift_adaptation_profile(5.0)
         _ = IchingKernel.school_consensus_profile(turn - 1)
+        _ = IchingKernel.classical_patterns_profile(turn, state)
         _ = IchingKernel.temporal_superposition_profile("implementation", state)
         t1 = time.perf_counter_ns()
         latencies_us.append((t1 - t0) / 1000.0)
@@ -112,6 +114,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
     c_zifu = IchingKernel.ziwei_tianfu_and_yangtuo_certificate()
     c_solar = IchingKernel.solar_equation_and_zishi_certificate()
     c_school = IchingKernel.school_divergence_consensus_certificate()
+    c_classical = IchingKernel.classical_patterns_certificate()
     
     return {
         "sovereign_ring": c_ring.get("status") == "verified" and c_ring.get("triad_balance_verified") is True,
@@ -125,6 +128,7 @@ def verify_mathematical_certificates() -> dict[str, bool]:
         "ziwei_tianfu_and_yangtuo": c_zifu.get("status") == "verified" and c_zifu.get("ziwei_tianfu_involution_verified") is True and c_zifu.get("tai_pi_fixed_points_verified") is True and c_zifu.get("yang_tuo_clamping_midpoint_verified") is True,
         "solar_equation_and_zishi": c_solar.get("status") == "verified" and c_solar.get("eot_bounded_oscillation_verified") is True and c_solar.get("zishi_measure_partition_verified") is True,
         "school_divergence_consensus": c_school.get("status") == "verified" and c_school.get("seven_stems_unanimous_verified") is True and c_school.get("geng_closure_verified") is True,
+        "classical_patterns": c_classical.get("status") == "verified" and c_classical.get("safety_dominance_verified") is True and c_classical.get("supreme_purity_verified") is True,
     }
 
 
