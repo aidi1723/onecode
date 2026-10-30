@@ -132,6 +132,7 @@ def math_audit_payload() -> dict[str, object]:
             "deep_computation_and_graph",
             "pathology_and_environmental",
             "six_channel_and_empty_palace",
+            "doujun_and_solar_boundary",
         ],
         "reference_only": [
             "probabilistic_sampling",

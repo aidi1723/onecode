@@ -574,6 +574,7 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
             self.assertIn("full_sihua_graph", telemetry)
             self.assertIn("system_pathology", telemetry)
             self.assertIn("six_channel_healing", telemetry)
+            self.assertIn("doujun_chronology", telemetry)
             sg = telemetry["shen_gong_anchorage"]
             self.assertIn("active_index", sg)
             self.assertIn("palace_name", sg)
@@ -1532,6 +1533,115 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(cert["five_rats_escape_periodicity_verified"])
         self.assertTrue(cert["tianji_tianliang_chen_xu_invariant_verified"])
         self.assertTrue(cert["reverse_clockwise_12_palace_topology_verified"])
+
+    def test_doujun_chronology_chain_stepping(self):
+        """Direction N: Doujun (斗君) and Flowing Chronology Chain Stepping."""
+        # Year branch 0 (子), birth month 1 (正月), birth hour 0 (子时)
+        # doujun = (0 + 1 - 1 - 0) % 12 = 0 (子)
+        d_zi = IchingKernel.doujun_chronology_profile(
+            year_branch=0, birth_month=1, birth_hour=0, flowing_month=1, flowing_day=1, flowing_hour=0, ming_branch=0
+        )
+        self.assertEqual(d_zi["doujun_branch"], 0)
+        self.assertEqual(d_zi["doujun_branch_name"], "子")
+        self.assertEqual(d_zi["flowing_month_branch"], 0)
+        self.assertEqual(d_zi["flowing_day_branch"], 0)
+        self.assertEqual(d_zi["flowing_hour_branch"], 0)
+        self.assertEqual(d_zi["resonance_state"], "direct_anchor_focus")
+        self.assertEqual(d_zi["damping_factor"], 1.0)
+
+        # Flowing day 13 -> 12-day periodicity wraps to Day 1 branch
+        d_day13 = IchingKernel.doujun_chronology_profile(
+            year_branch=0, birth_month=1, birth_hour=0, flowing_month=1, flowing_day=13, flowing_hour=0, ming_branch=0
+        )
+        self.assertEqual(d_day13["flowing_day_branch"], d_zi["flowing_day_branch"])
+
+        # Opposite clash when flowing_hour is opposite to ming_branch
+        # ming_branch = 0 (子), flowing_hour = 6 (午)
+        d_clash = IchingKernel.doujun_chronology_profile(
+            year_branch=0, birth_month=1, birth_hour=0, flowing_month=1, flowing_day=1, flowing_hour=6, ming_branch=0
+        )
+        self.assertEqual(d_clash["flowing_hour_branch"], 6)
+        self.assertEqual(d_clash["resonance_state"], "opposite_clash_suipo")
+        self.assertEqual(d_clash["damping_factor"], 0.50)
+        self.assertEqual(d_clash["execution_cadence"], "isolated_sandbox_verification")
+
+        # Triad harmony when flowing_hour is at trine (4 or 8)
+        d_triad = IchingKernel.doujun_chronology_profile(
+            year_branch=0, birth_month=1, birth_hour=0, flowing_month=1, flowing_day=1, flowing_hour=4, ming_branch=0
+        )
+        self.assertEqual(d_triad["resonance_state"], "triad_harmony_resonance")
+        self.assertEqual(d_triad["damping_factor"], 0.90)
+
+    def test_childhood_guard_pre_activation(self):
+        """Direction N: Childhood Pre-Activation Guard (童限前置保护) before bureau activation."""
+        # For Water 2 Bureau (bureau_number=2):
+        # Age 1: childhood active, offset 0
+        g1 = IchingKernel.childhood_guard_profile(bureau_number=2, virtual_age=1, ming_branch=2)
+        self.assertTrue(g1["is_childhood_active"])
+        self.assertEqual(g1["offset"], 0)
+        self.assertEqual(g1["active_branch"], 2)
+        self.assertEqual(g1["damping_factor"], 0.50)
+
+        # Age 2: native bureau fully operational
+        g2 = IchingKernel.childhood_guard_profile(bureau_number=2, virtual_age=2, ming_branch=2)
+        self.assertFalse(g2["is_childhood_active"])
+        self.assertEqual(g2["offset"], 0)
+        self.assertEqual(g2["damping_factor"], 1.0)
+        self.assertEqual(g2["guard_directive"], "native_bureau_fully_operational")
+
+        # For Fire 6 Bureau (bureau_number=6):
+        # Ages 1..5 are childhood with canonical offsets {1: 0, 2: -4, 3: -5, 4: -2, 5: 2}
+        expected_offsets = {1: 0, 2: -4, 3: -5, 4: -2, 5: 2}
+        for age, exp_off in expected_offsets.items():
+            g = IchingKernel.childhood_guard_profile(bureau_number=6, virtual_age=age, ming_branch=0)
+            self.assertTrue(g["is_childhood_active"])
+            self.assertEqual(g["offset"], exp_off)
+            self.assertEqual(g["active_branch"], (0 + exp_off) % 12)
+
+    def test_solar_lichun_boundary_dual_track(self):
+        """Direction N: Solar Lichun Boundary (立春节气交界时刻精确判定)."""
+        # Member Case from regression: 2004-02-04 02:40 (Chou hour, before 19:56) -> prior solar year 2003
+        pre_lichun = IchingKernel.solar_lichun_boundary_profile(
+            solar_year=2004, solar_month=2, solar_day=4, solar_hour=2, solar_minute=40, lunar_year=2004
+        )
+        self.assertTrue(pre_lichun["is_prior_solar_year"])
+        self.assertEqual(pre_lichun["effective_solar_year"], 2003)
+        self.assertEqual(pre_lichun["track_skew"], -1)
+        self.assertEqual(pre_lichun["reconciliation_mode"], "dual_track_quarantine_reconciled")
+
+        # Post Lichun on the same day: 2004-02-04 22:00 (Hai hour, after 19:56) -> current year 2004
+        post_lichun = IchingKernel.solar_lichun_boundary_profile(
+            solar_year=2004, solar_month=2, solar_day=4, solar_hour=22, solar_minute=0, lunar_year=2004
+        )
+        self.assertFalse(post_lichun["is_prior_solar_year"])
+        self.assertEqual(post_lichun["effective_solar_year"], 2004)
+        self.assertEqual(post_lichun["track_skew"], 0)
+        self.assertEqual(post_lichun["reconciliation_mode"], "unified_synchronous_track")
+
+        # Day before Lichun: 2004-02-03 -> prior solar year
+        day_before = IchingKernel.solar_lichun_boundary_profile(
+            solar_year=2004, solar_month=2, solar_day=3, solar_hour=12, solar_minute=0, lunar_year=2004
+        )
+        self.assertTrue(day_before["is_prior_solar_year"])
+        self.assertEqual(day_before["effective_solar_year"], 2003)
+
+        # Day after Lichun: 2004-02-05 -> current solar year
+        day_after = IchingKernel.solar_lichun_boundary_profile(
+            solar_year=2004, solar_month=2, solar_day=5, solar_hour=12, solar_minute=0, lunar_year=2004
+        )
+        self.assertFalse(day_after["is_prior_solar_year"])
+        self.assertEqual(day_after["effective_solar_year"], 2004)
+
+    def test_doujun_and_solar_boundary_certificate(self):
+        """Direction N: Formal Mathematical Certificate of Doujun Chronology, Childhood Guard & Solar Boundary."""
+        cert = IchingKernel.doujun_and_solar_boundary_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["doujun_surjective_coverage_verified"])
+        self.assertTrue(cert["doujun_chronology_homomorphism_verified"])
+        self.assertTrue(cert["flowing_chronology_periodicity_verified"])
+        self.assertTrue(cert["childhood_guard_boundary_verified"])
+        self.assertTrue(cert["solar_lichun_boundary_switch_verified"])
+        self.assertTrue(cert["solar_lunar_skew_boundedness_verified"])
 
 
 if __name__ == "__main__":

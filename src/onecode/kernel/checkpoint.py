@@ -857,6 +857,15 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
             "six_channel_healing": IchingKernel.six_channel_healing_profile(
                 status_code=iching_status_code,
             ),
+            "doujun_chronology": IchingKernel.doujun_chronology_profile(
+                year_branch=(turn_number - 1) % 12,
+                birth_month=1,
+                birth_hour=0,
+                flowing_month=1,
+                flowing_day=max(1, turn_number),
+                flowing_hour=(iching_status_code % 12),
+                ming_branch=(turn_number - 1) % 12,
+            ),
         }
     return telemetry
 

@@ -3463,6 +3463,281 @@ def _evaluate_six_channel_and_empty_palace_certificate() -> dict[str, Any]:
     }
 
 
+_CHILDHOOD_MING_OFFSET: dict[int, int] = {
+    1: 0,
+    2: -4,
+    3: -5,
+    4: -2,
+    5: 2,
+}
+
+
+def _evaluate_doujun_chronology_chain(
+    year_branch: int,
+    birth_month: int,
+    birth_hour: int,
+    flowing_month: int = 1,
+    flowing_day: int = 1,
+    flowing_hour: int = 0,
+    ming_branch: int | None = None,
+) -> dict[str, Any]:
+    """Compute Doujun and flowing chronology chain (斗君月日时时空流) for episodic agent scheduling.
+
+    Formula (Classical Doujun):
+      doujun = (year_branch + birth_month - 1 - birth_hour) % 12
+      flowing_month_branch = (doujun + flowing_month - 1) % 12
+      flowing_day_branch = (flowing_month_branch + flowing_day - 1) % 12
+      flowing_hour_branch = (flowing_day_branch + flowing_hour) % 12
+    """
+    yb = (year_branch % 12 + 12) % 12
+    bm = max(1, min(12, int(birth_month)))
+    bh = (birth_hour % 12 + 12) % 12
+    fm = max(1, min(12, int(flowing_month)))
+    fd = max(1, int(flowing_day))
+    fh = (flowing_hour % 12 + 12) % 12
+
+    doujun = (yb + bm - 1 - bh) % 12
+    month_b = (doujun + fm - 1) % 12
+    day_b = (month_b + fd - 1) % 12
+    hour_b = (day_b + fh) % 12
+
+    branch_names = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+
+    mb = (ming_branch % 12 + 12) % 12 if ming_branch is not None else doujun
+    delta = (hour_b - mb) % 12
+
+    if delta == 0:
+        resonance = "direct_anchor_focus"
+        directive = "direct_executive_focus_unrestricted"
+        damping = 1.0
+        cadence = "rapid_commit"
+    elif delta == 6:
+        resonance = "opposite_clash_suipo"
+        directive = "barrier_synchronization_guarded_inspect"
+        damping = 0.50
+        cadence = "isolated_sandbox_verification"
+    elif delta in (4, 8):
+        resonance = "triad_harmony_resonance"
+        directive = "collaborative_triad_accelerated_dispatch"
+        damping = 0.90
+        cadence = "multi_turn_parallel"
+    else:
+        resonance = "harmonic_flank"
+        directive = "standard_chronology_append"
+        damping = 0.75
+        cadence = "standard_turn"
+
+    return {
+        "year_branch": yb,
+        "year_branch_name": branch_names[yb],
+        "birth_month": bm,
+        "birth_hour": bh,
+        "doujun_branch": doujun,
+        "doujun_branch_name": branch_names[doujun],
+        "flowing_month": fm,
+        "flowing_month_branch": month_b,
+        "flowing_month_branch_name": branch_names[month_b],
+        "flowing_day": fd,
+        "flowing_day_branch": day_b,
+        "flowing_day_branch_name": branch_names[day_b],
+        "flowing_hour": fh,
+        "flowing_hour_branch": hour_b,
+        "flowing_hour_branch_name": branch_names[hour_b],
+        "resonance_state": resonance,
+        "cadence_directive": directive,
+        "execution_cadence": cadence,
+        "damping_factor": damping,
+    }
+
+
+def _evaluate_childhood_guard(
+    bureau_number: int,
+    virtual_age: int,
+    ming_branch: int,
+) -> dict[str, Any]:
+    """Compute childhood pre-activation safety guard (童限前置保护) before bureau activation."""
+    b_num = max(2, min(6, int(bureau_number)))
+    age = max(1, int(virtual_age))
+    mb = (ming_branch % 12 + 12) % 12
+    branch_names = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
+
+    is_childhood = (age < b_num)
+    if is_childhood:
+        offset = _CHILDHOOD_MING_OFFSET.get(age, 0)
+        active_branch = (mb + offset) % 12
+        damping = 0.40 + 0.10 * age
+        directive = "pre_initialization_quarantine_minimal_diff"
+        action = "enforce_pre_activation_warmup_and_read_only"
+    else:
+        offset = 0
+        active_branch = mb
+        damping = 1.0
+        directive = "native_bureau_fully_operational"
+        action = "standard_autonomous_execution"
+
+    return {
+        "bureau_number": b_num,
+        "virtual_age": age,
+        "is_childhood_active": is_childhood,
+        "childhood_years_count": max(0, b_num - 1),
+        "offset": offset,
+        "ming_branch": mb,
+        "ming_branch_name": branch_names[mb],
+        "active_branch": active_branch,
+        "active_branch_name": branch_names[active_branch],
+        "damping_factor": round(damping, 2),
+        "guard_directive": directive,
+        "recommended_action": action,
+    }
+
+
+def _evaluate_solar_lichun_boundary(
+    solar_year: int,
+    solar_month: int,
+    solar_day: int,
+    solar_hour: int,
+    solar_minute: int = 0,
+    lunar_year: int | None = None,
+    lichun_day: int = 4,
+    lichun_hour: int = 19,
+    lichun_minute: int = 56,
+) -> dict[str, Any]:
+    """Evaluate dual-track calendar boundary (立春节气四柱 vs 农历紫微排盘分界).
+
+    Solar track switches precisely at the exact minute of Lichun.
+    Lunar track switches at Lunar New Year (正月初一).
+    Discrepancy is bounded by |solar_year - lunar_year| <= 1.
+    """
+    sy = int(solar_year)
+    sm = int(solar_month)
+    sd = int(solar_day)
+    sh = int(solar_hour)
+    smin = int(solar_minute)
+    ly = int(lunar_year) if lunar_year is not None else sy
+
+    time_min = sh * 60 + smin
+    lichun_min = lichun_hour * 60 + lichun_minute
+
+    if sm < 2:
+        is_prior_year = True
+    elif sm == 2:
+        if sd < lichun_day:
+            is_prior_year = True
+        elif sd == lichun_day:
+            is_prior_year = (time_min < lichun_min)
+        else:
+            is_prior_year = False
+    else:
+        is_prior_year = False
+
+    effective_solar_year = sy - 1 if is_prior_year else sy
+    skew = effective_solar_year - ly
+
+    if skew != 0:
+        boundary_state = "lichun_boundary_skew_active"
+        reconciliation = "dual_track_quarantine_reconciled"
+        directive = "decouple_solar_wal_clock_from_lunar_palaces"
+    else:
+        boundary_state = "dual_track_aligned"
+        reconciliation = "unified_synchronous_track"
+        directive = "standard_synchronous_clock"
+
+    return {
+        "solar_year": sy,
+        "solar_month": sm,
+        "solar_day": sd,
+        "solar_hour": sh,
+        "solar_minute": smin,
+        "effective_solar_year": effective_solar_year,
+        "lunar_year": ly,
+        "is_prior_solar_year": is_prior_year,
+        "boundary_state": boundary_state,
+        "track_skew": skew,
+        "reconciliation_mode": reconciliation,
+        "clock_directive": directive,
+    }
+
+
+def _evaluate_doujun_and_solar_boundary_certificate() -> dict[str, Any]:
+    """18th Formal mathematical certificate: Doujun Chronology, Childhood Guard, and Solar Boundary."""
+    doujun_surjective_ok = True
+    for y in range(12):
+        branch_hits = set()
+        for m in range(1, 13):
+            for h in range(12):
+                res = _evaluate_doujun_chronology_chain(y, m, h)
+                branch_hits.add(res["doujun_branch"])
+        if len(branch_hits) != 12:
+            doujun_surjective_ok = False
+            break
+
+    homomorphism_ok = True
+    for y in range(12):
+        for m in range(1, 13):
+            for h in range(12):
+                res = _evaluate_doujun_chronology_chain(y, m, h, 1, 1, 0)
+                if res["flowing_hour_branch"] != res["doujun_branch"]:
+                    homomorphism_ok = False
+                    break
+
+    periodicity_ok = True
+    for y in range(3):
+        res1 = _evaluate_doujun_chronology_chain(y, 1, 0, 1, 1, 0)
+        res2 = _evaluate_doujun_chronology_chain(y, 1, 0, 1, 13, 0)
+        res3 = _evaluate_doujun_chronology_chain(y, 1, 0, 1, 25, 0)
+        if not (res1["flowing_day_branch"] == res2["flowing_day_branch"] == res3["flowing_day_branch"]):
+            periodicity_ok = False
+            break
+
+    childhood_ok = True
+    for b in (2, 3, 4, 5, 6):
+        for age in range(1, b):
+            g = _evaluate_childhood_guard(b, age, 0)
+            if not g["is_childhood_active"]:
+                childhood_ok = False
+            if g["offset"] not in (0, -4, -5, -2, 2):
+                childhood_ok = False
+        g_adult = _evaluate_childhood_guard(b, b, 0)
+        if g_adult["is_childhood_active"] or g_adult["damping_factor"] != 1.0:
+            childhood_ok = False
+
+    boundary_ok = True
+    t1 = _evaluate_solar_lichun_boundary(2004, 2, 4, 2, 40, lunar_year=2004)
+    t2 = _evaluate_solar_lichun_boundary(2004, 2, 4, 22, 0, lunar_year=2004)
+    if not (t1["effective_solar_year"] == 2003 and t1["is_prior_solar_year"] and t1["track_skew"] == -1):
+        boundary_ok = False
+    if not (t2["effective_solar_year"] == 2004 and not t2["is_prior_solar_year"] and t2["track_skew"] == 0):
+        boundary_ok = False
+
+    skew_bounded_ok = True
+    for test_y in (1980, 2000, 2026):
+        for m in (1, 2, 3):
+            for d in (1, 4, 15):
+                sb = _evaluate_solar_lichun_boundary(test_y, m, d, 12, 0, lunar_year=test_y)
+                if abs(sb["track_skew"]) > 1:
+                    skew_bounded_ok = False
+                    break
+
+    all_verified = (
+        doujun_surjective_ok
+        and homomorphism_ok
+        and periodicity_ok
+        and childhood_ok
+        and boundary_ok
+        and skew_bounded_ok
+    )
+
+    return {
+        "status": "verified" if all_verified else "failed",
+        "doujun_surjective_coverage_verified": doujun_surjective_ok,
+        "doujun_chronology_homomorphism_verified": homomorphism_ok,
+        "flowing_chronology_periodicity_verified": periodicity_ok,
+        "childhood_guard_boundary_verified": childhood_ok,
+        "solar_lichun_boundary_switch_verified": boundary_ok,
+        "solar_lunar_skew_boundedness_verified": skew_bounded_ok,
+    }
+
+
 class IchingZiweiCertificatesMixin:
     """Mathematical certificates and formal verification for Ziwei Doushu isomorphism."""
 
@@ -3557,8 +3832,13 @@ class IchingZiweiCertificatesMixin:
         return _evaluate_six_channel_and_empty_palace_certificate()
 
     @classmethod
+    def doujun_and_solar_boundary_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate for Doujun Chronology, Childhood Guard, and Solar Boundary."""
+        return _evaluate_doujun_and_solar_boundary_certificate()
+
+    @classmethod
     def ziwei_mathematical_audit(cls) -> dict[str, Any]:
-        """Comprehensive mathematical audit of all 17 Ziwei Doushu cross-validation certificates."""
+        """Comprehensive mathematical audit of all 18 Ziwei Doushu cross-validation certificates."""
         ring = cls.sovereign_ring_isomorphism_certificate()
         an_he = cls.an_he_coupling_certificate()
         shen_gong = cls.shen_gong_anchorage_certificate()
@@ -3576,6 +3856,7 @@ class IchingZiweiCertificatesMixin:
         deep_comp = cls.deep_computation_and_graph_certificate()
         pathology_env = cls.pathology_and_environmental_certificate()
         six_chan = cls.six_channel_and_empty_palace_certificate()
+        doujun_solar = cls.doujun_and_solar_boundary_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
@@ -3594,6 +3875,7 @@ class IchingZiweiCertificatesMixin:
             and deep_comp.get("status") == "verified"
             and pathology_env.get("status") == "verified"
             and six_chan.get("status") == "verified"
+            and doujun_solar.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -3614,11 +3896,64 @@ class IchingZiweiCertificatesMixin:
             "deep_computation_and_graph": deep_comp,
             "pathology_and_environmental": pathology_env,
             "six_channel_and_empty_palace": six_chan,
+            "doujun_and_solar_boundary": doujun_solar,
         }
 
 
 class IchingZiweiCoreMixin(IchingZiweiCertificatesMixin):
     """Core diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
+
+    @classmethod
+    def doujun_chronology_profile(
+        cls,
+        year_branch: int,
+        birth_month: int,
+        birth_hour: int,
+        flowing_month: int = 1,
+        flowing_day: int = 1,
+        flowing_hour: int = 0,
+        ming_branch: int | None = None,
+    ) -> dict[str, Any]:
+        """Compute Doujun and flowing chronology chain (斗君月日时时空流) for episodic agent scheduling."""
+        return _evaluate_doujun_chronology_chain(
+            year_branch, birth_month, birth_hour, flowing_month, flowing_day, flowing_hour, ming_branch
+        )
+
+    @classmethod
+    def childhood_guard_profile(
+        cls,
+        bureau_number: int,
+        virtual_age: int,
+        ming_branch: int,
+    ) -> dict[str, Any]:
+        """Compute childhood pre-activation safety guard (童限前置保护) before bureau activation."""
+        return _evaluate_childhood_guard(bureau_number, virtual_age, ming_branch)
+
+    @classmethod
+    def solar_lichun_boundary_profile(
+        cls,
+        solar_year: int,
+        solar_month: int,
+        solar_day: int,
+        solar_hour: int,
+        solar_minute: int = 0,
+        lunar_year: int | None = None,
+        lichun_day: int = 4,
+        lichun_hour: int = 19,
+        lichun_minute: int = 56,
+    ) -> dict[str, Any]:
+        """Evaluate dual-track calendar boundary (立春节气四柱 vs 农历紫微排盘分界)."""
+        return _evaluate_solar_lichun_boundary(
+            solar_year,
+            solar_month,
+            solar_day,
+            solar_hour,
+            solar_minute,
+            lunar_year,
+            lichun_day,
+            lichun_hour,
+            lichun_minute,
+        )
 
     @classmethod
     def task_bureau_profile(cls, file_count: int, total_loc: int) -> dict[str, Any]:
