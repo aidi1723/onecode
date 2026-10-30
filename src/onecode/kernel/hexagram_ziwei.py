@@ -681,6 +681,7 @@ def _evaluate_star_dynamic_energy(
 
 
 _EARTHLY_BRANCH_NAMES = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
+_HEAVENLY_STEM_NAMES = ("甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸")
 
 
 def _evaluate_jie_shen_relief(
@@ -1534,6 +1535,108 @@ def _evaluate_solar_equation_and_zishi_certificate() -> dict[str, Any]:
     }
 
 
+_GENG_SIHUA_VARIANTS: dict[str, tuple[str, str, str, str]] = {
+    "GYWYT": ("太阳", "武曲", "太阴", "天同"),
+    "GYWTY": ("太阳", "武曲", "天同", "太阴"),
+    "GYWFT": ("太阳", "武曲", "天府", "天同"),
+    "GYWFX": ("太阳", "武曲", "天府", "天相"),
+    "GYWTX": ("太阳", "武曲", "天同", "天相"),
+}
+
+
+def _evaluate_school_consensus(
+    stem_index: int,
+    geng_variant: str = "GYWYT",
+    late_zishi_rule: str = "next-day",
+    leap_month_rule: str = "split",
+) -> dict[str, Any]:
+    """Evaluate multi-school divergence, consensus degree, and governance arbitration."""
+    s = stem_index % 10
+    stem_name = _HEAVENLY_STEM_NAMES[s]
+
+    if s == 6:
+        is_divergent = True
+        divergence_type = "geng_sihua_variant"
+        active_sihua = _GENG_SIHUA_VARIANTS.get(geng_variant, _GENG_SIHUA_VARIANTS["GYWYT"])
+        consensus_score = 0.60
+        governance_directive = "majority_consensus_guarded"
+        reason = f"Geng stem has multi-school divergence (active: {geng_variant}). Guarded execution active."
+    elif s == 7:
+        is_divergent = True
+        divergence_type = "xin_changqu_order"
+        active_sihua = ("巨门", "太阳", "文曲", "文昌")
+        consensus_score = 0.85
+        governance_directive = "majority_consensus_guarded"
+        reason = "Xin stem has minor school divergence on Chang/Qu ordering. Guarded execution active."
+    elif s == 8:
+        is_divergent = True
+        divergence_type = "ren_zuofu_tianfu"
+        active_sihua = ("天梁", "紫微", "左辅", "武曲")
+        consensus_score = 0.85
+        governance_directive = "majority_consensus_guarded"
+        reason = "Ren stem has minor school divergence on ZuoFu vs Tianfu. Guarded execution active."
+    else:
+        is_divergent = False
+        divergence_type = "unanimous"
+        active_sihua = _SI_HUA_TABLE[s]
+        consensus_score = 1.00
+        governance_directive = "unanimous_consensus_fastpath"
+        reason = f"Stem {stem_name} has 100% unanimous consensus across all classical schools."
+
+    return {
+        "stem_index": s,
+        "stem_name": stem_name,
+        "is_divergent": is_divergent,
+        "divergence_type": divergence_type,
+        "active_sihua": list(active_sihua),
+        "consensus_score": consensus_score,
+        "governance_directive": governance_directive,
+        "late_zishi_rule": late_zishi_rule,
+        "leap_month_rule": leap_month_rule,
+        "reason": reason,
+    }
+
+
+def _evaluate_school_divergence_consensus_certificate() -> dict[str, Any]:
+    """Verify Seven Stems Sihua Totality, Geng Variant Set Closure, and Consensus Monotonicity."""
+    unanimous_stems = []
+    for s in range(10):
+        res = _evaluate_school_consensus(s)
+        if not res["is_divergent"] and res["consensus_score"] == 1.00:
+            unanimous_stems.append(s)
+
+    seven_stems_unanimous = (unanimous_stems == [0, 1, 2, 3, 4, 5, 9])
+
+    geng_closure_ok = True
+    for variant, sihua in _GENG_SIHUA_VARIANTS.items():
+        if sihua[0] != "太阳" or sihua[1] != "武曲":
+            geng_closure_ok = False
+            break
+
+    consensus_levels = [
+        _evaluate_school_consensus(0)["consensus_score"],
+        _evaluate_school_consensus(7)["consensus_score"],
+        _evaluate_school_consensus(6)["consensus_score"],
+    ]
+    monotonic = (consensus_levels[0] > consensus_levels[1] > consensus_levels[2])
+
+    status = (
+        "verified"
+        if (seven_stems_unanimous and geng_closure_ok and monotonic)
+        else "failed"
+    )
+
+    return {
+        "status": status,
+        "seven_stems_unanimous_verified": seven_stems_unanimous,
+        "unanimous_stem_indices": unanimous_stems,
+        "geng_closure_verified": geng_closure_ok,
+        "geng_variant_count": len(_GENG_SIHUA_VARIANTS),
+        "consensus_monotonicity_verified": monotonic,
+        "consensus_levels": consensus_levels,
+    }
+
+
 class IchingZiweiMixin:
     """Diagnostic and consensus extensions based on Ziwei Doushu isomorphism."""
 
@@ -1871,6 +1974,27 @@ class IchingZiweiMixin:
         return _evaluate_solar_equation_and_zishi_certificate()
 
     @classmethod
+    def school_consensus_profile(
+        cls,
+        stem_index: int,
+        geng_variant: str = "GYWYT",
+        late_zishi_rule: str = "next-day",
+        leap_month_rule: str = "split",
+    ) -> dict[str, Any]:
+        """Evaluate multi-school divergence, consensus degree, and governance arbitration."""
+        return _evaluate_school_consensus(
+            stem_index=stem_index,
+            geng_variant=geng_variant,
+            late_zishi_rule=late_zishi_rule,
+            leap_month_rule=leap_month_rule,
+        )
+
+    @classmethod
+    def school_divergence_consensus_certificate(cls) -> dict[str, Any]:
+        """Formal mathematical certificate of Seven Stems Sihua Totality, Geng Closure, and Consensus Monotonicity."""
+        return _evaluate_school_divergence_consensus_certificate()
+
+    @classmethod
     def star_brightness_certificate(cls) -> dict[str, Any]:
         """Formal mathematical certificate of Star Brightness Invariance across all 64 states."""
         return _evaluate_star_brightness_certificate(cls)
@@ -1888,6 +2012,7 @@ class IchingZiweiMixin:
         triad_syn = cls.triadic_synthesis_certificate()
         zi_fu_yang_tuo = cls.ziwei_tianfu_and_yangtuo_certificate()
         solar_zishi = cls.solar_equation_and_zishi_certificate()
+        school_consensus = cls.school_divergence_consensus_certificate()
         all_passed = (
             ring.get("status") == "verified"
             and an_he.get("status") == "verified"
@@ -1899,6 +2024,7 @@ class IchingZiweiMixin:
             and triad_syn.get("status") == "verified"
             and zi_fu_yang_tuo.get("status") == "verified"
             and solar_zishi.get("status") == "verified"
+            and school_consensus.get("status") == "verified"
         )
         return {
             "status": "ok" if all_passed else "failed",
@@ -1912,4 +2038,5 @@ class IchingZiweiMixin:
             "triadic_synthesis": triad_syn,
             "ziwei_tianfu_and_yangtuo": zi_fu_yang_tuo,
             "solar_equation_and_zishi": solar_zishi,
+            "school_divergence_consensus": school_consensus,
         }

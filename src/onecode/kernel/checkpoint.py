@@ -822,6 +822,9 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
             "clock_drift_adaptation": IchingKernel.clock_drift_adaptation_profile(
                 clock_drift_seconds=0.0,
             ),
+            "school_consensus": IchingKernel.school_consensus_profile(
+                stem_index=turn_number - 1,
+            ),
         }
     return telemetry
 

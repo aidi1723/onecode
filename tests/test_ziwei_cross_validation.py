@@ -1003,6 +1003,34 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertEqual(len(cert["branch_minute_counts"]), 12)
         self.assertTrue(all(cnt == 120 for cnt in cert["branch_minute_counts"]))
 
+    def test_school_consensus_profile_stems(self):
+        """Verify multi-school divergence arbitration across stems and Geng variants."""
+        # Jia (stem 0) is unanimous
+        res_jia = IchingKernel.school_consensus_profile(stem_index=0)
+        self.assertFalse(res_jia["is_divergent"])
+        self.assertEqual(res_jia["consensus_score"], 1.00)
+        self.assertEqual(res_jia["governance_directive"], "unanimous_consensus_fastpath")
+
+        # Geng (stem 6) default GYWYT
+        res_geng = IchingKernel.school_consensus_profile(stem_index=6, geng_variant="GYWYT")
+        self.assertTrue(res_geng["is_divergent"])
+        self.assertEqual(res_geng["consensus_score"], 0.60)
+        self.assertEqual(res_geng["governance_directive"], "majority_consensus_guarded")
+        self.assertEqual(res_geng["active_sihua"], ["太阳", "武曲", "太阴", "天同"])
+
+        # Geng (stem 6) variant GYWTY (Ke-Ji swap)
+        res_swap = IchingKernel.school_consensus_profile(stem_index=6, geng_variant="GYWTY")
+        self.assertEqual(res_swap["active_sihua"], ["太阳", "武曲", "天同", "太阴"])
+
+    def test_school_divergence_consensus_certificate(self):
+        """Verify Seven Stems Sihua Totality and Consensus Monotonicity Mathematical Certificate."""
+        cert = IchingKernel.school_divergence_consensus_certificate()
+        self.assertEqual(cert["status"], "verified")
+        self.assertTrue(cert["seven_stems_unanimous_verified"])
+        self.assertEqual(cert["unanimous_stem_indices"], [0, 1, 2, 3, 4, 5, 9])
+        self.assertTrue(cert["geng_closure_verified"])
+        self.assertTrue(cert["consensus_monotonicity_verified"])
+
 
 if __name__ == "__main__":
     unittest.main()
