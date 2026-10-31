@@ -125,10 +125,13 @@ class PathGuard:
 
     @staticmethod
     def is_sensitive_read_path(path: Path) -> bool:
-        return any(
-            part.casefold() == ".git" or part.casefold() == ".onecode" or part.casefold() == ".env" or part.casefold().startswith(".env.")
-            for part in path.parts
-        )
+        for part in path.parts:
+            lowered = part.casefold()
+            if lowered in {".git", ".onecode", ".env"}:
+                return True
+            if lowered.startswith(".env.") and not lowered.endswith((".example", ".sample", ".template")):
+                return True
+        return False
 
     @classmethod
     def _requested_relative_path(cls, relative_path: str) -> Path:

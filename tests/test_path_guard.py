@@ -144,12 +144,20 @@ class PathGuardTests(unittest.TestCase):
     def test_sensitive_read_matches_case_variants(self):
         self.assertTrue(PathGuard.is_sensitive_read_path(Path(".ENV")))
         self.assertTrue(PathGuard.is_sensitive_read_path(Path(".Git") / "config"))
+        self.assertTrue(PathGuard.is_sensitive_read_path(Path(".env.local")))
+        self.assertTrue(PathGuard.is_sensitive_read_path(Path(".env.production")))
+        self.assertFalse(PathGuard.is_sensitive_read_path(Path(".env.example")))
+        self.assertFalse(PathGuard.is_sensitive_read_path(Path(".env.sample")))
+        self.assertFalse(PathGuard.is_sensitive_read_path(Path(".env.template")))
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
             with self.assertRaises(PathGuardError):
                 PathGuard.resolve_read_target(workspace, ".ENV")
             with self.assertRaises(PathGuardError):
                 PathGuard.resolve_read_target(workspace, "nested/../.env")
+            example = workspace / ".env.example"
+            example.write_text("API_KEY=foo\n", encoding="utf-8")
+            self.assertEqual(PathGuard.resolve_read_target(workspace, ".env.example"), example.resolve())
 
     def test_discard_interrupted_writes_removes_tempfile_suffix_with_underscore(self):
         with tempfile.TemporaryDirectory() as tmp:
