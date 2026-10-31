@@ -2018,22 +2018,29 @@ def _with_sandbox_tests(result: dict[str, Any], workspace: Path, sandbox_config:
 
     has_internal_tests = (workspace / "tests").is_dir()
     host_cmd_env = os.environ.get("ONECODE_HOST_VERIFIER_CMD")
-    has_host_verifier = bool(host_cmd_env) or (workspace / "verifier.py").is_file()
-    if not has_internal_tests and not has_host_verifier:
+    has_host_script = (workspace / "verifier.py").is_file()
+    if not has_internal_tests and not host_cmd_env and not has_host_script:
         return result
 
-    if has_internal_tests:
+    if host_cmd_env:
+        cmd = shlex.split(host_cmd_env)
         spec = VerifierSpec(
-            id="python-unittest",
-            command=["python3", "-m", "unittest", "discover", "-s", "tests"],
+            id="host-verifier",
+            command=cmd,
+            cwd=".",
+            timeout_ms=max(1000, int(sandbox_config.timeout_seconds * 1000)),
+        )
+    elif has_host_script:
+        spec = VerifierSpec(
+            id="host-verifier",
+            command=["python3", "verifier.py"],
             cwd=".",
             timeout_ms=max(1000, int(sandbox_config.timeout_seconds * 1000)),
         )
     else:
-        cmd = shlex.split(host_cmd_env) if host_cmd_env else ["python3", "verifier.py"]
         spec = VerifierSpec(
-            id="host-verifier",
-            command=cmd,
+            id="python-unittest",
+            command=["python3", "-m", "unittest", "discover", "-s", "tests"],
             cwd=".",
             timeout_ms=max(1000, int(sandbox_config.timeout_seconds * 1000)),
         )

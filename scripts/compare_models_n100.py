@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import traceback
 from pathlib import Path
 
@@ -130,7 +131,7 @@ def run_injected_grade(task_id: str, workspace: Path) -> dict:
         shutil.rmtree(grade_dir, ignore_errors=True)
 
 
-def call_onecode(workspace: Path, content: str, run_id: str, model: str) -> tuple[dict, int]:
+def call_onecode(workspace: Path, content: str, run_id: str, model: str, max_repair_attempts: Any = "auto") -> tuple[dict, int]:
     from onecode.web.api import handle_chat_completion
 
     payload, status = handle_chat_completion(
@@ -141,6 +142,7 @@ def call_onecode(workspace: Path, content: str, run_id: str, model: str) -> tupl
                 "workspace": str(workspace),
                 "onecode_mode": "change_task",
                 "run_id": run_id,
+                "max_repair_attempts": max_repair_attempts,
             },
         }
     )
@@ -169,6 +171,9 @@ def summarize_call(payload: dict, status: int) -> dict:
 
 
 def run_task_for_model(task_id: str, model: str) -> dict:
+    from onecode.kernel.model_loop import resolve_task_bureau
+    from onecode.kernel.recovery_policy import recovery_status
+
     task_dir = TASKS_ROOT / task_id
     archive = task_dir / "environment" / "workspace.tar.gz"
     instruction = (task_dir / "instruction.md").read_text(encoding="utf-8").strip()
@@ -176,25 +181,70 @@ def run_task_for_model(task_id: str, model: str) -> dict:
     run_dir = RUNS_BASE / model / task_id
     extract_workspace(archive, run_dir)
 
+    bureau = resolve_task_bureau(run_dir)
+    bureau_name = bureau.get("bureau_name", "水二局")
+    turn_budget = bureau.get("turn_budget", 3)
+
     run_id = f"eval-{model}-{task_id}"
-    payload, status = call_onecode(run_dir, instruction, f"{run_id}-init", model)
+    payload, status = call_onecode(run_dir, instruction, f"{run_id}-init", model, max_repair_attempts=turn_budget)
     info = summarize_call(payload, status)
     print(f"      [init] status={info.get('status')} reason={info.get('reason')} plan_id={info.get('plan_id')} detail={info.get('detail')[:80]}", flush=True)
 
     approvals = 0
     while info.get("reason") == "approval_required" and approvals < 4 and info.get("plan_id"):
         approvals += 1
-        payload, status = call_onecode(run_dir, f"批准计划 {info['plan_id']}", f"{run_id}-a{approvals}", model)
+        payload, status = call_onecode(run_dir, f"批准计划 {info['plan_id']}", f"{run_id}-a{approvals}", model, max_repair_attempts=turn_budget)
         info = summarize_call(payload, status)
         print(f"      [approval {approvals}] status={info.get('status')} reason={info.get('reason')} plan_id={info.get('plan_id')} detail={info.get('detail')[:80]}", flush=True)
 
     grade_res = run_injected_grade(task_id, run_dir)
+    repair_attempts = 0
+    total_cooldown_ms = 0
+    governance_mode = "autonomous"
+
+    # If injected tests failed, return failures to OneCode repair loop governed by Five Elements bureau budget & Jie Shen damping
+    while (grade_res.get("failed", 0) > 0 or grade_res.get("exit_code") != 0) and repair_attempts < turn_budget:
+        repair_attempts += 1
+        governance_mode = "degraded"
+        rec = recovery_status("verifier_failure", turn_number=repair_attempts, attempted=True, attempt_count=repair_attempts - 1, status_code=47)
+        damping = float(rec.get("jie_shen_relief", {}).get("damping_factor", 0.75))
+        base_ms = 50 * repair_attempts
+        cooldown_ms = int(base_ms / damping) if damping > 0 else base_ms
+        total_cooldown_ms += cooldown_ms
+        print(f"      [repair {repair_attempts}/{turn_budget}] bureau={bureau_name} cooldown={cooldown_ms}ms damping={damping} governance={governance_mode}", flush=True)
+        time.sleep(cooldown_ms / 1000.0)
+
+        fail_tail = str(grade_res.get("tail", ""))[-400:]
+        repair_msg = (
+            f"Existing tests failed during verification. Please fix the implementation so tests pass.\n"
+            f"Verifier tail:\n{fail_tail}"
+        )
+        payload, status = call_onecode(run_dir, repair_msg, f"{run_id}-repair-{repair_attempts}", model, max_repair_attempts=1)
+        info = summarize_call(payload, status)
+        print(f"      [repair {repair_attempts}] status={info.get('status')} reason={info.get('reason')} plan_id={info.get('plan_id')}", flush=True)
+
+        rep_approvals = 0
+        while info.get("reason") == "approval_required" and rep_approvals < 3 and info.get("plan_id"):
+            rep_approvals += 1
+            payload, status = call_onecode(run_dir, f"批准计划 {info['plan_id']}", f"{run_id}-rep-{repair_attempts}-a{rep_approvals}", model, max_repair_attempts=1)
+            info = summarize_call(payload, status)
+
+        grade_res = run_injected_grade(task_id, run_dir)
+        if grade_res.get("failed", 0) == 0 and grade_res.get("exit_code") == 0:
+            print(f"      [repair {repair_attempts}] successfully passed all tests!", flush=True)
+            break
+
     return {
         "task_id": task_id,
         "model": model,
         "run_status": info.get("status"),
         "run_reason": info.get("reason"),
         "iching_code": info.get("iching_status_code"),
+        "bureau_name": bureau_name,
+        "turn_budget": turn_budget,
+        "repair_attempts": repair_attempts,
+        "total_cooldown_ms": total_cooldown_ms,
+        "governance_mode": governance_mode,
         "approvals": approvals,
         "injected_grade": grade_res,
     }

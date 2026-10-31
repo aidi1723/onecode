@@ -291,6 +291,15 @@ def _prompt_for_paths(task: str, workspace: Path, paths: list[str]) -> str:
 
 
 def shell_model_task_extras(task: str, workspace: Path) -> dict[str, Any]:
+    repair_env = os.environ.get("ONECODE_MAX_REPAIR_ATTEMPTS")
+    if repair_env is not None and repair_env.isdigit():
+        turn_budget = int(repair_env)
+    elif repair_env == "auto":
+        from onecode.kernel.model_loop import resolve_task_bureau
+
+        turn_budget = resolve_task_bureau(workspace).get("turn_budget", 3)
+    else:
+        turn_budget = 1
     focused = _selected_python_paths(task, workspace)
     if focused:
         if len(focused) == 1 and _file_exceeds_preface(workspace, focused[0]):
@@ -301,7 +310,7 @@ def shell_model_task_extras(task: str, workspace: Path) -> dict[str, Any]:
         return {
             "preface": preface,
             "sandbox_config": SandboxConfig(workspace=workspace),
-            "max_repair_attempts": 1,
+            "max_repair_attempts": turn_budget,
         }
     paths: list[str] = []
 
@@ -326,7 +335,7 @@ def shell_model_task_extras(task: str, workspace: Path) -> dict[str, Any]:
     return {
         "preface": preface or None,
         "sandbox_config": SandboxConfig(workspace=workspace),
-        "max_repair_attempts": 1,
+        "max_repair_attempts": turn_budget,
     }
 
 
@@ -1560,6 +1569,17 @@ def handle_chat_completion(
         return error_payload("model_configuration_missing", str(exc)), 503
     if "stop" in prepared:
         return shell_stop_response(prepared["stop"], model)
+    meta_repairs = metadata.get("max_repair_attempts")
+    if meta_repairs is not None:
+        if str(meta_repairs).lower() == "auto":
+            from onecode.kernel.model_loop import resolve_task_bureau
+
+            prepared["extras"]["max_repair_attempts"] = resolve_task_bureau(workspace).get("turn_budget", 3)
+        else:
+            try:
+                prepared["extras"]["max_repair_attempts"] = int(meta_repairs)
+            except Exception:
+                pass
     try:
         result = run_model_task(
             prepared["task"],

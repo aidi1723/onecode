@@ -2631,6 +2631,25 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
                     self.assertEqual(out_host["reason"], "verifier_failed")
                     self.assertTrue(any("AssertionError: host check failed" in str(v.get("stderr_tail")) for v in out_host.get("verifier_results", [])))
                     mock_ver.assert_called_once()
+
+                # Case 3: Even when tests/ exists, explicit host verifier cmd takes precedence
+                (workspace / "tests").mkdir(parents=True, exist_ok=True)
+                with patch("onecode.kernel.verifier.run_verifier", return_value=failed_res) as mock_ver3:
+                    out_host3 = _with_sandbox_tests(res, workspace, sandbox_cfg)
+                    self.assertEqual(out_host3["status"], "halted")
+                    mock_ver3.assert_called_once()
+                    called_spec = mock_ver3.call_args[0][1]
+                    self.assertEqual(called_spec.command, ["python3", "verifier.py"])
+
+                # Case 4: When tests/ exists and verifier.py exists (no host env), verifier.py takes precedence
+                os.environ.pop("ONECODE_HOST_VERIFIER_CMD", None)
+                (workspace / "verifier.py").write_text("print('check')\n", encoding="utf-8")
+                with patch("onecode.kernel.verifier.run_verifier", return_value=failed_res) as mock_ver4:
+                    out_host4 = _with_sandbox_tests(res, workspace, sandbox_cfg)
+                    self.assertEqual(out_host4["status"], "halted")
+                    mock_ver4.assert_called_once()
+                    called_spec4 = mock_ver4.call_args[0][1]
+                    self.assertEqual(called_spec4.command, ["python3", "verifier.py"])
             finally:
                 if prev is not None:
                     os.environ["ONECODE_HOST_VERIFIER_CMD"] = prev
