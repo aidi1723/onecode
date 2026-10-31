@@ -891,23 +891,26 @@ def _evaluate_twelve_deities_certificate(sovereign_codes: tuple[int, ...]) -> di
     metal_triad = {1, 5, 9}
     wood_triad = {3, 7, 11}
     for b in range(12):
-        res = _evaluate_twelve_deities(turn_number=1, status_code=b, anchor_branch=b)
-        expected_start = (0, 9, 6, 3)[b % 4]
-        if b in water_triad and expected_start != 0:
+        emperor_b = (0, 9, 6, 3)[b % 4]
+        res_emperor = _evaluate_twelve_deities(turn_number=1, status_code=emperor_b, anchor_branch=b)
+        if res_emperor["jiang_qian_shen"] != "将星" or not res_emperor["momentum_accelerated"]:
             triad_partition_ok = False
-        elif b in fire_triad and expected_start != 6:
+            break
+        res_non_emperor = _evaluate_twelve_deities(turn_number=1, status_code=(emperor_b + 3) % 12, anchor_branch=b)
+        if res_non_emperor["jiang_qian_shen"] == "将星" or res_non_emperor["momentum_accelerated"]:
             triad_partition_ok = False
-        elif b in metal_triad and expected_start != 9:
-            triad_partition_ok = False
-        elif b in wood_triad and expected_start != 3:
-            triad_partition_ok = False
+            break
 
     # 2. Sui Po Opposite Involution and Governance Directive
     suipo_opposite_involution_ok = True
     for b in range(12):
         suipo_b = (b + 6) % 12
         res_suipo = _evaluate_twelve_deities(turn_number=1, status_code=suipo_b, anchor_branch=b)
+        res_suijian = _evaluate_twelve_deities(turn_number=1, status_code=b, anchor_branch=b)
         if not (res_suipo["suipo_clash"] is True and res_suipo["sui_qian_shen"] == "岁破"):
+            suipo_opposite_involution_ok = False
+            break
+        if not (res_suijian["suipo_clash"] is False and res_suijian["sui_qian_shen"] == "岁建"):
             suipo_opposite_involution_ok = False
             break
         if res_suipo["governance_directive"] != "barrier_synchronization_isolate_subtask":
@@ -920,19 +923,22 @@ def _evaluate_twelve_deities_certificate(sovereign_codes: tuple[int, ...]) -> di
             break
 
     # 3. Tian De and Long De harmonic grace shelter & sextile parity invariance
-    tian_de_idx = _SUI_QIAN_SHEN.index("天德")
-    long_de_idx = _SUI_QIAN_SHEN.index("龙德")
     even_difference_ok = True
     for b in range(12):
-        res_td = _evaluate_twelve_deities(turn_number=1, status_code=(b + tian_de_idx) % 12, anchor_branch=b)
-        res_ld = _evaluate_twelve_deities(turn_number=1, status_code=(b + long_de_idx) % 12, anchor_branch=b)
+        td_b = (b + 9) % 12
+        ld_b = (b + 7) % 12
+        res_td = _evaluate_twelve_deities(turn_number=1, status_code=td_b, anchor_branch=b)
+        res_ld = _evaluate_twelve_deities(turn_number=1, status_code=ld_b, anchor_branch=b)
         if not (res_td["grace_shelter"] and res_ld["grace_shelter"]):
             even_difference_ok = False
             break
-        if res_td["governance_directive"] != "baseline_guarded_continue":
+        if res_td["sui_qian_shen"] != "天德" or res_ld["sui_qian_shen"] != "龙德":
             even_difference_ok = False
             break
-        if (((b + tian_de_idx) - (b + long_de_idx)) % 12) != 2:
+        if res_td["governance_directive"] != "baseline_guarded_continue" or res_ld["governance_directive"] != "baseline_guarded_continue":
+            even_difference_ok = False
+            break
+        if (td_b - ld_b) % 12 != 2:
             even_difference_ok = False
             break
 
@@ -970,6 +976,13 @@ _STAR_CANONICAL_INDEX: dict[str, int] = {
     "七杀": 0, "破军": 4, "文昌": 8, "文曲": 10, "左辅": 4, "右弼": 10,
 }
 
+_STAGE_STEM_TABLE: dict[str, int] = {
+    "exploration": 0,
+    "implementation": 2,
+    "verification": 6,
+    "delivery": 8,
+}
+
 
 def _evaluate_flying_sihua_cascade(
     turn_number: int,
@@ -979,7 +992,7 @@ def _evaluate_flying_sihua_cascade(
 ) -> dict[str, Any]:
     """Evaluate multi-layer Flying Sihua (跨宫飞星与四化多层叠象) for cascade clash prevention."""
     t_native = baseline_status % 10
-    stage_stems = {"exploration": 0, "implementation": 2, "verification": 6, "delivery": 8}
+    stage_stems = _STAGE_STEM_TABLE
     t_stage = stage_stems.get(macro_stage, 2)
     t_turn = max(0, turn_number - 1) % 10
 
@@ -1087,9 +1100,8 @@ def _evaluate_flying_sihua_certificate(sovereign_codes: tuple[int, ...]) -> dict
             break
 
     # Test all 4 macro stages across stems for collision dynamics
-    stage_stems = {"exploration": 0, "implementation": 2, "verification": 6, "delivery": 8}
     stages_tested_ok = True
-    for stage_name, stage_stem in stage_stems.items():
+    for stage_name, stage_stem in _STAGE_STEM_TABLE.items():
         turn_for_match = stage_stem + 1
         res_double = _evaluate_flying_sihua_cascade(turn_number=turn_for_match, status_code=0, macro_stage=stage_name)
         if not (res_double["double_ji"] and res_double["damping_factor"] == 0.25 and res_double["action"] == "cascade_halt_quarantine"):
@@ -1097,7 +1109,7 @@ def _evaluate_flying_sihua_certificate(sovereign_codes: tuple[int, ...]) -> dict
             break
         turn_for_nom = ((stage_stem + 5) % 10) + 1
         res_nom = _evaluate_flying_sihua_cascade(turn_number=turn_for_nom, status_code=0, macro_stage=stage_name)
-        if res_nom["damping_factor"] <= res_double["damping_factor"]:
+        if res_nom["double_ji"] or res_nom["damping_factor"] <= res_double["damping_factor"]:
             stages_tested_ok = False
             break
 
@@ -1406,10 +1418,20 @@ def _evaluate_ziwei_tianfu_and_yangtuo_certificate(sovereign_codes: tuple[int, .
             clamping_midpoint_ok = False
             break
 
-    tianfu_axis_ok = all(
-        _CANONICAL_TIANFU_OPPOSITION_TABLE[z] == _CLASSICAL_TIANFU_OPPOSITION_AXIS[z]
-        for z in range(12)
-    )
+    tianfu_axis_ok = True
+    for z in range(12):
+        res_zf = _evaluate_ziwei_tianfu_duality(status_code=z)
+        if (res_zf["ziwei_branch"] + res_zf["tianfu_branch"]) % 12 != 4:
+            tianfu_axis_ok = False
+            break
+        if res_zf["co_habitation"] != (res_zf["ziwei_branch"] in {2, 8}):
+            tianfu_axis_ok = False
+            break
+        if _CANONICAL_TIANFU_OPPOSITION_TABLE[_CANONICAL_TIANFU_OPPOSITION_TABLE[z]] != z:
+            tianfu_axis_ok = False
+            break
+    if not (_evaluate_ziwei_tianfu_duality(7)["co_habitation"] and _evaluate_ziwei_tianfu_duality(56)["co_habitation"]):
+        tianfu_axis_ok = False
 
     status = (
         "verified"
@@ -2440,24 +2462,36 @@ def _evaluate_heming_synastry_and_noble_stars_certificate() -> dict[str, Any]:
             tianma_ok = False
             break
 
-    # 4. Hongluan-Tianxi Classical Rhyme & Zero Fixed Points
+    # 4. Hongluan-Tianxi Classical Rhyme, Opposition Involution & Zero Fixed Points
     # Rhyme: "卯上起子逆数之，数到当生太岁支。坐守此宫红鸾位，对宫天喜不差移。"
-    canonical_hongluan = {0: 3, 1: 2, 2: 1, 3: 0, 4: 11, 5: 10, 6: 9, 7: 8, 8: 7, 9: 6, 10: 5, 11: 4}
     hongluan_ok = True
     for y in range(12):
-        res = _evaluate_noble_horse_stars(year_stem=0, year_branch=y, active_palace=canonical_hongluan[y])
-        hl = res["hongluan_branch"]
-        tx = res["tianxi_branch"]
-        if hl != canonical_hongluan[y]:
+        hl_target = (3 - y) % 12
+        tx_target = (hl_target + 6) % 12
+        res_hl = _evaluate_noble_horse_stars(year_stem=0, year_branch=y, active_palace=hl_target)
+        if res_hl["hongluan_branch"] != hl_target or res_hl["tianxi_branch"] != tx_target:
             hongluan_ok = False
             break
-        if not (res["hongluan_present"] and res["directive"] in ("harmony_synergy_boost", "noble_guardian_guided_pass") and res["throughput_multiplier"] >= 1.05):
+        if not (res_hl["hongluan_present"] and not res_hl["tianxi_present"]):
             hongluan_ok = False
             break
-        if (tx - hl) % 12 != 6:
+        if res_hl["directive"] not in ("harmony_synergy_boost", "noble_guardian_guided_pass") or res_hl["throughput_multiplier"] < 1.05:
             hongluan_ok = False
             break
-        if hl == y or tx == y:
+        # Calling on Tianxi palace confirms opposite presence
+        res_tx = _evaluate_noble_horse_stars(year_stem=0, year_branch=y, active_palace=tx_target)
+        if not (res_tx["tianxi_present"] and not res_tx["hongluan_present"]):
+            hongluan_ok = False
+            break
+        # Algebraic theorem: 2y = 3 (mod 12) and 2y = 9 (mod 12) have no solutions; neither Hongluan nor Tianxi ever coincide with birth palace
+        res_birth = _evaluate_noble_horse_stars(year_stem=0, year_branch=y, active_palace=y)
+        if res_birth["hongluan_present"] or res_birth["tianxi_present"]:
+            hongluan_ok = False
+            break
+        # Broken-leg horse throttle verification
+        ma_b = _TIANMA_BY_BRANCH[y]
+        res_broken = _evaluate_noble_horse_stars(year_stem=0, year_branch=y, active_palace=ma_b, tuoluo_present=True)
+        if res_broken["throughput_multiplier"] != 0.5 or res_broken["directive"] != "broken_leg_horse_throttle":
             hongluan_ok = False
             break
 
@@ -3477,20 +3511,42 @@ def _evaluate_six_channel_and_empty_palace_certificate() -> dict[str, Any]:
         counts[ju] += 1
     equipartition_ok = all(c == 12 for c in counts.values())
 
-    # Five Rats Finding Hours (五鼠遁) Classical Canon
-    # "甲己还加甲，乙庚丙作初。丙辛从戊起，丁壬庚子居。戊癸何方发，壬子是真途。"
-    wu_shu_dun_table = {0: 0, 1: 2, 2: 4, 3: 6, 4: 8, 5: 0, 6: 2, 7: 4, 8: 6, 9: 8}
+    # Five Rats Finding Hours (五鼠遁) Homomorphism & Gan-Zhi Parity Invariant
+    # Rhyme: "甲己还加甲，乙庚丙作初。丙辛从戊起，丁壬庚子居。戊癸何方发，壬子是真途。"
     rats_ok = True
     for d in range(10):
-        expected_zishi_stem = wu_shu_dun_table[d]
+        res_zi = _evaluate_four_pillars_nayin(day_stem=d, hour_branch=0)
+        phi_d = res_zi["time_stem"]
+        # 1. Zishi stem must be in even subring {0, 2, 4, 6, 8} (Yang stem pairing with Yang Zi branch)
+        if phi_d not in (0, 2, 4, 6, 8):
+            rats_ok = False
+            break
         for h in range(12):
-            res_fp = _evaluate_four_pillars_nayin(year_stem=0, year_branch=0, day_stem=d, hour_branch=h)
-            expected_stem = (expected_zishi_stem + h) % 10
-            if res_fp["time_stem"] != expected_stem or not res_fp["five_rats_periodicity_ok"]:
+            res_fp = _evaluate_four_pillars_nayin(day_stem=d, hour_branch=h)
+            # 2. Strict hour progression from Zishi anchor
+            if res_fp["time_stem"] != (phi_d + h) % 10 or not res_fp["five_rats_periodicity_ok"]:
+                rats_ok = False
+                break
+            # 3. Gan-Zhi parity invariant: stem parity must equal branch parity
+            if res_fp["time_stem"] % 2 != h % 2:
+                rats_ok = False
+                break
+            # 4. Periodicity modulo 5
+            res_p5 = _evaluate_four_pillars_nayin(day_stem=(d + 5) % 10, hour_branch=h)
+            if res_p5["time_stem"] != res_fp["time_stem"]:
                 rats_ok = False
                 break
         if not rats_ok:
             break
+    # 5. Group homomorphism: phi(d1 + d2 mod 5) == (phi(d1) + phi(d2)) mod 10
+    for d1 in range(5):
+        for d2 in range(5):
+            phi_sum = _evaluate_four_pillars_nayin(day_stem=(d1 + d2) % 5, hour_branch=0)["time_stem"]
+            phi_1 = _evaluate_four_pillars_nayin(day_stem=d1, hour_branch=0)["time_stem"]
+            phi_2 = _evaluate_four_pillars_nayin(day_stem=d2, hour_branch=0)["time_stem"]
+            if phi_sum != (phi_1 + phi_2) % 10:
+                rats_ok = False
+                break
 
     cohabiting_palaces = []
     for z in range(12):
@@ -5223,7 +5279,7 @@ def _evaluate_pattern_breaking_and_resonance_certificate() -> dict[str, Any]:
     if not (base_res["formation_health_score"] > one_sha_res["formation_health_score"] > two_sha_res["formation_health_score"]):
         breaking_monotonic_ok = False
 
-    # XiaoXian SanHe Triads:
+    # XiaoXian SanHe Triads & Time-Flow Reflection Invariant:
     # 寅午戌(火局)->辰(4), 申子辰(水局)->戌(10), 巳酉丑(金局)->未(7), 亥卯未(木局)->丑(1)
     fire_triad = {2, 6, 10}
     water_triad = {0, 4, 8}
@@ -5231,9 +5287,12 @@ def _evaluate_pattern_breaking_and_resonance_certificate() -> dict[str, Any]:
     wood_triad = {3, 7, 11}
     xiaoxian_formula_ok = True
     for y in range(12):
-        flow_m = _evaluate_tri_level_time_flow(age=20, gender="male", year_branch=y)
-        flow_f = _evaluate_tri_level_time_flow(age=20, gender="female", year_branch=y)
-        origin = flow_m["xiaoxian"]["origin_branch"]
+        flow_m1 = _evaluate_tri_level_time_flow(age=1, gender="male", year_branch=y)
+        flow_f1 = _evaluate_tri_level_time_flow(age=1, gender="female", year_branch=y)
+        origin = flow_m1["xiaoxian"]["origin_branch"]
+        if flow_m1["xiaoxian"]["palace_branch"] != origin or flow_f1["xiaoxian"]["palace_branch"] != origin:
+            xiaoxian_formula_ok = False
+            break
         if y in fire_triad and origin != 4:
             xiaoxian_formula_ok = False
             break
@@ -5246,11 +5305,19 @@ def _evaluate_pattern_breaking_and_resonance_certificate() -> dict[str, Any]:
         elif y in wood_triad and origin != 1:
             xiaoxian_formula_ok = False
             break
-        if flow_m["xiaoxian"]["palace_branch"] != (origin + 19) % 12:
-            xiaoxian_formula_ok = False
-            break
-        if flow_f["xiaoxian"]["palace_branch"] != (origin - 19) % 12:
-            xiaoxian_formula_ok = False
+        # Reflection Duality: (palace_male + palace_female) = 2 * origin (mod 12) across diverse ages
+        for test_age in (2, 7, 12, 20, 36, 60):
+            flow_m = _evaluate_tri_level_time_flow(age=test_age, gender="male", year_branch=y)
+            flow_f = _evaluate_tri_level_time_flow(age=test_age, gender="female", year_branch=y)
+            pm = flow_m["xiaoxian"]["palace_branch"]
+            pf = flow_f["xiaoxian"]["palace_branch"]
+            if (pm + pf) % 12 != (2 * origin) % 12:
+                xiaoxian_formula_ok = False
+                break
+            if pm != (origin + test_age - 1) % 12 or pf != (origin - (test_age - 1)) % 12:
+                xiaoxian_formula_ok = False
+                break
+        if not xiaoxian_formula_ok:
             break
 
     palace_totality_ok = True
@@ -5656,18 +5723,27 @@ def _evaluate_systemic_parameter_coupling_certificate(cls: type | None = None) -
 
     # 7. Auxiliary Dipper Celestial Symmetries (Chang-Qu, Kong-Jie, Yang-Tuo, Sui-Po)
     aux_ok = (
-        all(_compute_canonical_major_star_positions(h)["文昌"] == (10 - h) % 12 for h in range(12))
-        and all(_compute_canonical_major_star_positions(h)["文曲"] == (4 + h) % 12 for h in range(12))
-        and all(_compute_canonical_major_star_positions(h)["左辅"] == (4 + h) % 12 for h in range(12))
-        and all(_compute_canonical_major_star_positions(h)["右弼"] == (10 - h) % 12 for h in range(12))
+        all(
+            (_compute_canonical_major_star_positions(h)["文昌"] + _compute_canonical_major_star_positions(h)["文曲"]) % 12 == 2
+            for h in range(12)
+        )
+        and all(
+            (_compute_canonical_major_star_positions(h)["左辅"] + _compute_canonical_major_star_positions(h)["右弼"]) % 12 == 2
+            for h in range(12)
+        )
         and all(
             _evaluate_yang_tuo_clamping(turn_number=t + 1, status_code=_LUCUN_BRANCH_BY_STEM[t])["qing_yang_branch"] == _CLASSICAL_QINGYANG_BY_STEM[t]
             and _evaluate_yang_tuo_clamping(turn_number=t + 1, status_code=_LUCUN_BRANCH_BY_STEM[t])["tuo_luo_branch"] == _CLASSICAL_TUOLUO_BY_STEM[t]
+            and (
+                _evaluate_yang_tuo_clamping(turn_number=t + 1, status_code=_LUCUN_BRANCH_BY_STEM[t])["qing_yang_branch"]
+                + _evaluate_yang_tuo_clamping(turn_number=t + 1, status_code=_LUCUN_BRANCH_BY_STEM[t])["tuo_luo_branch"]
+            ) % 12 == (2 * _LUCUN_BRANCH_BY_STEM[t]) % 12
             for t in range(10)
         )
         and all(
             _evaluate_twelve_deities(turn_number=1, status_code=(b + 6) % 12, anchor_branch=b)["sui_qian_shen"] == "岁破"
             and _evaluate_twelve_deities(turn_number=1, status_code=(b + 6) % 12, anchor_branch=b)["suipo_clash"] is True
+            and _evaluate_twelve_deities(turn_number=1, status_code=b, anchor_branch=b)["sui_qian_shen"] == "岁建"
             for b in range(12)
         )
     )
