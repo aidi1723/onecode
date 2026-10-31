@@ -459,7 +459,25 @@ def apply_run_plan_repair(
 
     for attempt in range(1, effective_attempts + 1):
         if attempt >= 2:
-            time.sleep(0.05)
+            cooldown_s = 0.05
+            try:
+                from onecode.kernel.recovery_policy import recovery_status
+
+                rec = recovery_status(
+                    "verifier_failure",
+                    turn_number=attempt,
+                    attempted=True,
+                    attempt_count=attempt - 1,
+                    status_code=47,
+                )
+                jie = rec.get("jie_shen_relief", {})
+                if jie.get("relief_effective"):
+                    damping = float(jie.get("damping_factor", 0.75))
+                    if damping > 0:
+                        cooldown_s = round(0.05 / damping, 4)
+            except Exception:
+                pass
+            time.sleep(cooldown_s)
         prompt = build_run_plan_repair_prompt(task, current_result, current_verifiers, planned_asset_paths)
         prompt_evidence.append(
             {

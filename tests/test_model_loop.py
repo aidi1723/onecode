@@ -2637,6 +2637,35 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
                 else:
                     os.environ.pop("ONECODE_HOST_VERIFIER_CMD", None)
 
+    def test_compute_repair_cooldown_applies_jie_shen_damping(self):
+        from onecode.kernel.model_loop import _compute_repair_cooldown
+
+        # Attempt 1 without prior pause: 0 ms
+        cd1 = _compute_repair_cooldown({}, attempt=1, failed_code=40)
+        self.assertEqual(cd1, 0)
+
+        # Attempt 1 with prior pause (e.g. 50ms): damped by 0.75 -> int(50 / 0.75) = 66 ms
+        cd1_damped = _compute_repair_cooldown({"cooldown_pause_ms": 50}, attempt=1, failed_code=40)
+        self.assertEqual(cd1_damped, 66)
+
+        # Attempt 2: base 50ms, damped by 0.75 -> 66 ms
+        cd2 = _compute_repair_cooldown({}, attempt=2, failed_code=47)
+        self.assertEqual(cd2, 66)
+
+        # Attempt 3: base 100ms, damped by 0.60 -> int(100 / 0.60) = 166 ms
+        cd3 = _compute_repair_cooldown({}, attempt=3, failed_code=47)
+        self.assertEqual(cd3, 166)
+
+    def test_recovery_defense_alerts_with_resolved_status(self):
+        from onecode.kernel.model_loop import _recovery_defense_alerts
+
+        alerts = _recovery_defense_alerts(
+            has_verifier_fail=True,
+            turn_history=[{"turn_id": 1}],
+            resolved_status=40,
+        )
+        self.assertTrue(any("Jie Shen relief active" in a for a in alerts))
+
 
 if __name__ == "__main__":
     unittest.main()

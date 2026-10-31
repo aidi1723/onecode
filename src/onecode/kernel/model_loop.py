@@ -640,7 +640,7 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
     guidance.extend(_ziwei_structural_alerts(resolved_status))
 
     # 7. Jie Shen Relief & Sui Po Defense (解神化煞与岁破防御)
-    guidance.extend(_recovery_defense_alerts(has_verifier_fail, turn_history))
+    guidance.extend(_recovery_defense_alerts(has_verifier_fail, turn_history, resolved_status))
 
     return guidance
 
@@ -666,14 +666,24 @@ def _ziwei_structural_alerts(resolved_status: int) -> list[str]:
     return alerts
 
 
-def _recovery_defense_alerts(has_verifier_fail: bool, turn_history: list[dict[str, Any]]) -> list[str]:
+def _recovery_defense_alerts(
+    has_verifier_fail: bool,
+    turn_history: list[dict[str, Any]],
+    resolved_status: int | None = None,
+) -> list[str]:
     alerts: list[str] = []
     try:
         from onecode.kernel.recovery_policy import recovery_status
 
         scenario = "verifier_failure" if has_verifier_fail else "provider_failure"
         turn_num = len(turn_history) + 1
-        rec = recovery_status(scenario, turn_number=turn_num, attempted=True, attempt_count=len(turn_history))
+        rec = recovery_status(
+            scenario,
+            turn_number=turn_num,
+            attempted=True,
+            attempt_count=len(turn_history),
+            status_code=resolved_status,
+        )
         jie = rec.get("jie_shen_relief", {})
         if jie.get("relief_effective"):
             alerts.append(f"- Jie Shen relief active (解神化煞): {jie.get('reason')} Apply damping {jie.get('damping_factor')}.")
@@ -1839,6 +1849,37 @@ def _repair_touches_tests(plan: ModelPlan) -> bool:
     return False
 
 
+def _compute_repair_cooldown(
+    run_metadata: dict[str, Any],
+    attempt: int,
+    failed_code: int,
+    scenario: str = "verifier_failure",
+) -> int:
+    cooldown_ms = run_metadata.get("cooldown_pause_ms", 0)
+    if attempt >= 2 and cooldown_ms < 50:
+        cooldown_ms = min(200, 50 * (attempt - 1))
+    try:
+        from onecode.kernel.recovery_policy import recovery_status
+
+        rec = recovery_status(
+            scenario,
+            turn_number=attempt,
+            attempted=True,
+            attempt_count=max(0, attempt - 1),
+            status_code=failed_code,
+        )
+        jie = rec.get("jie_shen_relief", {})
+        if jie.get("relief_effective"):
+            damping = float(jie.get("damping_factor", 0.75))
+            if damping > 0:
+                base_ms = cooldown_ms if cooldown_ms > 0 else (50 if attempt >= 2 else 0)
+                if base_ms > 0:
+                    cooldown_ms = int(base_ms / damping)
+    except Exception:
+        pass
+    return cooldown_ms
+
+
 def _finish_verified_task(
     result: dict[str, Any],
     task: str,
@@ -1880,9 +1921,11 @@ def _finish_verified_task(
     bureau_budget = run_metadata.get("bureau_turn_budget", max_repair_attempts)
     effective_attempts = min(max_repair_attempts, bureau_budget) if max_repair_attempts > 0 else 0
     for attempt in range(1, effective_attempts + 1):
-        cooldown_ms = run_metadata.get("cooldown_pause_ms", 0)
-        if attempt >= 2 and cooldown_ms < 50:
-            cooldown_ms = min(200, 50 * (attempt - 1))
+        failed_status = current_checked.get("iching_status_code") or current_checked.get("task_status_code")
+        failed_code = int(failed_status) if failed_status is not None else 32
+        if attempt >= 2:
+            failed_code = 47
+        cooldown_ms = _compute_repair_cooldown(run_metadata, attempt, failed_code, "verifier_failure")
         if cooldown_ms > 0:
             time.sleep(cooldown_ms / 1000.0)
         tails = [
@@ -1920,10 +1963,6 @@ def _finish_verified_task(
                 "iching_transition_action": transition.action,
                 "iching_transition_reason": transition.reason,
             }
-        failed_status = current_checked.get("iching_status_code") or current_checked.get("task_status_code")
-        failed_code = int(failed_status) if failed_status is not None else 32
-        if attempt >= 2:
-            failed_code = 47
         repair_brightness = IchingKernel.star_brightness_profile(failed_code)
         repair_gov_mode = (
             "degraded"
@@ -1934,6 +1973,7 @@ def _finish_verified_task(
             **run_metadata,
             "governance_mode": repair_gov_mode,
             "star_brightness": repair_brightness,
+            "cooldown_pause_ms": cooldown_ms,
         }
         try:
             coupling = IchingKernel.systemic_coupling_profile(hexagram_state=failed_code)
@@ -2240,9 +2280,12 @@ def _run_model_task_repair_loop(
     bureau_budget = run_metadata.get("bureau_turn_budget", max_repair_attempts)
     effective_attempts = min(max_repair_attempts, bureau_budget) if max_repair_attempts > 0 else 0
     for attempt in range(1, effective_attempts + 1):
-        cooldown_ms = run_metadata.get("cooldown_pause_ms", 0)
-        if attempt >= 2 and cooldown_ms < 50:
-            cooldown_ms = min(200, 50 * (attempt - 1))
+        failed_status = failed_result.get("iching_status_code") or failed_result.get("task_status_code")
+        failed_code = int(failed_status) if failed_status is not None else 32
+        if attempt >= 2:
+            failed_code = 47
+        scenario = "verifier_failure" if failed_result.get("status") == "verifier_failed" else "provider_failure"
+        cooldown_ms = _compute_repair_cooldown(run_metadata, attempt, failed_code, scenario)
         if cooldown_ms > 0:
             time.sleep(cooldown_ms / 1000.0)
         repair_plan, failure = traced_provider_plan(
@@ -2266,10 +2309,6 @@ def _run_model_task_repair_loop(
                 "repair_plan_must_use_patches_only",
                 repair_attempt_count=attempt,
             )
-        failed_status = failed_result.get("iching_status_code") or failed_result.get("task_status_code")
-        failed_code = int(failed_status) if failed_status is not None else 32
-        if attempt >= 2:
-            failed_code = 47
         repair_brightness = IchingKernel.star_brightness_profile(failed_code)
         repair_gov_mode = (
             "degraded"
@@ -2280,6 +2319,7 @@ def _run_model_task_repair_loop(
             **run_metadata,
             "governance_mode": repair_gov_mode,
             "star_brightness": repair_brightness,
+            "cooldown_pause_ms": cooldown_ms,
             "model_plan_task": repair_plan.task,
             "model_plan_asset_count": len(repair_plan.assets),
             "model_plan_patch_count": len(repair_plan.patches),

@@ -22,7 +22,7 @@ MAX_ATTEMPTS = 2
 class RecoveryContext:
     attempts: dict[str, int] = field(default_factory=dict)
 
-    def record_attempt(self, scenario: str, *, success: bool) -> dict:
+    def record_attempt(self, scenario: str, *, success: bool, status_code: int | None = None) -> dict:
         attempt_count = self.attempts.get(scenario, 0) + 1
         self.attempts[scenario] = attempt_count
 
@@ -42,6 +42,7 @@ class RecoveryContext:
             attempt_count=attempt_count,
             state=state,
             recommended_action=recommended_action,
+            status_code=status_code,
         )
 
 
@@ -53,20 +54,21 @@ def recovery_status(
     state: str = "queued",
     recommended_action: str | None = None,
     turn_number: int = 1,
+    status_code: int | None = None,
 ) -> dict:
     resolved_action = recommended_action or SCENARIO_ACTIONS.get(scenario, "inspect")
-    status_code = _iching_status_code(state, resolved_action)
-    transition = IchingKernel.transition(status_code)
-    yin_yang = IchingKernel.yin_yang_cross_profile(status_code)
+    resolved_status_code = status_code if status_code is not None else _iching_status_code(state, resolved_action)
+    transition = IchingKernel.transition(resolved_status_code)
+    yin_yang = IchingKernel.yin_yang_cross_profile(resolved_status_code)
     jie_shen = IchingKernel.jie_shen_relief_profile(
         turn_number=turn_number,
-        status_code=status_code,
+        status_code=resolved_status_code,
         error_scenario=scenario,
         attempt_count=attempt_count,
     )
     deities = IchingKernel.twelve_deities_profile(
         turn_number=turn_number,
-        status_code=status_code,
+        status_code=resolved_status_code,
     )
 
     return {
@@ -82,7 +84,7 @@ def recovery_status(
         "twelve_deities": deities,
         "element": "fire",
         "yin_yang_pressure": yin_yang["pressure"],
-        "iching_status_code": status_code,
+        "iching_status_code": resolved_status_code,
         "iching_transition_action": transition.action,
         "iching_transition_reason": transition.reason,
         "dispatch_decision": IchingKernel.dispatch_decision(transition),

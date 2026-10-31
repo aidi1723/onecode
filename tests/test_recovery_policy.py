@@ -46,6 +46,25 @@ class RecoveryPolicyTests(unittest.TestCase):
         self.assertEqual(result["recommended_action"], "inspect")
         self.assertEqual(result["attempt_count"], 1)
 
+    def test_recovery_status_with_explicit_status_code(self):
+        # Passing task hexagram 40 (晋)
+        status_40 = recovery_status("verifier_failure", status_code=40, attempt_count=1)
+        self.assertEqual(status_40["iching_status_code"], 40)
+        self.assertIn("jie_shen_relief", status_40)
+        self.assertTrue(status_40["jie_shen_relief"]["relief_effective"])
+        self.assertEqual(status_40["jie_shen_relief"]["damping_factor"], 0.75)
+
+        # Passing Kun hexagram 47 (困)
+        status_47 = recovery_status("verifier_failure", status_code=47, attempt_count=2)
+        self.assertEqual(status_47["iching_status_code"], 47)
+        self.assertEqual(status_47["jie_shen_relief"]["damping_factor"], 0.60)
+
+    def test_record_attempt_preserves_explicit_status_code(self):
+        context = RecoveryContext()
+        result = context.record_attempt("verifier_failure", success=False, status_code=47)
+        self.assertEqual(result["iching_status_code"], 47)
+        self.assertEqual(result["attempt_count"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()
