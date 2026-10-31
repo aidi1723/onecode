@@ -738,6 +738,24 @@ def validate_manifest_metrics(metrics: dict[str, Any]) -> None:
 
 
 
+CHECKPOINT_TELEMETRY_KEYS = (
+    "moving_lines",
+    "cycle_phase",
+    "micro_relations",
+    "sihua",
+    "changed_bands",
+    "foundation_broken",
+    "pattern_state",
+    "pattern_name",
+)
+
+
+def compact_checkpoint_telemetry(telemetry: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(telemetry, dict):
+        return {}
+    return {k: telemetry[k] for k in CHECKPOINT_TELEMETRY_KEYS if k in telemetry}
+
+
 def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number: int, iching_status_code: int | None) -> dict[str, Any]:
     base_status = None
     if existing_checkpoints:
@@ -922,7 +940,12 @@ def write_checkpoint(
         existing_manifest = read_manifest(context.manifest_path)
         existing_checkpoints = []
         if existing_manifest is not None:
-            existing_checkpoints = list(existing_manifest.get("checkpoints", []))
+            raw_checkpoints = existing_manifest.get("checkpoints", [])
+            if isinstance(raw_checkpoints, list):
+                existing_checkpoints = [
+                    {**c, "telemetry": compact_checkpoint_telemetry(c.get("telemetry"))} if isinstance(c, dict) and "telemetry" in c else c
+                    for c in raw_checkpoints
+                ]
         evidence_domain_projection = validate_domain_projection(
             domain_projection
             if domain_projection is not None
@@ -981,7 +1004,7 @@ def write_checkpoint(
             "status": status,
             "partial": partial,
             "reason": reason,
-            "telemetry": telemetry,
+            "telemetry": compact_checkpoint_telemetry(telemetry),
             "intent_type": intent_type,
             "decision": decision,
             "iching_status_code": iching_status_code,

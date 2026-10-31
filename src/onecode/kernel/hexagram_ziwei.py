@@ -433,13 +433,14 @@ def _evaluate_temporal_superposition(
     event: str | None = None,
 ) -> dict[str, Any]:
     """Superimpose Macro Project Phase (大限) and Micro Step Iteration (流年/流月)."""
-    stages = {
+    stages: dict[str, dict[str, Any]] = {
         "exploration": {"phase_code": 1, "element": "wood", "tolerance": 1.0, "default_action": "discover"},
         "implementation": {"phase_code": 15, "element": "fire", "tolerance": 0.5, "default_action": "continue"},
         "verification": {"phase_code": 31, "element": "metal", "tolerance": 0.2, "default_action": "checkpoint"},
         "delivery": {"phase_code": 63, "element": "metal", "tolerance": 0.0, "default_action": "halt"},
     }
     stage_cfg = stages.get(macro_stage.lower(), stages["implementation"])
+    tolerance = float(stage_cfg["tolerance"])
     is_error = event in {"test_failure", "verifier_failed", "syntax_error", "timeout", "halt"} or ((turn_status & 0b111111) in {0, 32})
 
     if not is_error:
@@ -447,11 +448,11 @@ def _evaluate_temporal_superposition(
         policy_action = stage_cfg["default_action"]
         risk_level = "low"
     else:
-        if stage_cfg["tolerance"] >= 0.8:
+        if tolerance >= 0.8:
             superposition_state = "exploratory_feedback_tolerated"
             policy_action = "discover"
             risk_level = "tolerated"
-        elif stage_cfg["tolerance"] >= 0.4:
+        elif tolerance >= 0.4:
             superposition_state = "repairable_defect"
             policy_action = "repair"
             risk_level = "medium"
@@ -462,7 +463,7 @@ def _evaluate_temporal_superposition(
 
     return {
         "macro_stage": macro_stage,
-        "macro_tolerance": stage_cfg["tolerance"],
+        "macro_tolerance": tolerance,
         "micro_status_code": turn_status & 0b111111,
         "event": event,
         "superposition_state": superposition_state,
@@ -890,7 +891,11 @@ def _evaluate_twelve_deities_certificate(sovereign_codes: tuple[int, ...]) -> di
     fire_triad = {2, 6, 10}
     metal_triad = {1, 5, 9}
     wood_triad = {3, 7, 11}
+    triads = (water_triad, metal_triad, fire_triad, wood_triad)
     for b in range(12):
+        if b not in triads[b % 4]:
+            triad_partition_ok = False
+            break
         emperor_b = (0, 9, 6, 3)[b % 4]
         res_emperor = _evaluate_twelve_deities(turn_number=1, status_code=emperor_b, anchor_branch=b)
         if res_emperor["jiang_qian_shen"] != "将星" or not res_emperor["momentum_accelerated"]:
@@ -999,6 +1004,7 @@ def _evaluate_flying_sihua_cascade(
     active_p = status_code % 12
     opposite_p = (active_p + 6) % 12
 
+    native_tf = _SI_HUA_TABLE[t_native]
     turn_tf = _SI_HUA_TABLE[t_turn]
     stage_tf = _SI_HUA_TABLE[t_stage]
 
@@ -1008,6 +1014,7 @@ def _evaluate_flying_sihua_cascade(
 
     turn_ji_branch = star_branch(turn_tf[3])
     stage_ji_branch = star_branch(stage_tf[3])
+    native_ji_branch = star_branch(native_tf[3])
     turn_lu_branch = star_branch(turn_tf[0])
     turn_quan_branch = star_branch(turn_tf[1])
     turn_ke_branch = star_branch(turn_tf[2])
@@ -1016,6 +1023,7 @@ def _evaluate_flying_sihua_cascade(
     self_ji = (turn_ji_branch == active_p)
     double_ji = (turn_ji_branch == stage_ji_branch)
     lu_chong_po = ((turn_lu_branch + 6) % 12 == turn_ji_branch)
+    native_clash = (native_ji_branch == active_p or native_ji_branch == opposite_p)
 
     trine_palaces = {active_p, (active_p + 4) % 12, (active_p + 8) % 12, (active_p + 6) % 12}
     triple_harmony = (
@@ -1058,6 +1066,9 @@ def _evaluate_flying_sihua_cascade(
     return {
         "active_palace": active_p,
         "opposite_palace": opposite_p,
+        "native_ji_star": native_tf[3],
+        "native_ji_branch": native_ji_branch,
+        "native_clash": native_clash,
         "turn_ji_star": turn_tf[3],
         "turn_ji_branch": turn_ji_branch,
         "stage_ji_star": stage_tf[3],
@@ -1940,7 +1951,7 @@ def _evaluate_classical_patterns(
 def _evaluate_classical_patterns_certificate() -> dict[str, Any]:
     """Verify Safety Dominance Invariant, Supreme Purity, and Exhaustive Formation Codification."""
     safety_dominance_ok = True
-    test_breaking_kwargs = [
+    test_breaking_kwargs: list[dict[str, Any]] = [
         {"fatal_regression": True},
         {"verifier_passed": False, "token_budget_ok": False},
         {"consecutive_syntax_errors": 2},
@@ -2962,16 +2973,16 @@ def _evaluate_system_pathology(
     if any(k in err for k in ("syntax", "ast", "parse", "compile", "diff", "patch")):
         category = "metal"
         severity = 0.90
-    elif any(k in err for k in ("deadlock", "lock", "concurrency", "thread", "stasis")):
+    elif any(k in err for k in ("deadlock", "lock", "concurrency", "thread", "stasis")) or pressure.get("lock_contention", False):
         category = "wood"
         severity = 0.85
-    elif any(k in err for k in ("memory", "leak", "fd", "wal", "timeout", "network", "flood")):
+    elif any(k in err for k in ("memory", "leak", "fd", "wal", "timeout", "network", "flood")) or pressure.get("memory", False):
         category = "water"
         severity = 0.80
-    elif any(k in err for k in ("loop", "cpu", "thrash", "rate_limit", "flame", "spin")):
+    elif any(k in err for k in ("loop", "cpu", "thrash", "rate_limit", "flame", "spin")) or pressure.get("cpu", False):
         category = "fire"
         severity = 0.75
-    elif any(k in err for k in ("cache", "context", "config", "pollute", "stale")):
+    elif any(k in err for k in ("cache", "context", "config", "pollute", "stale")) or pressure.get("cache", False):
         category = "earth"
         severity = 0.65
     elif status_code == 0:
@@ -3018,6 +3029,7 @@ def _evaluate_system_pathology(
         "severity_score": severity,
         "classical_star": p_info["classical_star"],
         "description": p_info["description"],
+        "resource_pressure": pressure,
         "system_equilibrium": "degraded" if severity >= 0.8 else "cautious",
     }
 
@@ -4673,7 +4685,7 @@ def _evaluate_dipper_axis_invariants(hexagram_state: int) -> dict[str, Any]:
     stars = _compute_canonical_major_star_positions(state_code)
     branch_names = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
 
-    five_axes = {
+    five_axes: dict[str, dict[str, Any]] = {
         "sovereign_treasury": {"stars": ("紫微", "天府"), "sum_target": 4},
         "strategy_memory": {"stars": ("天机", "太阴"), "sum_target": 4},
         "visibility_critic": {"stars": ("太阳", "巨门"), "sum_target": 4},
@@ -4684,11 +4696,12 @@ def _evaluate_dipper_axis_invariants(hexagram_state: int) -> dict[str, Any]:
     axes_status: dict[str, dict[str, Any]] = {}
     all_five_axes_ok = True
     for axis_name, axis_info in five_axes.items():
-        s1, s2 = axis_info["stars"]
+        stars_pair = axis_info["stars"]
+        s1, s2 = str(stars_pair[0]), str(stars_pair[1])
         b1 = stars.get(s1, 0)
         b2 = stars.get(s2, 0)
         actual_sum = (b1 + b2) % 12
-        is_conserved = (actual_sum == axis_info["sum_target"])
+        is_conserved = (actual_sum == int(axis_info["sum_target"]))
         if not is_conserved:
             all_five_axes_ok = False
         axes_status[axis_name] = {

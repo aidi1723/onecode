@@ -696,7 +696,7 @@ def _recovery_defense_alerts(
 
 
 @functools.lru_cache(maxsize=32)
-def _cached_workspace_scale_stats(workspace_key: str) -> tuple[int, int]:
+def _cached_workspace_scale_stats(workspace_key: str, mtime_ns: int = 0) -> tuple[int, int]:
     ws = Path(workspace_key)
     file_count = 0
     total_loc = 0
@@ -715,8 +715,9 @@ def _cached_workspace_scale_stats(workspace_key: str) -> tuple[int, int]:
 def workspace_scale_stats(workspace: Path) -> tuple[int, int]:
     """Return (file_count, total_loc) for Python files in workspace, excluding venvs and hidden dirs."""
     try:
-        key = str(workspace.resolve())
-        return _cached_workspace_scale_stats(key)
+        resolved = workspace.resolve()
+        mtime_ns = resolved.stat().st_mtime_ns if resolved.exists() else 0
+        return _cached_workspace_scale_stats(str(resolved), mtime_ns)
     except Exception:
         return 1, 40
 
@@ -877,17 +878,23 @@ def merge_repair_result(
 def _plan_has_existing_file_rewrite(plan: ModelPlan, workspace: Path) -> bool:
     """Return True if plan attempts to fully rewrite an existing file with write_text/asset."""
     for asset in plan.assets:
-        target = workspace / asset.path
-        if target.is_file() and target.stat().st_size > 0:
-            return True
+        try:
+            target = PathGuard.resolve_target(workspace, asset.path)
+            if target.is_file() and target.stat().st_size > 0:
+                return True
+        except Exception:
+            continue
     for step in plan.execution_steps:
         for tool_call in step.tool_calls:
             if tool_call.tool_name == "write_text":
                 path_val = tool_call.params.get("path")
                 if isinstance(path_val, str):
-                    target = workspace / path_val
-                    if target.is_file() and target.stat().st_size > 0:
-                        return True
+                    try:
+                        target = PathGuard.resolve_target(workspace, path_val)
+                        if target.is_file() and target.stat().st_size > 0:
+                            return True
+                    except Exception:
+                        continue
     return False
 
 
@@ -2297,7 +2304,7 @@ def _run_model_task_repair_loop(
             time.sleep(cooldown_ms / 1000.0)
         repair_plan, failure = traced_provider_plan(
             provider=active_provider,
-            task=repair_prompt(task, {**failed_result, "workspace_files": _src_files_for_repair(workspace)}),
+            task=repair_prompt(task, {**failed_result, "workspace_files": _src_files_for_repair(workspace)}, workspace=workspace),
             model_context=model_context,
             trace_path=trace_path,
             provider_config=provider_config,
@@ -2314,6 +2321,13 @@ def _run_model_task_repair_loop(
                 failed_result,
                 run_id,
                 "repair_plan_must_use_patches_only",
+                repair_attempt_count=attempt,
+            )
+        if any(_is_test_path(p.path) for p in repair_plan.patches):
+            return repair_rejected_result(
+                failed_result,
+                run_id,
+                "repair_plan_cannot_modify_tests",
                 repair_attempt_count=attempt,
             )
         repair_brightness = IchingKernel.star_brightness_profile(failed_code)

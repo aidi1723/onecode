@@ -2027,6 +2027,74 @@ class ModelLoopTests(unittest.TestCase):
             self.assertEqual(result["reason"], "repair_plan_must_use_patches_only")
             self.assertEqual((workspace / "src" / "generated.py").read_text(encoding="utf-8"), "def status():\n    return (\n")
 
+    def test_model_repair_rejects_patches_modifying_tests(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "tests").mkdir()
+            (workspace / "tests" / "test_app.py").write_text("def test_x(): assert True\n", encoding="utf-8")
+            provider = SequenceModelProvider(
+                [
+                    ModelPlan(
+                        task="broken",
+                        execution_steps=[
+                            ModelExecutionStep(
+                                id="write",
+                                description="write invalid python",
+                                tool_calls=[
+                                    ModelToolCall(
+                                        tool_name="write_text",
+                                        params={"path": "src/generated.py", "content": "def status():\n    return (\n"},
+                                    )
+                                ],
+                            ),
+                            ModelExecutionStep(
+                                id="patch",
+                                description="compile-gated patch should fail",
+                                depends_on=["write"],
+                                tool_calls=[
+                                    ModelToolCall(
+                                        tool_name="patch_text",
+                                        params={
+                                            "path": "src/generated.py",
+                                            "search_block": "return (",
+                                            "replace_block": "return [",
+                                        },
+                                    )
+                                ],
+                            ),
+                        ],
+                    ),
+                    ModelPlan(
+                        task="unsafe test patch",
+                        patches=[
+                            ModelPlanPatch(
+                                path="tests/test_app.py",
+                                search_block="assert True",
+                                replace_block="assert False",
+                            )
+                        ],
+                    ),
+                ]
+            )
+
+            result = run_model_task_wrapper(
+                "build module with test modification repair",
+                workspace=workspace,
+                run_id="test-modify-repair-run",
+                model="test-model",
+                api_key="test-key",
+                provider=provider,
+                max_repair_attempts=1,
+                execution_approval=lambda step: True,
+            )
+
+            self.assertEqual(result["status"], "halted")
+            self.assertEqual(result["reason"], "repair_plan_cannot_modify_tests")
+            self.assertEqual(
+                (workspace / "tests" / "test_app.py").read_text(encoding="utf-8"),
+                "def test_x(): assert True\n",
+            )
+
     def test_openai_provider_builds_strict_structured_output_payload(self):
         provider = OpenAIResponsesProvider("test-key")
 

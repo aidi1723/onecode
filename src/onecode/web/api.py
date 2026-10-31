@@ -864,7 +864,10 @@ def verify_shell_write(
     before: dict[str, str] | None = None,
     targeted_test: str | None = None,
 ) -> dict[str, Any]:
-    if result.get("status") != "completed" or not (workspace / "tests").is_dir():
+    has_internal_tests = (workspace / "tests").is_dir()
+    host_cmd_env = os.environ.get("ONECODE_HOST_VERIFIER_CMD")
+    has_host_script = (workspace / "verifier.py").is_file()
+    if result.get("status") != "completed" or (not has_internal_tests and not host_cmd_env and not has_host_script):
         return result
     current_tests = preset_test_hashes(workspace)
     if before is not None and preset_test_baseline_changed(before, current_tests):
@@ -1132,7 +1135,7 @@ def handle_onecode_plan_approval(
         effective_model = resolve_effective_model_config(os.environ, stored_config)
         try:
             repair = run_model_task(
-                repair_prompt(stored.plan.task, failed),
+                repair_prompt(stored.plan.task, failed, workspace=workspace),
                 workspace=workspace,
                 model=effective_model.model,
                 api_key=effective_model.api_key,
@@ -1526,8 +1529,9 @@ def handle_chat_completion(
         if status_code != 200:
             return result, status_code
         return chat_completion_payload(format_run_result(result, "approval"), model, result, "approval"), 200
-    metadata = body.get("metadata") if isinstance(body.get("metadata"), dict) else {}
-    explicit_mode = metadata.get("onecode_mode") if isinstance(metadata.get("onecode_mode"), str) else None  # type: ignore
+    raw_metadata = body.get("metadata")
+    metadata: dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
+    explicit_mode = metadata.get("onecode_mode") if isinstance(metadata.get("onecode_mode"), str) else None
     try:
         task_mode = classify_task(user_message, explicit_mode=explicit_mode)
     except ValueError as exc:

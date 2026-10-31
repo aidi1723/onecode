@@ -447,6 +447,43 @@ class ExecutionToolsTests(unittest.TestCase):
             self.assertEqual(diff["status"], "completed")
             self.assertFalse(marker.exists(), "textconv command should not have been executed on host")
 
+    def test_read_text_tool_multibyte_truncation_does_not_crash(self):
+        from onecode.kernel.execution_tools import ReadTextTool
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            target = workspace / "utf8_sample.txt"
+            # '你好世界' is 12 bytes in UTF-8 (3 bytes each). Truncating at 4 or 5 bytes splits a character.
+            target.write_text("你好世界\n", encoding="utf-8")
+            tool = ReadTextTool()
+            res = tool.execute({"path": "utf8_sample.txt", "max_bytes": 4}, workspace)
+            self.assertTrue(res["truncated"])
+            self.assertIn("content", res)
+
+    def test_observation_tools_accept_status_code_in_plan_action(self):
+        from onecode.kernel.execution_tools import (
+            GitCommitTool,
+            GlobFilesTool,
+            OutlineTool,
+            SearchTextTool,
+        )
+
+        glob_tool = GlobFilesTool()
+        a_glob = glob_tool.plan_action({"pattern": "*.py", "status_code": 49})
+        self.assertEqual(a_glob.get("status_code"), 49)
+
+        outline_tool = OutlineTool()
+        a_outline = outline_tool.plan_action({"path": "a.py", "status_code": 7})
+        self.assertEqual(a_outline.get("status_code"), 7)
+
+        search_tool = SearchTextTool()
+        a_search = search_tool.plan_action({"query": "def", "status_code": 11})
+        self.assertEqual(a_search.get("status_code"), 11)
+
+        commit_tool = GitCommitTool()
+        a_commit = commit_tool.plan_action({"message": "test", "paths": ["a.txt"], "status_code": 63})
+        self.assertEqual(a_commit.get("status_code"), 63)
+
 
 if __name__ == "__main__":
     unittest.main()

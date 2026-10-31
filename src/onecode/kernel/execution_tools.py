@@ -155,7 +155,7 @@ class ReadTextTool(ToolDefinition):
         with target.open("rb") as handle:
             raw = handle.read(action["max_bytes"] + 1)
         byte_truncated = len(raw) > action["max_bytes"]
-        text = raw[: action["max_bytes"]].decode("utf-8")
+        text = raw[: action["max_bytes"]].decode("utf-8", errors="replace")
         lines = text.splitlines(keepends=True)
         total_lines = len(lines)
         start_idx = (action["start_line"] - 1) if action["start_line"] is not None else 0
@@ -231,6 +231,7 @@ class SearchTextTool(ToolDefinition):
                 "max_files",
                 "max_file_bytes",
                 "max_total_bytes",
+                "status_code",
             },
         )
         regex = params.get("regex", False)
@@ -246,7 +247,7 @@ class SearchTextTool(ToolDefinition):
                 re.compile(query)
             except re.error as exc:
                 raise ValueError("regex pattern is invalid") from exc
-        return {
+        action = {
             "action_type": self.name,
             "query": query,
             "regex": regex,
@@ -261,6 +262,7 @@ class SearchTextTool(ToolDefinition):
                 params.get("max_total_bytes", 20_000_000), "max_total_bytes", 1, 50_000_000
             ),
         }
+        return _attach_status_code(action, params)
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         action = self.plan_action(params)
@@ -333,16 +335,17 @@ class GlobFilesTool(ToolDefinition):
     runner_managed: bool = False
 
     def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
-        _reject_unknown_params(params, {"pattern", "path", "max_matches"})
+        _reject_unknown_params(params, {"pattern", "path", "max_matches", "status_code"})
         pattern = _required_string(params, "pattern")
         if pattern.startswith("/") or ".." in Path(pattern).parts:
             raise ValueError("pattern must stay inside the workspace")
-        return {
+        action = {
             "action_type": self.name,
             "pattern": pattern,
             "path": _optional_path(params),
             "max_matches": _bounded_int(params.get("max_matches", 200), "max_matches", 1, 5_000),
         }
+        return _attach_status_code(action, params)
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         from onecode.kernel.code_index import glob_workspace
@@ -359,8 +362,9 @@ class OutlineTool(ToolDefinition):
     runner_managed: bool = False
 
     def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
-        _reject_unknown_params(params, {"path"})
-        return {"action_type": self.name, "path": _required_string(params, "path")}
+        _reject_unknown_params(params, {"path", "status_code"})
+        action = {"action_type": self.name, "path": _required_string(params, "path")}
+        return _attach_status_code(action, params)
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         from onecode.kernel.code_index import outline_python
@@ -423,7 +427,7 @@ class GitCommitTool(ToolDefinition):
     runner_managed: bool = False
 
     def plan_action(self, params: dict[str, Any]) -> dict[str, Any]:
-        _reject_unknown_params(params, {"message", "paths"})
+        _reject_unknown_params(params, {"message", "paths", "status_code"})
         message = _required_string(params, "message")
         if len(message) > 500:
             raise ValueError("message is too long")
@@ -432,7 +436,8 @@ class GitCommitTool(ToolDefinition):
             raise ValueError("paths must be a non-empty bounded string list")
         if not all(isinstance(item, str) and item and len(item) <= 4_096 for item in paths):
             raise ValueError("paths must be a non-empty bounded string list")
-        return {"action_type": self.name, "message": message, "paths": list(paths)}
+        action = {"action_type": self.name, "message": message, "paths": list(paths)}
+        return _attach_status_code(action, params)
 
     def execute(self, params: dict[str, Any], workspace: Path) -> dict[str, Any]:
         action = self.plan_action(params)

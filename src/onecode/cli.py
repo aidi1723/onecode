@@ -386,7 +386,7 @@ def build_run_plan_repair_prompt(
 ) -> str:
     failed_verifiers = [verifier for verifier in verifier_results if verifier.get("status") != "passed"]
     verifier_lines = []
-    precision_targets = []
+    precision_targets: list[str] = []
     for verifier in failed_verifiers:
         tail = str(verifier.get("stderr_tail") or "")
         m = re.search(r"(AssertionError: [^\n]+)", tail)

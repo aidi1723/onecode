@@ -525,9 +525,24 @@ def run_two_stage_verifier(
         if stage1_result.status != "passed":
             return stage1_result, results
 
+    import os
+    import shlex
+
+    host_cmd_env = os.environ.get("ONECODE_HOST_VERIFIER_CMD")
+    has_host_script = (workspace / "verifier.py").is_file()
+    if host_cmd_env:
+        stage2_cmd = shlex.split(host_cmd_env)
+        stage2_id = "host-verifier"
+    elif has_host_script and not (workspace / "tests").is_dir():
+        stage2_cmd = ["python3", "verifier.py"]
+        stage2_id = "host-verifier"
+    else:
+        stage2_cmd = ["python3", "-m", "unittest", "discover", "-s", "tests"]
+        stage2_id = "python-unittest"
+
     stage2_spec = VerifierSpec(
-        id="python-unittest",
-        command=["python3", "-m", "unittest", "discover", "-s", "tests"],
+        id=stage2_id,
+        command=stage2_cmd,
         cwd=".",
         timeout_ms=timeout_ms,
     )
