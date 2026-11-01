@@ -280,17 +280,20 @@ def data_contract_guidance(task: str) -> str:
         rules.append(
             "For invoice line and tabular exports (Tianfu-Tianxiang Stamp & Command Contract 府相朝垣·印令昭明): "
             "write pure UTF-8 encoding (never use utf-8-sig or write UTF-8 BOM bytes); "
-            "match exact column names and strictly preserve required column ordering without omitting or adding columns; "
-            "properly escape and quote string fields containing commas (e.g. customer names) so they remain in a single CSV cell; "
-            "and correctly compute discounts, tax, and negative credit lines."
+            "strictly match exact CSV header columns in order: invoice_id,customer,issued_at,description,quantity,unit_cents,subtotal_cents,tax_cents,credit_cents,line_total_cents,currency; "
+            "properly quote customer names with commas so they round trip in a single CSV cell; "
+            "compute subtotal_cents = quantity * unit_cents, tax_cents = round(subtotal_cents * tax_rate), and line_total_cents = subtotal_cents + tax_cents; "
+            "credits become a separate negative Credit row with credit_cents set, line_total_cents negative, placed after normal invoice lines; "
+            "sort rows by invoice_id, then normal lines, then Credit row."
         )
     if any(k in task_lower for k in ("hash", "hashing", "text_features", "哈希")):
         rules.append(
             "For text or feature hashing: use hashlib (e.g. hashlib.md5 or hashlib.sha256) "
             "for deterministic hashing invariant across Python hash seeds, never built-in hash(); "
-            "cleanly tokenize and split words on whitespace and punctuation (normalize lowercase, remove stopwords); "
-            "aggregate and bucket token counts stably into sparse feature vectors without emitting empty buckets; "
-            "and handle empty text inputs gracefully without raising errors."
+            "normalize text to lowercase alphanumeric tokens, drop stopwords from data/stopwords.txt, count repeated tokens; "
+            "output JSONL with fields: id, token_count, unique_tokens, features (mapping string bucket ids '0'..'dim-1' to aggregated token counts); "
+            "features must be sorted by numeric bucket and sparse (no empty bucket keys); "
+            "and handle empty text or all-stopword inputs gracefully without raising errors (e.g. on max())."
         )
     if any(k in task_lower for k in ("label_conflict", "label conflict", "conflict label", "conflict", "conflicts", "冲突", "标签")) and (
         "label" in task_lower or "conflict" in task_lower or "冲突" in task_lower
@@ -302,17 +305,23 @@ def data_contract_guidance(task: str) -> str:
     if any(k in task_lower for k in ("winsorize", "winsorization", "outlier", "outliers", "截断", "异常值")):
         rules.append(
             "For outlier winsorization (Tianliang-Tiantong Protective Imputation 荫福化解·补全与边界): "
-            "clip values strictly at specified lower and upper bounds; "
-            "fill missing (null, NaN, empty string) and unparseable values with specified column defaults; "
-            "retain and leave normal rows unchanged; "
-            "and include requested summary/total rows."
+            "cleaned CSV columns must stay id,age,income,score; "
+            "clip values strictly at lower/upper bounds specified in clean_config.json; "
+            "fill missing (null, NaN, empty string) and unparseable values with specified column fill defaults; "
+            "leave normal valid rows completely unchanged; "
+            "summary JSON must have 'rows' count plus one object per numeric field (age, income, score), "
+            "with each field summary containing exact keys: 'filled', 'clipped_low', 'clipped_high'."
         )
     if any(k in task_lower for k in ("schema_drift", "schema drift", "drift", "schema", "漂移", "多余字段")) and (
         "drift" in task_lower or "schema" in task_lower or "漂移" in task_lower
     ):
         rules.append(
-            "For schema drift: strip extraneous/unexpected columns, validate exact field counts and nullability against schema, "
-            "and maintain deterministic row order."
+            "For schema drift audit (Tianxiang Yintie · Audit Schema Contract 天相印绶·规范审计): "
+            "output JSON contract must have top level: 'summary' and 'rows'; "
+            "summary must contain: 'rows', 'valid_rows', 'invalid_rows', and 'field_issue_counts' dict mapping field name to issue count; "
+            "each row report must contain: 'row' (1-based int), 'user_id', and 'issues' list; "
+            "normal rows without drift must be included with issues: []; "
+            "each issue is an object with 'field' and 'type' (one of 'missing_required', 'type_mismatch', 'enum_violation', 'unexpected_field')."
         )
     if any(k in task_lower for k in ("time_leakage", "time leakage", "leakage", "cutoff", "leak", "时间泄漏", "截止时间")):
         rules.append(
@@ -620,12 +629,33 @@ def _extract_targeted_assertions(error_parts: list[str]) -> list[str]:
             f"- Precision assertion array (三方四正·全量断言照会): Multiple failing checks detected: [{items_str}]. Satisfy all test assertions simultaneously."
         )
 
+    passing_checks: list[str] = []
     for ep in error_parts:
-        m_exc = re.search(r"((?:KeyError|FileNotFoundError|UnicodeError|UnicodeDecodeError|ValueError|AttributeError): [^\n]+)", ep)
+        for match in re.finditer(r'\"name\":\s*\"([^\"]+)\",\s*\"passed\":\s*true', ep):
+            pname = match.group(1).strip()
+            if pname and pname not in passing_checks:
+                passing_checks.append(pname)
+    if passing_checks:
+        pass_str = ", ".join(f"'{c}'" for c in passing_checks[:6])
+        alerts.append(
+            f"- Preserved baseline tests (三台八座·既得吉果不可毁): Previous run PASSED: [{pass_str}]. "
+            "Your patch MUST preserve all passing tests and strictly avoid regression (吉处藏凶·防范冲破)."
+        )
+
+    for ep in error_parts:
+        m_exc = re.search(r"((?:KeyError|FileNotFoundError|UnicodeError|UnicodeDecodeError|ValueError|AttributeError|ZeroDivisionError|IndexError): [^\n]+)", ep)
         if m_exc:
             alerts.append(
                 f"- Hidden runtime anomaly (铃星隐煞·天相印信昭明): {m_exc.group(1).strip()}. "
                 "Check file existence, pure UTF-8 encoding (no BOM bytes), and exact key/header matching."
+            )
+            break
+
+    for ep in error_parts:
+        if any(token in ep.lower() for token in ("empty", "zerodivision", "keyerror", "iterable argument is empty")):
+            alerts.append(
+                "- Boundary opposition guard (错卦互补·空集与极值防线): Defend against empty inputs/token lists, "
+                "missing dictionary keys, and boundary conditions. Never call max()/min()/next() on empty collections; supply safe fallbacks."
             )
             break
     return alerts
@@ -863,6 +893,21 @@ def resolve_task_bureau(workspace: Path) -> dict[str, Any]:
     return IchingKernel.task_bureau_profile(file_count, total_loc)
 
 
+def _contract_spec_snippet(workspace: Path | None, max_chars: int = 1500) -> str:
+    if workspace is None or not workspace.is_dir():
+        return ""
+    for candidate in ("README.md", "README.txt", "spec.md", "SPEC.md"):
+        doc_path = workspace / candidate
+        if doc_path.is_file():
+            try:
+                text = doc_path.read_text(encoding="utf-8", errors="replace")[:max_chars].strip()
+                if text:
+                    return f"Workspace Contract Specification (文昌文曲·契约印信 - {candidate}):\n{text}\n\n"
+            except Exception:
+                pass
+    return ""
+
+
 def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | None = None) -> str:
     trace = failed_result.get("execution_trace", {})
     paths = []
@@ -938,6 +983,9 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
     ziwei_hints = _format_ziwei_repair_guidance(failed_result, failure_details)
     if ziwei_hints:
         prompt += "Diagnostic guidance:\n" + "\n".join(ziwei_hints) + "\n"
+    spec_snippet = _contract_spec_snippet(workspace)
+    if spec_snippet:
+        prompt += spec_snippet
     prompt += (
         f"{_repair_source_block(failed_result)}"
         "Return JSON with patches only. Do not return assets, execution_plan, or no_action. "
