@@ -2725,7 +2725,23 @@ def _run_model_task_repair_loop(
         merged = merge_repair_result(failed_result, repair_result, repair_attempt_count=attempt)
         if repair_result.get("status") == "completed":
             return _with_sandbox_tests(merged, workspace, sandbox_config)
+        if sandbox_config is not None and (repair_result.get("completed_count", 0) > 0 or _modified_paths_from_result(repair_result)):
+            provisional = dict(merged)
+            provisional["status"] = "completed"
+            provisional["reason"] = None
+            verified = _with_sandbox_tests(provisional, workspace, sandbox_config)
+            if verified.get("status") == "completed" and verified.get("reason") is None:
+                verified["repaired"] = True
+                return verified
         failed_result = merged
+    if sandbox_config is not None and failed_result.get("status") != "completed":
+        provisional = dict(failed_result)
+        provisional["status"] = "completed"
+        provisional["reason"] = None
+        verified = _with_sandbox_tests(provisional, workspace, sandbox_config)
+        if verified.get("status") == "completed" and verified.get("reason") is None:
+            verified["repaired"] = True
+            return verified
     return failed_result
 
 

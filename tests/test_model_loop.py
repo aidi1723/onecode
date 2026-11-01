@@ -2950,6 +2950,53 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
         self.assertIn("三方四正·全量断言照会", guidance_text)
         self.assertIn("KeyError: 'invoice_id'", guidance_text)
 
+    def test_repair_loop_short_circuits_when_partial_patch_passes_verifier(self):
+        from unittest.mock import patch, MagicMock
+        from onecode.kernel.model_loop import _run_model_task_repair_loop
+        from onecode.kernel.model_provider import ModelPlan
+
+        mock_plan = ModelPlan(task="task", assets=[], patches=[], execution_steps=[MagicMock()])
+        mock_repair_result = {
+            "status": "halted",
+            "reason": "patch_search_not_found",
+            "completed_count": 1,
+            "assets": [{"path": "app/main.py"}],
+        }
+        mock_verified = {
+            "status": "completed",
+            "reason": None,
+            "host_reward": 1.0,
+        }
+
+        with patch("onecode.kernel.model_loop.traced_provider_plan", return_value=(mock_plan, None)), \
+             patch("onecode.kernel.model_loop.synthesize_single_asset_repair", return_value=mock_plan), \
+             patch("onecode.kernel.model_loop.is_patch_only_repair_plan", return_value=True), \
+             patch("onecode.kernel.model_loop.execute_model_plan", return_value=mock_repair_result), \
+             patch("onecode.kernel.model_loop._with_sandbox_tests", return_value=mock_verified):
+            res = _run_model_task_repair_loop(
+                result={"status": "verifier_failed", "reason": "verifier_failed"},
+                task="test task",
+                workspace=Path("/tmp"),
+                run_metadata={"bureau_turn_budget": 2},
+                max_repair_attempts=2,
+                active_provider=MagicMock(),
+                model_context=MagicMock(),
+                trace_path=Path("/tmp/trace.jsonl"),
+                provider_config=MagicMock(),
+                resolved_model="test-model",
+                http_timeout_seconds=30.0,
+                planning_context={"safe_agent": {}},
+                run_id="run-1",
+                resume_from_run_id=None,
+                require_explicit_approval=False,
+                execution_approval=None,
+                on_turn=None,
+                sandbox_config=MagicMock(),
+            )
+        self.assertEqual(res.get("status"), "completed")
+        self.assertIsNone(res.get("reason"))
+        self.assertTrue(res.get("repaired"))
+
 
 if __name__ == "__main__":
     unittest.main()
