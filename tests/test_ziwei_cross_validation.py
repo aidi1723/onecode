@@ -441,6 +441,14 @@ class ZiweiCrossValidationTests(unittest.TestCase):
         self.assertEqual(p_guan["pattern"], "化忌入官禄")
         self.assertEqual(p_guan["action"], "repair")
 
+        # 7b. 陀罗暗滞 (Repair stall with no test progress)
+        p_tuoluo = IchingKernel.ziwei_pattern_matrix_profile(
+            turn_number=3, current_status=32, verifier_passed=False, consecutive_repair_stalls=1
+        )
+        self.assertEqual(p_tuoluo["pattern"], "陀罗暗滞")
+        self.assertEqual(p_tuoluo["action"], "pivot_hypothesis")
+        self.assertEqual(p_tuoluo["remedy"], "force_algorithmic_pivot")
+
         # 8. 三奇加会 (Pure yang 63, all clean)
         p_sanqi = IchingKernel.ziwei_pattern_matrix_profile(
             turn_number=5, current_status=63, ast_valid=True, token_budget_ok=True, verifier_passed=True, environment_ok=True

@@ -2918,6 +2918,38 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
         self.assertEqual(len(normalized["patches"]), 1)
         self.assertEqual(normalized["patches"][0]["path"], "app/clean.py")
 
+    def test_data_contract_guidance_invoice_and_export(self):
+        from onecode.kernel.model_loop import data_contract_guidance
+
+        guidance = data_contract_guidance("导出账单明细 CSV 表格")
+        self.assertIn("府相朝垣·印令昭明", guidance)
+        self.assertIn("never use utf-8-sig", guidance)
+
+    def test_format_ziwei_repair_guidance_tuo_luo_and_hidden_runtime_anomaly(self):
+        from onecode.kernel.model_loop import _format_ziwei_repair_guidance
+
+        failed_res = {
+            "status": "halted",
+            "reason": "verifier_failed",
+            "verifier_results": [
+                {
+                    "stderr_tail": "KeyError: 'invoice_id'\n",
+                    "stdout_tail": "- [FAIL] missing age filled\n- [FAIL] bad age filled\n- [FAIL] age low/high clipped\n",
+                    "reason": "verifier_failed",
+                }
+            ],
+            "turn_history": [
+                {"turn_id": 1, "branch_name": "子", "modified_files": ["app/clean.py"], "reason": "verifier_failed"},
+                {"turn_id": 2, "branch_name": "丑", "modified_files": ["app/clean.py"], "reason": "verifier_failed"},
+            ],
+        }
+        guidance = _format_ziwei_repair_guidance(failed_res, ["verifier_failed"])
+        guidance_text = " ".join(guidance)
+        self.assertIn("陀罗暗滞·化权破滞", guidance_text)
+        self.assertIn("铃星隐煞·天相印信昭明", guidance_text)
+        self.assertIn("三方四正·全量断言照会", guidance_text)
+        self.assertIn("KeyError: 'invoice_id'", guidance_text)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -274,10 +274,23 @@ def narrow_plan_prompt(task: str, failure: dict[str, Any], written: list[str] | 
 def data_contract_guidance(task: str) -> str:
     task_lower = task.lower()
     rules: list[str] = []
-    if any(k in task_lower for k in ("hash", "hashing", "哈希")):
+    if any(k in task_lower for k in ("invoice", "billing", "credit", "账单", "发票", "导出", "报表")) or (
+        any(k in task_lower for k in ("export", "table", "csv")) and any(k in task_lower for k in ("line", "lines", "order", "item", "customer"))
+    ):
         rules.append(
-            "For text or feature hashing, use hashlib (e.g. hashlib.md5 or hashlib.sha256) "
-            "for deterministic hashing invariant across Python hash seeds, never built-in hash()."
+            "For invoice line and tabular exports (Tianfu-Tianxiang Stamp & Command Contract 府相朝垣·印令昭明): "
+            "write pure UTF-8 encoding (never use utf-8-sig or write UTF-8 BOM bytes); "
+            "match exact column names and strictly preserve required column ordering without omitting or adding columns; "
+            "properly escape and quote string fields containing commas (e.g. customer names) so they remain in a single CSV cell; "
+            "and correctly compute discounts, tax, and negative credit lines."
+        )
+    if any(k in task_lower for k in ("hash", "hashing", "text_features", "哈希")):
+        rules.append(
+            "For text or feature hashing: use hashlib (e.g. hashlib.md5 or hashlib.sha256) "
+            "for deterministic hashing invariant across Python hash seeds, never built-in hash(); "
+            "cleanly tokenize and split words on whitespace and punctuation (normalize lowercase, remove stopwords); "
+            "aggregate and bucket token counts stably into sparse feature vectors without emitting empty buckets; "
+            "and handle empty text inputs gracefully without raising errors."
         )
     if any(k in task_lower for k in ("label_conflict", "label conflict", "conflict label", "conflict", "conflicts", "冲突", "标签")) and (
         "label" in task_lower or "conflict" in task_lower or "冲突" in task_lower
@@ -288,7 +301,10 @@ def data_contract_guidance(task: str) -> str:
         )
     if any(k in task_lower for k in ("winsorize", "winsorization", "outlier", "outliers", "截断", "异常值")):
         rules.append(
-            "For outlier winsorization: clip values at specified upper/lower percentiles, fill missing values, "
+            "For outlier winsorization (Tianliang-Tiantong Protective Imputation 荫福化解·补全与边界): "
+            "clip values strictly at specified lower and upper bounds; "
+            "fill missing (null, NaN, empty string) and unparseable values with specified column defaults; "
+            "retain and leave normal rows unchanged; "
             "and include requested summary/total rows."
         )
     if any(k in task_lower for k in ("schema_drift", "schema drift", "drift", "schema", "漂移", "多余字段")) and (
@@ -567,6 +583,62 @@ def format_verifier_diagnostics(stdout: str, stderr: str) -> str:
     return "\n".join(diagnostics)
 
 
+def _extract_targeted_assertions(error_parts: list[str]) -> list[str]:
+    alerts: list[str] = []
+    matched_assertion = False
+    for ep in error_parts:
+        m = re.search(r"(AssertionError: [^\n]+)", ep)
+        if m:
+            alerts.append(
+                f"- Precision assertion target (水生木·精准断言): {m.group(1).strip()}. Focus surgical edit directly on resolving this discrepancy; do not repeat previous values."
+            )
+            matched_assertion = True
+            break
+    if not matched_assertion:
+        for ep in error_parts:
+            m = re.search(r"-\s*\[FAIL\]\s*([^:\n]+)", ep)
+            if m:
+                alerts.append(
+                    f"- Precision assertion target (水生木·精准断言): Failing test check '{m.group(1).strip()}'. Focus surgical edit directly on satisfying this test condition."
+                )
+                break
+
+    failing_checks: list[str] = []
+    for ep in error_parts:
+        for match in re.finditer(r"-\s*\[FAIL\]\s*([^:\n]+)", ep):
+            chk = match.group(1).strip()
+            if chk and chk not in failing_checks:
+                failing_checks.append(chk)
+    if len(failing_checks) > 1:
+        items_str = ", ".join(f"'{c}'" for c in failing_checks[:8])
+        alerts.append(
+            f"- Precision assertion array (三方四正·全量断言照会): Multiple failing checks detected: [{items_str}]. Satisfy all test assertions simultaneously."
+        )
+
+    for ep in error_parts:
+        m_exc = re.search(r"((?:KeyError|FileNotFoundError|UnicodeError|UnicodeDecodeError|ValueError|AttributeError): [^\n]+)", ep)
+        if m_exc:
+            alerts.append(
+                f"- Hidden runtime anomaly (铃星隐煞·天相印信昭明): {m_exc.group(1).strip()}. "
+                "Check file existence, pure UTF-8 encoding (no BOM bytes), and exact key/header matching."
+            )
+            break
+    return alerts
+
+
+def _tuo_luo_stagnation_alert(turn_history: list[dict[str, Any]]) -> list[str]:
+    alerts: list[str] = []
+    if len(turn_history) >= 2:
+        last = turn_history[-1]
+        if last.get("reason") in {"verifier_failed", "command_failed", "repair_plan_must_use_patches_only"}:
+            alerts.append(
+                "- Stagnation warning (陀罗暗滞·化权破滞): Previous repair attempt did not resolve the failure. "
+                "Your previous patch hypothesis was insufficient. Pivot away from previous logic: "
+                "do NOT re-apply similar minor edits; revise the core algorithm/data transformation to satisfy all failing checks."
+            )
+    return alerts
+
+
 def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details: list[str]) -> list[str]:
     """Derive targeted Ziwei diagnostic guidance for the repair prompt."""
     guidance: list[str] = []
@@ -604,24 +676,9 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
                 f"- Causal root trace (来因宫 {cause['incoming_branch']}): Error originates from modifications in {cause['culprit_file']} (Turn {cause['incoming_turn_id']}). Focus patches on resolving this file."
             )
 
-    # Water Nourishing Wood: Extract targeted assertion discrepancy (水生木·精准断言)
-    matched_assertion = False
-    for ep in error_parts:
-        m = re.search(r"(AssertionError: [^\n]+)", ep)
-        if m:
-            guidance.append(
-                f"- Precision assertion target (水生木·精准断言): {m.group(1).strip()}. Focus surgical edit directly on resolving this discrepancy; do not repeat previous values."
-            )
-            matched_assertion = True
-            break
-    if not matched_assertion:
-        for ep in error_parts:
-            m = re.search(r"-\s*\[FAIL\]\s*([^:\n]+)", ep)
-            if m:
-                guidance.append(
-                    f"- Precision assertion target (水生木·精准断言): Failing test check '{m.group(1).strip()}'. Focus surgical edit directly on satisfying this test condition."
-                )
-                break
+    # Water Nourishing Wood & Tuo Luo/Ling Xing Diagnostics
+    guidance.extend(_extract_targeted_assertions(error_parts))
+    guidance.extend(_tuo_luo_stagnation_alert(turn_history))
 
     # 2. Comprehensive Ziwei Pattern Matrix Guidance (格局矩阵诊断)
     str_result = str(failed_result).lower()
@@ -639,6 +696,10 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
     except (ValueError, TypeError):
         resolved_status = 32
 
+    consecutive_repair_stalls = sum(
+        1 for t in turn_history[1:] if t.get("reason") in {"verifier_failed", "command_failed", "repair_plan_must_use_patches_only"}
+    ) if len(turn_history) >= 2 else 0
+
     pattern_profile = IchingKernel.ziwei_pattern_matrix_profile(
         turn_number=len(turn_history) + 1,
         current_status=resolved_status,
@@ -646,12 +707,18 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
         verifier_passed=not has_verifier_fail,
         consecutive_syntax_errors=syntax_error_count,
         undefined_symbols_count=undefined_symbols_count,
+        consecutive_repair_stalls=consecutive_repair_stalls,
     )
     p_name = pattern_profile["pattern"]
     if p_name == "羊陀夹忌":
         guidance.append(
             "- Deadlock alert (羊陀夹忌): Verifier failed while context/file was truncated. Do NOT attempt to rewrite the entire file. Emit surgical search_block/replace_block patches targeting only changed lines."
         )
+    elif p_name == "陀罗暗滞":
+        if not any("陀罗暗滞" in g for g in guidance):
+            guidance.append(
+                "- Stagnation warning (陀罗暗滞·化权破滞): Repair attempt yielded identical failures. The previous repair hypothesis failed. Pivot away from previous logic and revise core calculations."
+            )
     elif p_name == "火铃夹命":
         guidance.append(
             "- Frantic retry warning (火铃夹命): Repeated syntax or patch mismatch errors. Take a step back and examine the file outline carefully before submitting another patch."

@@ -221,6 +221,7 @@ def _evaluate_ziwei_pattern(
     consecutive_syntax_errors: int = 0,
     undefined_symbols_count: int = 0,
     fatal_regression: bool = False,
+    consecutive_repair_stalls: int = 0,
 ) -> dict[str, Any]:
     """Classify execution state against classical Ziwei formations (格局矩阵)."""
     if verifier_passed is False and not token_budget_ok:
@@ -270,6 +271,14 @@ def _evaluate_ziwei_pattern(
             "action": "synthesize",
             "remedy": "break_read_hesitation_loop",
             "description": "Read-only hesitation loop: multiple read turns without code modification.",
+        }
+    if verifier_passed is False and consecutive_repair_stalls >= 1:
+        return {
+            "pattern": "陀罗暗滞",
+            "level": "caution",
+            "action": "pivot_hypothesis",
+            "remedy": "force_algorithmic_pivot",
+            "description": "Tuo Luo stagnation: repair patch produced no test progression. Pivot away from previous hypothesis.",
         }
     if verifier_passed is False:
         return {
@@ -6272,6 +6281,7 @@ class IchingZiweiCoreMixin(IchingZiweiCertificatesMixin):
         consecutive_syntax_errors: int = 0,
         undefined_symbols_count: int = 0,
         fatal_regression: bool = False,
+        consecutive_repair_stalls: int = 0,
     ) -> dict[str, Any]:
         """Classify execution state against classical Ziwei formations (格局矩阵)."""
         return _evaluate_ziwei_pattern(
@@ -6285,6 +6295,7 @@ class IchingZiweiCoreMixin(IchingZiweiCertificatesMixin):
             consecutive_syntax_errors=consecutive_syntax_errors,
             undefined_symbols_count=undefined_symbols_count,
             fatal_regression=fatal_regression,
+            consecutive_repair_stalls=consecutive_repair_stalls,
         )
 
     @classmethod
