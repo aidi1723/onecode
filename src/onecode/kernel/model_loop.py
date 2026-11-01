@@ -283,7 +283,9 @@ def data_contract_guidance(task: str) -> str:
             "strictly match exact CSV header columns in order: invoice_id,customer,issued_at,description,quantity,unit_cents,subtotal_cents,tax_cents,credit_cents,line_total_cents,currency; "
             "properly quote customer names with commas so they round trip in a single CSV cell; "
             "compute subtotal_cents = quantity * unit_cents, tax_cents = round(subtotal_cents * tax_rate), and line_total_cents = subtotal_cents + tax_cents; "
-            "credits become a separate negative Credit row with credit_cents set, line_total_cents negative, placed after normal invoice lines; "
+            "for normal lines, credit_cents must be empty (''); "
+            "credits become a separate negative row with description strictly 'Credit' (not 'Credit: reason', exactly 'Credit'), "
+            "where credit_cents is the positive credit amount (e.g. '300'), line_total_cents is negative (e.g. '-300'), quantity and unit_cents are empty, and subtotal_cents/tax_cents are 0; "
             "sort rows by invoice_id, then normal lines, then Credit row."
         )
     if any(k in task_lower for k in ("hash", "hashing", "text_features", "哈希")):
@@ -309,6 +311,7 @@ def data_contract_guidance(task: str) -> str:
             "clip values strictly at lower/upper bounds specified in clean_config.json; "
             "fill missing (null, NaN, empty string) and unparseable values with specified column fill defaults; "
             "leave normal valid rows completely unchanged; "
+            "in cleaned CSV output, format whole numbers without trailing '.0' (e.g. write '1' not '1.0', '0' not '0.0', '35' not '35.0'; keep standard representation for true decimals like '0.8', '0.5'); "
             "summary JSON must have 'rows' count plus one object per numeric field (age, income, score), "
             "with each field summary containing exact keys: 'filled', 'clipped_low', 'clipped_high'."
         )
@@ -656,6 +659,22 @@ def _extract_targeted_assertions(error_parts: list[str]) -> list[str]:
             alerts.append(
                 "- Boundary opposition guard (错卦互补·空集与极值防线): Defend against empty inputs/token lists, "
                 "missing dictionary keys, and boundary conditions. Never call max()/min()/next() on empty collections; supply safe fallbacks."
+            )
+            break
+
+    for fc in failing_checks:
+        fc_low = fc.lower()
+        if "credit" in fc_low or "line_total" in fc_low:
+            alerts.append(
+                "- Credit voucher rule (府相朝垣·库印分明): For invoice credit rows, "
+                "description MUST be strictly 'Credit', credit_cents must be positive integer (e.g. '300'), "
+                "and line_total_cents must be negative integer (e.g. '-300')."
+            )
+            break
+        if "score" in fc_low or "clipped" in fc_low or "format" in fc_low:
+            alerts.append(
+                "- Canonical number formatting (文昌化科·整型规范): In CSV outputs, "
+                "format whole numbers without trailing '.0' (e.g. write '1' not '1.0', '0' not '0.0')."
             )
             break
     return alerts
