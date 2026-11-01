@@ -301,8 +301,15 @@ def data_contract_guidance(task: str) -> str:
         "label" in task_lower or "conflict" in task_lower or "冲突" in task_lower
     ):
         rules.append(
-            "For label conflicts: identify and deduplicate conflicting labels, count their occurrences accurately, "
-            "and output records sorted deterministically by specified keys."
+            "For label conflict resolution (Zhen-Kan Cleansing & Priority Contract 震坎涤瑕·权重定争): "
+            "read source priority from data/source_priority.json (larger integer priority wins); "
+            "exact duplicate rows count once in reports and deduped_reports; "
+            "invalid sources or non-binary labels go to rejects.json under 'invalid'; "
+            "choose the highest source priority first; "
+            "if top-priority rows for one entity still contain more than one distinct label, reject the entity under 'conflicts' in rejects.json; "
+            "if top-priority label is unique, select the newest event_time within that winning label and priority; "
+            "cleaned.json must contain 'samples' and 'summary'; sample rows include: entity_id, label, source, event_time, reports; "
+            "rejects.json must contain 'conflicts' and 'invalid'."
         )
     if any(k in task_lower for k in ("winsorize", "winsorization", "outlier", "outliers", "截断", "异常值")):
         rules.append(
@@ -328,13 +335,28 @@ def data_contract_guidance(task: str) -> str:
         )
     if any(k in task_lower for k in ("time_leakage", "time leakage", "leakage", "cutoff", "leak", "时间泄漏", "截止时间")):
         rules.append(
-            "For time leakage checks: enforce cutoff timestamps strictly (exclude events > cutoff), ensure accurate filtered row counts, "
-            "and preserve required output order."
+            "For time leakage audit (Tianliang Canopy Audit 荫星照微·截止容限): "
+            "feature timestamps must be <= cutoff_time plus a 5 minute tolerance (tolerance_minutes=5); "
+            "samples with feature timestamps > cutoff_time + tolerance must go into rejects.json; "
+            "clean.jsonl keeps clean samples in input order with fields: sample_id, cutoff_time, feature_count; "
+            "rejects.json must contain 'summary' (with clean, rejected, tolerance_minutes) and 'rejected' (list of objects with sample_id, cutoff_time, leaked_features)."
         )
     if any(k in task_lower for k in ("support_sla", "support sla", "sla", "ticket", "tickets", "工单")):
         rules.append(
-            "For support SLA calculations: filter to closed tickets only, aggregate and sort groups deterministically, "
-            "and append overall total/summary rows."
+            "For support SLA metrics (Tianxiang Inspection 督考巡历·工单履约): "
+            "high priority first response SLA is 60 minutes; normal priority is 240 minutes; "
+            "missing first response (or response > threshold) counts as an sla_miss; "
+            "report.json must have: 'summary' (tickets, open_tickets, sla_misses, priority_counts) and 'teams'; "
+            "teams must be a list of team objects sorted alphabetically by team name, each with: "
+            "team, tickets, responded, closed, avg_first_response_minutes, avg_resolution_minutes, sla_misses; "
+            "avg_resolution_minutes is computed over closed tickets only; round averages to two decimal places."
+        )
+    if any(k in task_lower for k in ("cross_categorical", "cross categorical", "cross_features", "交叉特征")):
+        rules.append(
+            "For cross categorical features: read vocab from data/vocab.json; normalize categorical values by trimming and lowercasing; "
+            "output cross_features.jsonl with one row per input user_id; "
+            "fields: user_id, country_id, device_id, plan_id, channel_id, country_device_id, plan_channel_id; "
+            "never copy raw category strings into output."
         )
     if any(k in task_lower for k in ("train_serve", "train_serve_parity", "train-serve", "parity", "serving", "一致性", "训练推断")):
         rules.append(
