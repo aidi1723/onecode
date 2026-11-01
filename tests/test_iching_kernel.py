@@ -202,7 +202,7 @@ class TestIchingKernel(unittest.TestCase):
         from onecode.kernel.outcome_policy import agent_cycle_decision
 
         kun = IchingKernel.compute_status(IchingKernel.KUN, IchingKernel.KUN)
-        reasons = ("search_miss", "path_not_found", "read_target_not_file", "list_target_not_found")
+        reasons = ("search_miss", "path_not_found", "read_target_not_file", "list_target_not_found", "safe_read_skip")
         self.assertEqual(IchingKernel.SOFT_MISS_REASONS, frozenset(reasons))
         self.assertTrue({"sovereignty_breach", "permission_denied", "approval_required"}.isdisjoint(IchingKernel.SOFT_MISS_REASONS))
         for reason in reasons:

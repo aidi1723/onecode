@@ -271,8 +271,11 @@ def read_only_registry_execute(workspace: Path) -> Execute:
             return {"status": "halted", "reason": "tool_not_found"}
         try:
             outcome = tool.execute(params, workspace)
-        except PathGuardError:
-            return {"status": "halted", "reason": "sovereignty_breach"}
+        except PathGuardError as exc:
+            message = str(exc)
+            if message in {"path traversal is not allowed", "path escapes workspace root"}:
+                return {"status": "halted", "reason": "sovereignty_breach"}
+            return {"status": "completed", "reason": "safe_read_skip", "content": f"Read skipped: {message}"}
         except ValueError as exc:
             reason = str(exc)
             if reason not in {"path_not_found", "read_target_not_file", "list_target_not_found", "search_miss"}:

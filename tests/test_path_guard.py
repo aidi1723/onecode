@@ -29,6 +29,17 @@ class PathGuardTests(unittest.TestCase):
 
             self.assertFalse(outside.exists())
 
+    def test_read_probe_strips_a_leading_slash_inside_the_workspace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "app").mkdir()
+            (workspace / "app" / "export.py").write_text("VALUE = 1\n", encoding="utf-8")
+
+            target = PathGuard.resolve_read_target(workspace, "/app/export.py")
+
+            self.assertEqual(target, (workspace / "app" / "export.py").resolve())
+            self.assertEqual(target.read_text(encoding="utf-8"), "VALUE = 1\n")
+
     def test_rejects_absolute_path(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)

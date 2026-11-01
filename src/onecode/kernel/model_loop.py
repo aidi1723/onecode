@@ -14,6 +14,7 @@ from onecode.kernel.model_provider import (
     MissingModelApiKey,
     ModelExecutionStep,
     ModelPlan,
+    ModelPlanPatch,
     ModelProviderError,
     ModelProviderTimeout,
     OpenAIChatCompletionsProvider,
@@ -780,6 +781,7 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
     prompt += (
         f"{_repair_source_block(failed_result)}"
         "Return JSON with patches only. Do not return assets or execution_plan. "
+        'Use {"task":"repair verifier failure","patches":[{"path":"<file>","search_block":"<exact original lines>","replace_block":"<fixed lines>"}]}. '
         "Do not patch any path under tests/."
         + data_contract_guidance(task)
     )
@@ -819,6 +821,69 @@ def _drop_protected_changes(plan: ModelPlan, task: str) -> ModelPlan:
 
 def is_patch_only_repair_plan(plan: ModelPlan) -> bool:
     return bool(plan.patches) and not plan.assets and not plan.execution_steps
+
+
+def _repair_diff_blocks(before: str, after: str) -> tuple[str, str] | None:
+    if before == "" or before == after:
+        return None
+    before_lines = before.splitlines(keepends=True)
+    after_lines = after.splitlines(keepends=True)
+    prefix = 0
+    limit = min(len(before_lines), len(after_lines))
+    while prefix < limit and before_lines[prefix] == after_lines[prefix]:
+        prefix += 1
+    suffix = 0
+    while (
+        suffix < len(before_lines) - prefix
+        and suffix < len(after_lines) - prefix
+        and before_lines[-1 - suffix] == after_lines[-1 - suffix]
+    ):
+        suffix += 1
+    start = prefix
+    before_end = len(before_lines) - suffix
+    after_end = len(after_lines) - suffix
+    if prefix == before_end:
+        if prefix > 0:
+            start = prefix - 1
+        elif suffix > 0:
+            before_end = prefix + 1
+            after_end = prefix + 1
+        else:
+            return None
+    search = "".join(before_lines[start:before_end])
+    replace = "".join(after_lines[start:after_end])
+    if search == "" or before.count(search) != 1:
+        search, replace = before, after
+    if search == "" or before.count(search) != 1:
+        return None
+    return search, replace
+
+
+def synthesize_single_asset_repair(plan: ModelPlan, workspace: Path) -> ModelPlan:
+    """Turn one full-file rewrite of an existing source file into a unique patch."""
+    if plan.patches or plan.execution_steps or len(plan.assets) != 1 or plan.no_action_reason is not None:
+        return plan
+    asset = plan.assets[0]
+    if _is_test_path(asset.path):
+        return plan
+    try:
+        target = PathGuard.resolve_target(workspace, asset.path)
+    except PathGuardError:
+        return plan
+    if not target.is_file():
+        return plan
+    try:
+        before = target.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return plan
+    blocks = _repair_diff_blocks(before, asset.content)
+    if blocks is None:
+        return plan
+    search, replace = blocks
+    return ModelPlan(
+        task=plan.task,
+        patches=[ModelPlanPatch(path=asset.path, search_block=search, replace_block=replace)],
+    )
 
 
 def repair_rejected_result(
@@ -1961,6 +2026,8 @@ def _finish_verified_task(
         )
         if failure is not None:
             return failed_model_result(model_context, failure)
+        if plan is not None:
+            plan = synthesize_single_asset_repair(plan, workspace)
         if plan is None or not is_patch_only_repair_plan(plan) or _repair_touches_tests(plan):
             rejected = repair_rejected_result(current_checked, run_id, "repair_plan_must_use_patches_only", repair_attempt_count=attempt)
             transition = IchingKernel.transition(IchingKernel.classify_outcome("halted", rejected["reason"]))
@@ -2316,6 +2383,7 @@ def _run_model_task_repair_loop(
         if failure is not None:
             return failed_model_result(model_context, failure)
         assert repair_plan is not None
+        repair_plan = synthesize_single_asset_repair(repair_plan, workspace)
         if not is_patch_only_repair_plan(repair_plan):
             return repair_rejected_result(
                 failed_result,

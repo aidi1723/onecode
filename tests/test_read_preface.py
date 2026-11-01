@@ -212,6 +212,44 @@ class ReadPrefaceTests(unittest.TestCase):
         self.assertEqual(result["status"], "halted")
         self.assertEqual(result["reason"], "sovereignty_breach")
 
+    def test_leading_slash_probe_reads_the_workspace_file(self):
+        from onecode.kernel.read_preface import read_only_registry_execute, survey_reads
+
+        def propose(history, allowed):
+            del allowed
+            if history:
+                return []
+            return [{"tool_name": "read_text", "params": {"path": "/app/export.py"}}]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "app").mkdir()
+            (workspace / "app" / "export.py").write_text("VALUE = 1\n", encoding="utf-8")
+            result = survey_reads(workspace, "Read the export", propose, read_only_registry_execute(workspace))
+        self.assertEqual(result["status"], "completed")
+        self.assertIn("VALUE = 1", result["preface"])
+
+    def test_sensitive_read_probe_skips_and_survey_continues(self):
+        from onecode.kernel.read_preface import read_only_registry_execute, survey_reads
+
+        def propose(history, allowed):
+            del allowed
+            if not history:
+                return [{"tool_name": "read_text", "params": {"path": ".env"}}]
+            if len(history) == 1:
+                return [{"tool_name": "read_text", "params": {"path": "app/export.py"}}]
+            return []
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "app").mkdir()
+            (workspace / ".env").write_text("SECRET=1\n", encoding="utf-8")
+            (workspace / "app" / "export.py").write_text("VALUE = 2\n", encoding="utf-8")
+            result = survey_reads(workspace, "Read the export", propose, read_only_registry_execute(workspace))
+        self.assertEqual(result["status"], "completed")
+        self.assertNotIn("SECRET", result["preface"])
+        self.assertIn("VALUE = 2", result["preface"])
+
     def test_survey_continues_after_a_glob_without_a_pattern(self):
         from onecode.kernel.read_preface import read_only_registry_execute, survey_model_reads
 

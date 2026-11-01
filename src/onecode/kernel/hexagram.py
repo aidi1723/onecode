@@ -101,6 +101,7 @@ class IchingKernel(IchingProfileMixin, IchingDynamicsMixin, IchingCertificatesMi
         "path_not_found",
         "read_target_not_file",
         "list_target_not_found",
+        "safe_read_skip",
     })
 
     TRIGRAM_NAMES = {

@@ -91,9 +91,19 @@ class PathGuard:
         cls._reject_lexical_controls(resolved_relative)
         return target
 
+    @staticmethod
+    def normalize_read_probe(relative_path: str) -> str:
+        """Drop one leading slash so `/app/export.py` stays inside the workspace."""
+        if not isinstance(relative_path, str) or not relative_path.startswith("/"):
+            return relative_path
+        stripped = relative_path.lstrip("/")
+        if stripped == "" or ".." in Path(stripped).parts or Path(stripped).is_absolute():
+            return relative_path
+        return stripped
+
     @classmethod
     def resolve_read_target(cls, workspace_root: Path, relative_path: str) -> Path:
-        requested = cls._requested_relative_path(relative_path)
+        requested = cls._requested_relative_path(cls.normalize_read_probe(relative_path))
         if ".." in requested.parts:
             raise PathGuardError("path traversal is not allowed")
         if cls.is_sensitive_read_path(requested):

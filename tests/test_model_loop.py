@@ -856,6 +856,42 @@ class ModelLoopTests(unittest.TestCase):
             self.assertEqual((workspace / "tests" / "test_one.py").read_text(encoding="utf-8"), original)
             self.assertEqual(result["iching_transition_action"], "halt")
 
+    def test_single_file_rewrite_becomes_a_repair_patch(self):
+        from onecode.kernel.sandbox import SandboxConfig
+        from onecode.kernel.verifier import VerifierResult
+
+        write_plan = ModelPlan(
+            task="write",
+            assets=[ModelPlanAsset(path="src/one.py", content="VALUE = 0\n")],
+        )
+        rewrite = ModelPlan(
+            task="repair",
+            assets=[ModelPlanAsset(path="src/one.py", content="VALUE = 1\n")],
+        )
+        failed = VerifierResult(
+            id="python-unittest", status="failed", reason="verifier_failed", failure_kind="command_failed",
+            exit_code=1, duration_ms=1, stdout_tail="", stderr_tail="AssertionError",
+            stdout_sha256="0" * 64, stderr_sha256="0" * 64, cwd=".", command=["python3", "-m", "unittest"],
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "tests").mkdir()
+            (workspace / "tests" / "test_one.py").write_text("import unittest\n", encoding="utf-8")
+            with patch("onecode.kernel.verifier.run_verifier", return_value=failed):
+                result = run_model_task_wrapper(
+                    "fix src/one.py",
+                    workspace=workspace,
+                    run_id="repair-synthesizes-patch",
+                    api_key="key",
+                    model="m",
+                    provider=SequenceModelProvider([write_plan, rewrite]),
+                    execution_approval=lambda step: True,
+                    max_repair_attempts=1,
+                    sandbox_config=SandboxConfig(workspace=workspace, image="python:3.12-slim", network="none"),
+                )
+            self.assertNotEqual(result["reason"], "repair_plan_must_use_patches_only")
+            self.assertEqual((workspace / "src" / "one.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+
     def test_repair_prompt_includes_the_existing_source(self):
         from onecode.kernel.model_loop import repair_prompt
 
@@ -869,6 +905,8 @@ class ModelLoopTests(unittest.TestCase):
         self.assertIn("def bill_cents(kwh):", text)
         self.assertIn("return kwh * 10", text)
         self.assertIn("patches only", text)
+        self.assertIn("search_block", text)
+        self.assertIn("replace_block", text)
         self.assertIn("Do not patch any path under tests/", text)
 
     def test_repair_prompt_omits_test_paths(self):
@@ -2007,7 +2045,10 @@ class ModelLoopTests(unittest.TestCase):
                     ),
                     ModelPlan(
                         task="unsafe repair",
-                        assets=[ModelPlanAsset(path="src/generated.py", content="VALUE = 1\n")],
+                        assets=[
+                            ModelPlanAsset(path="src/generated.py", content="VALUE = 1\n"),
+                            ModelPlanAsset(path="src/other.py", content="VALUE = 2\n"),
+                        ],
                     ),
                 ]
             )
