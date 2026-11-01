@@ -295,6 +295,7 @@ def data_contract_guidance(task: str) -> str:
             "normalize text to lowercase alphanumeric tokens, drop stopwords from data/stopwords.txt, count repeated tokens; "
             "output JSONL with fields: id, token_count, unique_tokens, features (mapping string bucket ids '0'..'dim-1' to aggregated token counts); "
             "unique_tokens must be an integer count (int count of distinct filtered tokens, e.g. len(set(tokens))), NOT a list; "
+            "read input CSV using standard csv.DictReader or csv.reader (never line.split(',') because text fields contain commas); "
             "features must be sorted by numeric bucket and sparse (no empty bucket keys); "
             "and handle empty text or all-stopword inputs gracefully without raising errors (e.g. on max())."
         )
