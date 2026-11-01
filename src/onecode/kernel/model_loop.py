@@ -642,15 +642,6 @@ def _tuo_luo_stagnation_alert(turn_history: list[dict[str, Any]]) -> list[str]:
                 "edge cases (empty collections, zero values), and adjust implementation strategy rather than minor tweaks."
             )
     return alerts
-    if len(turn_history) >= 2:
-        last = turn_history[-1]
-        if last.get("reason") in {"verifier_failed", "command_failed", "repair_plan_must_use_patches_only"}:
-            alerts.append(
-                "- Stagnation warning (陀罗暗滞·化权破滞): Previous repair attempt did not resolve the failure. "
-                "Your previous patch hypothesis was insufficient. Pivot away from previous logic: "
-                "do NOT re-apply similar minor edits; revise the core algorithm/data transformation to satisfy all failing checks."
-            )
-    return alerts
 
 
 def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details: list[str]) -> list[str]:
