@@ -331,7 +331,10 @@ def data_contract_guidance(task: str) -> str:
             "summary must contain: 'rows', 'valid_rows', 'invalid_rows', and 'field_issue_counts' dict mapping field name to issue count; "
             "each row report must contain: 'row' (1-based int), 'user_id', and 'issues' list; "
             "normal rows without drift must be included with issues: []; "
-            "each issue is an object with 'field' and 'type' (one of 'missing_required', 'type_mismatch', 'enum_violation', 'unexpected_field')."
+            "each issue is an object with 'field' and 'type' (one of 'missing_required', 'type_mismatch', 'enum_violation', 'unexpected_field'); "
+            "for numeric float fields, integer inputs (e.g. 85, 0) are valid numbers and not type_mismatch (check isinstance(v, (int, float)) and not isinstance(v, bool)); "
+            "optional nullable fields allowing null/None must not be flagged as enum_violation or missing_required when null/None or empty; "
+            "and preserve stable input row order in output rows."
         )
     if any(k in task_lower for k in ("time_leakage", "time leakage", "leakage", "cutoff", "leak", "时间泄漏", "截止时间")):
         rules.append(
@@ -1888,6 +1891,8 @@ def _execution_rule_fields(
     transition = trace.global_transition
     fields: dict[str, Any] = {
         "global_status_code": trace.global_status_code,
+        "outcome_status_code": trace.global_status_code,
+        "transition_status_code": transition.status_code if transition is not None else None,
         "global_transition_action": transition.action if transition is not None else None,
         "global_transition_reason": transition.reason if transition is not None else None,
         "global_entropy": trace.global_entropy,

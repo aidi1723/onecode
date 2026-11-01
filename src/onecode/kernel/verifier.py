@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import sys
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
@@ -184,10 +184,18 @@ class VerifierResult:
     duration_ms: int
     stdout_tail: str
     stderr_tail: str
-    stdout_sha256: str
-    stderr_sha256: str
-    cwd: str
-    command: list[str]
+    stdout_sha256: str = ""
+    stderr_sha256: str = ""
+    cwd: str = ""
+    command: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if not self.stdout_sha256 and self.stdout_tail is not None:
+            object.__setattr__(self, "stdout_sha256", hashlib.sha256(self.stdout_tail.encode("utf-8")).hexdigest())
+        if not self.stderr_sha256 and self.stderr_tail is not None:
+            object.__setattr__(self, "stderr_sha256", hashlib.sha256(self.stderr_tail.encode("utf-8")).hexdigest())
+        if not self.cwd:
+            object.__setattr__(self, "cwd", ".")
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

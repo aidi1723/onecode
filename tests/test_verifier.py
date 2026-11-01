@@ -642,3 +642,23 @@ class VerifierExecutionTests(unittest.TestCase):
             self.assertEqual(all_results[0].id, "python-unittest-targeted")
             self.assertEqual(all_results[1].id, "python-unittest")
             self.assertEqual(mock_run.call_count, 2)
+
+    def test_verifier_result_backward_compatibility_defaults(self):
+        from onecode.kernel.verifier import VerifierResult
+
+        # When caller does not provide stdout_sha256, stderr_sha256, cwd, or command
+        res = VerifierResult(
+            id="legacy-verifier",
+            status="passed",
+            reason=None,
+            failure_kind=None,
+            exit_code=0,
+            duration_ms=25,
+            stdout_tail="legacy output",
+            stderr_tail="",
+        )
+        self.assertEqual(res.id, "legacy-verifier")
+        self.assertEqual(res.cwd, ".")
+        self.assertEqual(res.command, [])
+        self.assertTrue(len(res.stdout_sha256) == 64)
+        self.assertTrue(len(res.stderr_sha256) == 64)

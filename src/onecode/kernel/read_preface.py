@@ -1,5 +1,6 @@
 import ast
 import json
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -112,10 +113,18 @@ def survey_model_reads(
     task: str,
     complete: Callable[[str], str],
     execute: Execute,
-    max_turns: int = 4,
+    max_turns: int | None = None,
 ) -> dict[str, Any]:
+    if max_turns is None:
+        raw_env = os.environ.get("ONECODE_SURVEY_MAX_TURNS", "").strip()
+        try:
+            effective_turns = int(raw_env) if raw_env else 4
+        except ValueError:
+            effective_turns = 4
+    else:
+        effective_turns = max_turns
     proposer = _ModelReadProposer(task, complete, default_read_proposer(workspace, task))
-    result = survey_reads(workspace, task, proposer, execute, max_turns=max_turns)
+    result = survey_reads(workspace, task, proposer, execute, max_turns=effective_turns)
     if proposer.halt_reason is not None:
         result["status"] = "halted"
         result["reason"] = proposer.halt_reason
