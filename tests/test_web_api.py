@@ -2581,6 +2581,21 @@ class OneCodeWebApiTests(unittest.TestCase):
             self.assertIn('{"fill": 35}', aux)
             self.assertIn("config/settings.yaml", aux)
 
+    def test_workspace_auxiliary_configs_collects_data_csv_and_notes(self):
+        from onecode.web.api import _workspace_auxiliary_configs
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "data").mkdir()
+            (workspace / "data" / "invoices.csv").write_text("invoice_id,customer\ninv1,Acme", encoding="utf-8")
+            (workspace / "notes").mkdir()
+            (workspace / "notes" / "TODO.md").write_text("# Requirements\n- Keep stable columns", encoding="utf-8")
+            aux = _workspace_auxiliary_configs(workspace)
+            self.assertIn("data/invoices.csv", aux)
+            self.assertIn("invoice_id,customer", aux)
+            self.assertIn("notes/TODO.md", aux)
+            self.assertIn("Keep stable columns", aux)
+
 
 if __name__ == "__main__":
     unittest.main()

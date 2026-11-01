@@ -395,18 +395,24 @@ def _merge_prefaces(primary: str, secondary: str) -> str:
 def _workspace_auxiliary_configs(workspace: Path, max_chars_per_file: int = 4_000) -> str:
     configs: dict[str, str] = {}
     config_exts = {".json", ".yaml", ".yml", ".toml"}
-    for search_dir in (workspace / "config", workspace / "data", workspace):
+    data_sample_exts = {".csv", ".tsv", ".jsonl", ".txt"}
+    for search_dir in (workspace / "config", workspace / "data", workspace / "notes", workspace):
         if not search_dir.is_dir():
             continue
         try:
             for item in sorted(search_dir.iterdir()):
                 if not item.is_file() or item.name.startswith("."):
                     continue
-                if item.suffix in config_exts or (item.parent.name == "data" and item.suffix == ".txt"):
+                is_config = item.suffix in config_exts
+                is_data_sample = search_dir.name == "data" and item.suffix in data_sample_exts
+                is_note = search_dir.name == "notes" and item.suffix in {".md", ".txt"}
+                if is_config or is_data_sample or is_note:
                     rel = item.relative_to(workspace).as_posix()
-                    if item.stat().st_size <= 16_384:
+                    limit = 1_500 if is_data_sample else max_chars_per_file
+                    if item.stat().st_size <= 65_536:
                         try:
-                            configs[rel] = item.read_text(encoding="utf-8")[:max_chars_per_file]
+                            sample = item.read_text(encoding="utf-8", errors="replace")[:limit]
+                            configs[rel] = sample
                         except Exception:
                             pass
         except Exception:
