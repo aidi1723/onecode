@@ -406,7 +406,12 @@ def _workspace_auxiliary_configs(workspace: Path, max_chars_per_file: int = 4_00
                 is_config = item.suffix in config_exts
                 is_data_sample = search_dir.name == "data" and item.suffix in data_sample_exts
                 is_note = search_dir.name == "notes" and item.suffix in {".md", ".txt"}
-                if is_config or is_data_sample or is_note:
+                is_doc = item.suffix in {".md", ".txt"} and (
+                    item.name.lower().startswith("readme")
+                    or item.name.lower().startswith("spec")
+                    or search_dir == workspace
+                )
+                if is_config or is_data_sample or is_note or is_doc:
                     rel = item.relative_to(workspace).as_posix()
                     limit = 1_500 if is_data_sample else max_chars_per_file
                     if item.stat().st_size <= 65_536:

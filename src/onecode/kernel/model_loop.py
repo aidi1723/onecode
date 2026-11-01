@@ -594,14 +594,6 @@ def _extract_targeted_assertions(error_parts: list[str]) -> list[str]:
             )
             matched_assertion = True
             break
-    if not matched_assertion:
-        for ep in error_parts:
-            m = re.search(r"-\s*\[FAIL\]\s*([^:\n]+)", ep)
-            if m:
-                alerts.append(
-                    f"- Precision assertion target (水生木·精准断言): Failing test check '{m.group(1).strip()}'. Focus surgical edit directly on satisfying this test condition."
-                )
-                break
 
     failing_checks: list[str] = []
     for ep in error_parts:
@@ -609,6 +601,19 @@ def _extract_targeted_assertions(error_parts: list[str]) -> list[str]:
             chk = match.group(1).strip()
             if chk and chk not in failing_checks:
                 failing_checks.append(chk)
+        for match in re.finditer(r'\"name\":\s*\"([^\"]+)\",\s*\"passed\":\s*false(?:,\s*\"detail\":\s*\"([^\"]*)\")?', ep):
+            name = match.group(1).strip()
+            detail = match.group(2).strip() if match.group(2) else ""
+            desc = f"{name} ({detail})" if detail else name
+            if desc and desc not in failing_checks:
+                failing_checks.append(desc)
+
+    if not matched_assertion and failing_checks:
+        first = failing_checks[0]
+        alerts.append(
+            f"- Precision assertion target (水生木·精准断言): Failing test check '{first}'. Focus surgical edit directly on satisfying this test condition."
+        )
+
     if len(failing_checks) > 1:
         items_str = ", ".join(f"'{c}'" for c in failing_checks[:8])
         alerts.append(
@@ -628,6 +633,15 @@ def _extract_targeted_assertions(error_parts: list[str]) -> list[str]:
 
 def _tuo_luo_stagnation_alert(turn_history: list[dict[str, Any]]) -> list[str]:
     alerts: list[str] = []
+    if len(turn_history) >= 2:
+        last = turn_history[-1]
+        if last.get("reason") in {"verifier_failed", "command_failed", "repair_plan_must_use_patches_only"}:
+            alerts.append(
+                "- Stagnation warning (陀罗暗滞·化权破滞): Previous repair attempt did not resolve the failure. "
+                "Pivot decisively: check README.md contract specifications, exact field and column naming, "
+                "edge cases (empty collections, zero values), and adjust implementation strategy rather than minor tweaks."
+            )
+    return alerts
     if len(turn_history) >= 2:
         last = turn_history[-1]
         if last.get("reason") in {"verifier_failed", "command_failed", "repair_plan_must_use_patches_only"}:
