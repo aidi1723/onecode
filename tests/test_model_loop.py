@@ -2863,6 +2863,33 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
         self.assertEqual(normalized["patches"][0]["search_block"], "def a():\n    return 1\n")
         self.assertEqual(normalized["patches"][0]["replace_block"], "def a():\n    return 2\n")
 
+    def test_format_verifier_diagnostics_parses_json_report(self):
+        from onecode.kernel.model_loop import format_verifier_diagnostics
+
+        sample_json = json.dumps({
+            "overall": 0.25,
+            "tests_passed": 1,
+            "tests_total": 4,
+            "tests": [
+                {"name": "test_cli", "passed": True, "detail": ""},
+                {"name": "test_filter", "passed": False, "detail": "mismatch"},
+                {"name": "test_summary", "passed": False, "detail": "missing key"},
+            ],
+        })
+        stdout = f"Prefix noise\n{sample_json}\nSuffix noise"
+        diag = format_verifier_diagnostics(stdout, "")
+        self.assertIn("Verifier report: 1/4 tests passed.", diag)
+        self.assertIn("- [FAIL] test_filter: mismatch", diag)
+        self.assertIn("- [FAIL] test_summary: missing key", diag)
+        self.assertIn("- [PASS] test_cli", diag)
+
+    def test_format_verifier_diagnostics_fallback_to_assertions(self):
+        from onecode.kernel.model_loop import format_verifier_diagnostics
+
+        stderr = "Traceback (most recent call last):\n  File 'x.py', line 1\nAssertionError: 25 != 35\n"
+        diag = format_verifier_diagnostics("", stderr)
+        self.assertIn("AssertionError: 25 != 35", diag)
+
 
 if __name__ == "__main__":
     unittest.main()

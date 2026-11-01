@@ -1,11 +1,12 @@
-import os
-import shlex
-from pathlib import Path
 import difflib
 import functools
 import hashlib
 import inspect
+import json
+import os
+from pathlib import Path
 import re
+import shlex
 import subprocess
 import time
 from typing import Any, Callable
@@ -518,6 +519,54 @@ def _repair_source_block(failed_result: dict[str, Any]) -> str:
     return "Current source:\n" + "\n".join(blocks) + "\n"
 
 
+def format_verifier_diagnostics(stdout: str, stderr: str) -> str:
+    """Parse verifier stdout/stderr into actionable diagnostics for repair prompts."""
+    if stdout:
+        decoder = json.JSONDecoder()
+        for marker in ('{"overall"', '{"tests"'):
+            idx = stdout.find(marker)
+            while idx != -1:
+                try:
+                    candidate, _ = decoder.raw_decode(stdout[idx:])
+                    if isinstance(candidate, dict) and "tests" in candidate and isinstance(candidate["tests"], list):
+                        passed_cnt = candidate.get("tests_passed", 0)
+                        total_cnt = candidate.get("tests_total", len(candidate["tests"]))
+                        lines = [f"Verifier report: {passed_cnt}/{total_cnt} tests passed."]
+                        failed = [t for t in candidate["tests"] if isinstance(t, dict) and not t.get("passed")]
+                        passed = [t for t in candidate["tests"] if isinstance(t, dict) and t.get("passed")]
+                        if failed:
+                            lines.append("Failed tests:")
+                            for item in failed:
+                                name = item.get("name", "unknown")
+                                detail = item.get("detail")
+                                lines.append(f"- [FAIL] {name}" + (f": {detail}" if detail else ""))
+                        if passed:
+                            lines.append("Passed tests:")
+                            for item in passed:
+                                lines.append(f"- [PASS] {item.get('name', 'unknown')}")
+                        return "\n".join(lines)
+                except json.JSONDecodeError:
+                    pass
+                idx = stdout.find(marker, idx + 1)
+
+    diagnostics: list[str] = []
+    if stderr:
+        err_lines = [line.strip() for line in stderr.splitlines() if line.strip()]
+        assertion_lines = [l for l in err_lines if any(k in l for k in ("AssertionError", "Error:", "FAILED"))]
+        if assertion_lines:
+            diagnostics.append("Stderr errors:\n" + "\n".join(f"- {l}" for l in assertion_lines[-5:]))
+        else:
+            diagnostics.append(f"Stderr:\n{stderr[-800:]}")
+    if stdout:
+        out_lines = [line.strip() for line in stdout.splitlines() if line.strip()]
+        failing_lines = [l for l in out_lines if any(k in l for k in ("FAIL", "ERROR", "AssertionError"))]
+        if failing_lines:
+            diagnostics.append("Stdout errors:\n" + "\n".join(f"- {l}" for l in failing_lines[-10:]))
+        else:
+            diagnostics.append(f"Stdout:\n{stdout[-800:]}")
+    return "\n".join(diagnostics)
+
+
 def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details: list[str]) -> list[str]:
     """Derive targeted Ziwei diagnostic guidance for the repair prompt."""
     guidance: list[str] = []
@@ -556,13 +605,23 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
             )
 
     # Water Nourishing Wood: Extract targeted assertion discrepancy (水生木·精准断言)
+    matched_assertion = False
     for ep in error_parts:
         m = re.search(r"(AssertionError: [^\n]+)", ep)
         if m:
             guidance.append(
                 f"- Precision assertion target (水生木·精准断言): {m.group(1).strip()}. Focus surgical edit directly on resolving this discrepancy; do not repeat previous values."
             )
+            matched_assertion = True
             break
+    if not matched_assertion:
+        for ep in error_parts:
+            m = re.search(r"-\s*\[FAIL\]\s*([^:\n]+)", ep)
+            if m:
+                guidance.append(
+                    f"- Precision assertion target (水生木·精准断言): Failing test check '{m.group(1).strip()}'. Focus surgical edit directly on satisfying this test condition."
+                )
+                break
 
     # 2. Comprehensive Ziwei Pattern Matrix Guidance (格局矩阵诊断)
     str_result = str(failed_result).lower()
@@ -772,17 +831,28 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
         v_reason = v.get("reason") or v.get("status")
         err = str(v.get("stderr_tail") or "").strip()
         out = str(v.get("stdout_tail") or "").strip()
-        parts = []
-        if v_reason:
-            parts.append(f"verifier {v_reason}")
-        if err:
-            parts.append(f"stderr:\n{err[-600:]}")
-        if out:
-            parts.append(f"stdout:\n{out[-600:]}")
-        if parts:
-            failure_details.append("\n".join(parts))
+        diag = format_verifier_diagnostics(out, err)
+        if diag:
+            failure_details.append(diag)
+        else:
+            parts = []
+            if v_reason:
+                parts.append(f"verifier {v_reason}")
+            if err:
+                parts.append(f"stderr:\n{err[-600:]}")
+            if out:
+                parts.append(f"stdout:\n{out[-600:]}")
+            if parts:
+                failure_details.append("\n".join(parts))
     path_summary = ", ".join(sorted(set(paths))) if paths else "unknown"
-    details = "\n".join(f"- {detail}" for detail in failure_details[:10]) or "- unavailable"
+    details_list = []
+    for d in failure_details[:10]:
+        d_str = str(d).strip()
+        if d_str.startswith("- ") or "\n" in d_str:
+            details_list.append(d_str)
+        else:
+            details_list.append(f"- {d_str}")
+    details = "\n".join(details_list) or "- unavailable"
     prompt = (
         "Repair the previous OneCode run using patches only.\n"
         f"Original task: {task}\n"
@@ -2039,16 +2109,20 @@ def _finish_verified_task(
                 continue
             err = str(item.get("stderr_tail") or "").strip()
             out = str(item.get("stdout_tail") or "").strip()
-            if err:
-                tails.append(err[-600:])
-            if out:
-                tails.append(out[-600:])
+            diag = format_verifier_diagnostics(out, err)
+            if diag:
+                tails.append(diag)
+            else:
+                if err:
+                    tails.append(err[-600:])
+                if out:
+                    tails.append(out[-600:])
         prompt = repair_prompt(
             task,
             {**current_checked, "workspace_files": _src_files_for_repair(workspace)},
             workspace=workspace,
         ) + "\nDo not patch any path under tests/. Change the implementation so the existing tests pass."
-        if tails:
+        if tails and all(t not in prompt for t in tails):
             prompt += "\nVerifier output:\n" + "\n".join(tails)
         span_id = "model-repair-after-check" if attempt == 1 else f"model-repair-after-check-{attempt}"
         plan, failure = traced_provider_plan_retrying(

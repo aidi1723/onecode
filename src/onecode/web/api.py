@@ -360,6 +360,64 @@ def complete_read_survey(prompt: str) -> str:
     )
 
 
+def _filter_preface_blocks(preface: str, existing_paths: set[str] | None = None) -> list[str]:
+    seen = set(existing_paths or ())
+    blocks: list[str] = []
+    current_block: list[str] = []
+    current_path: str | None = None
+    for line in preface.splitlines():
+        if line.startswith("## "):
+            if current_block and current_path and current_path not in seen and not is_preset_test_path(current_path):
+                blocks.append("\n".join(current_block))
+                seen.add(current_path)
+            current_path = line[3:].strip().replace(" ", "")
+            current_block = [line]
+        else:
+            if current_block:
+                current_block.append(line)
+    if current_block and current_path and current_path not in seen and not is_preset_test_path(current_path):
+        blocks.append("\n".join(current_block))
+    return blocks
+
+
+def _merge_prefaces(primary: str, secondary: str) -> str:
+    primary_blocks = _filter_preface_blocks(primary) if primary else []
+    existing = set()
+    for block in primary_blocks:
+        first_line = block.splitlines()[0]
+        if first_line.startswith("## "):
+            existing.add(first_line[3:].strip().replace(" ", ""))
+    secondary_blocks = _filter_preface_blocks(secondary, existing) if secondary else []
+    all_blocks = primary_blocks + secondary_blocks
+    return "\n".join(all_blocks)
+
+
+def _workspace_auxiliary_configs(workspace: Path, max_chars_per_file: int = 4_000) -> str:
+    configs: dict[str, str] = {}
+    config_exts = {".json", ".yaml", ".yml", ".toml"}
+    for search_dir in (workspace / "config", workspace / "data", workspace):
+        if not search_dir.is_dir():
+            continue
+        try:
+            for item in sorted(search_dir.iterdir()):
+                if not item.is_file() or item.name.startswith("."):
+                    continue
+                if item.suffix in config_exts or (item.parent.name == "data" and item.suffix == ".txt"):
+                    rel = item.relative_to(workspace).as_posix()
+                    if item.stat().st_size <= 16_384:
+                        try:
+                            configs[rel] = item.read_text(encoding="utf-8")[:max_chars_per_file]
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+    if not configs:
+        return ""
+    from onecode.kernel.read_preface import preface_text
+
+    return preface_text(configs, max_chars=max_chars_per_file)
+
+
 def prepare_shell_model_call(task: str, workspace: Path, run_id: str | None = None) -> dict[str, Any]:
     survey = shell_read_survey(workspace, task)
     if survey.get("reason") in {"model_provider_timeout", "model_provider_error"}:
@@ -376,10 +434,14 @@ def prepare_shell_model_call(task: str, workspace: Path, run_id: str | None = No
     extras = shell_model_task_extras(task, workspace)
     surveyed_text = survey.get("preface")
     named_text = extras.get("preface")
-    surveyed = "" if _targeted_python_paths(task, workspace) else (surveyed_text.strip() if isinstance(surveyed_text, str) else "")
+    surveyed = surveyed_text.strip() if isinstance(surveyed_text, str) else ""
     named = named_text.strip() if isinstance(named_text, str) else ""
+    aux = _workspace_auxiliary_configs(workspace)
+    merged_preface = _merge_prefaces(named, surveyed)
+    if aux:
+        merged_preface = _merge_prefaces(merged_preface, aux)
     notes = _shell_context_notes(workspace)
-    preface = "\n".join(part for part in (surveyed, named, notes) if part)
+    preface = "\n".join(part for part in (merged_preface, notes) if part)
     extras["preface"] = preface or None
     planned = _shell_write_prompt(task, workspace, preface)
     return {"task": planned, "extras": extras}

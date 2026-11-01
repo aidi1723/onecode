@@ -2551,6 +2551,36 @@ class OneCodeWebApiTests(unittest.TestCase):
                 os.environ.pop("ONECODE_PATCH_THRESHOLD_CHARS", None)
                 os.environ.pop("ONECODE_PREFER_PATCH", None)
 
+    def test_merge_prefaces_dedup_and_excludes_tests(self):
+        from onecode.web.api import _merge_prefaces
+
+        primary = "## src/app.py\ndef main(): pass\n"
+        secondary = (
+            "## src / app.py\ndef main(): pass\n"
+            "## data / config.json\n{\"k\": 1}\n"
+            "## tests / test_app.py\ndef test(): pass\n"
+        )
+        merged = _merge_prefaces(primary, secondary)
+        self.assertIn("## src/app.py", merged)
+        self.assertIn("## data / config.json", merged)
+        self.assertNotIn("test_app.py", merged)
+        # Verify src/app.py appears only once
+        self.assertEqual(merged.count("def main(): pass"), 1)
+
+    def test_workspace_auxiliary_configs_collects_json_yaml(self):
+        from onecode.web.api import _workspace_auxiliary_configs
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "data").mkdir()
+            (workspace / "data" / "clean_config.json").write_text('{"fill": 35}', encoding="utf-8")
+            (workspace / "config").mkdir()
+            (workspace / "config" / "settings.yaml").write_text('debug: false', encoding="utf-8")
+            aux = _workspace_auxiliary_configs(workspace)
+            self.assertIn("data/clean_config.json", aux)
+            self.assertIn('{"fill": 35}', aux)
+            self.assertIn("config/settings.yaml", aux)
+
 
 if __name__ == "__main__":
     unittest.main()
