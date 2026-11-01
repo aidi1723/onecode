@@ -301,7 +301,7 @@ def data_contract_guidance(task: str) -> str:
         "label" in task_lower or "conflict" in task_lower or "冲突" in task_lower
     ):
         rules.append(
-            "For label conflict resolution (Zhen-Kan Cleansing & Priority Contract 震坎涤瑕·权重定争): "
+            "For label conflicts (Zhen-Kan Cleansing & Priority Contract 震坎涤瑕·权重定争): "
             "read source priority from data/source_priority.json (larger integer priority wins); "
             "exact duplicate rows count once in reports and deduped_reports; "
             "invalid sources or non-binary labels go to rejects.json under 'invalid'; "
