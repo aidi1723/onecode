@@ -950,7 +950,7 @@ def _repair_diff_blocks(before: str, after: str) -> tuple[str, str] | None:
 
 def synthesize_single_asset_repair(plan: ModelPlan, workspace: Path) -> ModelPlan:
     """Turn one full-file rewrite of an existing source file into a unique patch."""
-    if plan.patches or plan.execution_steps or len(plan.assets) != 1 or plan.no_action_reason is not None:
+    if plan.patches or len(plan.assets) != 1 or plan.no_action_reason is not None:
         return plan
     asset = plan.assets[0]
     candidate_path = asset.path.lstrip("/") if asset.path.startswith("/") else asset.path
@@ -2124,6 +2124,10 @@ def _finish_verified_task(
         ) + "\nDo not patch any path under tests/. Change the implementation so the existing tests pass."
         if tails and all(t not in prompt for t in tails):
             prompt += "\nVerifier output:\n" + "\n".join(tails)
+        prompt += (
+            "\n\nCRITICAL: Return valid JSON with patches only. Do NOT include execution_plan or assets.\n"
+            'Format: {"task":"repair verifier failure","patches":[{"path":"<file>","search_block":"<exact lines>","replace_block":"<fixed lines>"}]}'
+        )
         span_id = "model-repair-after-check" if attempt == 1 else f"model-repair-after-check-{attempt}"
         plan, failure = traced_provider_plan_retrying(
             provider=provider,
@@ -2140,6 +2144,8 @@ def _finish_verified_task(
             return failed_model_result(model_context, failure)
         if plan is not None:
             plan = synthesize_single_asset_repair(plan, workspace)
+            if plan.patches and plan.execution_steps:
+                plan = ModelPlan(task=plan.task, patches=plan.patches, no_action_reason=plan.no_action_reason)
         if plan is None or not is_patch_only_repair_plan(plan) or _repair_touches_tests(plan):
             rejected = repair_rejected_result(current_checked, run_id, "repair_plan_must_use_patches_only", repair_attempt_count=attempt)
             transition = IchingKernel.transition(IchingKernel.classify_outcome("halted", rejected["reason"]))

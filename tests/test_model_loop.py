@@ -2890,6 +2890,34 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
         diag = format_verifier_diagnostics("", stderr)
         self.assertIn("AssertionError: 25 != 35", diag)
 
+    def test_normalize_model_plan_payload_singular_patch_dict(self):
+        from onecode.kernel.model_provider import normalize_model_plan_payload
+
+        raw = {
+            "task": "repair",
+            "patch": {
+                "path": "app/clean.py",
+                "search_block": "a = 1\n",
+                "replace_block": "a = 2\n",
+            },
+        }
+        normalized = normalize_model_plan_payload(raw)
+        self.assertEqual(len(normalized["patches"]), 1)
+        self.assertEqual(normalized["patches"][0]["path"], "app/clean.py")
+
+    def test_normalize_model_plan_payload_top_level_patch_fields(self):
+        from onecode.kernel.model_provider import normalize_model_plan_payload
+
+        raw = {
+            "task": "repair",
+            "path": "app/clean.py",
+            "search_block": "a = 1\n",
+            "replace_block": "a = 2\n",
+        }
+        normalized = normalize_model_plan_payload(raw)
+        self.assertEqual(len(normalized["patches"]), 1)
+        self.assertEqual(normalized["patches"][0]["path"], "app/clean.py")
+
 
 if __name__ == "__main__":
     unittest.main()

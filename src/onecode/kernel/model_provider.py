@@ -608,6 +608,16 @@ def normalize_model_plan_payload(payload: dict[str, Any]) -> dict[str, Any]:
         target_path = normalized.get("target") or normalized.get("path")
         if isinstance(target_path, str) and isinstance(normalized.get("content"), str):
             normalized["assets"] = [{"path": target_path, "content": normalized["content"]}]
+    if "patches" not in normalized and isinstance(normalized.get("patch"), dict):
+        normalized["patches"] = [normalized["patch"]]
+    elif "patches" not in normalized and ("search_block" in normalized and "replace_block" in normalized):
+        target_path = normalized.get("path") or normalized.get("target")
+        if isinstance(target_path, str):
+            normalized["patches"] = [{
+                "path": target_path,
+                "search_block": normalized["search_block"],
+                "replace_block": normalized["replace_block"],
+            }]
     if isinstance(normalized.get("patches"), list):
         fixed_patches: list[dict[str, Any]] = []
         for p in normalized["patches"]:
