@@ -123,6 +123,14 @@ def survey_model_reads(
             effective_turns = 4
     else:
         effective_turns = max_turns
+    if effective_turns <= 0:
+        return {
+            "status": "completed",
+            "reason": None,
+            "status_code": IchingKernel.classify_outcome("completed", None),
+            "preface": "",
+            "turns": [],
+        }
     proposer = _ModelReadProposer(task, complete, default_read_proposer(workspace, task))
     result = survey_reads(workspace, task, proposer, execute, max_turns=effective_turns)
     if proposer.halt_reason is not None:

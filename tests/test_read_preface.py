@@ -396,3 +396,24 @@ class ReadPrefaceTests(unittest.TestCase):
             )
         self.assertNotEqual(result.get("reason"), "model_provider_error")
         self.assertIn("FARE = 9", result["preface"])
+
+    def test_survey_model_reads_zero_turns_bypasses_model(self):
+        from onecode.kernel.read_preface import read_only_registry_execute, survey_model_reads
+
+        def complete(prompt: str) -> str:
+            raise AssertionError("complete should not be called when turns <= 0")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            result = survey_model_reads(
+                workspace,
+                "Task description",
+                complete,
+                read_only_registry_execute(workspace),
+                max_turns=0,
+            )
+        self.assertEqual(result["status"], "completed")
+        self.assertIsNone(result["reason"])
+        self.assertEqual(result["preface"], "")
+        self.assertEqual(result["turns"], [])
+

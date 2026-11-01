@@ -319,6 +319,7 @@ def data_contract_guidance(task: str) -> str:
             "fill missing (null, NaN, empty string) and unparseable values with specified column fill defaults; "
             "leave normal valid rows completely unchanged; "
             "in cleaned CSV output, format whole numbers without trailing '.0' (e.g. write '1' not '1.0', '0' not '0.0', '35' not '35.0'; keep standard representation for true decimals like '0.8', '0.5'); "
+            "format helper idiom: if float(val).is_integer(): str(int(float(val))) else str(val), or if Decimal(val) == int(Decimal(val)): str(int(Decimal(val))) else str(val); "
             "summary JSON must have 'rows' count plus one object per numeric field (age, income, score), "
             "with each field summary containing exact keys: 'filled', 'clipped_low', 'clipped_high'."
         )
@@ -332,6 +333,7 @@ def data_contract_guidance(task: str) -> str:
             "each row report must contain: 'row' (1-based int), 'user_id', and 'issues' list; "
             "normal rows without drift must be included with issues: []; "
             "each issue is an object with 'field' and 'type' (one of 'missing_required', 'type_mismatch', 'enum_violation', 'unexpected_field'); "
+            "validate each row in a single atomic pass: check unexpected fields (keys in row not in schema_fields) alongside required/type/enum checks, and mark the row invalid once per issue without secondary decrement loops; "
             "for numeric float fields, integer inputs (e.g. 85, 0) are valid numbers and not type_mismatch (check isinstance(v, (int, float)) and not isinstance(v, bool)); "
             "optional nullable fields allowing null/None must not be flagged as enum_violation or missing_required when null/None or empty; "
             "and preserve stable input row order in output rows."
