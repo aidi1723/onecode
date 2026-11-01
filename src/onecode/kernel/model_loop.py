@@ -528,9 +528,12 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
     for v in failed_result.get("verifier_results", []):
         if isinstance(v, dict):
             stderr = v.get("stderr_tail")
+            stdout = v.get("stdout_tail")
             reason = v.get("reason")
             if stderr:
                 error_parts.append(str(stderr))
+            if stdout:
+                error_parts.append(str(stdout))
             if reason:
                 error_parts.append(str(reason))
     if isinstance(trace, dict):
@@ -763,6 +766,21 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
                     failure_details.append(
                         f"tool {tool_result.get('tool_name')}: {tool_result.get('reason')}"
                     )
+    for v in failed_result.get("verifier_results", []):
+        if not isinstance(v, dict):
+            continue
+        v_reason = v.get("reason") or v.get("status")
+        err = str(v.get("stderr_tail") or "").strip()
+        out = str(v.get("stdout_tail") or "").strip()
+        parts = []
+        if v_reason:
+            parts.append(f"verifier {v_reason}")
+        if err:
+            parts.append(f"stderr:\n{err[-600:]}")
+        if out:
+            parts.append(f"stdout:\n{out[-600:]}")
+        if parts:
+            failure_details.append("\n".join(parts))
     path_summary = ", ".join(sorted(set(paths))) if paths else "unknown"
     details = "\n".join(f"- {detail}" for detail in failure_details[:10]) or "- unavailable"
     prompt = (
@@ -780,7 +798,8 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
         prompt += "Diagnostic guidance:\n" + "\n".join(ziwei_hints) + "\n"
     prompt += (
         f"{_repair_source_block(failed_result)}"
-        "Return JSON with patches only. Do not return assets or execution_plan. "
+        "Return JSON with patches only. Do not return assets, execution_plan, or no_action. "
+        "Every repair plan must contain at least one patch fixing the test failure. "
         'Use {"task":"repair verifier failure","patches":[{"path":"<file>","search_block":"<exact original lines>","replace_block":"<fixed lines>"}]}. '
         "Do not patch any path under tests/."
         + data_contract_guidance(task)
@@ -864,13 +883,27 @@ def synthesize_single_asset_repair(plan: ModelPlan, workspace: Path) -> ModelPla
     if plan.patches or plan.execution_steps or len(plan.assets) != 1 or plan.no_action_reason is not None:
         return plan
     asset = plan.assets[0]
-    if _is_test_path(asset.path):
+    candidate_path = asset.path.lstrip("/") if asset.path.startswith("/") else asset.path
+    if _is_test_path(candidate_path):
         return plan
+    target: Path | None = None
+    resolved_rel = candidate_path
     try:
-        target = PathGuard.resolve_target(workspace, asset.path)
+        cand = PathGuard.resolve_target(workspace, candidate_path)
+        if cand.is_file():
+            target = cand
     except PathGuardError:
-        return plan
-    if not target.is_file():
+        pass
+    if target is None:
+        name = Path(candidate_path).name
+        matches = [
+            p for p in workspace.rglob(name)
+            if p.is_file() and not _is_test_path(str(p.relative_to(workspace))) and ".onecode" not in p.parts
+        ]
+        if len(matches) == 1:
+            target = matches[0]
+            resolved_rel = str(matches[0].relative_to(workspace)).replace("\\", "/")
+    if target is None or not target.is_file():
         return plan
     try:
         before = target.read_text(encoding="utf-8")
@@ -882,7 +915,7 @@ def synthesize_single_asset_repair(plan: ModelPlan, workspace: Path) -> ModelPla
     search, replace = blocks
     return ModelPlan(
         task=plan.task,
-        patches=[ModelPlanPatch(path=asset.path, search_block=search, replace_block=replace)],
+        patches=[ModelPlanPatch(path=resolved_rel, search_block=search, replace_block=replace)],
     )
 
 
@@ -2000,11 +2033,16 @@ def _finish_verified_task(
         cooldown_ms = _compute_repair_cooldown(run_metadata, attempt, failed_code, "verifier_failure")
         if cooldown_ms > 0:
             time.sleep(cooldown_ms / 1000.0)
-        tails = [
-            str(item.get("stderr_tail"))[-400:]
-            for item in (current_checked.get("verifier_results") or [])
-            if isinstance(item, dict) and item.get("stderr_tail")
-        ]
+        tails: list[str] = []
+        for item in (current_checked.get("verifier_results") or []):
+            if not isinstance(item, dict):
+                continue
+            err = str(item.get("stderr_tail") or "").strip()
+            out = str(item.get("stdout_tail") or "").strip()
+            if err:
+                tails.append(err[-600:])
+            if out:
+                tails.append(out[-600:])
         prompt = repair_prompt(
             task,
             {**current_checked, "workspace_files": _src_files_for_repair(workspace)},

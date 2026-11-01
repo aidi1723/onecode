@@ -2795,5 +2795,74 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
         self.assertTrue(any("Jie Shen relief active" in a for a in alerts))
 
 
+    def test_repair_prompt_includes_verifier_stdout_and_stderr(self):
+        from onecode.kernel.model_loop import repair_prompt
+
+        failed_result = {
+            "status": "verifier_failed",
+            "reason": "command_failed",
+            "verifier_results": [
+                {
+                    "status": "failed",
+                    "reason": "command_failed",
+                    "stderr_tail": "traceback error\n",
+                    "stdout_tail": "FAILED test_age_summary\n",
+                }
+            ],
+        }
+        prompt = repair_prompt("fix data quality", failed_result)
+        self.assertIn("FAILED test_age_summary", prompt)
+        self.assertIn("traceback error", prompt)
+        self.assertIn("Return JSON with patches only", prompt)
+        self.assertIn("Do not return assets, execution_plan, or no_action", prompt)
+
+    def test_synthesize_single_asset_resolves_basename_and_leading_slash(self):
+        from onecode.kernel.model_loop import synthesize_single_asset_repair
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "app").mkdir()
+            (workspace / "app" / "export.py").write_text("def run():\n    return 1\n", encoding="utf-8")
+
+            # Test leading slash /app/export.py
+            plan_slash = ModelPlan(
+                task="repair",
+                assets=[ModelPlanAsset(path="/app/export.py", content="def run():\n    return 2\n")],
+            )
+            syn_slash = synthesize_single_asset_repair(plan_slash, workspace)
+            self.assertEqual(len(syn_slash.patches), 1)
+            self.assertEqual(syn_slash.patches[0].path, "app/export.py")
+            self.assertEqual(syn_slash.patches[0].replace_block, "    return 2\n")
+
+            # Test basename export.py matching unique app/export.py
+            plan_base = ModelPlan(
+                task="repair",
+                assets=[ModelPlanAsset(path="export.py", content="def run():\n    return 3\n")],
+            )
+            syn_base = synthesize_single_asset_repair(plan_base, workspace)
+            self.assertEqual(len(syn_base.patches), 1)
+            self.assertEqual(syn_base.patches[0].path, "app/export.py")
+            self.assertEqual(syn_base.patches[0].replace_block, "    return 3\n")
+
+    def test_normalize_model_plan_payload_patches(self):
+        from onecode.kernel.model_provider import normalize_model_plan_payload
+
+        raw = {
+            "task": "repair",
+            "patches": [
+                {
+                    "path": "/app/clean.py",
+                    "search_block": ["def a():\n", "    return 1\n"],
+                    "replace_block": ["def a():\n", "    return 2\n"],
+                }
+            ],
+        }
+        normalized = normalize_model_plan_payload(raw)
+        self.assertEqual(normalized["patches"][0]["path"], "app/clean.py")
+        self.assertEqual(normalized["patches"][0]["search_block"], "def a():\n    return 1\n")
+        self.assertEqual(normalized["patches"][0]["replace_block"], "def a():\n    return 2\n")
+
+
 if __name__ == "__main__":
     unittest.main()

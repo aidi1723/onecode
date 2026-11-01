@@ -608,6 +608,28 @@ def normalize_model_plan_payload(payload: dict[str, Any]) -> dict[str, Any]:
         target_path = normalized.get("target") or normalized.get("path")
         if isinstance(target_path, str) and isinstance(normalized.get("content"), str):
             normalized["assets"] = [{"path": target_path, "content": normalized["content"]}]
+    if isinstance(normalized.get("patches"), list):
+        fixed_patches: list[dict[str, Any]] = []
+        for p in normalized["patches"]:
+            if isinstance(p, dict):
+                p_copy = dict(p)
+                p_path = p_copy.get("path")
+                if isinstance(p_path, str) and p_path.startswith("/") and not p_path.startswith("//"):
+                    p_copy["path"] = p_path.lstrip("/")
+                if isinstance(p_copy.get("search_block"), list):
+                    p_copy["search_block"] = "".join(
+                        line if line.endswith(("\n", "\r\n")) else line + "\n"
+                        for line in p_copy["search_block"]
+                        if isinstance(line, str)
+                    )
+                if isinstance(p_copy.get("replace_block"), list):
+                    p_copy["replace_block"] = "".join(
+                        line if line.endswith(("\n", "\r\n")) else line + "\n"
+                        for line in p_copy["replace_block"]
+                        if isinstance(line, str)
+                    )
+                fixed_patches.append(p_copy)
+        normalized["patches"] = fixed_patches
     return normalized
 
 
