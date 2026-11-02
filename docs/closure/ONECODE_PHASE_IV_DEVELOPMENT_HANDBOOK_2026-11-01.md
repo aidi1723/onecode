@@ -115,15 +115,15 @@ flowchart TD
 
 | 任务 ID | 领域/难度 | 终局卦象 | 五行局 (气数) | 修复次数 | 最终宿主机评分 | 任务终态 | 耗时 | Harbor 标记 |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `api_contract-hard-openapi_params` | 接口契约 Hard | 63 (水火既济) | 水二局 (3) | 1 | **1.0000 (12/12)** | `completed` | 319.48s | `harbor: false` |
-| `security_hardening-hard-archive_path_traversal` | 安全防御 Hard | 40 (雷水解) | 木三局 (4) | 4 | **0.9167 (11/12)** | `halted` | 725.37s | `harbor: false` |
-| `feature_pipeline-hard-cross_categorical` | 管道计算 Hard | 63 (水火既济) | 水二局 (3) | 0 | **1.0000 (12/12)** | `completed` | 21.34s | `harbor: false` |
-| `refactor-hard-sync_async_bridge` | 架构重构 Hard | 63 (水火既济) | 水二局 (3) | 0 | **1.0000 (11/11)** | `completed` | 244.52s | `harbor: false` |
+| `api_contract-hard-openapi_params` | 接口契约 Hard | 63 (乾为天) | 水二局 (3) | 1 | **1.0000 (12/12)** | `completed` | 319.48s | `harbor: false` |
+| `security_hardening-hard-archive_path_traversal` | 安全防御 Hard | 40 (火地晋) | 木三局 (4) | 4 | **0.9167 (11/12)** | `halted` | 725.37s | `harbor: false` |
+| `feature_pipeline-hard-cross_categorical` | 管道计算 Hard | 63 (乾为天) | 水二局 (3) | 0 | **1.0000 (12/12)** | `completed` | 21.34s | `harbor: false` |
+| `refactor-hard-sync_async_bridge` | 架构重构 Hard | 63 (乾为天) | 水二局 (3) | 0 | **1.0000 (11/11)** | `completed` | 244.52s | `harbor: false` |
 
-- **扩展集综合均分**：**0.9792 (97.92%)**（47/48 项宿主测试断言通过）。
+- **扩展集综合均分**：**0.9792**（四题奖励算术平均值；分母相加为通过 46 项、总计 47 项，即 46/47）。
 - **实测关键验证**：
-  1. **元数据清洗生效**：`archive_path_traversal` 在多轮修复中生成的补丁元数据字段被静默清洗，彻底消除了第 45 轮因 `description` 导致的 `invalid_model_plan` 猝死，局数预算（4 轮）被完整利用，测试分从首轮的 8/12 (0.667) 稳健攀升至 11/12 (0.9167)，并保留最高宿主得分。
-  2. **跨模型泛化攻坚**：`openapi_params` 在不泄露契约答案的前提下，通过第 1 轮基于失败断言的自然自愈，由首轮 3/12 跃升至 12/12 满分（1.0000）。
+  1. **元数据清洗生效**：`archive_path_traversal` 在多轮修复中生成的补丁元数据字段被静默清洗，彻底消除了第 45 轮因 `description` 导致的 `invalid_model_plan` 猝死，局数预算（4 轮）被完整用满，结束原因是宿主校验未达 1.0（仅剩 1 项安全断言未过），最终评测保留了最高的宿主校验分 0.9167 (11/12)。
+  2. **跨模型泛化攻坚**：`openapi_params` 在不泄露契约答案的前提下，通过第 1 轮基于失败断言的自然自愈，由初始状态跃升至 12/12 满分（1.0000）。（注：当前 `results-r47-kimi.jsonl` 仅汇总终局快照，逐轮断言演变完整保留在各运行目录的 `ledger.jsonl` 中）。
   3. **高性价比与稳定性**：整轮评测总消耗仅约 1.22 元人民币，展现出极高的工业经济性与规划鲁棒性。
 
 ---
