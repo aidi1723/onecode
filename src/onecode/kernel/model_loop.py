@@ -2250,7 +2250,7 @@ def _finish_verified_task(
     modified = _modified_paths_from_result(result)
     _generate_missing_artifacts(task, workspace, modified)
     checked = _with_sandbox_tests(result, workspace, sandbox_config)
-    has_testable_verifier = (sandbox_config is not None) or bool(os.environ.get("ONECODE_HOST_VERIFIER", "").strip())
+    has_testable_verifier = (sandbox_config is not None) or bool(_resolve_host_verifier_path(workspace))
     if checked.get("reason") != "verifier_failed" or max_repair_attempts <= 0 or not has_testable_verifier:
         return checked
     current_checked = dict(checked)
@@ -2415,6 +2415,18 @@ def _finish_verified_task(
     return current_checked
 
 
+def _resolve_host_verifier_path(workspace: Path) -> str:
+    marker = workspace / ".onecode_host_verifier"
+    if marker.is_file():
+        try:
+            val = marker.read_text(encoding="utf-8").strip()
+            if val:
+                return val
+        except OSError:
+            pass
+    return os.environ.get("ONECODE_HOST_VERIFIER", "").strip()
+
+
 def _with_sandbox_tests(result: dict[str, Any], workspace: Path, sandbox_config: Any | None) -> dict[str, Any]:
     if result.get("status") != "completed":
         return result
@@ -2422,7 +2434,7 @@ def _with_sandbox_tests(result: dict[str, Any], workspace: Path, sandbox_config:
     from onecode.kernel.run_inspection import apply_verifier_evidence
     from onecode.kernel.verifier import VerifierSpec, run_host_verifier, run_verifier
 
-    host_verifier_path = os.environ.get("ONECODE_HOST_VERIFIER", "").strip()
+    host_verifier_path = _resolve_host_verifier_path(workspace)
     if host_verifier_path:
         checked, reward = run_host_verifier(workspace, host_verifier_path, sandbox_config=sandbox_config)
         enhanced = apply_verifier_evidence(result, workspace, [checked])
@@ -2839,7 +2851,7 @@ def _run_model_task_repair_loop(
         merged = merge_repair_result(failed_result, repair_result, repair_attempt_count=attempt)
         if repair_result.get("status") == "completed":
             return _with_sandbox_tests(merged, workspace, sandbox_config)
-        has_testable_verifier = (sandbox_config is not None) or bool(os.environ.get("ONECODE_HOST_VERIFIER", "").strip())
+        has_testable_verifier = (sandbox_config is not None) or bool(_resolve_host_verifier_path(workspace))
         if has_testable_verifier and (repair_result.get("completed_count", 0) > 0 or _modified_paths_from_result(repair_result)):
             provisional = dict(merged)
             provisional["status"] = "completed"
@@ -2849,7 +2861,7 @@ def _run_model_task_repair_loop(
                 verified["repaired"] = True
                 return verified
         failed_result = merged
-    has_testable_verifier = (sandbox_config is not None) or bool(os.environ.get("ONECODE_HOST_VERIFIER", "").strip())
+    has_testable_verifier = (sandbox_config is not None) or bool(_resolve_host_verifier_path(workspace))
     if has_testable_verifier and failed_result.get("status") != "completed":
         provisional = dict(failed_result)
         provisional["status"] = "completed"

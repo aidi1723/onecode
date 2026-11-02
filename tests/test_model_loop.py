@@ -3100,6 +3100,37 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
                 else:
                     os.environ.pop("ONECODE_HOST_VERIFIER", None)
 
+    def test_with_sandbox_tests_uses_workspace_host_verifier_marker(self):
+        import os
+        from onecode.kernel.model_loop import _with_sandbox_tests, _resolve_host_verifier_path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            workspace = tmp_path / "workspace"
+            workspace.mkdir()
+            verifier = tmp_path / "verifier.py"
+            verifier.write_text(
+                "import os\n"
+                "from pathlib import Path\n"
+                "log_dir = Path(os.environ['LOG_DIR'])\n"
+                "(log_dir / 'reward.txt').write_text('1.0')\n",
+                encoding="utf-8",
+            )
+            marker = workspace / ".onecode_host_verifier"
+            marker.write_text(str(verifier), encoding="utf-8")
+
+            old_env = os.environ.get("ONECODE_HOST_VERIFIER")
+            try:
+                os.environ.pop("ONECODE_HOST_VERIFIER", None)
+                self.assertEqual(_resolve_host_verifier_path(workspace), str(verifier))
+
+                res = _with_sandbox_tests({"status": "completed", "run_id": "test-marker-verifier"}, workspace, sandbox_config=None)
+                self.assertEqual(res.get("status"), "completed")
+                self.assertEqual(res.get("host_reward"), 1.0)
+            finally:
+                if old_env is not None:
+                    os.environ["ONECODE_HOST_VERIFIER"] = old_env
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -67,8 +67,10 @@ def run_benchmark_task(
 
     verifier = task_dir / "tests" / "verifier.py"
     if verifier.is_file():
+        (workspace / ".onecode_host_verifier").write_text(str(verifier), encoding="utf-8")
         os.environ["ONECODE_HOST_VERIFIER"] = str(verifier)
     else:
+        (workspace / ".onecode_host_verifier").unlink(missing_ok=True)
         os.environ.pop("ONECODE_HOST_VERIFIER", None)
 
     os.environ["ONECODE_SURVEY_MAX_TURNS"] = "0"
@@ -187,6 +189,7 @@ def main() -> int:
     parser.add_argument("--max-repairs", type=int, default=8)
     parser.add_argument("--timeout", type=float, default=300.0)
     parser.add_argument("--docker", type=str, default=None, help="Docker sandbox image (e.g. python:3.12-slim-amd64)")
+    parser.add_argument("--concurrency", "-j", type=int, default=1, help="Max concurrent tasks (capped by CPU cores)")
     args = parser.parse_args()
 
     load_api_key(args.key_file)
@@ -214,11 +217,21 @@ def main() -> int:
     args.runs_dir.mkdir(parents=True, exist_ok=True)
     args.output.parent.mkdir(parents=True, exist_ok=True)
 
-    print(f"Starting WorkBuddy Benchmark | Tasks: {len(selected_tasks)} | Model: {args.model}")
+    cpu_limit = os.cpu_count() or 1
+    concurrency = max(1, min(args.concurrency, cpu_limit, 8))
+    if args.concurrency > concurrency:
+        print(f"Notice: Concurrency {args.concurrency} capped to {concurrency} (CPU cores / safety limit)")
+
+    print(f"Starting WorkBuddy Benchmark | Tasks: {len(selected_tasks)} | Model: {args.model} | Concurrency: {concurrency}")
     print(f"Output JSONL: {args.output}")
 
-    results = []
-    for task_id in selected_tasks:
+    import concurrent.futures
+    import threading
+
+    results: list[dict[str, Any]] = []
+    output_lock = threading.Lock()
+
+    def _execute(task_id: str) -> dict[str, Any] | None:
         try:
             res = run_benchmark_task(
                 task_id,
@@ -230,11 +243,26 @@ def main() -> int:
                 timeout_seconds=args.timeout,
                 docker_image=args.docker,
             )
-            results.append(res)
-            with open(args.output, "a", encoding="utf-8") as f:
-                f.write(json.dumps(res, ensure_ascii=False) + "\n")
+            with output_lock:
+                results.append(res)
+                with open(args.output, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(res, ensure_ascii=False) + "\n")
+            return res
         except Exception as exc:
-            print(f"[BENCH ERROR] {task_id}: {exc}", file=sys.stderr)
+            print(f"[BENCH ERROR] {task_id}: {exc}", file=sys.stderr, flush=True)
+            return None
+
+    if concurrency == 1:
+        for tid in selected_tasks:
+            _execute(tid)
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as pool:
+            futures = [pool.submit(_execute, tid) for tid in selected_tasks]
+            for f in concurrent.futures.as_completed(futures):
+                try:
+                    f.result()
+                except Exception as exc:
+                    print(f"[POOL ERROR] Worker raised: {exc}", file=sys.stderr, flush=True)
 
     passed_count = sum(1 for r in results if r.get("host_reward") == 1.0)
     total_count = len(results)
