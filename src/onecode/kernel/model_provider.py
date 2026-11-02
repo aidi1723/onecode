@@ -836,6 +836,8 @@ class OpenAIChatCompletionsProvider:
             "response_format": {"type": "json_object"},
         }
         payload.update(_chat_thinking_fields())
+        if os.environ.get("ONECODE_STREAM_CHAT", "").strip().lower() in {"1", "true", "yes"}:
+            payload["stream"] = True
         max_tokens_val = os.environ.get("ONECODE_MODEL_MAX_TOKENS")
         if max_tokens_val:
             try:
@@ -953,9 +955,56 @@ def _fallback_channel_config() -> tuple[str, str, str | None] | None:
     return None
 
 
+def _read_streaming_chat_response(response: Any) -> dict[str, Any]:
+    content_parts: list[str] = []
+    reasoning_parts: list[str] = []
+    finish_reason: str | None = None
+    resp_id: str | None = None
+    for raw_line in response:
+        line = raw_line.decode("utf-8").strip()
+        if not line or not line.startswith("data: "):
+            continue
+        data_str = line[6:]
+        if data_str == "[DONE]":
+            break
+        try:
+            chunk = json.loads(data_str)
+            if not resp_id and chunk.get("id"):
+                resp_id = chunk.get("id")
+            choices = chunk.get("choices", [])
+            if choices:
+                delta = choices[0].get("delta", {})
+                if delta.get("content"):
+                    content_parts.append(delta["content"])
+                if delta.get("reasoning_content"):
+                    reasoning_parts.append(delta["reasoning_content"])
+                if choices[0].get("finish_reason"):
+                    finish_reason = choices[0]["finish_reason"]
+        except Exception:
+            pass
+    return {
+        "id": resp_id,
+        "object": "chat.completion",
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "".join(content_parts),
+                    "reasoning_content": "".join(reasoning_parts),
+                },
+                "finish_reason": finish_reason or "stop",
+            }
+        ],
+    }
+
+
 def _post_model_json_direct(endpoint: str, api_key: str, body: dict[str, Any], timeout_seconds: float) -> dict[str, Any]:
     last_url_error: urllib.error.URLError | None = None
-    encoded_body = json.dumps(body).encode("utf-8")
+    req_body = dict(body)
+    if os.environ.get("ONECODE_STREAM_CHAT", "").strip().lower() in {"1", "true", "yes"}:
+        req_body["stream"] = True
+    encoded_body = json.dumps(req_body).encode("utf-8")
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -970,7 +1019,18 @@ def _post_model_json_direct(endpoint: str, api_key: str, body: dict[str, Any], t
         )
         try:
             with _SAFE_OPENER.open(request, timeout=timeout_seconds) as response:
-                payload = json.loads(read_bounded_response(response).decode("utf-8"))
+                content_type = ""
+                headers_obj = getattr(response, "headers", None)
+                if headers_obj is not None and hasattr(headers_obj, "get"):
+                    content_type = str(headers_obj.get("Content-Type", "") or "")
+                elif hasattr(response, "info") and callable(response.info):
+                    info_obj = response.info()
+                    if info_obj is not None and hasattr(info_obj, "get"):
+                        content_type = str(info_obj.get("Content-Type", "") or "")
+                if "text/event-stream" in content_type:
+                    payload = _read_streaming_chat_response(response)
+                else:
+                    payload = json.loads(read_bounded_response(response).decode("utf-8"))
             break
         except TimeoutError as exc:
             raise ModelProviderTimeout("model request timed out") from exc
