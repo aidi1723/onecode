@@ -3171,6 +3171,39 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
                 if old_env is not None:
                     os.environ["ONECODE_HOST_VERIFIER"] = old_env
 
+    def test_protected_python_files_supports_chinese_and_english(self):
+        from onecode.kernel.model_loop import protected_python_files
+
+        task_cn = "我手动跑回归，router.py 不要改。这里只补测试"
+        self.assertIn("router.py", protected_python_files(task_cn))
+
+        task_en = "Please fix bug, do not modify core/base.py"
+        self.assertIn("core/base.py", protected_python_files(task_en))
+
+    def test_repair_plan_safety_allows_tests_for_test_task_and_protects_forbidden(self):
+        from onecode.kernel.model_loop import _validate_repair_plan_safety
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanPatch
+
+        plan_test = ModelPlan(
+            task="t",
+            patches=[ModelPlanPatch(path="tests/test_a.py", search_block="x", replace_block="y")],
+        )
+        # Normal task: tests/ is forbidden
+        err, _ = _validate_repair_plan_safety(plan_test, "implement feature foo in app.py")
+        self.assertEqual(err, "repair_plan_cannot_modify_tests")
+
+        # Testing task: tests/ is allowed
+        err_testing, _ = _validate_repair_plan_safety(plan_test, "只补测试覆盖边界，router.py 不要改")
+        self.assertIsNone(err_testing)
+
+        # Protected file is blocked even in test task
+        plan_protected = ModelPlan(
+            task="t",
+            patches=[ModelPlanPatch(path="werkzeug_like/router.py", search_block="x", replace_block="y")],
+        )
+        err_prot, _ = _validate_repair_plan_safety(plan_protected, "只补测试覆盖边界，router.py 不要改")
+        self.assertEqual(err_prot, "repair_plan_cannot_modify_protected_files")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -32,6 +32,16 @@ def extract_workspace(archive: Path, dest: Path) -> None:
     dest.mkdir(parents=True, exist_ok=True)
     with tarfile.open(archive) as tar:
         tar.extractall(dest, filter="data")
+    import subprocess
+    gitignore = dest / ".gitignore"
+    existing = gitignore.read_text(encoding="utf-8") if gitignore.is_file() else ""
+    if ".onecode" not in existing:
+        gitignore.write_text((existing.rstrip() + "\n.onecode\n.onecode_host_verifier\n").lstrip(), encoding="utf-8")
+    subprocess.run(["git", "init"], cwd=dest, capture_output=True, check=False)
+    subprocess.run(["git", "config", "user.name", "OneCode"], cwd=dest, capture_output=True, check=False)
+    subprocess.run(["git", "config", "user.email", "onecode@bench"], cwd=dest, capture_output=True, check=False)
+    subprocess.run(["git", "add", "-A"], cwd=dest, capture_output=True, check=False)
+    subprocess.run(["git", "commit", "-m", "baseline"], cwd=dest, capture_output=True, check=False)
 
 
 def load_api_key(key_file: Path | None) -> str | None:

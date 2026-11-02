@@ -156,7 +156,9 @@ _OUTPUT_DATA_FILE = re.compile(
     re.IGNORECASE,
 )
 _DO_NOT_FILE = re.compile(
-    rf"(?:do not|don't|never)\s+(?:modify|change|patch|edit|touch|rewrite)\s+{_RELATIVE_PYTHON}",
+    rf"(?:do not|don't|never)\s+(?:modify|change|patch|edit|touch|rewrite)\s+{_RELATIVE_PYTHON}"
+    rf"|((?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+\.py)\s*(?:不要改|别改|不要动|别动|严禁修改|不可修改|无需修改)"
+    rf"|(?:不要改|别改|不要修改|严禁修改)\s*((?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+\.py)",
     re.IGNORECASE,
 )
 _ONLY_FILE = re.compile(rf"\bonly\s+{_RELATIVE_PYTHON}", re.IGNORECASE)
@@ -197,9 +199,11 @@ def named_python_files(task: str) -> list[str]:
 def protected_python_files(task: str) -> list[str]:
     found: list[str] = []
     for match in _DO_NOT_FILE.findall(task):
-        cleaned = _accepted_relative_python(match)
-        if cleaned is not None and cleaned not in found:
-            found.append(cleaned)
+        items = [match] if isinstance(match, str) else [m for m in match if m]
+        for item in items:
+            cleaned = _accepted_relative_python(item)
+            if cleaned is not None and cleaned not in found:
+                found.append(cleaned)
     only = [cleaned for match in _ONLY_FILE.findall(task) if (cleaned := _accepted_relative_python(match))]
     if only:
         allowed = set(only)
@@ -1062,12 +1066,17 @@ def _drop_protected_changes(plan: ModelPlan, task: str) -> ModelPlan:
     protected = set(protected_python_files(task))
     if not protected:
         return plan
-    assets = [asset for asset in plan.assets if asset.path.replace("\\", "/") not in protected]
-    patches = [patch for patch in plan.patches if patch.path.replace("\\", "/") not in protected]
+
+    def _is_protected(p: str) -> bool:
+        clean = p.replace("\\", "/")
+        return clean in protected or Path(clean).name in protected
+
+    assets = [asset for asset in plan.assets if not _is_protected(asset.path)]
+    patches = [patch for patch in plan.patches if not _is_protected(patch.path)]
     steps = []
     for step in plan.execution_steps:
         blocked = any(
-            isinstance(call.params, dict) and isinstance(call.params.get("path"), str) and call.params["path"].replace("\\", "/") in protected
+            isinstance(call.params, dict) and isinstance(call.params.get("path"), str) and _is_protected(call.params["path"])
             for call in step.tool_calls
         )
         if not blocked:
@@ -2277,6 +2286,7 @@ def _finish_verified_task(
         return checked
     current_checked = dict(checked)
     current_result = dict(result)
+    best_checked = dict(checked)
     if "turn_history" not in current_checked:
         branches = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
         initial_history = [{
@@ -2430,8 +2440,20 @@ def _finish_verified_task(
         tested = _with_sandbox_tests(merged, workspace, sandbox_config)
         if tested.get("reason") != "verifier_failed":
             return tested
+        cur_rew = tested.get("host_reward")
+        best_rew = best_checked.get("host_reward")
+        if isinstance(cur_rew, (int, float)) and (not isinstance(best_rew, (int, float)) or cur_rew > best_rew):
+            best_checked = dict(tested)
         current_checked = tested
         current_result = tested
+    if isinstance(best_checked.get("host_reward"), (int, float)):
+        cur_rew = current_checked.get("host_reward")
+        if not isinstance(cur_rew, (int, float)) or best_checked["host_reward"] > cur_rew:
+            current_checked["host_reward"] = best_checked["host_reward"]
+            if best_checked.get("container_id"):
+                current_checked["container_id"] = best_checked["container_id"]
+                current_checked["container_image"] = best_checked.get("container_image")
+                current_checked["container_arch"] = best_checked.get("container_arch")
     return current_checked
 
 
@@ -2706,6 +2728,38 @@ def run_model_task(
     )
 
 
+def _validate_repair_plan_safety(repair_plan: ModelPlan, task: str) -> tuple[str | None, str | None]:
+    if not is_patch_only_repair_plan(repair_plan):
+        return (
+            "repair_plan_must_use_patches_only",
+            "repair_plan_must_use_patches_only: return valid JSON containing 'patches' only (do NOT return assets or execution_plan).",
+        )
+    is_testing_task = (
+        "只补测试" in task
+        or "只写测试" in task
+        or "仅测试" in task
+        or "test task" in task.lower()
+        or "tests only" in task.lower()
+        or "only write tests" in task.lower()
+        or any(_is_test_path(p) for p in required_python_files(task))
+    )
+    if not is_testing_task and any(_is_test_path(p.path) for p in repair_plan.patches):
+        return (
+            "repair_plan_cannot_modify_tests",
+            "repair_plan_cannot_modify_tests: modifying paths under tests/ is forbidden. Patch implementation files only.",
+        )
+    protected_files = set(protected_python_files(task))
+    if any(
+        (p.path in protected_files or Path(p.path).name in protected_files)
+        for p in repair_plan.patches
+    ):
+        return (
+            "repair_plan_cannot_modify_protected_files",
+            f"repair_plan_cannot_modify_protected_files: modifying protected files ({', '.join(protected_files)}) is forbidden.",
+        )
+    return None, None
+
+
 def _run_model_task_repair_loop(
     result: dict[str, Any],
     task: str,
@@ -2786,16 +2840,17 @@ def _run_model_task_repair_loop(
             return _enrich_failed_model_with_repair_state(failed_model, failed_result, attempt)
         assert repair_plan is not None
         repair_plan = synthesize_single_asset_repair(repair_plan, workspace)
-        if not is_patch_only_repair_plan(repair_plan):
+        safety_err, guidance = _validate_repair_plan_safety(repair_plan, task)
+        if safety_err is not None:
             if attempt < effective_attempts:
-                format_error_guidance = "repair_plan_must_use_patches_only: return valid JSON containing 'patches' only (do NOT return assets or execution_plan)."
+                format_error_guidance = guidance
                 branches = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
                 hist = list(failed_result.get("turn_history") or [])
                 hist.append({
                     "turn_id": len(hist) + 1,
                     "branch_name": branches[len(hist) % len(branches)],
                     "status": "halted",
-                    "reason": "repair_plan_must_use_patches_only",
+                    "reason": safety_err,
                     "modified_files": [],
                 })
                 failed_result = dict(failed_result)
@@ -2804,28 +2859,7 @@ def _run_model_task_repair_loop(
             return repair_rejected_result(
                 failed_result,
                 run_id,
-                "repair_plan_must_use_patches_only",
-                repair_attempt_count=attempt,
-            )
-        if any(_is_test_path(p.path) for p in repair_plan.patches):
-            if attempt < effective_attempts:
-                format_error_guidance = "repair_plan_cannot_modify_tests: modifying paths under tests/ is forbidden. Patch implementation files only."
-                branches = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
-                hist = list(failed_result.get("turn_history") or [])
-                hist.append({
-                    "turn_id": len(hist) + 1,
-                    "branch_name": branches[len(hist) % len(branches)],
-                    "status": "halted",
-                    "reason": "repair_plan_cannot_modify_tests",
-                    "modified_files": [],
-                })
-                failed_result = dict(failed_result)
-                failed_result["turn_history"] = hist
-                continue
-            return repair_rejected_result(
-                failed_result,
-                run_id,
-                "repair_plan_cannot_modify_tests",
+                safety_err,
                 repair_attempt_count=attempt,
             )
         repair_brightness = IchingKernel.star_brightness_profile(failed_code)
