@@ -29,7 +29,7 @@ echo "source-quality"
 PYTHONPATH="${REPO_SRC}${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" scripts/check_source_quality.py src
 
 echo "ruff"
-PYTHONPATH="${REPO_SRC}${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -m ruff check src tests
+PYTHONPATH="${REPO_SRC}${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -m ruff check src tests scripts
 
 echo "mypy"
 PYTHONPATH="${REPO_SRC}${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -m mypy src/

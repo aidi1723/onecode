@@ -12,6 +12,7 @@ import tempfile
 import time
 import traceback
 from pathlib import Path
+from typing import Any
 
 # Add onecode source to path
 sys.path.insert(0, str(Path.home() / "onecode-linux-test/src"))
@@ -257,9 +258,9 @@ def main():
     all_results = {}
 
     for model in MODELS:
-        print(f"\n=======================================================")
+        print("\n=======================================================")
         print(f"RUNNING BENCHMARK WITH MODEL: {model}")
-        print(f"=======================================================")
+        print("=======================================================")
         os.environ["ONECODE_MODEL"] = model
         os.environ["ONECODE_HOME"] = str(Path.home() / f"workbuddy-exam/spot-{model}-home")
 

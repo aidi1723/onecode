@@ -677,9 +677,9 @@ def _extract_targeted_assertions(error_parts: list[str]) -> list[str]:
         fc_low = fc.lower()
         if "credit" in fc_low or "line_total" in fc_low:
             alerts.append(
-                "- Credit voucher rule (府相朝垣·库印分明): For invoice credit rows, "
-                "description MUST be strictly 'Credit', credit_cents must be positive integer (e.g. '300'), "
-                "and line_total_cents must be negative integer (e.g. '-300')."
+                "- Accounting adjustment rule (府相朝垣·库印分明): For credit, discount, or deduction entries, "
+                "ensure positive voucher amounts are recorded distinctly from negative net balance reductions, "
+                "maintaining mathematical ledger consistency."
             )
             break
         if "score" in fc_low or "clipped" in fc_low or "format" in fc_low:
