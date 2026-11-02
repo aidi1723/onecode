@@ -113,6 +113,12 @@ def run_harbor_task(
     if api_key:
         os.environ["ONECODE_API_KEY"] = api_key
         os.environ["OPENAI_API_KEY"] = api_key
+    if endpoint:
+        os.environ["ONECODE_ENDPOINT"] = endpoint
+        os.environ["OPENAI_BASE_URL"] = endpoint
+    if model:
+        os.environ["ONECODE_MODEL"] = model
+    os.environ.setdefault("ONECODE_SURVEY_MAX_TURNS", "0")
 
     started_at = time.monotonic()
     prepared = prepare_shell_model_call(instruction, workspace, run_id=f"harbor-{task_id}")
