@@ -1023,8 +1023,10 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
         f"Original task: {task}\n"
         f"Failure status: {failed_result.get('status')}\n"
         f"Failure reason: {failed_result.get('reason')}\n"
-        f"Affected paths: {path_summary}\n"
+        f"Affected paths: {path_summary} (files already touched; you may patch any other relevant source file in the workspace)\n"
         f"Failure details:\n{details}\n"
+        "A failing check may call a function defined outside the files already touched. "
+        "Find that function's defining module and patch it there, instead of editing the same file again.\n"
     )
     if closest_hints:
         prompt += "Patch context hints:\n" + "\n\n".join(closest_hints) + "\n"
