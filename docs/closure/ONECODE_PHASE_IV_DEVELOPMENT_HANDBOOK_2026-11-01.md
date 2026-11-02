@@ -126,23 +126,27 @@ flowchart TD
   2. **跨模型泛化攻坚**：`openapi_params` 在不泄露契约答案的前提下，通过第 1 轮基于失败断言的自然自愈，由初始状态跃升至 12/12 满分（1.0000）。（注：当前 `results-r47-kimi.jsonl` 仅汇总终局快照，逐轮断言演变完整保留在各运行目录的 `ledger.jsonl` 中）。
   3. **高性价比与稳定性**：整轮评测总消耗仅约 1.22 元人民币，展现出极高的工业经济性与规划鲁棒性。
 
-### 3.5 扩展四题 Docker 容器沙箱全隔离实测（R48）
-在 `n100` 节点（Docker 29.1.3，镜像 `python:3.12-slim-amd64`）上，对 4 道 Hard 扩展题执行容器沙盒全隔离基准评测（记录于 `results-r48-docker.jsonl`）：
+### 3.5 扩展四题外置验真全量复测与沙箱路由实证审计（R48）
+在 `n100` 节点上，对 4 道 Hard 扩展题执行第 48 轮全量复测（虽然运行脚本传入 `--docker python:3.12-slim-amd64`，但经代码链路与产物审计，评测完全由宿主机环境原生执行；记录于 `results-r48-docker.jsonl`）：
 
-| 任务 ID | 领域/难度 | 终局卦象 | 五行局 (气数) | 修复次数 | 最终宿主机评分 | 任务终态 | 耗时 | Harbor 标记 |
+| 任务 ID | 领域/难度 | 终局卦象 | 五行局 (气数) | 修复次数字段 | 最终宿主机评分 | 任务终态 | 耗时 | Harbor 标记 |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `api_contract-hard-openapi_params` | 接口契约 Hard | 63 (乾) / 39 (大畜) | 水二局 (3) | 0 | **1.0000 (12/12)** | `completed` | 93.88s | `harbor: false` |
-| `security_hardening-hard-archive_path_traversal` | 安全防御 Hard | 17 (屯) / 17 (屯) | 木三局 (4) | 0 | **0.9167 (11/12)** | `halted` | 610.12s | `harbor: false` |
+| `security_hardening-hard-archive_path_traversal` | 安全防御 Hard | 17 (屯) / 17 (屯) | 木三局 (4) | 0* | **0.9167 (11/12)** | `halted` (timeout) | 610.12s | `harbor: false` |
 | `feature_pipeline-hard-cross_categorical` | 管道计算 Hard | 63 (乾) / 39 (大畜) | 水二局 (3) | 0 | **1.0000 (12/12)** | `completed` | 102.74s | `harbor: false` |
 | `refactor-hard-sync_async_bridge` | 架构重构 Hard | 63 (乾) / 39 (大畜) | 水二局 (3) | 0 | **1.0000 (11/11)** | `completed` | 155.16s | `harbor: false` |
 
 - **扩展集综合均分**：**0.9792**（四题算术平均值：(1.0 + 11/12 + 1.0 + 1.0) / 4 = 0.9792；测试断言总计通过 46 项、共 47 项，即 46/47 = 97.87%）。
 - **满分过测率**：**3 / 4 (75.0%)**。
-- **沙箱隔离与宿主原生（R48 vs R47）实证对照**：
-  1. **收敛加速**：`openapi_params` 在容器隔离环境下首轮直接生成完全自洽的 OpenAPI 参数解析结构，0 修复达到 1.0 满分，耗时从宿主机原生的 319.48s 显著下降至 93.88s。
-  2. **状态保全**：`archive_path_traversal` 在沙箱隔离下经历了 Turn 0~2 的深度修补，在 Turn 3 因上游接口单次流式生成耗时达到 300s 触发 `model_provider_timeout`，卦象为 17（水雷屯，云雷屯，君子以经纶），内核稳健捕捉并保留了最高宿主验真分 0.9167（11/12 项断言通过）。
-  3. **架构与管道双双直通**：`cross_categorical` 与 `sync_async_bridge` 均首轮直通 1.0 满分（分别通过 12/12 与 11/11 全部断言）。
-  4. **Harbor 真实性保证**：全部 4 项记录真实标明 `harbor: false`，杜绝任何概念漂移或虚假宣称。
+- **物理执行路径与产物真实性审计（关键实证结论）**：
+  1. **Docker 隔离未实质介入**：虽然命令行传入 `--docker python:3.12-slim-amd64`，但在当前内核中，`ONECODE_HOST_VERIFIER` 环境变量被直接设置为任务外置的 `tests/verifier.py`。在 [`src/onecode/kernel/model_loop.py`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/model_loop.py) 的 `_with_sandbox_tests` 中，`host_verifier_path` 分支优先返回，直接调用宿主机原生 Python 虚拟环境（`.venv/bin/python3`）执行 `run_host_verifier`，且文件补丁亦直接作用于宿主机文件系统。因此四个运行目录下的所有 JSON/JSONL 产物中均无 `python:3.12-slim` 或 `SandboxConfig`，`docker` 一词仅作为路径字符存在于工作目录名中，四条记录的 `harbor: false` 确凿反映了宿主机执行事实。
+  2. **路径穿越状态保全与多轮轨迹**：`archive_path_traversal` 在 `ledger.jsonl` 中的完整物理轨迹为：
+     - Turn 0（初试）：退出码 1（`UnsafeArchiveError: unknown member type: None`，未解析出断言，得分 0.0）；
+     - Turn 1（初修）：退出码 0，通过 9/12 项断言（得分 0.75）；
+     - Turn 2（进阶）：退出码 0，通过 11/12 项断言（得分 0.9167）；
+     - Turn 3（终测）：上游接口单次流式生成触及 300s 边界，抛出 `ModelProviderTimeout`，终态置为 `halted`（`reason: model_provider_timeout`）。
+  3. **修复次数字段为 0 的成因**：由于在 Turn 3 异常中断，由 `failed_model_result` 兜底生成终局记录，该结构未继承过程中的 `attempt` 计数，导致汇总 JSONL 中字段显示为 `0`；但状态机稳健保全了 Turn 2 的最高宿主机验真分 `0.9167`，终局卦象码为 **17（坎上震下，水雷屯，文王卦序 3）**。
+  4. **首轮直通高收敛**：`openapi_params`（93.88s）、`cross_categorical`（102.74s）、`sync_async_bridge`（155.16s）均在首轮一次性通过全部断言，终态卦象均为 **63（乾为天）/ 39（山天大畜）**。
 
 ---
 
