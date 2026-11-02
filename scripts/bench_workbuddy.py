@@ -130,8 +130,16 @@ def run_benchmark_task(
     host_reward = result.get("host_reward")
     if (host_reward is None or host_reward == "ungraded") and verifier.is_file():
         from onecode.kernel.verifier import run_host_verifier
-        _checked, graded_reward = run_host_verifier(workspace, verifier)
+        _checked, graded_reward = run_host_verifier(
+            workspace,
+            verifier,
+            sandbox_config=extras.get("sandbox_config"),
+        )
         host_reward = graded_reward
+        if _checked.container_id:
+            result["container_id"] = _checked.container_id
+            result["container_image"] = _checked.container_image
+            result["container_arch"] = _checked.container_arch
     if host_reward is None:
         host_reward = "ungraded"
     outcome_code = result.get("outcome_status_code") or result.get("global_status_code")
@@ -152,6 +160,10 @@ def run_benchmark_task(
         "duration_s": duration_s,
         "detail": str(result.get("detail") or result.get("reason") or "")[:300],
     }
+    if result.get("container_id"):
+        record["container_id"] = result["container_id"]
+        record["container_image"] = result.get("container_image")
+        record["container_arch"] = result.get("container_arch")
 
     print(
         f"[BENCH DONE] {task_id} | status={record['status']} | reward={host_reward} | "

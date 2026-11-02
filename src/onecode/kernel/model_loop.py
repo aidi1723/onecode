@@ -2424,9 +2424,13 @@ def _with_sandbox_tests(result: dict[str, Any], workspace: Path, sandbox_config:
 
     host_verifier_path = os.environ.get("ONECODE_HOST_VERIFIER", "").strip()
     if host_verifier_path:
-        checked, reward = run_host_verifier(workspace, host_verifier_path)
+        checked, reward = run_host_verifier(workspace, host_verifier_path, sandbox_config=sandbox_config)
         enhanced = apply_verifier_evidence(result, workspace, [checked])
         enhanced["host_reward"] = reward
+        if checked.container_id:
+            enhanced["container_id"] = checked.container_id
+            enhanced["container_image"] = checked.container_image
+            enhanced["container_arch"] = checked.container_arch
         return enhanced
 
     if sandbox_config is None:
@@ -2854,6 +2858,9 @@ def _run_model_task_repair_loop(
         if verified.get("status") == "completed" and verified.get("reason") is None:
             verified["repaired"] = True
             return verified
+        for key in ("host_reward", "container_id", "container_image", "container_arch"):
+            if key in verified and key not in failed_result:
+                failed_result[key] = verified[key]
     return failed_result
 
 

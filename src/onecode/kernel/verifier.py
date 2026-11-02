@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -188,6 +189,9 @@ class VerifierResult:
     stderr_sha256: str = ""
     cwd: str = ""
     command: list[str] = field(default_factory=list)
+    container_id: str | None = None
+    container_image: str | None = None
+    container_arch: str | None = None
 
     def __post_init__(self) -> None:
         if not self.stdout_sha256 and self.stdout_tail is not None:
@@ -198,7 +202,12 @@ class VerifierResult:
             object.__setattr__(self, "cwd", ".")
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        data = asdict(self)
+        if self.container_id is None:
+            data.pop("container_id", None)
+            data.pop("container_image", None)
+            data.pop("container_arch", None)
+        return data
 
 
 @dataclass(frozen=True)
@@ -570,15 +579,13 @@ def run_host_verifier(
     workspace: Path,
     verifier_path: Path | str,
     timeout_seconds: float = 180.0,
+    sandbox_config: Any | None = None,
 ) -> tuple[VerifierResult, object]:
-    """Execute an external benchmark verifier on the host with isolated WORKSPACE and LOG_DIR.
+    """Execute an external benchmark verifier on host or in container with isolated WORKSPACE and LOG_DIR.
 
     Returns (VerifierResult, host_reward).
     Strict passing condition: proc.returncode == 0 and host_reward == 1.0.
     """
-    import os
-    import tempfile
-
     verifier = Path(verifier_path).expanduser().resolve()
     if not verifier.is_file():
         result = VerifierResult(
@@ -596,6 +603,27 @@ def run_host_verifier(
             command=[sys.executable, str(verifier)],
         )
         return result, "ungraded"
+
+    if sandbox_config is not None:
+        return _run_container_verifier(
+            workspace=workspace,
+            verifier=verifier,
+            sandbox_config=sandbox_config,
+            timeout_seconds=timeout_seconds,
+        )
+    return _run_native_host_verifier(
+        workspace=workspace,
+        verifier=verifier,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def _run_native_host_verifier(
+    workspace: Path,
+    verifier: Path,
+    timeout_seconds: float = 180.0,
+) -> tuple[VerifierResult, object]:
+    import tempfile
 
     log_dir = Path(tempfile.mkdtemp(prefix="oc-host-grade-"))
     shim = Path(tempfile.mkdtemp(prefix="oc-host-shim-"))
@@ -684,6 +712,229 @@ def run_host_verifier(
         return checked, reward
     finally:
         shutil.rmtree(shim, ignore_errors=True)
+        shutil.rmtree(log_dir, ignore_errors=True)
+
+
+def _build_container_verifier_cmd(
+    workspace: Path,
+    verifier: Path,
+    cfg: Any,
+    log_dir: Path,
+    cidfile: Path,
+) -> list[str]:
+    ws_resolved = workspace.resolve()
+    verifier_resolved = verifier.resolve()
+    mounts = [
+        "--mount",
+        f"type=bind,src={ws_resolved.as_posix()},dst=/workspace",
+        "--mount",
+        f"type=bind,src={log_dir.resolve().as_posix()},dst=/log_dir",
+    ]
+    if verifier_resolved.is_relative_to(ws_resolved):
+        container_verifier = f"/workspace/{verifier_resolved.relative_to(ws_resolved).as_posix()}"
+    else:
+        mounts.extend(
+            [
+                "--mount",
+                f"type=bind,src={verifier_resolved.as_posix()},dst=/verifier/verifier.py,readonly",
+            ]
+        )
+        container_verifier = "/verifier/verifier.py"
+
+    for name in (".git", ".github", ".onecode", "tests"):
+        source = ws_resolved / name
+        if source.is_dir():
+            mounts.extend(
+                [
+                    "--mount",
+                    f"type=bind,src={source.as_posix()},dst=/workspace/{name},readonly",
+                ]
+            )
+
+    user_flag = []
+    if hasattr(os, "getuid") and hasattr(os, "getgid"):
+        user_flag = ["--user", f"{os.getuid()}:{os.getgid()}"]
+
+    return [
+        "docker",
+        "run",
+        "--rm",
+        "--cidfile",
+        cidfile.as_posix(),
+        "--network",
+        cfg.network,
+        "--memory",
+        cfg.memory,
+        "--cpus",
+        cfg.cpus,
+        "--pids-limit",
+        str(cfg.pids_limit),
+        "--tmpfs",
+        cfg.tmpfs,
+        "--security-opt",
+        "no-new-privileges",
+        *user_flag,
+        *mounts,
+        "--env",
+        "WORKSPACE=/workspace",
+        "--env",
+        "LOG_DIR=/log_dir",
+        "--env",
+        "PYTHONSAFEPATH=1",
+        "--workdir",
+        "/workspace",
+        cfg.image,
+        "python3",
+        container_verifier,
+    ]
+
+
+def _run_container_verifier(
+    workspace: Path,
+    verifier: Path,
+    sandbox_config: Any,
+    timeout_seconds: float = 180.0,
+) -> tuple[VerifierResult, object]:
+    from onecode.kernel.sandbox import _image_architecture
+
+    if shutil.which("docker") is None:
+        return VerifierResult(
+            id="host-verifier",
+            status="failed",
+            reason="docker_not_found",
+            failure_kind="exception",
+            exit_code=None,
+            duration_ms=0,
+            stdout_tail="",
+            stderr_tail="Docker executable not found",
+            cwd=str(workspace),
+            command=["docker", "run"],
+        ), "ungraded"
+
+    cfg = with_runnable_image(sandbox_config)
+    if image_platform_mismatch(cfg.image):
+        return VerifierResult(
+            id="host-verifier",
+            status="failed",
+            reason="image_platform_mismatch",
+            failure_kind="exception",
+            exit_code=None,
+            duration_ms=0,
+            stdout_tail="",
+            stderr_tail=f"image platform mismatch: {cfg.image}",
+            cwd=str(workspace),
+            command=["docker", "run"],
+        ), "ungraded"
+
+    import tempfile
+
+    log_dir = Path(tempfile.mkdtemp(prefix="oc-container-grade-"))
+    cidfile = log_dir / "container.cid"
+    try:
+        try:
+            os.chmod(log_dir, 0o777)
+        except OSError:
+            pass
+
+        docker_cmd = _build_container_verifier_cmd(workspace, verifier, cfg, log_dir, cidfile)
+
+        started = time.monotonic()
+        try:
+            proc = subprocess.run(
+                docker_cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+            duration_ms = max(0, int((time.monotonic() - started) * 1000))
+            returncode = proc.returncode
+            stdout = proc.stdout or ""
+            stderr = proc.stderr or ""
+            timed_out = False
+        except subprocess.TimeoutExpired as exc:
+            duration_ms = max(0, int((time.monotonic() - started) * 1000))
+            returncode = None
+            stdout = exc.stdout if isinstance(exc.stdout, str) else (exc.stdout or b"").decode("utf-8", "replace")
+            stderr = exc.stderr if isinstance(exc.stderr, str) else (exc.stderr or b"").decode("utf-8", "replace")
+            timed_out = True
+
+        container_id: str | None = None
+        container_image: str | None = None
+        container_arch: str | None = None
+        if cidfile.is_file():
+            cid_text = cidfile.read_text(encoding="utf-8").strip()
+            if cid_text:
+                container_id = cid_text
+                container_image = cfg.image
+                container_arch = _image_architecture(cfg.image)
+
+        if not timed_out and returncode != 0 and _docker_daemon_unavailable(stderr):
+            return VerifierResult(
+                id="host-verifier",
+                status="failed",
+                reason="docker_daemon_unavailable",
+                failure_kind="exception",
+                exit_code=None,
+                duration_ms=duration_ms,
+                stdout_tail=tail_text(stdout.encode("utf-8", errors="replace")),
+                stderr_tail=tail_text(stderr.encode("utf-8", errors="replace")),
+                cwd=str(workspace.resolve()),
+                command=docker_cmd,
+            ), "ungraded"
+
+        reward: object = "ungraded"
+        reward_file = log_dir / "reward.txt"
+        if reward_file.is_file():
+            text = reward_file.read_text(encoding="utf-8").strip()
+            try:
+                reward = float(text)
+            except ValueError:
+                reward = text or "ungraded"
+
+        reward_json_file = log_dir / "reward.json"
+        if reward_json_file.is_file():
+            try:
+                reward_json_str = reward_json_file.read_text(encoding="utf-8").strip()
+                if reward_json_str and reward_json_str not in stdout:
+                    stdout = reward_json_str + "\n" + stdout
+            except Exception:
+                pass
+
+        if timed_out:
+            passed = False
+            reason: str | None = "verifier_timeout"
+            failure_kind: VerifierFailureKind | None = "timeout"
+        elif returncode == 0 and reward == 1.0:
+            passed = True
+            reason = None
+            failure_kind = None
+        else:
+            passed = False
+            reason = "verifier_failed"
+            failure_kind = "command_failed"
+
+        stdout_bytes = stdout.encode("utf-8", errors="replace")
+        stderr_bytes = stderr.encode("utf-8", errors="replace")
+        checked = VerifierResult(
+            id="host-verifier",
+            status="passed" if passed else "failed",
+            reason=reason,
+            failure_kind=failure_kind,
+            exit_code=returncode,
+            duration_ms=duration_ms,
+            stdout_tail=tail_text(stdout_bytes),
+            stderr_tail=tail_text(stderr_bytes),
+            stdout_sha256=sha256_bytes(stdout_bytes),
+            stderr_sha256=sha256_bytes(stderr_bytes),
+            cwd=str(workspace.resolve()),
+            command=docker_cmd,
+            container_id=container_id,
+            container_image=container_image,
+            container_arch=container_arch,
+        )
+        return checked, reward
+    finally:
         shutil.rmtree(log_dir, ignore_errors=True)
 
 

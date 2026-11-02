@@ -9,6 +9,7 @@ from unittest.mock import patch
 from onecode.kernel.verifier import (
     VERIFIER_POLICY_PRESETS,
     VerifierSpec,
+    VerifierResult,
     load_verifier_policy,
     run_verifier,
     task_status_from_results,
@@ -736,4 +737,76 @@ class VerifierExecutionTests(unittest.TestCase):
             self.assertEqual(checked.status, "failed")
             self.assertEqual(checked.reason, "host_verifier_not_found")
             self.assertEqual(reward, "ungraded")
+
+    def test_verifier_result_container_fields(self):
+        r1 = VerifierResult(
+            id="test",
+            status="passed",
+            reason=None,
+            failure_kind=None,
+            exit_code=0,
+            duration_ms=10,
+            stdout_tail="",
+            stderr_tail="",
+            cwd=".",
+        )
+        d1 = r1.to_dict()
+        self.assertNotIn("container_id", d1)
+        self.assertNotIn("container_image", d1)
+        self.assertNotIn("container_arch", d1)
+
+        r2 = VerifierResult(
+            id="test",
+            status="passed",
+            reason=None,
+            failure_kind=None,
+            exit_code=0,
+            duration_ms=10,
+            stdout_tail="",
+            stderr_tail="",
+            cwd=".",
+            container_id="abc12345",
+            container_image="python:3.12-slim-amd64",
+            container_arch="amd64",
+        )
+        d2 = r2.to_dict()
+        self.assertEqual(d2["container_id"], "abc12345")
+        self.assertEqual(d2["container_image"], "python:3.12-slim-amd64")
+        self.assertEqual(d2["container_arch"], "amd64")
+
+    def test_run_host_verifier_dispatches_to_container_verifier(self):
+        from unittest.mock import patch
+        from onecode.kernel.sandbox import SandboxConfig
+        from onecode.kernel.verifier import run_host_verifier
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            workspace.mkdir()
+            verifier = Path(tmp) / "verifier.py"
+            verifier.write_text("print('hello')", encoding="utf-8")
+            cfg = SandboxConfig(workspace=workspace, image="test-image")
+
+            expected_res = VerifierResult(
+                id="host-verifier",
+                status="passed",
+                reason=None,
+                failure_kind=None,
+                exit_code=0,
+                duration_ms=10,
+                stdout_tail="",
+                stderr_tail="",
+                cwd=str(workspace),
+                container_id="cid123",
+            )
+            with patch("onecode.kernel.verifier._run_container_verifier", return_value=(expected_res, 1.0)) as mock_run:
+                checked, reward = run_host_verifier(workspace, verifier, sandbox_config=cfg)
+                mock_run.assert_called_once_with(
+                    workspace=workspace,
+                    verifier=verifier.resolve(),
+                    sandbox_config=cfg,
+                    timeout_seconds=180.0,
+                )
+                self.assertEqual(checked.container_id, "cid123")
+                self.assertEqual(reward, 1.0)
+
 
