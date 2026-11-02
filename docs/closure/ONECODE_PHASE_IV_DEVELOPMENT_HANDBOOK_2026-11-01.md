@@ -155,12 +155,12 @@ flowchart TD
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `security_hardening-hard-archive_path_traversal` | 安全防御 Hard | 63 (乾) / 39 (大畜) | 木三局 (4) | 2 | **1.0000** | `completed` | 757.82s | **12 / 12** | `harbor: false` |
 
-- **逐轮断言演进实证**：
-  - Turn 0（初试）：8 / 12 通过（得分 0.6667）；
-  - Turn 1（补丁）：11 / 12 通过（得分 0.9167，此时仅剩第 8 项 `safe encoded slash is allowed` 未通过）；
-  - Turn 2（跨文件自愈）：在泛化指引下，模型成功跳出 `archive_like/extract.py` 的思维定势，跨模块对 `archive_like/path.py` 中的 `target_path` 打上多重 URL 解码与越界防护补丁，**在第 2 轮修复后斩获 12/12 满分（1.0000）**！
-- **四道全新 Hard 题满贯实绩（47/47）**：
-  至此，扩展 4 道 Hard 题在主机外置评测验真下**全部达成 1.0000 满分**：
+- **逐轮断言演进实证（三次校验退出码均为 0）**：
+  - Turn 0（初试）：8 / 12 通过（得分 0.6667；未通过的 4 项为：`double encoded traversal is blocked`、`safe encoded slash is allowed`、`symlink member is rejected`、`unknown member type is rejected`）；
+  - Turn 1（补丁）：11 / 12 通过（得分 0.9167；修复了双重编码、软链接与未知类型拦截，仅剩 `safe encoded slash is allowed` 未过）；
+  - Turn 2（跨文件自愈）：12 / 12 全部通过（得分 1.0000；在泛化指引下，模型成功跳出 `archive_like/extract.py` 的思维定势，跨模块对 `archive_like/path.py` 中的 `target_path` 施加补丁，加入先解码后拼接与越界防护，顺利拿下满分）。
+- **四道全新 Hard 题工作区合并实绩（47/47）**：
+  `results-r49-traversal.jsonl` 专注记录了该题的单题攻坚。结合第 48 轮已验证留存的其余 3 题工作区（`openapi_params`、`cross_categorical`、`sync_async_bridge` 均保持 1.0 满分），4 道题对应工作区经复判全部达到 1.0000：
   1. `api_contract-hard-openapi_params`: **1.0000 (12/12)**
   2. `security_hardening-hard-archive_path_traversal`: **1.0000 (12/12)**
   3. `feature_pipeline-hard-cross_categorical`: **1.0000 (12/12)**
@@ -168,6 +168,7 @@ flowchart TD
   - **总断言通过率**：**47 / 47 项（100.0%）**。
   - **平均奖励分**：**1.0000**。
   - **纯正原则保持**：契约零泄露，`dependencies = []`，`harbor: false` 实名保真。
+  - **时序证据链**：代码提示词拓展提交 `37072fa` 于 15:14 先行合入，先于评测结果生成时间（15:28），第 49 轮总结提交 `c1790fd`（15:29）已在 `main` 封存。
 
 ---
 
