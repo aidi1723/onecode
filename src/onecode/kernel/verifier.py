@@ -864,8 +864,8 @@ def _run_container_verifier(
         container_arch: str | None = None
         if cidfile.is_file():
             cid_text = cidfile.read_text(encoding="utf-8").strip()
-            if cid_text:
-                container_id = cid_text
+            if len(cid_text) == 64 and all(c in "0123456789abcdefABCDEF" for c in cid_text):
+                container_id = cid_text.lower()
                 container_image = cfg.image
                 container_arch = _image_architecture(cfg.image)
 

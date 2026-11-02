@@ -58,33 +58,37 @@
 
 ## 4. Phase V 步骤 2.1 容器验真实测落地事实
 
-### 4.1 代码与调度改造（提交 `d02f493`）
+### 4.1 代码与调度改造（提交 `d02f493` 与后续加固）
 - `VerifierResult` 扩展 `container_id`、`container_image`、`container_arch` 字段；`to_dict()` 在 `container_id is None` 时自动剔除。
 - `run_host_verifier` 增加 `sandbox_config` 分发逻辑：当 `sandbox_config` 存在时转入 `_run_container_verifier`，挂载 `/workspace`（rw）、`/log_dir`（rw）和 `/verifier/verifier.py`（ro），并注入资源约束与安全选项（`--security-opt no-new-privileges`、`--network none` 等）。
-- 通过 `--cidfile` 抓取真实 Docker 容器 64 位 ID，严格杜绝「仅传参数未起容器」的伪隔离记录。
+- 通过 `--cidfile` 抓取真实 Docker 容器 64 位十六进制 ID（严格校验 `len == 64` 且为纯十六进制字符），若容器未真正启动则不写入容器字段。
 - `_with_sandbox_tests` 将 `sandbox_config` 透传至 `run_host_verifier`，并在完成态和未完成态中准确回传容器指纹字段。
 - `scripts/bench_workbuddy.py` 在 fallback 校验中透传 `sandbox_config`，并在终局 record 中记录容器信息；`harbor: false` 保持不变。
-- 质量门禁全通：单函数 $\le 200$ 行，单类 $\le 500$ 行，无外部依赖（`dependencies = []`），52 项单元测试通过。
+- 质量门禁全通：单函数 $\le 200$ 行，单类 $\le 500$ 行，无外部依赖（`dependencies = []`），53 项单元测试通过。
 
-### 4.2 历史四题容器内复验事实（`n100` 实测）
-在 `n100` 环境基于镜像 `python:3.12-slim-amd64` 分别加载四题工作区执行容器隔离验真：
-- `api_contract-hard-openapi_params`（R48 工作区）：`passed`，`reward: 1.0`（12/12），容器 ID `b3d3fec0228c...`
-- `security_hardening-hard-archive_path_traversal`（R49 工作区）：`passed`，`reward: 1.0`（12/12），容器 ID `8c2b9e50a727...`
-- `feature_pipeline-hard-cross_categorical`（R48 工作区）：`passed`，`reward: 1.0`（12/12），容器 ID `a065785d5bc5...`
-- `refactor-hard-sync_async_bridge`（R48 工作区）：`passed`，`reward: 1.0`（11/11），容器 ID `688ba9ee8582...`
-合计 47/47 断言在真 Docker 容器中全部通过。
+### 4.2 历史四题工作区临时容器复验（命令行交互输出，未写入 jsonl）
+在 `n100` 节点上，对历史已解题工作区通过 Python 单行命令调用带 `SandboxConfig` 的 `run_host_verifier` 进行隔离复核（仅作为交互核验，未记入任何 `~/workbuddy-exam/*.jsonl` 评测结果）：
+- `api_contract-hard-openapi_params`（`runs-r48-docker` 工作区）：`passed`，`reward: 1.0`（12/12），容器 ID `b3d3fec0228c...`
+- `security_hardening-hard-archive_path_traversal`（`runs-r49-traversal` 工作区）：`passed`，`reward: 1.0`（12/12），容器 ID `8c2b9e50a727...`
+- `feature_pipeline-hard-cross_categorical`（`runs-r48-docker` 工作区）：`passed`，`reward: 1.0`（12/12），容器 ID `a065785d5bc5...`
+- `refactor-hard-sync_async_bridge`（`runs-r48-docker` 工作区）：`passed`，`reward: 1.0`（11/11），容器 ID `688ba9ee8582...`
 
 ### 4.3 第 50 轮全流程端到端实测事实（`results-r50-container.jsonl`）
+- **评测文件**：`results-r50-container.jsonl`，当前仅包含 `openapi_params` 一题记录。
 - **任务**：`api_contract-hard-openapi_params`
 - **模型**：`kimi-k2.7-code`
 - **终态**：`status: completed`，`reason: null`
-- **奖励**：`host_reward: 1.0`（12/12 全部通过）
+- **奖励**：`host_reward: 1.0`
 - **卦象码**：`outcome_status_code: 63`（乾为天），`iching_status_code: 39`（山天大畜）
-- **轮次与耗时**：修复次数 2，耗时 610.92 秒，水二局预算 3。
-- **容器指纹证据**：
+- **修复次数与耗时**：`repair_attempt_count: 2`，`duration_s: 610.92`，水二局预算 3。
+- **终局容器指纹（写入 jsonl）**：
   - `container_id`: `ecfc44b8fcd4530d91013f92dea52231fa01d313048965cb74bf965514d65269`
   - `container_image`: `python:3.12-slim-amd64`
   - `container_arch`: `amd64`
 - **评测标记**：`harbor: false`
-- **账本记录**：`turn_history` 记录 `子`（`verifier_failed`）$\to$ `丑`（`completed`）$\to$ `寅`（`completed`），隔离容器内执行耗时 941ms。
+- **工作区账本演进（`ledger.jsonl` 三次真容器生命周期）**：
+  1. 初验（Turn 0）：5/12 通过，退出码 0，容器 ID `cfd1f0c6cda1...`，断言失败进入修复；
+  2. 修复第 1 轮（丑，Turn 1）：9/12 通过，退出码 0，容器 ID `665550fa50f8...`，模型修改完成但断言未全过；
+  3. 修复第 2 轮（寅，Turn 2）：12/12 通过，退出码 0，容器 ID `ecfc44b8fcd4...`（单次容器内耗时 941ms，成为终局记录）。
+  `turn_history` 记录 `子`（`verifier_failed`）$\to$ `丑`（`completed`）$\to$ `寅`（`completed`）。941ms 与外部 API 余额查询仅属中间调试证据，不属于 `results-r50-container.jsonl` 数据字段。
 

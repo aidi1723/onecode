@@ -809,4 +809,45 @@ class VerifierExecutionTests(unittest.TestCase):
                 self.assertEqual(checked.container_id, "cid123")
                 self.assertEqual(reward, 1.0)
 
+    def test_run_container_verifier_cidfile_requires_64_hex_chars(self):
+        from unittest.mock import patch
+        from onecode.kernel.sandbox import SandboxConfig
+        from onecode.kernel.verifier import _run_container_verifier
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            workspace.mkdir()
+            verifier = Path(tmp) / "verifier.py"
+            verifier.write_text("print('hello')", encoding="utf-8")
+            cfg = SandboxConfig(workspace=workspace, image="test-image")
+
+            fake_proc = type("CompletedProc", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+            with patch("shutil.which", return_value="/usr/bin/docker"), \
+                 patch("onecode.kernel.verifier.image_platform_mismatch", return_value=False), \
+                 patch("onecode.kernel.sandbox._image_architecture", return_value="amd64"):
+
+                def write_valid_cid(*args, **kwargs):
+                    cidfile = args[0][4]
+                    Path(cidfile).write_text("a" * 64, encoding="utf-8")
+                    reward_file = Path(cidfile).parent / "reward.txt"
+                    reward_file.write_text("1.0", encoding="utf-8")
+                    return fake_proc
+
+                with patch("subprocess.run", side_effect=write_valid_cid):
+                    res, rew = _run_container_verifier(workspace, verifier, cfg)
+                    self.assertEqual(res.container_id, "a" * 64)
+                    self.assertEqual(res.container_arch, "amd64")
+
+                def write_invalid_cid(*args, **kwargs):
+                    cidfile = args[0][4]
+                    Path(cidfile).write_text("not-a-valid-container-id", encoding="utf-8")
+                    reward_file = Path(cidfile).parent / "reward.txt"
+                    reward_file.write_text("1.0", encoding="utf-8")
+                    return fake_proc
+
+                with patch("subprocess.run", side_effect=write_invalid_cid):
+                    res, rew = _run_container_verifier(workspace, verifier, cfg)
+                    self.assertIsNone(res.container_id)
+                    self.assertIsNone(res.container_arch)
+
 
