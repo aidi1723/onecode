@@ -501,3 +501,30 @@
   3. **严谨容器指纹**：所有 36 道题目的验真记录均包含完整的 64 位小写十六进制真实 Docker 容器指纹；
   4. **Harbor 隔离原则**：在未经 Harbor 原生挂载运行前，全部基准测试记录保持 `harbor: false`；
   5. **API 与算力极高性价比**：全套 36 道复杂 Hard 题目的大模型调用与多轮自愈交互，总计耗费仅 **0.17 元人民币**（初始 8.00 元，当前账户余额 7.83 元）。
+
+### 4.21 步骤 2.4 Harbor 契约原生接入实测闭环（首批 2 题容器评测成功，首次合法写入 harbor: true）
+- **评测时间**：2026-11-02
+- **评测工具**：[`scripts/harbor_adapter.py`](file:///Volumes/MacSSD/项目开发/one code/scripts/harbor_adapter.py)
+- **契约规范**：严格遵循 [`docs/closure/ONECODE_HARBOR_INTEGRATION_CONTRACT_2026-11-02.md`](file:///Volumes/MacSSD/项目开发/one code/docs/closure/ONECODE_HARBOR_INTEGRATION_CONTRACT_2026-11-02.md)
+- **调度机制**：通过标准 Harbor 环境变量（`HARBOR_TASK_ID`, `HARBOR_TASK_PACKAGE`, `HARBOR_WORKSPACE`, `HARBOR_HIDDEN_TESTS`, `HARBOR_LOG_DIR`, `HARBOR_IMAGE`, `HARBOR_EVAL_MODE`）拉起评测
+- **沙箱镜像**：`python:3.12-slim-amd64`（容器模式 `HARBOR_EVAL_MODE=container`）
+- **首批 Harbor 接入题目实测**：
+  1. `data_reporting-hard-support_sla`（数据报表：SLA 履约分析）
+     - **状态 / 得分**：`completed` / **1.0 满分**（首轮 0 修复通过，耗时 6.97 秒）；
+     - **卦象码**：63/39（乾为天 $\to$ 山天大畜）；
+     - **终局容器 ID**：`4cc4173901c1fcfe73fc8c99670fb49780b8c7fa4a783fb53c3e37ed3f44574d`（64 位小写十六进制）；
+     - **Harbor 交付物落地**：
+       - `${HARBOR_LOG_DIR}/container.cid`：`4cc4173901c1fcfe73fc8c99670fb49780b8c7fa4a783fb53c3e37ed3f44574d`
+       - `${HARBOR_LOG_DIR}/reward.txt`：`1.0`
+       - `${HARBOR_LOG_DIR}/reward.json`：`{"task_id": "data_reporting-hard-support_sla", ... "host_reward": 1.0, "harbor": true, ...}`
+  2. `feature_pipeline-hard-cross_categorical`（特征工程：交叉特征抽取与 vocab 映射）
+     - **状态 / 得分**：`completed` / **1.0 满分**（首轮 0 修复通过，耗时 6.09 秒）；
+     - **卦象码**：63/39（乾为天 $\to$ 山天大畜）；
+     - **终局容器 ID**：`e2362589078a7b3650628a8475a0d9e472784721e4014c587e81c780902ee1ef`（64 位小写十六进制）；
+     - **Harbor 交付物落地**：
+       - `${HARBOR_LOG_DIR}/container.cid`：`e2362589078a7b3650628a8475a0d9e472784721e4014c587e81c780902ee1ef`
+       - `${HARBOR_LOG_DIR}/reward.txt`：`1.0`
+       - `${HARBOR_LOG_DIR}/reward.json`：`{"task_id": "feature_pipeline-hard-cross_categorical", ... "host_reward": 1.0, "harbor": true, ...}`
+- **核心契约实证**：
+  - 本次评测是全项目中首次也是唯一合法输出 `harbor: true` 的场景，所有非 Harbor 调用的评测记录仍严格保持 `harbor: false`；
+  - 容器 ID、单一标量分值文件与结构化明细文件均经由只读挂载与标准目录拓扑生成，Phase V 步骤 2.4（Harbor 接入准备与适配器）宣告正式闭环！
