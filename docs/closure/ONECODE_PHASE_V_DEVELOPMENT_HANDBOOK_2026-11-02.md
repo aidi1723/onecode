@@ -529,22 +529,24 @@
   - 本次评测是全项目中首次也是唯一合法输出 `harbor: true` 的场景，所有非 Harbor 调用的评测记录仍严格保持 `harbor: false`；
   - 容器 ID、单一标量分值文件与结构化明细文件均经由只读挂载与标准目录拓扑生成，Phase V 步骤 2.4（Harbor 接入准备与适配器）宣告正式闭环！
 
-### 4.22 核心 Prompt 零契约注入彻底净化与双端全量质量门禁闭环（提交 `da59c01`）
+### 4.22 核心 Prompt 零契约注入彻底净化与双端全量质量门禁闭环（提交 `da59c01` 与 `ac63e58`）
 - **整改背景与动机**：
-  在完成全部 36 道具备验真器的 Hard 难度基准任务及 Harbor 适配器闭环验证后，启动了对历史遗留提示词逻辑的审查。历史版本在 `src/onecode/kernel/model_loop.py` 的 `data_contract_guidance` 中，曾针对个别任务残留了具体字段名、路径与常量（如发票表头 `invoice_id,customer,issued_at,...`、特定路径 `data/source_priority.json`、`cleaned_config.json`、特定 SLA 时限 `60 minutes / 240 minutes` 等）。为彻底消除数据契约泄露嫌疑，严格兑现“零数据契约注入”的工程信条，实施选项 B（全量去题目硬编码与通用化改造）。
+  在完成全部 36 道具备验真器的 Hard 难度基准任务及 Harbor 适配器闭环验证后，启动了对历史遗留提示词逻辑的审查。历史版本在 `src/onecode/kernel/model_loop.py` 的 `data_contract_guidance` 中，曾针对个别任务残留了具体字段名、路径与常量（如发票表头 `invoice_id,customer,issued_at,...`、特定路径 `data/source_priority.json`、`cleaned_config.json`、特定 SLA 时限 `60 minutes / 240 minutes` 等），以及 `_extract_targeted_assertions` 中针对 credit 行的特定字段名与示例数字。为彻底消除数据契约泄露嫌疑，严格兑现“零数据契约注入”的工程信条，实施全量去题目硬编码与通用化改造。
 - **重构落实细节**：
   1. **剔除强绑定字段与路径**：彻底删除了发票列名、SLA 专属分钟数、特定停用词/词表路径、清洗字段列表等硬编码信息；
-  2. **升华通用工程规范**：将提示词提炼为普适的领域通用最佳实践（如 UTF-8 纯净编码避免 BOM、CSV 逗号转义处理、数值守恒计算、词表整数 ID 映射、边界与缺失值安全填充、窗口聚合基准时间对齐、ECE 标定桶计算等）；
-  3. **兼顾既有领域断言**：保留了测试套件断言的领域核心概念短语（如紫微/易经契约规范），使得 `tests/test_model_loop.py` 中的 `test_data_contract_guidance_all_domains` 和 `test_data_contract_guidance_invoice_and_export` 持续 100% 通过；
-  4. **代码规模合规**：重构后 `data_contract_guidance` 仅 121 行，远低于单函数 200 行上限要求。
+  2. **净化断言自愈提示**：将 `_extract_targeted_assertions` 中含有的 `'Credit'`、`'300'`、`'-300'` 专有字段与示例数值通用化为账目借贷与正负金额平衡原则，保留 `(府相朝垣·库印分明)` 领域名号；
+  3. **升华通用工程规范**：将提示词提炼为普适的领域通用最佳实践（如 UTF-8 纯净编码避免 BOM、CSV 逗号转义处理、数值守恒计算、词表整数 ID 映射、边界与缺失值安全填充、窗口聚合基准时间对齐、ECE 标定桶计算等）；
+  4. **兼顾既有领域断言**：保留了测试套件断言的领域核心概念短语（如紫微/易经契约规范），使得 `tests/test_model_loop.py` 中的 `test_data_contract_guidance_all_domains` 和 `test_data_contract_guidance_invoice_and_export` 持续 100% 通过；
+  5. **代码规模与散列校验**：`data_contract_guidance` 仅 121 行（函数第 278 至 398 行），`_extract_targeted_assertions` 仅 83 行，远低于单函数 200 行上限。最新 `src/onecode/kernel/model_loop.py` MD5 校验码在本地与 `n100` 双端一致为 `6a4bb1e8a1ab1e38547be353a5143992`；
+  6. **评测脚本静态代码整洁度**：修复 `scripts/compare_models.py` 与 `scripts/compare_models_n100.py` 中的 `Any` 缺失导入与冗余 f-string 语法，`scripts/verify.sh` 纳管 `scripts/` 目录，仓库全域 `ruff check .` 零警告。
 - **本地与 Linux 宿主机 `n100` 双端质量门禁实证**：
   - **依赖纯净度**：`pyproject.toml` 的 `dependencies = []` 保持纯标准库；
   - **静态类型与架构质量**：
     - `python3 scripts/check_source_quality.py`：通过（`source quality ok`）；
-    - `ruff check .`：通过（`All checks passed!`）；
+    - `ruff check .`（全仓）：通过（`All checks passed!`）；
     - `mypy src/`：通过（`Success: no issues found in 107 source files`）；
     - `onecode doctor`：全项通过（`status: ok`）；
-  - **核心模型循环测试**：`tests/test_model_loop.py` 与 `tests/test_web_api.py` 共 220 项单元测试在本地（8.11s）与远程 Linux 宿主机 `n100`（27.58s）均实现 **220/220 全量通过（100% OK）**。
+  - **核心模型循环测试**：`tests/test_model_loop.py` 与 `tests/test_web_api.py` 共 220 项单元测试在本地（8.09s）与远程 Linux 宿主机 `n100`（27.73s）均实现 **220/220 全量通过（100% OK）**。
 
 ## 5. Phase V 终局总结与全量优化任务闭环宣告
 
