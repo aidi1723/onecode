@@ -139,5 +139,23 @@
 - 容器执行协议：强制通过 `--cidfile` 抓取 64 位十六进制容器 ID，严格约束 `--network none`、`--security-opt no-new-privileges` 与内存 CPU 配额；
 - 真实性准入：在 Harbor 评测流水线上实际调用并跑通之前，所有单机与远端执行一律保持 `harbor: false`。
 
+### 4.7 步骤 2.3 扩大题集 R52 评测（reliability-hard-pipeline_reconnect 真实记录）
+- **评测题目**：`reliability-hard-pipeline_reconnect`（第 6 个前缀目录 `reliability`）
+- **模型**：`kimi-k2.7-code`
+- **零泄露契约**：`data_contract_guidance` 中严格**零先验注入**（无任何 redis pipeline、重连重放机制、非幂等命令或 watch 状态字段定义）。
+- **评测结果文件（`results-r52-reliability.jsonl`）真实记录**：
+  ```json
+  {"task_id": "reliability-hard-pipeline_reconnect", "model": "kimi-k2.7-code", "status": "halted", "reason": "model_provider_timeout", "outcome_status_code": 17, "iching_status_code": 17, "repair_attempt_count": 0, "bureau_name": "金四局", "bureau_turn_budget": 5, "host_reward": 0.7857142857142857, "harbor": false, "duration_s": 892.99, "detail": "model_provider_timeout"}
+  ```
+- **账本逐轮审计**：
+  - **第 0 轮（首轮生成）**：模型初次输出代码生成 `redis_like/pipeline.py`（sha256 `350a2fcfabe5483fd1465961baf77afd26d7d7f80b7931949a3c11de3fc224ad`）；
+  - **容器内验真**：14 项断言通过 11 项，通过率 **0.7857**（11/14），退出码 0。通过了基础流水线顺序、执行后清空、安全重连单次重放、安全重放无残留、watch 失败清空、缺失 key 返回 None、只读 get 重放、连接错误标记清理、空流水线、watch 读失败清空、重复重连不重复写等 11 项；未通过 3 项（`watched pipeline is not replayed after reconnect`、`non idempotent incr is not replayed`、`incr works without reconnect`）；
+  - **第 1 轮（修复阶段）**：由于未能全通触发自动修复循环。但由于评测启动参数 `--timeout 420` 限制，而 `kimi-k2.7-code` 在处理 14 个断言上下文时的深度推理耗时达到 432.167 秒（`elapsed_ms: 432167`），超出 HTTP 请求时限，触发 `model_provider_timeout`；
+  - **易经状态机熔断**：内核安全捕获超时异常，将其精准映射为卦象 17（水雷屯：险而难生，涉难守正），保留第 0 轮验真所得的真实中间奖励 0.7857，以 `status: halted` 安全写入账本与结果文件；
+- **经验总结与启示**：
+  1. 泛化能力验证：模型在没有任何提示注入的前提下，纯靠题目设计与 zero-shot 生成即达到了 78.6% 的高通过率；
+  2. 超时参数调优：对复杂长上下文及带思维链（CoT）的强推理模型，单次修复请求宜配置 `--timeout 600` 或以上，以提供充足的推理时间。
+
+
 
 

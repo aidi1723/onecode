@@ -3,6 +3,14 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+try:
+    import textual
+except ImportError:
+    textual = None
+
+if textual is None:
+    raise unittest.SkipTest("textual is not installed")
+
 from onecode.tui.app import (
     API_KEY_WARNING,
     DEFAULT_MODEL,
