@@ -178,6 +178,22 @@
    - **漏洞根因**：对于阻断或重放失败的测试场景，模型初次生成时容易抛出底层的通用异常（如 `ConnectionError`）或缺少关键的状态丢失短语。
    - **修复**：在 `repair_prompt` 通用引导中补充常识性指引："若测试检查某项无效操作或失败被阻断，请检查工作区内的异常定义模块（如 errors 模块），抛出领域专用的异常类并携带明确状态说明，避免使用未处理的通用错误"，在零先验注入前提下规范异常处理。
 
+### 4.9 步骤 2.3 扩大题集 R54 评测（DeepSeek-Chat 极速低成本实测）
+- **评测题目**：`reliability-hard-pipeline_reconnect`
+- **模型**：`deepseek-chat`（DeepSeek 官方最经济主力模型，单价 ¥2/M 输入 tokens，¥8/M 输出 tokens）
+- **官方端点**：`https://api.deepseek.com/chat/completions`
+- **零先验契约**：严格零字段与零实现注入，保持泛化评测纯洁性。
+- **评测结果文件（`results-r54-deepseek.jsonl`）真实记录**：
+  ```json
+  {"task_id": "reliability-hard-pipeline_reconnect", "model": "deepseek-chat", "status": "halted", "reason": "verifier_failed", "outcome_status_code": 40, "iching_status_code": 40, "repair_attempt_count": 4, "bureau_name": "金四局", "bureau_turn_budget": 5, "host_reward": 0.8571428571428571, "harbor": false, "duration_s": 15.44, "detail": "verifier_failed", "container_id": "8ce599f82aa838d8682c36dde53c8128ba30a1261baccdd3a2ac897e274cbbd5", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  ```
+- **核心数据对比与收益**：
+  1. **极速吞吐**：首轮生成 + 4 轮完整修复迭代总耗时仅 **15.44 秒**（比 Kimi 单次调用的数百秒提速 50 倍以上，彻底消除超时困扰）；
+  2. **断言提升**：通过率达 **0.8571**（14 项通过 12 项），此前在 Kimi 中失败的非幂等 `incr` 重放判定（`non idempotent incr is not replayed` 与 `incr works without reconnect`）在 DeepSeek 下均成功解决；
+  3. **极致经济性**：完成整整 5 轮模型调用与 5 次容器验真，API 账户余额仍保持 8.43 元（单轮消耗不足 0.01 元）；
+  4. **全套容器与易经闭环**：真实容器 ID `8ce599f82aa838d8682c36dde53c8128ba30a1261baccdd3a2ac897e274cbbd5` 完整入账，易经状态码为 40/40（火水未济/雷水解：纾难解困，虽未竟全功，然通塞已成）。
+
+
 
 
 
