@@ -92,3 +92,23 @@
   3. 修复第 2 轮（寅，Turn 2）：12/12 通过，退出码 0，容器 ID `ecfc44b8fcd4...`（单次容器内耗时 941ms，成为终局记录）。
   `turn_history` 记录 `子`（`verifier_failed`）$\to$ `丑`（`completed`）$\to$ `寅`（`completed`）。941ms 与外部 API 余额查询仅属中间调试证据，不属于 `results-r50-container.jsonl` 数据字段。
 
+### 4.4 步骤 2.2 受控并行与紫微实测吞吐数据（提交 `a00fd0e`）
+- **并发调度与线程隔离**：
+  - `bench_workbuddy.py` 引入 `--concurrency / -j` 参数，并发上限受限于机器可用 CPU 核数（`os.cpu_count() or 1`）与安全阈值（8）；
+  - 每个任务独占其工作区目录（`runs_dir/<task_id>`）；
+  - 工作区级验真指针：`bench_workbuddy.py` 将任务对应的验真脚本路径写入工作区根目录的 `.onecode_host_verifier` 标记文件；`model_loop.py` 优先解析工作区标记，彻底消除多线程并发时改写全局 `ONECODE_HOST_VERIFIER` 环境变量引发的竞争风险；
+  - 每次容器验真独立生成临时目录 `oc-container-grade-*` 作为隔离的 `LOG_DIR` 与 `--cidfile` 容器 ID 捕捉路径；
+  - `output_lock` 保证多任务终局结果线程安全地追加写入结果文件；单个任务异常（502、超时或异常）仅记录报错，不中断其他任务执行。
+- **当次紫微全状态吞吐实测数据（`n100` 实测）**：
+  在 `n100` 主机（Ubuntu 24.04 x86_64，Intel N100，Python 3.12.3）上执行 `scripts/benchmark_ziwei.py --iterations 10000`：
+  - 迭代轮次：10,000
+  - 执行总耗时：20.5697 秒
+  - **实测吞吐**：**486.15 ops/sec**
+  - 平均延迟：2,053.56 µs
+  - 中位数（p50）：2,036.62 µs
+  - 95 分位数（p95）：2,153.20 µs
+  - 99 分位数（p99）：2,338.30 µs
+  - 数学证书：26 项跨验数学证书全部 `[PASS]`（`true`）
+  - 严格以本次实测的 486.15 ops/sec 为基准，不套用既往 4,000 ops/s 估值。
+
+
