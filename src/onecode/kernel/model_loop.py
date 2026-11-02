@@ -284,105 +284,85 @@ def data_contract_guidance(task: str) -> str:
         rules.append(
             "For invoice line and tabular exports (Tianfu-Tianxiang Stamp & Command Contract 府相朝垣·印令昭明): "
             "write pure UTF-8 encoding (never use utf-8-sig or write UTF-8 BOM bytes); "
-            "strictly match exact CSV header columns in order: invoice_id,customer,issued_at,description,quantity,unit_cents,subtotal_cents,tax_cents,credit_cents,line_total_cents,currency; "
-            "properly quote customer names with commas so they round trip in a single CSV cell; "
-            "compute subtotal_cents = quantity * unit_cents, tax_cents = round(subtotal_cents * tax_rate), and line_total_cents = subtotal_cents + tax_cents; "
-            "for normal lines, credit_cents must be empty (''); "
-            "credits become a separate negative row with description strictly 'Credit' (not 'Credit: reason', exactly 'Credit'), "
-            "where credit_cents is the positive credit amount (e.g. '300'), line_total_cents is negative (e.g. '-300'), quantity and unit_cents are empty, and subtotal_cents/tax_cents are 0; "
-            "sort rows by invoice_id, then normal lines, then Credit row."
+            "properly quote string values with commas so they round trip in single CSV cells; "
+            "ensure numeric calculations (quantity * unit price, taxes, credits, and line totals) are mathematically consistent; "
+            "format credits and negative adjustments distinctly as required; "
+            "sort rows deterministically."
         )
     if any(k in task_lower for k in ("hash", "hashing", "text_features", "哈希")):
         rules.append(
             "For text or feature hashing: use hashlib (e.g. hashlib.md5 or hashlib.sha256) "
             "for deterministic hashing invariant across Python hash seeds, never built-in hash(); "
-            "normalize text to lowercase alphanumeric tokens, drop stopwords from data/stopwords.txt, count repeated tokens; "
-            "output JSONL with fields: id, token_count, unique_tokens, features (mapping string bucket ids '0'..'dim-1' to aggregated token counts); "
-            "unique_tokens must be an integer count (int count of distinct filtered tokens, e.g. len(set(tokens))), NOT a list; "
-            "read input CSV using standard csv.DictReader or csv.reader (never line.split(',') because text fields contain commas); "
-            "features must be sorted by numeric bucket and sparse (no empty bucket keys); "
-            "and handle empty text or all-stopword inputs gracefully without raising errors (e.g. on max())."
+            "normalize text tokens deterministically; "
+            "read input tabular data using standard csv modules (not line.split(',') since text fields may contain commas); "
+            "output sparse features sorted by numeric bucket; "
+            "handle empty or filtered-out inputs gracefully without unhandled exceptions."
         )
     if any(k in task_lower for k in ("label_conflict", "label conflict", "conflict label", "conflict", "conflicts", "冲突", "标签")) and (
         "label" in task_lower or "conflict" in task_lower or "冲突" in task_lower
     ):
         rules.append(
             "For label conflicts (Zhen-Kan Cleansing & Priority Contract 震坎涤瑕·权重定争): "
-            "read source priority from data/source_priority.json (larger integer priority wins); "
-            "exact duplicate rows count once in reports and deduped_reports; "
-            "invalid sources or non-binary labels go to rejects.json under 'invalid'; "
-            "choose the highest source priority first; "
-            "if top-priority rows for one entity still contain more than one distinct label, reject the entity under 'conflicts' in rejects.json; "
-            "if top-priority label is unique, select the newest event_time within that winning label and priority; "
-            "cleaned.json must contain 'samples' and 'summary'; sample rows include: entity_id, label, source, event_time, reports; "
-            "rejects.json must contain 'conflicts' and 'invalid'."
+            "adhere to declared source priorities when resolving entity label conflicts; "
+            "deduplicate exact identical records cleanly without duplicate counting; "
+            "separate valid consensus records from ambiguous or conflicting records into designated clean and rejected outputs; "
+            "select the newest event timestamp when breaking ties within winning priority."
         )
     if any(k in task_lower for k in ("winsorize", "winsorization", "outlier", "outliers", "截断", "异常值")):
         rules.append(
             "For outlier winsorization (Tianliang-Tiantong Protective Imputation 荫福化解·补全与边界): "
-            "cleaned CSV columns must stay id,age,income,score; "
-            "clip values strictly at lower/upper bounds specified in clean_config.json; "
-            "fill missing (null, NaN, empty string) and unparseable values with specified column fill defaults; "
+            "clip values strictly at declared lower and upper bounds; "
+            "fill missing (null, NaN, empty string) and unparseable values with declared default column fills; "
             "leave normal valid rows completely unchanged; "
-            "in cleaned CSV output, format whole numbers without trailing '.0' (e.g. write '1' not '1.0', '0' not '0.0', '35' not '35.0'; keep standard representation for true decimals like '0.8', '0.5'); "
-            "format helper idiom: if float(val).is_integer(): str(int(float(val))) else str(val), or if Decimal(val) == int(Decimal(val)): str(int(Decimal(val))) else str(val); "
-            "summary JSON must have 'rows' count plus one object per numeric field (age, income, score), "
-            "with each field summary containing exact keys: 'filled', 'clipped_low', 'clipped_high'."
+            "in tabular output, format whole numbers without trailing '.0' (e.g. '1' not '1.0'); "
+            "generate accurate summary statistics of filled and clipped counts per numeric column."
         )
     if any(k in task_lower for k in ("schema_drift", "schema drift", "drift", "schema", "漂移", "多余字段")) and (
         "drift" in task_lower or "schema" in task_lower or "漂移" in task_lower
     ):
         rules.append(
             "For schema drift audit (Tianxiang Yintie · Audit Schema Contract 天相印绶·规范审计): "
-            "output JSON contract must have top level: 'summary' and 'rows'; "
-            "summary must contain: 'rows', 'valid_rows', 'invalid_rows', and 'field_issue_counts' dict mapping field name to issue count; "
-            "each row report must contain: 'row' (1-based int), 'user_id', and 'issues' list; "
-            "normal rows without drift must be included with issues: []; "
-            "each issue is an object with 'field' and 'type' (one of 'missing_required', 'type_mismatch', 'enum_violation', 'unexpected_field'); "
-            "validate each row in a single atomic pass: check unexpected fields (keys in row not in schema_fields) alongside required/type/enum checks, and mark the row invalid once per issue without secondary decrement loops; "
-            "for numeric float fields, integer inputs (e.g. 85, 0) are valid numbers and not type_mismatch (check isinstance(v, (int, float)) and not isinstance(v, bool)); "
-            "optional nullable fields allowing null/None must not be flagged as enum_violation or missing_required when null/None or empty; "
-            "and preserve stable input row order in output rows."
+            "validate each record systematically against declared schema definitions; "
+            "check missing required fields, type mismatches, enum violations, and unexpected properties in a single atomic pass; "
+            "treat valid integer inputs as acceptable for numeric float constraints; "
+            "ensure nullable fields allowing null/None are not falsely flagged; "
+            "preserve stable input row ordering in output."
         )
     if any(k in task_lower for k in ("time_leakage", "time leakage", "leakage", "cutoff", "leak", "时间泄漏", "截止时间")):
         rules.append(
             "For time leakage audit (Tianliang Canopy Audit 荫星照微·截止容限): "
-            "feature timestamps must be <= cutoff_time plus a 5 minute tolerance (tolerance_minutes=5); "
-            "samples with feature timestamps > cutoff_time + tolerance must go into rejects.json; "
-            "clean.jsonl keeps clean samples in input order with fields: sample_id, cutoff_time, feature_count; "
-            "rejects.json must contain 'summary' (with clean, rejected, tolerance_minutes) and 'rejected' (list of objects with sample_id, cutoff_time, leaked_features)."
+            "verify that feature timestamps do not exceed configured cutoff times plus declared tolerance windows; "
+            "partition clean training samples from time-leaking samples into designated clean and rejected outputs; "
+            "preserve input ordering for clean records and record detailed leakage diagnostics."
         )
     if any(k in task_lower for k in ("support_sla", "support sla", "sla", "ticket", "tickets", "工单")):
         rules.append(
             "For support SLA metrics (Tianxiang Inspection 督考巡历·工单履约): "
-            "high priority first response SLA is 60 minutes; normal priority is 240 minutes; "
-            "missing first response (or response > threshold) counts as an sla_miss; "
-            "report.json must have: 'summary' (tickets, open_tickets, sla_misses, priority_counts) and 'teams'; "
-            "teams must be a list of team objects sorted alphabetically by team name, each with: "
-            "team, tickets, responded, closed, avg_first_response_minutes, avg_resolution_minutes, sla_misses; "
-            "avg_resolution_minutes is computed over closed tickets only; round averages to two decimal places."
+            "compute response and resolution times accurately against declared service level agreements (SLA thresholds); "
+            "identify SLA misses consistently for overdue or missing responses; "
+            "aggregate team-level performance metrics and round numerical averages appropriately."
         )
     if any(k in task_lower for k in ("cross_categorical", "cross categorical", "cross_features", "交叉特征")):
         rules.append(
-            "For cross categorical features: read vocab from data/vocab.json; normalize categorical values by trimming and lowercasing; "
-            "output cross_features.jsonl with one row per input user_id; "
-            "fields: user_id, country_id, device_id, plan_id, channel_id, country_device_id, plan_channel_id; "
-            "never copy raw category strings into output."
+            "For cross categorical features: normalize categorical values by trimming and lowercasing; "
+            "generate interaction cross-features deterministically; "
+            "map categorical values to integer vocab IDs rather than copying raw strings."
         )
     if any(k in task_lower for k in ("train_serve", "train_serve_parity", "train-serve", "parity", "serving", "一致性", "训练推断")):
         rules.append(
-            "For train-serve parity: impute missing values with 0, compute min-max/standard normalization accurately, "
-            "and use inclusive comparisons (>= or <=) for user tenure and activity thresholds."
+            "For train-serve parity: impute missing values consistently with defaults, "
+            "compute normalization accurately across training and serving distributions, and respect inclusive boundary comparisons."
         )
     if any(k in task_lower for k in ("window_aggregates", "window aggregates", "window", "aggregates", "rolling", "recency", "窗口", "聚合", "滑动")):
         rules.append(
-            "For window aggregates: compute recency hours relative to the anchor timestamp, output 0 for users with no events, "
-            "and preserve anchor reference time."
+            "For window aggregates: compute event recency deltas relative to the anchor timestamp, "
+            "handle zero-event entities cleanly with appropriate null or zero defaults, and preserve anchor reference time."
         )
     if any(k in task_lower for k in ("calibration_bins", "calibration bins", "calibration", "ece", "bin", "bins", "校准", "校准桶")):
         rules.append(
-            "For calibration bins and ECE: set count, accuracy, and gap to 0 for empty bins, "
-            "compute weighted Expected Calibration Error (ECE) across all bins, and include the 'gap' field (|conf - acc|) in bin dictionaries."
+            "For calibration bins and ECE: partition confidence scores into calibration bins, "
+            "compute accuracy and calibration gaps per bin, handle empty bins cleanly with zero counts, "
+            "and aggregate weighted Expected Calibration Error (ECE) across all bins."
         )
     if any(k in task_lower for k in ("crash_in_local", "crash in local", "crash", "unbound", "local variable", "崩溃", "作用域")):
         rules.append(
@@ -398,8 +378,8 @@ def data_contract_guidance(task: str) -> str:
         )
     if any(k in task_lower for k in ("uriref", "eliminate_uriref", "validation_to_eliminate", "uri_ref")):
         rules.append(
-            "For URI reference elimination and component validation: support Validator.check_validity_of(*components), "
-            "deeply validate URI components, and raise InvalidComponentsError when components are invalid or fail validation."
+            "For URI reference elimination and component validation: deeply validate URI components, "
+            "and raise designated domain exception classes when components fail validation."
         )
     if any(k in task_lower for k in ("filtered_relation", "queryset_arg", "relation_queryset")):
         rules.append(
