@@ -2370,28 +2370,24 @@ def _finish_verified_task(
             plan = synthesize_single_asset_repair(plan, workspace)
             if plan.patches and plan.execution_steps:
                 plan = ModelPlan(task=plan.task, patches=plan.patches, no_action_reason=plan.no_action_reason)
-        if plan is None or not is_patch_only_repair_plan(plan) or _repair_touches_tests(plan):
+        safety_err, guidance = _validate_repair_plan_safety(plan, task)
+        if safety_err is not None:
             if attempt < effective_attempts:
-                touching_tests = plan is not None and _repair_touches_tests(plan)
-                err_reason = "repair_plan_cannot_modify_tests" if touching_tests else "repair_plan_must_use_patches_only"
-                format_error_guidance = (
-                    "repair_plan_cannot_modify_tests: modifying tests/ is forbidden. Patch implementation files only."
-                    if touching_tests
-                    else "repair_plan_must_use_patches_only: return valid JSON containing 'patches' only (do NOT return assets or execution_plan)."
-                )
+                format_error_guidance = guidance
                 branches = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
                 hist = list(current_checked.get("turn_history") or [])
                 hist.append({
                     "turn_id": len(hist) + 1,
                     "branch_name": branches[len(hist) % len(branches)],
                     "status": "halted",
-                    "reason": err_reason,
+                    "reason": safety_err,
                     "modified_files": [],
                 })
                 current_checked["turn_history"] = hist
                 current_result["turn_history"] = hist
                 continue
-            rejected = repair_rejected_result(current_checked, run_id, "repair_plan_must_use_patches_only", repair_attempt_count=attempt)
+            final_err = "repair_plan_must_use_patches_only" if safety_err == "repair_plan_cannot_modify_tests" else safety_err
+            rejected = repair_rejected_result(current_checked, run_id, final_err, repair_attempt_count=attempt)
             transition = IchingKernel.transition(IchingKernel.classify_outcome("halted", rejected["reason"]))
             return {
                 **rejected,

@@ -608,6 +608,14 @@ def normalize_model_plan_payload(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(payload, dict):
         return payload
     normalized = dict(payload)
+    if "patches" in normalized and normalized["patches"] is None:
+        normalized["patches"] = []
+    if "assets" in normalized and normalized["assets"] is None:
+        normalized["assets"] = []
+    if isinstance(normalized.get("execution_plan"), dict) and not normalized["execution_plan"].get("steps"):
+        normalized.pop("execution_plan", None)
+    elif "execution_plan" in normalized and normalized["execution_plan"] is None:
+        normalized.pop("execution_plan", None)
     if "no_action" in normalized:
         na = normalized["no_action"]
         if na is False or na is None or na == "":
