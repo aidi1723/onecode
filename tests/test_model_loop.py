@@ -3242,7 +3242,7 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
                 stalled_progress=True,
             )
             self.assertIn("STALLED PROGRESS MUTATION DIRECTIVE", prompt)
-            self.assertIn("Check scalar data types", prompt)
+            self.assertIn("Check scalar and object types", prompt)
             self.assertIn("model-repair-after-check-2", span_id)
 
 
