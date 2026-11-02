@@ -580,31 +580,29 @@ def format_verifier_diagnostics(stdout: str, stderr: str) -> str:
     """Parse verifier stdout/stderr into actionable diagnostics for repair prompts."""
     if stdout:
         decoder = json.JSONDecoder()
-        for marker in ('{"overall"', '{"tests"'):
-            idx = stdout.find(marker)
-            while idx != -1:
-                try:
-                    candidate, _ = decoder.raw_decode(stdout[idx:])
-                    if isinstance(candidate, dict) and "tests" in candidate and isinstance(candidate["tests"], list):
-                        passed_cnt = candidate.get("tests_passed", 0)
-                        total_cnt = candidate.get("tests_total", len(candidate["tests"]))
-                        lines = [f"Verifier report: {passed_cnt}/{total_cnt} tests passed."]
-                        failed = [t for t in candidate["tests"] if isinstance(t, dict) and not t.get("passed")]
-                        passed = [t for t in candidate["tests"] if isinstance(t, dict) and t.get("passed")]
-                        if failed:
-                            lines.append("Failed tests:")
-                            for item in failed:
-                                name = item.get("name", "unknown")
-                                detail = item.get("detail")
-                                lines.append(f"- [FAIL] {name}" + (f": {detail}" if detail else ""))
-                        if passed:
-                            lines.append("Passed tests:")
-                            for item in passed:
-                                lines.append(f"- [PASS] {item.get('name', 'unknown')}")
-                        return "\n".join(lines)
-                except json.JSONDecodeError:
-                    pass
-                idx = stdout.find(marker, idx + 1)
+        for match in re.finditer(r'\{\s*"(?:overall|tests)"', stdout):
+            idx = match.start()
+            try:
+                candidate, _ = decoder.raw_decode(stdout[idx:])
+                if isinstance(candidate, dict) and "tests" in candidate and isinstance(candidate["tests"], list):
+                    passed_cnt = candidate.get("tests_passed", 0)
+                    total_cnt = candidate.get("tests_total", len(candidate["tests"]))
+                    lines = [f"Verifier report: {passed_cnt}/{total_cnt} tests passed."]
+                    failed = [t for t in candidate["tests"] if isinstance(t, dict) and not t.get("passed")]
+                    passed = [t for t in candidate["tests"] if isinstance(t, dict) and t.get("passed")]
+                    if failed:
+                        lines.append("Failed tests:")
+                        for item in failed:
+                            name = item.get("name", "unknown")
+                            detail = item.get("detail")
+                            lines.append(f"- [FAIL] {name}" + (f": {detail}" if detail else ""))
+                    if passed:
+                        lines.append("Passed tests:")
+                        for item in passed:
+                            lines.append(f"- [PASS] {item.get('name', 'unknown')}")
+                    return "\n".join(lines)
+            except json.JSONDecodeError:
+                pass
 
     diagnostics: list[str] = []
     if stderr:
@@ -1027,6 +1025,7 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
         f"Failure details:\n{details}\n"
         "A failing check may call a function defined outside the files already touched. "
         "Find that function's defining module and patch it there, instead of editing the same file again.\n"
+        "If a test checks that an invalid operation or failure is blocked, inspect the workspace's error/exception definitions (e.g. errors module) and raise the intended domain exception class with an informative message rather than a generic or unhandled error.\n"
     )
     if closest_hints:
         prompt += "Patch context hints:\n" + "\n\n".join(closest_hints) + "\n"
@@ -1885,6 +1884,29 @@ def failed_model_result(
     )
 
 
+def _enrich_failed_model_with_repair_state(
+    failed_model: dict[str, Any],
+    last_state: dict[str, Any],
+    attempt: int,
+) -> dict[str, Any]:
+    enriched = dict(failed_model)
+    for k in (
+        "host_reward",
+        "container_id",
+        "container_image",
+        "container_arch",
+        "turn_history",
+        "verifier_results",
+    ):
+        if k in last_state and k not in enriched:
+            enriched[k] = last_state[k]
+    if "repair_attempt_count" not in enriched:
+        enriched["repair_attempt_count"] = last_state.get(
+            "repair_attempt_count", max(0, attempt - 1)
+        )
+    return enriched
+
+
 def _execution_rule_fields(
     trace: Any,
     *,
@@ -2333,9 +2355,7 @@ def _finish_verified_task(
                 current_result["turn_history"] = hist
                 continue
             failed_model = failed_model_result(model_context, failure)
-            if "host_reward" in current_checked:
-                failed_model["host_reward"] = current_checked["host_reward"]
-            return failed_model
+            return _enrich_failed_model_with_repair_state(failed_model, current_checked, attempt)
         if plan is not None:
             plan = synthesize_single_asset_repair(plan, workspace)
             if plan.patches and plan.execution_steps:
@@ -2763,9 +2783,7 @@ def _run_model_task_repair_loop(
                 failed_result["turn_history"] = hist
                 continue
             failed_model = failed_model_result(model_context, failure)
-            if "host_reward" in failed_result:
-                failed_model["host_reward"] = failed_result["host_reward"]
-            return failed_model
+            return _enrich_failed_model_with_repair_state(failed_model, failed_result, attempt)
         assert repair_plan is not None
         repair_plan = synthesize_single_asset_repair(repair_plan, workspace)
         if not is_patch_only_repair_plan(repair_plan):

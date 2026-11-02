@@ -117,6 +117,19 @@ def run_benchmark_task(
         from onecode.kernel.sandbox import SandboxConfig
         extras["sandbox_config"] = SandboxConfig(workspace=workspace, image=docker_image)
 
+    effective_timeout = timeout_seconds
+    task_toml = task_dir / "task.toml"
+    if task_toml.is_file():
+        try:
+            import tomllib
+            with open(task_toml, "rb") as f:
+                toml_data = tomllib.load(f)
+                v_timeout = float(toml_data.get("verifier", {}).get("timeout_sec", 0.0))
+                if v_timeout > 0:
+                    effective_timeout = max(effective_timeout, v_timeout)
+        except Exception:
+            pass
+
     result = run_model_task(
         prepared["task"],
         workspace=workspace,
@@ -124,7 +137,7 @@ def run_benchmark_task(
         model=model,
         execution_approval=lambda _step: True,
         require_explicit_approval=True,
-        http_timeout_seconds=timeout_seconds,
+        http_timeout_seconds=effective_timeout,
         **extras,
     )
 
@@ -187,7 +200,7 @@ def main() -> int:
     parser.add_argument("--endpoint", type=str, default="https://plan.pmcat.top/v1/chat/completions")
     parser.add_argument("--key-file", type=Path, default=Path("/tmp/onecode_key_once"))
     parser.add_argument("--max-repairs", type=int, default=8)
-    parser.add_argument("--timeout", type=float, default=300.0)
+    parser.add_argument("--timeout", type=float, default=600.0)
     parser.add_argument("--docker", type=str, default=None, help="Docker sandbox image (e.g. python:3.12-slim-amd64)")
     parser.add_argument("--concurrency", "-j", type=int, default=1, help="Max concurrent tasks (capped by CPU cores)")
     args = parser.parse_args()

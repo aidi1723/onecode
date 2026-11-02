@@ -2956,6 +2956,46 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
         self.assertIn("- [FAIL] test_summary: missing key", diag)
         self.assertIn("- [PASS] test_cli", diag)
 
+    def test_format_verifier_diagnostics_parses_multiline_indented_json_report(self):
+        from onecode.kernel.model_loop import format_verifier_diagnostics
+
+        sample_json = json.dumps({
+            "overall": 0.7857,
+            "tests_passed": 11,
+            "tests_total": 14,
+            "tests": [
+                {"name": "test_pass", "passed": True, "detail": ""},
+                {"name": "test_fail", "passed": False, "detail": ""},
+            ],
+        }, indent=2)
+        stdout = f"\n{sample_json}\n"
+        diag = format_verifier_diagnostics(stdout, "")
+        self.assertIn("Verifier report: 11/14 tests passed.", diag)
+        self.assertIn("- [FAIL] test_fail", diag)
+        self.assertIn("- [PASS] test_pass", diag)
+
+    def test_enrich_failed_model_with_repair_state_preserves_container_and_repairs(self):
+        from onecode.kernel.model_loop import _enrich_failed_model_with_repair_state
+
+        failed_model = {
+            "status": "halted",
+            "reason": "model_provider_timeout",
+        }
+        last_state = {
+            "host_reward": 0.7857,
+            "repair_attempt_count": 1,
+            "container_id": "a" * 64,
+            "container_image": "python:3.12-slim-amd64",
+            "container_arch": "amd64",
+            "turn_history": [{"turn_id": 1, "status": "completed"}],
+        }
+        enriched = _enrich_failed_model_with_repair_state(failed_model, last_state, attempt=2)
+        self.assertEqual(enriched["host_reward"], 0.7857)
+        self.assertEqual(enriched["repair_attempt_count"], 1)
+        self.assertEqual(enriched["container_id"], "a" * 64)
+        self.assertEqual(enriched["container_image"], "python:3.12-slim-amd64")
+        self.assertEqual(len(enriched["turn_history"]), 1)
+
     def test_format_verifier_diagnostics_fallback_to_assertions(self):
         from onecode.kernel.model_loop import format_verifier_diagnostics
 
