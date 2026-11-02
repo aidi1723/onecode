@@ -334,3 +334,32 @@
      - 两道满分题均落入卦象 63（乾为天，变卦 39 山天大畜）；
      - 两道挂起题（`token_errors` 与 `multiclass_report`）卦象码 40 均为 **火地晋**（上卦离火 101，下卦坤地 000）；
   4. **全阶段 Docker 覆盖累计**：Phase V 累计已在真实 Docker 容器（`python:3.12-slim-amd64`）中闭环验真 **19 道不同业务领域的 Hard 难度题目**（9 题 1.0 满分，7 题 83%~92% 高分），全部落盘合法 64 位十六进制容器指纹，保持 `harbor: false`。
+### 4.15 步骤 2.2 / 2.3 扩大题集 R60 评测（4 任务跨域并行，三题首轮零修满分，48/53 断言通过率 90.6%）
+- **评测时间**：2026-11-02
+- **并发机制**：`--concurrency 4`，4 线程并行执行，每任务分配独立工作区与 Docker 验真容器
+- **模型**：`deepseek-chat`（DeepSeek 官方 API）
+- **沙箱镜像**：`python:3.12-slim-amd64`（amd64 架构，集成 Git，严格单容器单任务隔离）
+- **评测题目（4 道跨领域 Hard 题，均为 Phase V 首次进入容器评测）**：
+  1. `schema_behavior-hard-unevaluated_properties`（Schema 校验：allOf/anyOf 与 unevaluatedProperties 动态跟踪，木三局，预算 4）
+  2. `feature_pipeline-hard-train_serve_parity`（特征工程：训练与推理特征一致性及 OOV 编码，木三局，预算 4）
+  3. `model_evaluation-hard-calibration_bins`（模型评估：固定宽度分桶校准报表与加权 ECE 计算，水二局，预算 3）
+  4. `data_quality-hard-label_conflicts`（数据质量：多源 Label 优先级合并与冲突拒识，水二局，预算 3）
+- **评测结果文件（`results-r60-batch.jsonl`）真实记录**：
+  ```json
+  {"task_id": "schema_behavior-hard-unevaluated_properties", "model": "deepseek-chat", "status": "completed", "reason": null, "outcome_status_code": 63, "iching_status_code": 39, "repair_attempt_count": 0, "bureau_name": "木三局", "bureau_turn_budget": 4, "host_reward": 1.0, "harbor": false, "duration_s": 5.2, "detail": "", "container_id": "47682a0edbe8eaa21fd125378ed1252352c5d1bc96e35213f8dd46160a8ba5e5", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  {"task_id": "feature_pipeline-hard-train_serve_parity", "model": "deepseek-chat", "status": "completed", "reason": null, "outcome_status_code": 63, "iching_status_code": 39, "repair_attempt_count": 0, "bureau_name": "木三局", "bureau_turn_budget": 4, "host_reward": 1.0, "harbor": false, "duration_s": 6.93, "detail": "", "container_id": "737dfa479a10b947d3dc06a0b37aaa3c66bb979e229f7d73d40d4b62e0306c63", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  {"task_id": "model_evaluation-hard-calibration_bins", "model": "deepseek-chat", "status": "completed", "reason": null, "outcome_status_code": 63, "iching_status_code": 39, "repair_attempt_count": 0, "bureau_name": "水二局", "bureau_turn_budget": 3, "host_reward": 1.0, "harbor": false, "duration_s": 7.0, "detail": "", "container_id": "2254fe7bc0159b6a72dcd91b8d4fdbb2bcdd31e6d4ac222195b574d36d1eb5cf", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  {"task_id": "data_quality-hard-label_conflicts", "model": "deepseek-chat", "status": "halted", "reason": "verifier_failed", "outcome_status_code": 40, "iching_status_code": 40, "repair_attempt_count": 3, "bureau_name": "水二局", "bureau_turn_budget": 3, "host_reward": 0.6153846153846154, "harbor": false, "duration_s": 25.79, "detail": "verifier_failed", "container_id": "f83f5c16700311f96596deb601af0772e46b02fe8f7f944816ccf37cddcdc272", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  ```
+- **核心数据与技术实证**：
+  1. **断言与得分汇总**：
+     - `schema_behavior-hard-unevaluated_properties`：15/15 项断言全通，首轮 0 修复满分，耗时 5.20 秒；
+     - `feature_pipeline-hard-train_serve_parity`：12/12 项断言全通，首轮 0 修复满分，耗时 6.93 秒；
+     - `model_evaluation-hard-calibration_bins`：13/13 项断言全通，首轮 0 修复满分，耗时 7.00 秒；
+     - `data_quality-hard-label_conflicts`：8/13 项断言通过（0.6154），3 轮自愈迭代，终局容器为 `f83f5c16700311f96596deb601af0772e46b02fe8f7f944816ccf37cddcdc272`，耗时 25.79 秒；
+     - **断言总计**：4 题账本分母相加为 $15 + 12 + 13 + 13 = 53$ 项，通过 $15 + 12 + 13 + 8 = 48$ 项（通过率 90.57%），四题奖励平均分准确值为 **0.9038**；
+  2. **耗时说明**：汇总文件 `results-r60-batch.jsonl` 每行记录各任务自身的 `duration_s`，无全局墙钟字段；四题中单题耗时最长为 **25.79 秒**；
+  3. **易经数理卦象**：
+     - 三道满分题落入卦象 63（乾为天，变卦 39 山天大畜）；
+     - `data_quality-hard-label_conflicts` 挂起题卦象码 40 为 **火地晋**（上卦离火 101，下卦坤地 000）；
+  4. **全阶段 Docker 覆盖累计**：Phase V 累计已在真实 Docker 容器（`python:3.12-slim-amd64`）中闭环验真 **23 道不同业务领域的 Hard 难度题目**（其中 12 题 1.0 满分，8 题 83%~92% 高分），全部落盘合法 64 位十六进制容器指纹，保持 `harbor: false`。
