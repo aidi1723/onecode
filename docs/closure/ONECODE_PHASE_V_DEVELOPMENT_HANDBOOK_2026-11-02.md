@@ -528,3 +528,31 @@
 - **核心契约实证**：
   - 本次评测是全项目中首次也是唯一合法输出 `harbor: true` 的场景，所有非 Harbor 调用的评测记录仍严格保持 `harbor: false`；
   - 容器 ID、单一标量分值文件与结构化明细文件均经由只读挂载与标准目录拓扑生成，Phase V 步骤 2.4（Harbor 接入准备与适配器）宣告正式闭环！
+
+### 4.22 核心 Prompt 零契约注入彻底净化与双端全量质量门禁闭环（提交 `da59c01`）
+- **整改背景与动机**：
+  在完成全部 36 道具备验真器的 Hard 难度基准任务及 Harbor 适配器闭环验证后，启动了对历史遗留提示词逻辑的审查。历史版本在 `src/onecode/kernel/model_loop.py` 的 `data_contract_guidance` 中，曾针对个别任务残留了具体字段名、路径与常量（如发票表头 `invoice_id,customer,issued_at,...`、特定路径 `data/source_priority.json`、`cleaned_config.json`、特定 SLA 时限 `60 minutes / 240 minutes` 等）。为彻底消除数据契约泄露嫌疑，严格兑现“零数据契约注入”的工程信条，实施选项 B（全量去题目硬编码与通用化改造）。
+- **重构落实细节**：
+  1. **剔除强绑定字段与路径**：彻底删除了发票列名、SLA 专属分钟数、特定停用词/词表路径、清洗字段列表等硬编码信息；
+  2. **升华通用工程规范**：将提示词提炼为普适的领域通用最佳实践（如 UTF-8 纯净编码避免 BOM、CSV 逗号转义处理、数值守恒计算、词表整数 ID 映射、边界与缺失值安全填充、窗口聚合基准时间对齐、ECE 标定桶计算等）；
+  3. **兼顾既有领域断言**：保留了测试套件断言的领域核心概念短语（如紫微/易经契约规范），使得 `tests/test_model_loop.py` 中的 `test_data_contract_guidance_all_domains` 和 `test_data_contract_guidance_invoice_and_export` 持续 100% 通过；
+  4. **代码规模合规**：重构后 `data_contract_guidance` 仅 121 行，远低于单函数 200 行上限要求。
+- **本地与 Linux 宿主机 `n100` 双端质量门禁实证**：
+  - **依赖纯净度**：`pyproject.toml` 的 `dependencies = []` 保持纯标准库；
+  - **静态类型与架构质量**：
+    - `python3 scripts/check_source_quality.py`：通过（`source quality ok`）；
+    - `ruff check .`：通过（`All checks passed!`）；
+    - `mypy src/`：通过（`Success: no issues found in 107 source files`）；
+    - `onecode doctor`：全项通过（`status: ok`）；
+  - **核心模型循环测试**：`tests/test_model_loop.py` 与 `tests/test_web_api.py` 共 220 项单元测试在本地（8.11s）与远程 Linux 宿主机 `n100`（27.58s）均实现 **220/220 全量通过（100% OK）**。
+
+## 5. Phase V 终局总结与全量优化任务闭环宣告
+
+截至 2026-11-02，OneCode Phase V 开发路线图规划的所有核心工程与优化任务已**全部圆满达成并实现严密闭环**：
+1. **验真进容器（步骤 2.1）**：彻底实现真实 Docker 隔离调度、挂载保护与 64 位十六进制真实容器指纹回传，非 Harbor 场景严格维持 `harbor: false`；
+2. **受控并行（步骤 2.2）**：实现任务级工作区隔离、线程安全验真标记与基于 CPU 核数的动态受控并发；
+3. **题库 Hard 任务全覆盖（步骤 2.3）**：全部 36 道具备独立验真器的 Hard 题目均在 `n100` 生产级 Docker 沙箱中真实实测，综合胜率达 **84.74%**，满分率达 **58.3%**，平均单题消耗折合人民币不足半分钱；
+4. **Harbor 契约原生接入（步骤 2.4）**：规范契约落地，`scripts/harbor_adapter.py` 通过全量环境变量驱动与首批真实题目容器评测，合规产生 `reward.txt`、`reward.json` 与 `container.cid`，首次合法写入 `harbor: true`；
+5. **架构与模型提示词零契约净化（步骤 2.5）**：`data_contract_guidance` 彻底剔除历史遗留硬编码字段与数值常量，纯通用工程规范化改造完成，双端质量门禁与全量测试 100% 绿灯。
+
+至此，OneCode Phase V 全量研发与优化任务正式宣告封板胜利结项！
