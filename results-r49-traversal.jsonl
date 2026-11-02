@@ -1,0 +1,1 @@
+{"task_id": "security_hardening-hard-archive_path_traversal", "model": "kimi-k2.7-code", "status": "completed", "reason": null, "outcome_status_code": 63, "iching_status_code": 39, "repair_attempt_count": 2, "bureau_name": "木三局", "bureau_turn_budget": 4, "host_reward": 1.0, "harbor": false, "duration_s": 757.82, "detail": ""}

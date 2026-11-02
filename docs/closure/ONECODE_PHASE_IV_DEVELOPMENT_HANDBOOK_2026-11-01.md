@@ -148,6 +148,27 @@ flowchart TD
   3. **修复次数字段为 0 的成因**：由于在 Turn 3 异常中断，由 `failed_model_result` 兜底生成终局记录，该结构未继承过程中的 `attempt` 计数，导致汇总 JSONL 中字段显示为 `0`；但状态机稳健保全了 Turn 2 的最高宿主机验真分 `0.9167`，终局卦象码为 **17（坎上震下，水雷屯，文王卦序 3）**。
   4. **首轮直通高收敛**：`openapi_params`（93.88s）、`cross_categorical`（102.74s）、`sync_async_bridge`（155.16s）均在首轮一次性通过全部断言，终态卦象均为 **63（乾为天）/ 39（山天大畜）**。
 
+### 3.6 路径穿越自愈攻坚与扩展四题全 1.0 满贯达成（R49）
+在提示词通用优化（消除“受影响路径”单文件定势、引导模型寻找未通过断言定义所在文件）并在启动参数放宽超时至 420 秒后，对 `security_hardening-hard-archive_path_traversal` 执行第 49 轮验证评测（记录于 `results-r49-traversal.jsonl`）：
+
+| 任务 ID | 领域/难度 | 终局卦象 | 五行局 (预算) | 修复次数 | 宿主机评分 | 终局状态 | 耗时 | 断言通过 | Harbor 标记 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `security_hardening-hard-archive_path_traversal` | 安全防御 Hard | 63 (乾) / 39 (大畜) | 木三局 (4) | 2 | **1.0000** | `completed` | 757.82s | **12 / 12** | `harbor: false` |
+
+- **逐轮断言演进实证**：
+  - Turn 0（初试）：8 / 12 通过（得分 0.6667）；
+  - Turn 1（补丁）：11 / 12 通过（得分 0.9167，此时仅剩第 8 项 `safe encoded slash is allowed` 未通过）；
+  - Turn 2（跨文件自愈）：在泛化指引下，模型成功跳出 `archive_like/extract.py` 的思维定势，跨模块对 `archive_like/path.py` 中的 `target_path` 打上多重 URL 解码与越界防护补丁，**在第 2 轮修复后斩获 12/12 满分（1.0000）**！
+- **四道全新 Hard 题满贯实绩（47/47）**：
+  至此，扩展 4 道 Hard 题在主机外置评测验真下**全部达成 1.0000 满分**：
+  1. `api_contract-hard-openapi_params`: **1.0000 (12/12)**
+  2. `security_hardening-hard-archive_path_traversal`: **1.0000 (12/12)**
+  3. `feature_pipeline-hard-cross_categorical`: **1.0000 (12/12)**
+  4. `refactor-hard-sync_async_bridge`: **1.0000 (11/11)**
+  - **总断言通过率**：**47 / 47 项（100.0%）**。
+  - **平均奖励分**：**1.0000**。
+  - **纯正原则保持**：契约零泄露，`dependencies = []`，`harbor: false` 实名保真。
+
 ---
 
 ## 阶段进展：实证自愈健壮性与门禁放宽优化（2026-11-01 晚）
