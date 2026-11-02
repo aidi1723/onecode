@@ -566,6 +566,127 @@ def run_two_stage_verifier(
     return stage2_result, results
 
 
+def run_host_verifier(
+    workspace: Path,
+    verifier_path: Path | str,
+    timeout_seconds: float = 180.0,
+) -> tuple[VerifierResult, object]:
+    """Execute an external benchmark verifier on the host with isolated WORKSPACE and LOG_DIR.
+
+    Returns (VerifierResult, host_reward).
+    Strict passing condition: proc.returncode == 0 and host_reward == 1.0.
+    """
+    import os
+    import tempfile
+
+    verifier = Path(verifier_path).expanduser().resolve()
+    if not verifier.is_file():
+        result = VerifierResult(
+            id="host-verifier",
+            status="failed",
+            reason="host_verifier_not_found",
+            failure_kind="exception",
+            exit_code=None,
+            duration_ms=0,
+            stdout_tail="",
+            stderr_tail=f"Verifier file not found: {verifier}",
+            stdout_sha256=sha256_bytes(b""),
+            stderr_sha256=sha256_bytes(f"Verifier file not found: {verifier}".encode("utf-8")),
+            cwd=str(workspace),
+            command=[sys.executable, str(verifier)],
+        )
+        return result, "ungraded"
+
+    log_dir = Path(tempfile.mkdtemp(prefix="oc-host-grade-"))
+    shim = Path(tempfile.mkdtemp(prefix="oc-host-shim-"))
+    try:
+        try:
+            (shim / "python").symlink_to(sys.executable)
+            (shim / "python3").symlink_to(sys.executable)
+        except OSError:
+            pass
+
+        env = os.environ.copy()
+        env["WORKSPACE"] = str(workspace.resolve())
+        env["LOG_DIR"] = str(log_dir)
+        env["PATH"] = str(shim) + os.pathsep + env.get("PATH", "")
+
+        started = time.monotonic()
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(verifier)],
+                cwd=str(workspace.resolve()),
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+            duration_ms = max(0, int((time.monotonic() - started) * 1000))
+            returncode = proc.returncode
+            stdout = proc.stdout or ""
+            stderr = proc.stderr or ""
+            timed_out = False
+        except subprocess.TimeoutExpired as exc:
+            duration_ms = max(0, int((time.monotonic() - started) * 1000))
+            returncode = None
+            stdout = exc.stdout if isinstance(exc.stdout, str) else (exc.stdout or b"").decode("utf-8", "replace")
+            stderr = exc.stderr if isinstance(exc.stderr, str) else (exc.stderr or b"").decode("utf-8", "replace")
+            timed_out = True
+
+        reward: object = "ungraded"
+        reward_file = log_dir / "reward.txt"
+        if reward_file.is_file():
+            text = reward_file.read_text(encoding="utf-8").strip()
+            try:
+                reward = float(text)
+            except ValueError:
+                reward = text or "ungraded"
+
+        reward_json_file = log_dir / "reward.json"
+        if reward_json_file.is_file():
+            try:
+                reward_json_str = reward_json_file.read_text(encoding="utf-8").strip()
+                if reward_json_str and reward_json_str not in stdout:
+                    stdout = reward_json_str + "\n" + stdout
+            except Exception:
+                pass
+
+        if timed_out:
+            passed = False
+            reason: str | None = "verifier_timeout"
+            failure_kind: VerifierFailureKind | None = "timeout"
+        elif returncode == 0 and reward == 1.0:
+            passed = True
+            reason = None
+            failure_kind = None
+        else:
+            passed = False
+            reason = "verifier_failed"
+            failure_kind = "command_failed"
+
+        stdout_bytes = stdout.encode("utf-8", errors="replace")
+        stderr_bytes = stderr.encode("utf-8", errors="replace")
+        checked = VerifierResult(
+            id="host-verifier",
+            status="passed" if passed else "failed",
+            reason=reason,
+            failure_kind=failure_kind,
+            exit_code=returncode,
+            duration_ms=duration_ms,
+            stdout_tail=tail_text(stdout_bytes),
+            stderr_tail=tail_text(stderr_bytes),
+            stdout_sha256=sha256_bytes(stdout_bytes),
+            stderr_sha256=sha256_bytes(stderr_bytes),
+            cwd=str(workspace.resolve()),
+            command=[sys.executable, str(verifier)],
+        )
+        return checked, reward
+    finally:
+        shutil.rmtree(shim, ignore_errors=True)
+        shutil.rmtree(log_dir, ignore_errors=True)
+
+
 def task_status_from_results(asset_result: dict[str, Any], verifier_results: list[VerifierResult]) -> dict[str, Any]:
     status_codes = [
         asset.get("raw_status_code")

@@ -892,6 +892,67 @@ class ModelLoopTests(unittest.TestCase):
             self.assertNotEqual(result["reason"], "repair_plan_must_use_patches_only")
             self.assertEqual((workspace / "src" / "one.py").read_text(encoding="utf-8"), "VALUE = 1\n")
 
+    def test_repair_loop_recovers_from_format_error_across_bureau_budget(self):
+        from onecode.kernel.sandbox import SandboxConfig
+        from onecode.kernel.verifier import VerifierResult
+
+        write_plan = ModelPlan(
+            task="write",
+            assets=[ModelPlanAsset(path="src/one.py", content="VALUE = 0\n")],
+        )
+        good_patch = ModelPlan(
+            task="fix",
+            patches=[ModelPlanPatch(path="src/one.py", search_block="VALUE = 0\n", replace_block="VALUE = 1\n")],
+        )
+
+        class FormatErrorThenGoodProvider:
+            def __init__(self):
+                self.calls = 0
+                self.prompts = []
+
+            def create_plan(self, task, *, model, http_timeout_seconds, planning_context=None):
+                self.calls += 1
+                self.prompts.append(task)
+                if self.calls == 1:
+                    return write_plan
+                elif self.calls == 2:
+                    raise ValueError("plan must include at least one asset, patch, or execution step")
+                else:
+                    return good_patch
+
+        failed = VerifierResult(
+            id="python-unittest", status="failed", reason="verifier_failed", failure_kind="command_failed",
+            exit_code=1, duration_ms=1, stdout_tail="", stderr_tail="AssertionError",
+            stdout_sha256="0" * 64, stderr_sha256="0" * 64, cwd=".", command=["python3", "-m", "unittest"],
+        )
+        passed = VerifierResult(
+            id="python-unittest", status="passed", reason=None, failure_kind=None,
+            exit_code=0, duration_ms=1, stdout_tail="", stderr_tail="",
+            stdout_sha256="0" * 64, stderr_sha256="0" * 64, cwd=".", command=["python3", "-m", "unittest"],
+        )
+
+        provider = FormatErrorThenGoodProvider()
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "tests").mkdir()
+            (workspace / "tests" / "test_one.py").write_text("import unittest\n", encoding="utf-8")
+            with patch("onecode.kernel.verifier.run_verifier", side_effect=[failed, passed]):
+                result = run_model_task_wrapper(
+                    "fix src/one.py",
+                    workspace=workspace,
+                    run_id="format-recover",
+                    api_key="key",
+                    model="m",
+                    provider=provider,
+                    execution_approval=lambda step: True,
+                    max_repair_attempts=2,
+                    sandbox_config=SandboxConfig(workspace=workspace, image="python:3.12-slim", network="none"),
+                )
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual((workspace / "src" / "one.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+            self.assertEqual(provider.calls, 3)
+            self.assertIn("CRITICAL FIX FROM PREVIOUS TURN FORMAT ERROR", provider.prompts[-1])
+
     def test_repair_prompt_includes_the_existing_source(self):
         from onecode.kernel.model_loop import repair_prompt
 
@@ -2855,6 +2916,15 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
                     "path": "/app/clean.py",
                     "search_block": ["def a():\n", "    return 1\n"],
                     "replace_block": ["def a():\n", "    return 2\n"],
+                    "description": "fix clean return value",
+                    "comment": "extra notes",
+                }
+            ],
+            "assets": [
+                {
+                    "path": "app/new.py",
+                    "content": "X = 1\n",
+                    "summary": "new file",
                 }
             ],
         }
@@ -2862,6 +2932,9 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
         self.assertEqual(normalized["patches"][0]["path"], "app/clean.py")
         self.assertEqual(normalized["patches"][0]["search_block"], "def a():\n    return 1\n")
         self.assertEqual(normalized["patches"][0]["replace_block"], "def a():\n    return 2\n")
+        self.assertNotIn("description", normalized["patches"][0])
+        self.assertNotIn("comment", normalized["patches"][0])
+        self.assertNotIn("summary", normalized["assets"][0])
 
     def test_format_verifier_diagnostics_parses_json_report(self):
         from onecode.kernel.model_loop import format_verifier_diagnostics
@@ -2996,6 +3069,36 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
         self.assertEqual(res.get("status"), "completed")
         self.assertIsNone(res.get("reason"))
         self.assertTrue(res.get("repaired"))
+
+    def test_with_sandbox_tests_uses_host_verifier_when_env_set(self):
+        import os
+        from onecode.kernel.model_loop import _with_sandbox_tests
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            workspace = tmp_path / "workspace"
+            workspace.mkdir()
+            verifier = tmp_path / "verifier.py"
+            verifier.write_text(
+                "import os\n"
+                "from pathlib import Path\n"
+                "log_dir = Path(os.environ['LOG_DIR'])\n"
+                "(log_dir / 'reward.txt').write_text('1.0')\n",
+                encoding="utf-8",
+            )
+            old_env = os.environ.get("ONECODE_HOST_VERIFIER")
+            try:
+                os.environ["ONECODE_HOST_VERIFIER"] = str(verifier)
+                res = _with_sandbox_tests({"status": "completed", "run_id": "test-host-verifier"}, workspace, sandbox_config=None)
+                self.assertEqual(res.get("status"), "completed")
+                self.assertIsNone(res.get("reason"))
+                self.assertEqual(res.get("host_reward"), 1.0)
+                self.assertIn("verifier_results", res)
+            finally:
+                if old_env is not None:
+                    os.environ["ONECODE_HOST_VERIFIER"] = old_env
+                else:
+                    os.environ.pop("ONECODE_HOST_VERIFIER", None)
 
 
 if __name__ == "__main__":

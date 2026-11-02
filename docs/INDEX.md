@@ -7,6 +7,7 @@ This index helps you navigate OneCode's documentation, which is organized by pur
 ## Quick Start
 
 - [README.md](../README.md) - Installation, verification, and basic usage
+- [2026-11-01 Phase IV development handbook](closure/ONECODE_PHASE_IV_DEVELOPMENT_HANDBOOK_2026-11-01.md) - Native host verifier protocol, Sui Po deflection, batch benchmark harness, domain expansion (4 Hard tasks), and container isolation.
 - [2026-10-31 comprehensive audit & remediation closeout](closure/ONECODE_AUDIT_AND_REMEDIATION_CLOSEOUT_2026-10-31.md) - Full remediation of 8 findings across checkpoint telemetry, static analysis, verifier parity, and tool resilience. Mac gate is 1467 tests, 1 skipped. 26 Ziwei certificates verified, 5304 ops/s.
 - [2026-10-28 gap optimization closeout](closure/ONECODE_GAP_OPTIMIZATION_CLOSEOUT_2026-10-28.md) - Exam gaps closed in the kernel. Mac gate is 1327 tests, 1 skipped. n100 was not rechecked.
 - [2026-10-28 gap optimization handbook](closure/ONECODE_GAP_OPTIMIZATION_HANDBOOK_2026-10-28.md) - The task list for that closeout. Surveyed files, one named JSON file, and a new test file when the task asks only for tests.

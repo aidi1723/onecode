@@ -2248,7 +2248,8 @@ def _finish_verified_task(
     modified = _modified_paths_from_result(result)
     _generate_missing_artifacts(task, workspace, modified)
     checked = _with_sandbox_tests(result, workspace, sandbox_config)
-    if checked.get("reason") != "verifier_failed" or max_repair_attempts <= 0 or sandbox_config is None:
+    has_testable_verifier = (sandbox_config is not None) or bool(os.environ.get("ONECODE_HOST_VERIFIER", "").strip())
+    if checked.get("reason") != "verifier_failed" or max_repair_attempts <= 0 or not has_testable_verifier:
         return checked
     current_checked = dict(checked)
     current_result = dict(result)
@@ -2265,6 +2266,7 @@ def _finish_verified_task(
         current_result["turn_history"] = initial_history
     bureau_budget = run_metadata.get("bureau_turn_budget", max_repair_attempts)
     effective_attempts = min(max_repair_attempts, bureau_budget) if max_repair_attempts > 0 else 0
+    format_error_guidance: str | None = None
     for attempt in range(1, effective_attempts + 1):
         failed_status = current_checked.get("iching_status_code") or current_checked.get("task_status_code")
         failed_code = int(failed_status) if failed_status is not None else 32
@@ -2294,6 +2296,8 @@ def _finish_verified_task(
         ) + "\nDo not patch any path under tests/. Change the implementation so the existing tests pass."
         if tails and all(t not in prompt for t in tails):
             prompt += "\nVerifier output:\n" + "\n".join(tails)
+        if format_error_guidance:
+            prompt += f"\n\nCRITICAL FIX FROM PREVIOUS TURN FORMAT ERROR:\n{format_error_guidance}\nYou must output valid JSON with a 'patches' list only."
         prompt += (
             "\n\nCRITICAL: Return valid JSON with patches only. Do NOT include execution_plan or assets.\n"
             'Format: {"task":"repair verifier failure","patches":[{"path":"<file>","search_block":"<exact lines>","replace_block":"<fixed lines>"}]}'
@@ -2311,12 +2315,50 @@ def _finish_verified_task(
             span_id=span_id,
         )
         if failure is not None:
-            return failed_model_result(model_context, failure)
+            failure_kind = failure.get("failure_kind")
+            if attempt < effective_attempts and failure_kind in {"invalid_model_plan", "no_actionable_plan"}:
+                format_error_guidance = f"Previous turn failed with format error ({failure_kind}): {failure.get('detail') or 'Output was not a valid patch plan'}."
+                branches = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
+                hist = list(current_checked.get("turn_history") or [])
+                hist.append({
+                    "turn_id": len(hist) + 1,
+                    "branch_name": branches[len(hist) % len(branches)],
+                    "status": "halted",
+                    "reason": failure_kind,
+                    "modified_files": [],
+                })
+                current_checked["turn_history"] = hist
+                current_result["turn_history"] = hist
+                continue
+            failed_model = failed_model_result(model_context, failure)
+            if "host_reward" in current_checked:
+                failed_model["host_reward"] = current_checked["host_reward"]
+            return failed_model
         if plan is not None:
             plan = synthesize_single_asset_repair(plan, workspace)
             if plan.patches and plan.execution_steps:
                 plan = ModelPlan(task=plan.task, patches=plan.patches, no_action_reason=plan.no_action_reason)
         if plan is None or not is_patch_only_repair_plan(plan) or _repair_touches_tests(plan):
+            if attempt < effective_attempts:
+                touching_tests = plan is not None and _repair_touches_tests(plan)
+                err_reason = "repair_plan_cannot_modify_tests" if touching_tests else "repair_plan_must_use_patches_only"
+                format_error_guidance = (
+                    "repair_plan_cannot_modify_tests: modifying tests/ is forbidden. Patch implementation files only."
+                    if touching_tests
+                    else "repair_plan_must_use_patches_only: return valid JSON containing 'patches' only (do NOT return assets or execution_plan)."
+                )
+                branches = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
+                hist = list(current_checked.get("turn_history") or [])
+                hist.append({
+                    "turn_id": len(hist) + 1,
+                    "branch_name": branches[len(hist) % len(branches)],
+                    "status": "halted",
+                    "reason": err_reason,
+                    "modified_files": [],
+                })
+                current_checked["turn_history"] = hist
+                current_result["turn_history"] = hist
+                continue
             rejected = repair_rejected_result(current_checked, run_id, "repair_plan_must_use_patches_only", repair_attempt_count=attempt)
             transition = IchingKernel.transition(IchingKernel.classify_outcome("halted", rejected["reason"]))
             return {
@@ -2372,11 +2414,21 @@ def _finish_verified_task(
 
 
 def _with_sandbox_tests(result: dict[str, Any], workspace: Path, sandbox_config: Any | None) -> dict[str, Any]:
-    if sandbox_config is None or result.get("status") != "completed":
+    if result.get("status") != "completed":
         return result
     from onecode.kernel.preset_tests import preset_test_hashes
     from onecode.kernel.run_inspection import apply_verifier_evidence
-    from onecode.kernel.verifier import VerifierSpec, run_verifier
+    from onecode.kernel.verifier import VerifierSpec, run_host_verifier, run_verifier
+
+    host_verifier_path = os.environ.get("ONECODE_HOST_VERIFIER", "").strip()
+    if host_verifier_path:
+        checked, reward = run_host_verifier(workspace, host_verifier_path)
+        enhanced = apply_verifier_evidence(result, workspace, [checked])
+        enhanced["host_reward"] = reward
+        return enhanced
+
+    if sandbox_config is None:
+        return result
 
     has_internal_tests = (workspace / "tests").is_dir()
     host_cmd_env = os.environ.get("ONECODE_HOST_VERIFIER_CMD")
@@ -2648,6 +2700,7 @@ def _run_model_task_repair_loop(
         }]
     bureau_budget = run_metadata.get("bureau_turn_budget", max_repair_attempts)
     effective_attempts = min(max_repair_attempts, bureau_budget) if max_repair_attempts > 0 else 0
+    format_error_guidance: str | None = None
     for attempt in range(1, effective_attempts + 1):
         failed_status = failed_result.get("iching_status_code") or failed_result.get("task_status_code")
         failed_code = int(failed_status) if failed_status is not None else 32
@@ -2657,9 +2710,16 @@ def _run_model_task_repair_loop(
         cooldown_ms = _compute_repair_cooldown(run_metadata, attempt, failed_code, scenario)
         if cooldown_ms > 0:
             time.sleep(cooldown_ms / 1000.0)
+        repair_task_prompt = repair_prompt(
+            task,
+            {**failed_result, "workspace_files": _src_files_for_repair(workspace)},
+            workspace=workspace,
+        )
+        if format_error_guidance:
+            repair_task_prompt += f"\n\nCRITICAL FIX FROM PREVIOUS TURN FORMAT ERROR:\n{format_error_guidance}\nYou must output valid JSON with a 'patches' list only."
         repair_plan, failure = traced_provider_plan(
             provider=active_provider,
-            task=repair_prompt(task, {**failed_result, "workspace_files": _src_files_for_repair(workspace)}, workspace=workspace),
+            task=repair_task_prompt,
             model_context=model_context,
             trace_path=trace_path,
             provider_config=provider_config,
@@ -2669,10 +2729,42 @@ def _run_model_task_repair_loop(
             span_id=f"model-repair-{attempt}",
         )
         if failure is not None:
-            return failed_model_result(model_context, failure)
+            failure_kind = failure.get("failure_kind")
+            if attempt < effective_attempts and failure_kind in {"invalid_model_plan", "no_actionable_plan"}:
+                format_error_guidance = f"Previous turn failed with format error ({failure_kind}): {failure.get('detail') or 'Output was not a valid patch plan'}."
+                branches = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
+                hist = list(failed_result.get("turn_history") or [])
+                hist.append({
+                    "turn_id": len(hist) + 1,
+                    "branch_name": branches[len(hist) % len(branches)],
+                    "status": "halted",
+                    "reason": failure_kind,
+                    "modified_files": [],
+                })
+                failed_result = dict(failed_result)
+                failed_result["turn_history"] = hist
+                continue
+            failed_model = failed_model_result(model_context, failure)
+            if "host_reward" in failed_result:
+                failed_model["host_reward"] = failed_result["host_reward"]
+            return failed_model
         assert repair_plan is not None
         repair_plan = synthesize_single_asset_repair(repair_plan, workspace)
         if not is_patch_only_repair_plan(repair_plan):
+            if attempt < effective_attempts:
+                format_error_guidance = "repair_plan_must_use_patches_only: return valid JSON containing 'patches' only (do NOT return assets or execution_plan)."
+                branches = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
+                hist = list(failed_result.get("turn_history") or [])
+                hist.append({
+                    "turn_id": len(hist) + 1,
+                    "branch_name": branches[len(hist) % len(branches)],
+                    "status": "halted",
+                    "reason": "repair_plan_must_use_patches_only",
+                    "modified_files": [],
+                })
+                failed_result = dict(failed_result)
+                failed_result["turn_history"] = hist
+                continue
             return repair_rejected_result(
                 failed_result,
                 run_id,
@@ -2680,6 +2772,20 @@ def _run_model_task_repair_loop(
                 repair_attempt_count=attempt,
             )
         if any(_is_test_path(p.path) for p in repair_plan.patches):
+            if attempt < effective_attempts:
+                format_error_guidance = "repair_plan_cannot_modify_tests: modifying paths under tests/ is forbidden. Patch implementation files only."
+                branches = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
+                hist = list(failed_result.get("turn_history") or [])
+                hist.append({
+                    "turn_id": len(hist) + 1,
+                    "branch_name": branches[len(hist) % len(branches)],
+                    "status": "halted",
+                    "reason": "repair_plan_cannot_modify_tests",
+                    "modified_files": [],
+                })
+                failed_result = dict(failed_result)
+                failed_result["turn_history"] = hist
+                continue
             return repair_rejected_result(
                 failed_result,
                 run_id,
@@ -2727,7 +2833,8 @@ def _run_model_task_repair_loop(
         merged = merge_repair_result(failed_result, repair_result, repair_attempt_count=attempt)
         if repair_result.get("status") == "completed":
             return _with_sandbox_tests(merged, workspace, sandbox_config)
-        if sandbox_config is not None and (repair_result.get("completed_count", 0) > 0 or _modified_paths_from_result(repair_result)):
+        has_testable_verifier = (sandbox_config is not None) or bool(os.environ.get("ONECODE_HOST_VERIFIER", "").strip())
+        if has_testable_verifier and (repair_result.get("completed_count", 0) > 0 or _modified_paths_from_result(repair_result)):
             provisional = dict(merged)
             provisional["status"] = "completed"
             provisional["reason"] = None
@@ -2736,7 +2843,8 @@ def _run_model_task_repair_loop(
                 verified["repaired"] = True
                 return verified
         failed_result = merged
-    if sandbox_config is not None and failed_result.get("status") != "completed":
+    has_testable_verifier = (sandbox_config is not None) or bool(os.environ.get("ONECODE_HOST_VERIFIER", "").strip())
+    if has_testable_verifier and failed_result.get("status") != "completed":
         provisional = dict(failed_result)
         provisional["status"] = "completed"
         provisional["reason"] = None

@@ -1,6 +1,7 @@
 import ast
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -608,6 +609,18 @@ def normalize_model_plan_payload(payload: dict[str, Any]) -> dict[str, Any]:
         target_path = normalized.get("target") or normalized.get("path")
         if isinstance(target_path, str) and isinstance(normalized.get("content"), str):
             normalized["assets"] = [{"path": target_path, "content": normalized["content"]}]
+    if isinstance(normalized.get("assets"), list):
+        fixed_assets: list[dict[str, Any]] = []
+        for a in normalized["assets"]:
+            if isinstance(a, dict):
+                a_copy = dict(a)
+                for meta_key in (
+                    "description", "comment", "comments", "summary",
+                    "explanation", "title", "notes", "rationale", "reason",
+                ):
+                    a_copy.pop(meta_key, None)
+                fixed_assets.append(a_copy)
+        normalized["assets"] = fixed_assets
     if "patches" not in normalized and isinstance(normalized.get("patch"), dict):
         normalized["patches"] = [normalized["patch"]]
     elif "patches" not in normalized and ("search_block" in normalized and "replace_block" in normalized):
@@ -623,6 +636,12 @@ def normalize_model_plan_payload(payload: dict[str, Any]) -> dict[str, Any]:
         for p in normalized["patches"]:
             if isinstance(p, dict):
                 p_copy = dict(p)
+                for meta_key in (
+                    "description", "comment", "comments", "summary",
+                    "explanation", "title", "notes", "rationale", "reason",
+                    "line", "start_line", "end_line", "index",
+                ):
+                    p_copy.pop(meta_key, None)
                 p_path = p_copy.get("path")
                 if isinstance(p_path, str) and p_path.startswith("/") and not p_path.startswith("//"):
                     p_copy["path"] = p_path.lstrip("/")
@@ -826,32 +845,8 @@ class OpenAIChatCompletionsProvider:
         known_modules: set[str] | None = None,
         existing_preset_tests: set[str] | None = None,
     ) -> ModelPlan:
-        body = json.dumps(self.request_payload(task, model=model, planning_context=planning_context)).encode("utf-8")
-        request = urllib.request.Request(
-            self.endpoint,
-            data=body,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-                "User-Agent": _model_user_agent(),
-            },
-            method="POST",
-        )
-        try:
-            with _SAFE_OPENER.open(request, timeout=http_timeout_seconds) as response:
-                response_payload = json.loads(read_bounded_response(response).decode("utf-8"))
-        except TimeoutError as exc:
-            raise ModelProviderTimeout("model request timed out") from exc
-        except urllib.error.HTTPError as exc:
-            if resumable_model_status(exc.code):
-                raise ModelProviderTimeout(f"model request can be resumed: {exc.code}") from exc
-            raise ModelProviderError(f"model request failed: {exc.reason}") from exc
-        except urllib.error.URLError as exc:
-            raise ModelProviderError(f"model request failed: {exc.reason}") from exc
-        except json.JSONDecodeError as exc:
-            raise ModelProviderError("model response envelope was not valid JSON") from exc
-        except ValueError as exc:
-            raise ModelProviderError("model response exceeds maximum size") from exc
+        body = self.request_payload(task, model=model, planning_context=planning_context)
+        response_payload = _post_model_json(self.endpoint, self.api_key, body, http_timeout_seconds)
         if not isinstance(response_payload, dict):
             raise ModelProviderError("model response envelope must be an object")
         return self.parse_response(
@@ -910,19 +905,30 @@ def _chat_message_text(payload: dict[str, Any]) -> str:
     return content
 
 
-def _post_model_json(endpoint: str, api_key: str, body: dict[str, Any], timeout_seconds: float) -> dict[str, Any]:
-    request = urllib.request.Request(
-        endpoint,
-        data=json.dumps(body).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "User-Agent": _model_user_agent(),
-        },
-        method="POST",
-    )
+def _fallback_channel_config() -> tuple[str, str, str | None] | None:
+    endpoint = os.environ.get("ONECODE_FALLBACK_ENDPOINT", "").strip()
+    api_key = os.environ.get("ONECODE_FALLBACK_API_KEY", "").strip()
+    model = os.environ.get("ONECODE_FALLBACK_MODEL", "").strip() or None
+    if endpoint and api_key:
+        return endpoint, api_key, model
+    return None
+
+
+def _post_model_json_direct(endpoint: str, api_key: str, body: dict[str, Any], timeout_seconds: float) -> dict[str, Any]:
     last_url_error: urllib.error.URLError | None = None
+    encoded_body = json.dumps(body).encode("utf-8")
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "User-Agent": _model_user_agent(),
+    }
     for attempt in range(3):
+        request = urllib.request.Request(
+            endpoint,
+            data=encoded_body,
+            headers=headers,
+            method="POST",
+        )
         try:
             with _SAFE_OPENER.open(request, timeout=timeout_seconds) as response:
                 payload = json.loads(read_bounded_response(response).decode("utf-8"))
@@ -930,14 +936,16 @@ def _post_model_json(endpoint: str, api_key: str, body: dict[str, Any], timeout_
         except TimeoutError as exc:
             raise ModelProviderTimeout("model request timed out") from exc
         except urllib.error.HTTPError as exc:
+            if exc.code in {403, 408, 429, 500, 502, 503, 504, 520, 521, 522, 524} and attempt < 2:
+                time.sleep(1.0 * (attempt + 1))
+                continue
             if resumable_model_status(exc.code):
                 raise ModelProviderTimeout(f"model request can be resumed: {exc.code}") from exc
-            if exc.code == 520 and attempt < 2:
-                continue
             raise ModelProviderError(f"model request failed: {exc.reason}") from exc
         except urllib.error.URLError as exc:
             last_url_error = exc
-            if attempt == 0:
+            if attempt < 2:
+                time.sleep(1.0 * (attempt + 1))
                 continue
             raise ModelProviderError(f"model request failed: {exc.reason}") from exc
         except json.JSONDecodeError as exc:
@@ -949,6 +957,20 @@ def _post_model_json(endpoint: str, api_key: str, body: dict[str, Any], timeout_
     if not isinstance(payload, dict):
         raise ModelProviderError("model response envelope must be an object")
     return payload
+
+
+def _post_model_json(endpoint: str, api_key: str, body: dict[str, Any], timeout_seconds: float) -> dict[str, Any]:
+    try:
+        return _post_model_json_direct(endpoint, api_key, body, timeout_seconds)
+    except (ModelProviderError, ModelProviderTimeout):
+        fallback = _fallback_channel_config()
+        if fallback is None or fallback[0] == endpoint:
+            raise
+        fb_endpoint, fb_key, fb_model = fallback
+        fallback_body = dict(body)
+        if fb_model and "model" in fallback_body:
+            fallback_body["model"] = fb_model
+        return _post_model_json_direct(fb_endpoint, fb_key, fallback_body, timeout_seconds)
 
 
 def canonical_planning_prompt(planning_context: dict[str, Any] | None = None, task: str | None = None) -> str:

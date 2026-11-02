@@ -15,7 +15,7 @@ class SourceQualityTests(unittest.TestCase):
     def test_source_quality_gate_rejects_new_unlisted_long_function(self):
         with TemporaryDirectory() as tmp:
             path = Path(tmp) / "module.py"
-            body = "\n".join("    value += 1" for _ in range(170))
+            body = "\n".join("    value += 1" for _ in range(210))
             path.write_text(f"def oversized():\n    value = 0\n{body}\n    return value\n", encoding="utf-8")
 
             with redirect_stderr(StringIO()) as stderr:

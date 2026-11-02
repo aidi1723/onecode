@@ -1,6 +1,9 @@
+import io
 import json
 import os
 import unittest
+import urllib.error
+import urllib.request
 from unittest.mock import patch
 
 from onecode.kernel.model_provider import (
@@ -342,6 +345,51 @@ class ModelProviderTimeoutTests(unittest.TestCase):
 
         self.assertEqual(payload, {"ok": True})
         self.assertEqual(calls["count"], 3)
+
+    def test_post_model_json_deflects_to_fallback_on_primary_failure(self):
+        from onecode.kernel.model_provider import _post_model_json
+
+        recorded_requests: list[urllib.request.Request] = []
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def read(self, _limit=None):
+                return b'{"ok": true, "source": "fallback"}'
+
+        def opener(req, timeout=None):
+            recorded_requests.append(req)
+            if "primary.test" in req.full_url:
+                raise urllib.error.HTTPError(req.full_url, 502, "Bad Gateway", hdrs=None, fp=io.BytesIO(b""))
+            return FakeResponse()
+
+        env_patch = {
+            "ONECODE_FALLBACK_ENDPOINT": "https://fallback.test/chat/completions",
+            "ONECODE_FALLBACK_API_KEY": "fb-key-123",
+            "ONECODE_FALLBACK_MODEL": "fb-model-456",
+        }
+        with patch.dict(os.environ, env_patch), patch("onecode.kernel.model_provider._SAFE_OPENER.open", side_effect=opener):
+            payload = _post_model_json("https://primary.test/v1", "prim-key", {"model": "orig-model", "messages": []}, 1)
+
+        self.assertEqual(payload, {"ok": True, "source": "fallback"})
+        self.assertTrue(len(recorded_requests) >= 2)
+        fallback_req = recorded_requests[-1]
+        self.assertEqual(fallback_req.full_url, "https://fallback.test/chat/completions")
+        self.assertEqual(fallback_req.get_header("Authorization"), "Bearer fb-key-123")
+        parsed_body = json.loads(fallback_req.data.decode("utf-8"))
+        self.assertEqual(parsed_body["model"], "fb-model-456")
+
+    def test_post_model_json_does_not_deflect_when_fallback_not_configured(self):
+        from onecode.kernel.model_provider import ModelProviderError, _post_model_json
+
+        def opener(req, timeout=None):
+            raise urllib.error.HTTPError(req.full_url, 502, "Bad Gateway", hdrs=None, fp=io.BytesIO(b""))
+
+        with patch.dict(os.environ, {}, clear=True), patch("onecode.kernel.model_provider._SAFE_OPENER.open", side_effect=opener):
+            with self.assertRaises(ModelProviderError):
+                _post_model_json("https://primary.test/v1", "prim-key", {"model": "orig-model"}, 1)
 
 
 if __name__ == "__main__":

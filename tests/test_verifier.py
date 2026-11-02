@@ -662,3 +662,78 @@ class VerifierExecutionTests(unittest.TestCase):
         self.assertEqual(res.command, [])
         self.assertTrue(len(res.stdout_sha256) == 64)
         self.assertTrue(len(res.stderr_sha256) == 64)
+
+    def test_run_host_verifier_passes_when_exit_zero_and_reward_one(self):
+        from onecode.kernel.verifier import run_host_verifier
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            workspace = tmp_path / "workspace"
+            workspace.mkdir()
+            verifier = tmp_path / "verifier.py"
+            verifier.write_text(
+                "import os\n"
+                "from pathlib import Path\n"
+                "log_dir = Path(os.environ['LOG_DIR'])\n"
+                "(log_dir / 'reward.txt').write_text('1.0')\n"
+                "(log_dir / 'reward.json').write_text('{\"passed\": 10, \"total\": 10}')\n",
+                encoding="utf-8",
+            )
+            checked, reward = run_host_verifier(workspace, verifier)
+            self.assertEqual(checked.status, "passed")
+            self.assertIsNone(checked.reason)
+            self.assertEqual(checked.exit_code, 0)
+            self.assertEqual(reward, 1.0)
+            self.assertEqual(checked.id, "host-verifier")
+
+    def test_run_host_verifier_fails_when_reward_less_than_one(self):
+        from onecode.kernel.verifier import run_host_verifier
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            workspace = tmp_path / "workspace"
+            workspace.mkdir()
+            verifier = tmp_path / "verifier.py"
+            verifier.write_text(
+                "import os\n"
+                "from pathlib import Path\n"
+                "log_dir = Path(os.environ['LOG_DIR'])\n"
+                "(log_dir / 'reward.txt').write_text('0.857')\n",
+                encoding="utf-8",
+            )
+            checked, reward = run_host_verifier(workspace, verifier)
+            self.assertEqual(checked.status, "failed")
+            self.assertEqual(checked.reason, "verifier_failed")
+            self.assertEqual(checked.exit_code, 0)
+            self.assertEqual(reward, 0.857)
+
+    def test_run_host_verifier_fails_when_exit_code_nonzero(self):
+        from onecode.kernel.verifier import run_host_verifier
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            workspace = tmp_path / "workspace"
+            workspace.mkdir()
+            verifier = tmp_path / "verifier.py"
+            verifier.write_text(
+                "import sys\n"
+                "sys.exit(2)\n",
+                encoding="utf-8",
+            )
+            checked, reward = run_host_verifier(workspace, verifier)
+            self.assertEqual(checked.status, "failed")
+            self.assertEqual(checked.reason, "verifier_failed")
+            self.assertEqual(checked.exit_code, 2)
+            self.assertEqual(reward, "ungraded")
+
+    def test_run_host_verifier_handles_missing_script(self):
+        from onecode.kernel.verifier import run_host_verifier
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            workspace.mkdir()
+            checked, reward = run_host_verifier(workspace, Path(tmp) / "nonexistent.py")
+            self.assertEqual(checked.status, "failed")
+            self.assertEqual(checked.reason, "host_verifier_not_found")
+            self.assertEqual(reward, "ungraded")
+
