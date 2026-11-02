@@ -1030,7 +1030,7 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
         "A failing check may call a function defined outside the files already touched. "
         "Find that function's defining module and patch it there, instead of editing the same file again.\n"
         "If a test checks that an invalid operation or failure is blocked, inspect the workspace's error/exception definitions (e.g. errors module) and raise the intended domain exception class with an informative message rather than a generic or unhandled error.\n"
-        "When reading or writing structured records (e.g. CSV, text tables, JSON lines), convert scalar fields to their intended primitive types (integers for IDs/counts/labels, floats for metrics, booleans for flags) rather than leaving them as raw strings. When deduplicating or grouping rows, ensure distinct records are counted accurately without spurious duplicates.\n"
+        "When reading or writing structured records (e.g. CSV, text tables, JSON lines), convert scalar fields to their intended primitive types (integers for IDs/counts/labels, floats for metrics, booleans for flags) rather than leaving them as raw strings. When input records contain structured dicts or metadata objects, preserve the underlying object structure rather than collapsing them to bare strings unless explicitly requested. When deduplicating or grouping rows, ensure distinct records are counted accurately without spurious duplicates.\n"
     )
     if closest_hints:
         prompt += "Patch context hints:\n" + "\n\n".join(closest_hints) + "\n"
@@ -2337,9 +2337,9 @@ def _build_repair_prompt_context(
             "\n\nNOTICE - STALLED PROGRESS MUTATION DIRECTIVE:\n"
             "The previous repair attempt made NO score progress and failed the exact same checks.\n"
             "Do NOT repeat minor variations of the same logic. Pivot and rethink core assumptions:\n"
-            "1. Check scalar data types: are dictionary values integers/floats instead of strings (e.g. from csv.DictReader), or vice-versa?\n"
+            "1. Check scalar and object types: are numbers parsed as int/float instead of strings? Are structured sub-objects preserved as dicts instead of flattened?\n"
             "2. Check duplicate handling: are duplicate records being counted twice or merged incorrectly?\n"
-            "3. Check default parameter values and missing edge-case returns.\n"
+            "3. Check default parameter values, missing edge-case returns, and error type constants.\n"
             "4. Check if a related helper function in another workspace file needs the fix instead."
         )
     prompt += (
