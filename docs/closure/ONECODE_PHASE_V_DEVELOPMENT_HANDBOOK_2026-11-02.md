@@ -363,3 +363,32 @@
      - 三道满分题落入卦象 63（乾为天，变卦 39 山天大畜）；
      - `data_quality-hard-label_conflicts` 挂起题卦象码 40 为 **火地晋**（上卦离火 101，下卦坤地 000）；
   4. **全阶段 Docker 覆盖累计**：Phase V 累计已在真实 Docker 容器（`python:3.12-slim-amd64`）中闭环验真 **23 道不同业务领域的 Hard 难度题目**（其中 12 题 1.0 满分，8 题 83%~92% 高分），全部落盘合法 64 位十六进制容器指纹，保持 `harbor: false`。
+### 4.16 步骤 2.2 / 2.3 扩大题集 R61 评测（4 任务跨域并行，两题满分自愈成功，47/54 断言通过率 87.0%）
+- **评测时间**：2026-11-02
+- **并发机制**：`--concurrency 4`，4 线程并行执行，每任务分配独立工作区与 Docker 验真容器
+- **模型**：`deepseek-chat`（DeepSeek 官方 API）
+- **沙箱镜像**：`python:3.12-slim-amd64`（amd64 架构，集成 Git，严格单容器单任务隔离）
+- **评测题目（4 道跨领域 Hard 题，均为 Phase V 首次进入容器评测）**：
+  1. `model_evaluation-hard-threshold_slices`（模型评估：多阈值切片报表与加权 F1/Precision/Recall 边界计算，木三局，预算 4）
+  2. `feature_pipeline-hard-window_aggregates`（特征工程：用户行为多时间窗口滑动聚合与事件回溯，水二局，预算 3）
+  3. `api_contract-hard-validation_errors`（API 契约：Pydantic 风格校验错误结构与别名/额外字段规约，木三局，预算 4）
+  4. `data_quality-hard-time_leakage`（数据质量：训练时序穿越特征排查与容忍时间窗口过滤，木三局，预算 4）
+- **评测结果文件（`results-r61-batch.jsonl`）真实记录**：
+  ```json
+  {"task_id": "model_evaluation-hard-threshold_slices", "model": "deepseek-chat", "status": "completed", "reason": null, "outcome_status_code": 63, "iching_status_code": 39, "repair_attempt_count": 0, "bureau_name": "木三局", "bureau_turn_budget": 4, "host_reward": 1.0, "harbor": false, "duration_s": 7.12, "detail": "", "container_id": "cbf6d35a05a9d0a913aa4f81ba38df5e96b876b958aafef381b1f72478beafd7", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  {"task_id": "feature_pipeline-hard-window_aggregates", "model": "deepseek-chat", "status": "completed", "reason": null, "outcome_status_code": 63, "iching_status_code": 39, "repair_attempt_count": 1, "bureau_name": "水二局", "bureau_turn_budget": 3, "host_reward": 1.0, "harbor": false, "duration_s": 9.94, "detail": "", "container_id": "be75c2cee897f9c71f11d956cd597887d8df4a87a5c31768b63cbcccb3779bf7", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  {"task_id": "api_contract-hard-validation_errors", "model": "deepseek-chat", "status": "halted", "reason": "verifier_failed", "outcome_status_code": 40, "iching_status_code": 40, "repair_attempt_count": 4, "bureau_name": "木三局", "bureau_turn_budget": 4, "host_reward": 0.6428571428571429, "harbor": false, "duration_s": 19.85, "detail": "verifier_failed", "container_id": "0f14b1db4e393ece598b4301e393f74669b9ea0868009b7b3086d53dbd925863", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  {"task_id": "data_quality-hard-time_leakage", "model": "deepseek-chat", "status": "halted", "reason": "verifier_failed", "outcome_status_code": 40, "iching_status_code": 40, "repair_attempt_count": 4, "bureau_name": "木三局", "bureau_turn_budget": 4, "host_reward": 0.8461538461538461, "harbor": false, "duration_s": 20.1, "detail": "verifier_failed", "container_id": "4a4fa25d5470123d18f3811baac73ebc9c1a98fcf213aa4abe57622884bb3260", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  ```
+- **核心数据与技术实证**：
+  1. **断言与得分汇总**：
+     - `model_evaluation-hard-threshold_slices`：14/14 项断言全通，首轮 0 修复直接满分，耗时 7.12 秒；
+     - `feature_pipeline-hard-window_aggregates`：13/13 项断言全通，自愈 1 轮由部分分提升至满分 1.0，终局容器 `be75c2cee897...`，耗时 9.94 秒；
+     - `api_contract-hard-validation_errors`：9/14 项断言通过（0.6429），4 轮自愈迭代，终局容器 `0f14b1db4e39...`，耗时 19.85 秒；
+     - `data_quality-hard-time_leakage`：11/13 项断言通过（0.8462），4 轮自愈迭代，终局容器 `4a4fa25d5470...`，耗时 20.10 秒；
+     - **断言总计**：4 题账本分母相加为 $14 + 13 + 14 + 13 = 54$ 项，通过 $14 + 13 + 9 + 11 = 47$ 项（通过率 87.04%），四题奖励平均分准确值为 **0.8723**；
+  2. **耗时说明**：汇总文件 `results-r61-batch.jsonl` 每行记录各任务自身的 `duration_s`，无全局墙钟字段；四题中单题耗时最长为 **20.10 秒**；
+  3. **易经数理卦象**：
+     - 两道满分题（`threshold_slices` 与 `window_aggregates`）均落入卦象 63（乾为天，变卦 39 山天大畜）；
+     - 两道挂起题（`validation_errors` 与 `time_leakage`）卦象码 40 均为 **火地晋**（上卦离火 101，下卦坤地 000）；
+  4. **全阶段 Docker 覆盖累计**：Phase V 累计已在真实 Docker 容器（`python:3.12-slim-amd64`）中闭环验真 **27 道不同业务领域的 Hard 难度题目**（其中 14 题 1.0 满分，9 题 83%~92% 高分），全部落盘合法 64 位十六进制容器指纹，保持 `harbor: false`。在全量 36 道具备独立验真器的 Hard 题集中，已实测完成 75.0%（27/36），未测 Hard 题仅剩 9 道。DeepSeek 账户余额为 7.89 元人民币。
