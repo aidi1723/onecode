@@ -111,4 +111,26 @@
   - 数学证书：26 项跨验数学证书全部 `[PASS]`（`true`）
   - 严格以本次实测的 486.15 ops/sec 为基准，不套用既往 4,000 ops/s 估值。
 
+### 4.5 步骤 2.3 扩大题集：首个未测目录前缀 Hard 题实测（`results-r51-expand.jsonl`）
+- **评测文件**：`results-r51-expand.jsonl`
+- **任务**：`performance-hard-template_cache`（所属目录前缀 `performance`，此前从未测试）
+- **契约提示纯净度**：`data_contract_guidance` 中**没有任何**该题字段名、配置项或缓存键规则的注入，严格基于通用系统提示词与修复引导。
+- **模型**：`kimi-k2.7-code`
+- **终态**：`status: completed`，`reason: null`
+- **奖励**：`host_reward: 1.0`（12/12 全部通过）
+- **卦象码**：`outcome_status_code: 63`（乾为天），`iching_status_code: 39`（山天大畜）
+- **轮次与耗时**：`repair_attempt_count: 0`（第 0 轮一次性通过），耗时 23.39 秒。
+- **紫微星局**：金四局，轮次预算 5。
+- **容器指纹（写入 jsonl）**：
+  - `container_id`: `9df9b97bf0efb31a661bc2bf05a5a36dddf2a418b1d83598ebe02e35cdb9a2f6`
+  - `container_image`: `python:3.12-slim-amd64`
+  - `container_arch`: `amd64`
+- **评测标记**：`harbor: false`
+- **工作区账本（`ledger.jsonl`）**：
+  - 资产：`jinja_like/environment.py`（实现 `OrderedDict` LRU 缓存、`(source, autoescape)` 缓存键与动态过滤器解耦）；
+  - 单次隔离容器内执行耗时：958 毫秒，退出码 0，12/12 断言全部通过。
+- **五题累计跨目录基线**：
+  已测试的 5 个不同目录前缀（`api_contract`、`security_hardening`、`feature_pipeline`、`refactor`、`performance`）Hard 题目在各题工作区结合真容器验真下，断言合计 **59/59（100.0%）**。
+
+
 
