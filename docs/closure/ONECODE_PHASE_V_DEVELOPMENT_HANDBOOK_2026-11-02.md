@@ -275,3 +275,33 @@
   5. **代码质量与 Harbor 接入契约**：
      - 内核 `_finish_verified_task` 中已落实 `plan is None` 防御性校验，确保静态类型通过；
      - 交付并验证 [`scripts/harbor_adapter.py`](file:///Volumes/MacSSD/项目开发/one%20code/scripts/harbor_adapter.py)，完整读取 `HARBOR_TASK_ID` 等环境变量，并在正式 Harbor 调度时写出 `harbor: true`。
+### 4.13 步骤 2.2 / 2.3 扩大题集 R58 评测（4 任务跨域并行，两题首轮零修满分，43/51 断言通过率 84.3%）
+- **评测时间**：2026-11-02
+- **并发机制**：`--concurrency 4`，4 线程并行执行，每任务分配独立工作区与 Docker 验真容器
+- **模型**：`deepseek-chat`（DeepSeek 官方 API）
+- **沙箱镜像**：`python:3.12-slim-amd64`（amd64 架构，集成 Git，严格单容器单任务隔离）
+- **评测题目（4 道跨领域 Hard 题，均为 Phase V 首次进入容器评测）**：
+  1. `data_reporting-hard-support_sla`（数据报表：客服响应 SLA 与未结工单汇总，木三局，预算 4）
+  2. `product_analytics-hard-day7_retention`（产品分析：用户 7 日分群留存率统计，木三局，预算 4）
+  3. `reliability-hard-ack_after_success`（系统可靠性：Celery 风格任务成功后确认与死信重试队列隔离，木三局，预算 4）
+  4. `refactor-hard-validation_error_paths`（代码重构：JSONSchema 校验器错误路径规约，水二局，预算 3）
+- **评测结果文件（`results-r58-batch.jsonl`）真实记录**：
+  ```json
+  {"task_id": "data_reporting-hard-support_sla", "model": "deepseek-chat", "status": "completed", "reason": null, "outcome_status_code": 63, "iching_status_code": 39, "repair_attempt_count": 0, "bureau_name": "木三局", "bureau_turn_budget": 4, "host_reward": 1.0, "harbor": false, "duration_s": 6.62, "detail": "", "container_id": "a1715f1fec8db1bfa70e27a024526c9aa4a13b4a8e475e3656d6db12ff856d10", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  {"task_id": "product_analytics-hard-day7_retention", "model": "deepseek-chat", "status": "completed", "reason": null, "outcome_status_code": 63, "iching_status_code": 39, "repair_attempt_count": 0, "bureau_name": "木三局", "bureau_turn_budget": 4, "host_reward": 1.0, "harbor": false, "duration_s": 6.73, "detail": "", "container_id": "389a5c3602fadd27769c2a4c5bbe1502a0610fe51426cf9a6231998a3feb551d", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  {"task_id": "reliability-hard-ack_after_success", "model": "deepseek-chat", "status": "halted", "reason": "verifier_failed", "outcome_status_code": 40, "iching_status_code": 40, "repair_attempt_count": 4, "bureau_name": "木三局", "bureau_turn_budget": 4, "host_reward": 0.8461538461538461, "harbor": false, "duration_s": 13.4, "detail": "verifier_failed", "container_id": "6c6dad9aae29176c8dd49806c33bf24daf1bcc7a67a06cb550b33bc17a87273f", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  {"task_id": "refactor-hard-validation_error_paths", "model": "deepseek-chat", "status": "halted", "reason": "patch_search_not_found", "outcome_status_code": 56, "iching_status_code": 40, "repair_attempt_count": 3, "bureau_name": "水二局", "bureau_turn_budget": 3, "host_reward": 0.5, "harbor": false, "duration_s": 17.29, "detail": "patch_search_not_found", "container_id": "02c25f0641f77968c869f6302fdfd696c4e062e2bee6e70033180672bc99d067", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  ```
+- **核心数据与技术实证**：
+  1. **断言与得分汇总**：
+     - `data_reporting-hard-support_sla`：13/13 项全过，首轮 0 修复满分，耗时 6.62 秒；
+     - `product_analytics-hard-day7_retention`：13/13 项全过，首轮 0 修复满分，耗时 6.73 秒；
+     - `reliability-hard-ack_after_success`：11/13 项断言通过（0.8462），4 轮自愈迭代，终局容器为 `6c6dad9aae29176c8dd49806c33bf24daf1bcc7a67a06cb550b33bc17a87273f`，耗时 13.4 秒；
+     - `refactor-hard-validation_error_paths`：6/12 项断言通过（0.5000），第 3 轮修复因多块 patch 顺序冲突产生 `patch_search_not_found`，终局容器 `02c25f0641f77968c869f6302fdfd696c4e062e2bee6e70033180672bc99d067`，耗时 17.29 秒；
+     - **断言总计**：4 题账本分母相加为 $13 + 13 + 13 + 12 = 51$ 项，通过 $13 + 13 + 11 + 6 = 43$ 项（通过率 84.31%），四题奖励平均分准确值为 **0.8365**；
+  2. **耗时说明**：汇总文件 `results-r58-batch.jsonl` 每行记录各任务自身的 `duration_s`，无全局墙钟字段；四题中单题耗时最长为 **17.29 秒**；
+  3. **易经数理卦象**：
+     - 满分题落入卦象 63（乾为天，变卦 39 山天大畜）；
+     - `reliability-hard-ack_after_success` 卦象码 40 为 **火地晋**（上卦离火 101，下卦坤地 000）；
+     - `refactor-hard-validation_error_paths` 因补丁块不匹配挂起，卦象码 56 为 **天地否**（上卦乾天 111，下卦坤地 000，大往小来），变卦码 40（火地晋）；
+  4. **全阶段 Docker 覆盖累计**：Phase V 累计已在真实 Docker 容器（`python:3.12-slim-amd64`）中闭环验真 15 道不同业务域的 Hard 难度题目，全部落盘合法 64 位十六进制容器指纹，保持 `harbor: false`。
