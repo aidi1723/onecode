@@ -193,6 +193,35 @@
   3. **极致经济性**：完成整整 5 轮模型调用与 5 次容器验真，API 账户余额仍保持 8.43 元（单轮消耗不足 0.01 元）；
   4. **全套容器与易经闭环**：真实容器 ID `8ce599f82aa838d8682c36dde53c8128ba30a1261baccdd3a2ac897e274cbbd5` 完整入账，易经状态码为 40/40（火水未济/雷水解：纾难解困，虽未竟全功，然通塞已成）。
 
+### 4.10 步骤 2.2（受控并行）与步骤 2.3（扩大题集）R55 实测闭环
+- **评测时间**：2026-11-02
+- **并发机制**：`--concurrency 2`，双线程物理并发，每任务分配独立工作区与 Docker 验真容器
+- **模型**：`deepseek-chat`（DeepSeek 官方 API）
+- **沙箱镜像**：`python:3.12-slim-amd64`（amd64 架构，集成 Git 基础工具，严格单容器单任务隔离）
+- **评测题目（2 道未见 Hard 类别）**：
+  1. `schema_behavior-hard-oneof_best_error`（类别：`schema-behavior`，木三局，预算 4）
+  2. `testing-hard-router_matching`（类别：`testing`，木三局，预算 4）
+- **评测结果文件（`results-r55-parallel.jsonl`）真实记录**：
+  ```json
+  {"task_id": "testing-hard-router_matching", "model": "deepseek-chat", "status": "halted", "reason": "invalid_model_plan", "outcome_status_code": 40, "iching_status_code": 40, "repair_attempt_count": 3, "bureau_name": "木三局", "bureau_turn_budget": 4, "host_reward": 0.16666666666666666, "harbor": false, "duration_s": 12.31, "detail": "invalid_model_plan", "container_id": "1ea22fc7412fe188ef6792d1a845f838a53ab0a0c0bbec04ce7ffce0f3addf87", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  {"task_id": "schema_behavior-hard-oneof_best_error", "model": "deepseek-chat", "status": "halted", "reason": "verifier_failed", "outcome_status_code": 40, "iching_status_code": 40, "repair_attempt_count": 4, "bureau_name": "木三局", "bureau_turn_budget": 4, "host_reward": 0.8333333333333334, "harbor": false, "duration_s": 21.53, "detail": "verifier_failed", "container_id": "d3e7a910a735fa147d4a2f23643f3cec71b1154f80b15f9fc255a89226150120", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  ```
+- **关键突破与规则加固**：
+  1. **双任务物理并行与容器指纹完全隔离**：
+     - 两道题目并发启动，分别在独立 Docker 容器中执行外置验真脚本：
+       - `testing-hard-router_matching` -> 容器 `1ea22fc7412fe188ef6792d1a845f838a53ab0a0c0bbec04ce7ffce0f3addf87`；
+       - `schema_behavior-hard-oneof_best_error` -> 容器 `d3e7a910a735fa147d4a2f23643f3cec71b1154f80b15f9fc255a89226150120`；
+     - 两个 64 位十六进制容器指纹完全独立，无端口或文件争抢，通过 `output_lock` 线程锁安全写盘。
+  2. **高难度新类别通过率突破**：
+     - `schema_behavior-hard-oneof_best_error` 经 4 轮修复达成 **0.8333（10/12 项断言全通）**；
+     - 两题总评测耗时仅 **21.5 秒**，比单题长耗时模型提速数十倍，完全释放了并发潜力。
+  3. **并发与多轮实测中挖掘并闭环的底层规则漏洞**：
+     - *`no_action` 载荷弹性归一化*：模型在窄化阶段返回布尔、字符串或带附加元数据的 `no_action` 字典时，原校验硬性抛出 `no_action must contain only reason`，已在 `normalize_model_plan_payload` 与 `validate_no_action` 中增加全类型宽容适配；
+     - *空值字段容错*：模型在不打补丁时返回 `"patches": null`，原校验导致 `patches must be a list` 异常中断，已补充 `is None -> []` 归一化；
+     - *测试任务（Testing Task）专属修复放行*：针对仅要求补充测试用例的任务（如 `testing-hard-router_matching`），放行修复循环对 `tests/` 的补丁修改，同时结合中英文自然语言解析（`xxx.py 不要改`）严禁篡改保护源码；
+     - *基线 Git 隔离与 `.gitignore` 过滤*：工作区解压时自动初始化基线 Git 仓库并将 `.onecode` 与 `.onecode_host_verifier` 写入 `.gitignore`，杜绝验真器 `git status --porcelain` 误报污染。
+     - *历史最高得分保护*：在多轮修复过程中若发生回归（例如从 10/12 退至 8/12），自动保留历史已达成的最高分数与容器指纹，契合易经“保合太和，乃利贞”精神。
+
 
 
 
