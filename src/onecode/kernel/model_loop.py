@@ -2366,10 +2366,12 @@ def _finish_verified_task(
                 continue
             failed_model = failed_model_result(model_context, failure)
             return _enrich_failed_model_with_repair_state(failed_model, current_checked, attempt)
-        if plan is not None:
-            plan = synthesize_single_asset_repair(plan, workspace)
-            if plan.patches and plan.execution_steps:
-                plan = ModelPlan(task=plan.task, patches=plan.patches, no_action_reason=plan.no_action_reason)
+        if plan is None:
+            failed_model = failed_model_result(model_context, failure or {"failure_kind": "no_actionable_plan"})
+            return _enrich_failed_model_with_repair_state(failed_model, current_checked, attempt)
+        plan = synthesize_single_asset_repair(plan, workspace)
+        if plan.patches and plan.execution_steps:
+            plan = ModelPlan(task=plan.task, patches=plan.patches, no_action_reason=plan.no_action_reason)
         safety_err, guidance = _validate_repair_plan_safety(plan, task)
         if safety_err is not None:
             if attempt < effective_attempts:
