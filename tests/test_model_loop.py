@@ -3204,6 +3204,47 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
         err_prot, _ = _validate_repair_plan_safety(plan_protected, "只补测试覆盖边界，router.py 不要改")
         self.assertEqual(err_prot, "repair_plan_cannot_modify_protected_files")
 
+    def test_snapshot_and_restore_workspace_files(self):
+        from onecode.kernel.model_loop import _snapshot_workspace_files, _restore_workspace_snapshot
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = Path(tmp)
+            (ws / "main.py").write_text("print('version 1')\n", encoding="utf-8")
+            (ws / "config.json").write_text('{"a": 1}\n', encoding="utf-8")
+
+            snapshot = _snapshot_workspace_files(ws)
+            self.assertEqual(snapshot["main.py"], "print('version 1')\n")
+            self.assertEqual(snapshot["config.json"], '{"a": 1}\n')
+
+            # Regress the workspace: modify main.py, create bad.py
+            (ws / "main.py").write_text("print('broken')\n", encoding="utf-8")
+            (ws / "bad.py").write_text("broken\n", encoding="utf-8")
+
+            # Restore snapshot
+            _restore_workspace_snapshot(ws, snapshot)
+
+            self.assertEqual((ws / "main.py").read_text(encoding="utf-8"), "print('version 1')\n")
+            self.assertFalse((ws / "bad.py").exists())
+
+    def test_build_repair_prompt_context_includes_mutation_directive_on_stalled(self):
+        from onecode.kernel.model_loop import _build_repair_prompt_context
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = Path(tmp)
+            (ws / "app.py").write_text("def f(): return 1\n", encoding="utf-8")
+            prompt, span_id, _, _ = _build_repair_prompt_context(
+                task="fix app",
+                workspace=ws,
+                current_checked={"status": "halted", "reason": "verifier_failed", "host_reward": 0.5},
+                attempt=2,
+                run_metadata={},
+                format_error_guidance=None,
+                stalled_progress=True,
+            )
+            self.assertIn("STALLED PROGRESS MUTATION DIRECTIVE", prompt)
+            self.assertIn("Check scalar data types", prompt)
+            self.assertIn("model-repair-after-check-2", span_id)
+
 
 if __name__ == "__main__":
     unittest.main()

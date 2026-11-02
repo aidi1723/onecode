@@ -1030,6 +1030,7 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
         "A failing check may call a function defined outside the files already touched. "
         "Find that function's defining module and patch it there, instead of editing the same file again.\n"
         "If a test checks that an invalid operation or failure is blocked, inspect the workspace's error/exception definitions (e.g. errors module) and raise the intended domain exception class with an informative message rather than a generic or unhandled error.\n"
+        "When reading or writing structured records (e.g. CSV, text tables, JSON lines), convert scalar fields to their intended primitive types (integers for IDs/counts/labels, floats for metrics, booleans for flags) rather than leaving them as raw strings. When deduplicating or grouping rows, ensure distinct records are counted accurately without spurious duplicates.\n"
     )
     if closest_hints:
         prompt += "Patch context hints:\n" + "\n\n".join(closest_hints) + "\n"
@@ -1044,7 +1045,7 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
         "Return JSON with patches only. Do not return assets, execution_plan, or no_action. "
         "Every repair plan must contain at least one patch fixing the test failure. "
         'Use {"task":"repair verifier failure","patches":[{"path":"<file>","search_block":"<exact original lines>","replace_block":"<fixed lines>"}]}. '
-        "Do not patch any path under tests/."
+        "If multiple edits are needed in one file, provide a single consolidated patch for that file to prevent offset drift. Do not patch any path under tests/."
         + data_contract_guidance(task)
     )
     return prompt
@@ -2258,6 +2259,129 @@ def _compute_repair_cooldown(
     return cooldown_ms
 
 
+def _snapshot_workspace_files(workspace: Path) -> dict[str, str]:
+    snapshot: dict[str, str] = {}
+    for p in workspace.rglob("*"):
+        if p.is_file() and not any(part in {".git", "__pycache__", ".venv"} for part in p.parts):
+            try:
+                rel = p.relative_to(workspace).as_posix()
+                snapshot[rel] = p.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError, ValueError):
+                pass
+    return snapshot
+
+
+def _restore_workspace_snapshot(workspace: Path, snapshot: dict[str, str]) -> None:
+    current_files: set[str] = set()
+    for p in workspace.rglob("*"):
+        if p.is_file() and not any(part in {".git", "__pycache__", ".venv"} for part in p.parts):
+            try:
+                current_files.add(p.relative_to(workspace).as_posix())
+            except ValueError:
+                pass
+    for rel_path in current_files - snapshot.keys():
+        try:
+            (workspace / rel_path).unlink()
+        except OSError:
+            pass
+    for rel_path, content in snapshot.items():
+        target = workspace / rel_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            target.write_text(content, encoding="utf-8")
+        except OSError:
+            pass
+
+
+def _build_repair_prompt_context(
+    task: str,
+    workspace: Path,
+    current_checked: dict[str, Any],
+    attempt: int,
+    run_metadata: dict[str, Any],
+    format_error_guidance: str | None,
+    stalled_progress: bool,
+) -> tuple[str, str, int, int]:
+    failed_status = current_checked.get("iching_status_code") or current_checked.get("task_status_code")
+    failed_code = int(failed_status) if failed_status is not None else 32
+    if attempt >= 2:
+        failed_code = 47
+    cooldown_ms = _compute_repair_cooldown(run_metadata, attempt, failed_code, "verifier_failure")
+    if cooldown_ms > 0:
+        time.sleep(cooldown_ms / 1000.0)
+    tails: list[str] = []
+    for item in (current_checked.get("verifier_results") or []):
+        if not isinstance(item, dict):
+            continue
+        err = str(item.get("stderr_tail") or "").strip()
+        out = str(item.get("stdout_tail") or "").strip()
+        diag = format_verifier_diagnostics(out, err)
+        if diag:
+            tails.append(diag)
+        else:
+            if err:
+                tails.append(err[-600:])
+            if out:
+                tails.append(out[-600:])
+    prompt = repair_prompt(
+        task,
+        {**current_checked, "workspace_files": _src_files_for_repair(workspace)},
+        workspace=workspace,
+    ) + "\nDo not patch any path under tests/. Change the implementation so the existing tests pass."
+    if tails and all(t not in prompt for t in tails):
+        prompt += "\nVerifier output:\n" + "\n".join(tails)
+    if format_error_guidance:
+        prompt += f"\n\nCRITICAL FIX FROM PREVIOUS TURN FORMAT ERROR:\n{format_error_guidance}\nYou must output valid JSON with a 'patches' list only."
+    if stalled_progress:
+        prompt += (
+            "\n\nNOTICE - STALLED PROGRESS MUTATION DIRECTIVE:\n"
+            "The previous repair attempt made NO score progress and failed the exact same checks.\n"
+            "Do NOT repeat minor variations of the same logic. Pivot and rethink core assumptions:\n"
+            "1. Check scalar data types: are dictionary values integers/floats instead of strings (e.g. from csv.DictReader), or vice-versa?\n"
+            "2. Check duplicate handling: are duplicate records being counted twice or merged incorrectly?\n"
+            "3. Check default parameter values and missing edge-case returns.\n"
+            "4. Check if a related helper function in another workspace file needs the fix instead."
+        )
+    prompt += (
+        "\n\nCRITICAL: Return valid JSON with patches only. Do NOT include execution_plan or assets.\n"
+        "If multiple modifications are needed in the same file, combine them into ONE single patch for that file to prevent patch offset conflicts.\n"
+        'Format: {"task":"repair verifier failure","patches":[{"path":"<file>","search_block":"<exact lines>","replace_block":"<fixed lines>"}]}'
+    )
+    span_id = "model-repair-after-check" if attempt == 1 else f"model-repair-after-check-{attempt}"
+    return prompt, span_id, cooldown_ms, failed_code
+
+
+def _build_repair_metadata(
+    run_metadata: dict[str, Any],
+    failed_code: int,
+    attempt: int,
+    cooldown_ms: int,
+) -> dict[str, Any]:
+    repair_brightness = IchingKernel.star_brightness_profile(failed_code)
+    repair_gov_mode = (
+        "degraded"
+        if attempt >= 2 or run_metadata.get("governance_mode") == "degraded"
+        else repair_brightness.get("governance_mode", "autonomous")
+    )
+    metadata = {
+        **run_metadata,
+        "governance_mode": repair_gov_mode,
+        "star_brightness": repair_brightness,
+        "cooldown_pause_ms": cooldown_ms,
+    }
+    try:
+        coupling = IchingKernel.systemic_coupling_profile(hexagram_state=failed_code)
+        metadata["systemic_coupling"] = coupling
+        interv = coupling.get("physical_intervention", {})
+        if interv.get("force_wal_checkpoint_sync"):
+            metadata["force_wal_checkpoint_sync"] = True
+        if interv.get("adaptive_cooldown_ms", 0) > 0:
+            metadata["cooldown_pause_ms"] = interv["adaptive_cooldown_ms"]
+    except Exception:
+        pass
+    return metadata
+
+
 def _finish_verified_task(
     result: dict[str, Any],
     task: str,
@@ -2287,6 +2411,7 @@ def _finish_verified_task(
     current_checked = dict(checked)
     current_result = dict(result)
     best_checked = dict(checked)
+    best_snapshot = _snapshot_workspace_files(workspace)
     if "turn_history" not in current_checked:
         branches = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
         initial_history = [{
@@ -2301,42 +2426,25 @@ def _finish_verified_task(
     bureau_budget = run_metadata.get("bureau_turn_budget", max_repair_attempts)
     effective_attempts = min(max_repair_attempts, bureau_budget) if max_repair_attempts > 0 else 0
     format_error_guidance: str | None = None
+    prev_reward: float | None = checked.get("host_reward") if isinstance(checked.get("host_reward"), (int, float)) else None
+
     for attempt in range(1, effective_attempts + 1):
-        failed_status = current_checked.get("iching_status_code") or current_checked.get("task_status_code")
-        failed_code = int(failed_status) if failed_status is not None else 32
-        if attempt >= 2:
-            failed_code = 47
-        cooldown_ms = _compute_repair_cooldown(run_metadata, attempt, failed_code, "verifier_failure")
-        if cooldown_ms > 0:
-            time.sleep(cooldown_ms / 1000.0)
-        tails: list[str] = []
-        for item in (current_checked.get("verifier_results") or []):
-            if not isinstance(item, dict):
-                continue
-            err = str(item.get("stderr_tail") or "").strip()
-            out = str(item.get("stdout_tail") or "").strip()
-            diag = format_verifier_diagnostics(out, err)
-            if diag:
-                tails.append(diag)
-            else:
-                if err:
-                    tails.append(err[-600:])
-                if out:
-                    tails.append(out[-600:])
-        prompt = repair_prompt(
-            task,
-            {**current_checked, "workspace_files": _src_files_for_repair(workspace)},
-            workspace=workspace,
-        ) + "\nDo not patch any path under tests/. Change the implementation so the existing tests pass."
-        if tails and all(t not in prompt for t in tails):
-            prompt += "\nVerifier output:\n" + "\n".join(tails)
-        if format_error_guidance:
-            prompt += f"\n\nCRITICAL FIX FROM PREVIOUS TURN FORMAT ERROR:\n{format_error_guidance}\nYou must output valid JSON with a 'patches' list only."
-        prompt += (
-            "\n\nCRITICAL: Return valid JSON with patches only. Do NOT include execution_plan or assets.\n"
-            'Format: {"task":"repair verifier failure","patches":[{"path":"<file>","search_block":"<exact lines>","replace_block":"<fixed lines>"}]}'
+        cur_rew = current_checked.get("host_reward")
+        stalled_progress = (
+            attempt >= 2
+            and isinstance(cur_rew, (int, float))
+            and isinstance(prev_reward, (int, float))
+            and cur_rew <= prev_reward
         )
-        span_id = "model-repair-after-check" if attempt == 1 else f"model-repair-after-check-{attempt}"
+        prompt, span_id, cooldown_ms, failed_code = _build_repair_prompt_context(
+            task=task,
+            workspace=workspace,
+            current_checked=current_checked,
+            attempt=attempt,
+            run_metadata=run_metadata,
+            format_error_guidance=format_error_guidance,
+            stalled_progress=stalled_progress,
+        )
         plan, failure = traced_provider_plan_retrying(
             provider=provider,
             task=prompt,
@@ -2397,28 +2505,7 @@ def _finish_verified_task(
                 "iching_transition_action": transition.action,
                 "iching_transition_reason": transition.reason,
             }
-        repair_brightness = IchingKernel.star_brightness_profile(failed_code)
-        repair_gov_mode = (
-            "degraded"
-            if attempt >= 2 or run_metadata.get("governance_mode") == "degraded"
-            else repair_brightness.get("governance_mode", "autonomous")
-        )
-        repair_metadata = {
-            **run_metadata,
-            "governance_mode": repair_gov_mode,
-            "star_brightness": repair_brightness,
-            "cooldown_pause_ms": cooldown_ms,
-        }
-        try:
-            coupling = IchingKernel.systemic_coupling_profile(hexagram_state=failed_code)
-            repair_metadata["systemic_coupling"] = coupling
-            interv = coupling.get("physical_intervention", {})
-            if interv.get("force_wal_checkpoint_sync"):
-                repair_metadata["force_wal_checkpoint_sync"] = True
-            if interv.get("adaptive_cooldown_ms", 0) > 0:
-                repair_metadata["cooldown_pause_ms"] = interv["adaptive_cooldown_ms"]
-        except Exception:
-            pass
+        repair_metadata = _build_repair_metadata(run_metadata, failed_code, attempt, cooldown_ms)
         repaired = execute_model_plan(
             plan,
             workspace=workspace,
@@ -2440,8 +2527,11 @@ def _finish_verified_task(
             return tested
         cur_rew = tested.get("host_reward")
         best_rew = best_checked.get("host_reward")
-        if isinstance(cur_rew, (int, float)) and (not isinstance(best_rew, (int, float)) or cur_rew > best_rew):
-            best_checked = dict(tested)
+        if isinstance(cur_rew, (int, float)):
+            prev_reward = cur_rew
+            if not isinstance(best_rew, (int, float)) or cur_rew > best_rew:
+                best_checked = dict(tested)
+                best_snapshot = _snapshot_workspace_files(workspace)
         current_checked = tested
         current_result = tested
     if isinstance(best_checked.get("host_reward"), (int, float)):
@@ -2452,6 +2542,7 @@ def _finish_verified_task(
                 current_checked["container_id"] = best_checked["container_id"]
                 current_checked["container_image"] = best_checked.get("container_image")
                 current_checked["container_arch"] = best_checked.get("container_arch")
+            _restore_workspace_snapshot(workspace, best_snapshot)
     return current_checked
 
 
