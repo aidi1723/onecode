@@ -129,8 +129,8 @@
 - **工作区账本（`ledger.jsonl`）**：
   - 资产：`jinja_like/environment.py`（实现 `OrderedDict` LRU 缓存、`(source, autoescape)` 缓存键与动态过滤器解耦）；
   - 单次隔离容器内执行耗时：958 毫秒，退出码 0，12/12 断言全部通过。
-- **五题累计跨目录基线**：
-  已测试的 5 个不同目录前缀（`api_contract`、`security_hardening`、`feature_pipeline`、`refactor`、`performance`）Hard 题目在各题工作区结合真容器验真下，断言合计 **59/59（100.0%）**。
+- **五题跨轮次累计基线（非同一次评测的同一结果文件）**：
+  59/59 是把分属不同独立结果文件与历史轮次（第 48 轮三题、第 49 轮路径穿越单独文件、第 51 轮模板缓存单独文件）的各题终分相加得到（12 + 12 + 12 + 11 + 12 = 59/59），覆盖了 5 个不同目录前缀（`api_contract`、`security_hardening`、`feature_pipeline`、`refactor`、`performance`），并非同一次连续评测写进同一个 jsonl 文件。四题前缀 `b3d3fec0228c`、`8c2b9e50a727`、`a065785d5bc5`、`688ba9ee8582` 仅为命令行交互输出，严格不在任何 jsonl 文件中。
 
 
 
