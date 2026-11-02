@@ -392,3 +392,34 @@
      - 两道满分题（`threshold_slices` 与 `window_aggregates`）均落入卦象 63（乾为天，变卦 39 山天大畜）；
      - 两道挂起题（`validation_errors` 与 `time_leakage`）卦象码 40 均为 **火地晋**（上卦离火 101，下卦坤地 000）；
   4. **全阶段 Docker 覆盖累计**：Phase V 累计已在真实 Docker 容器（`python:3.12-slim-amd64`）中闭环验真 **27 道不同业务领域的 Hard 难度题目**（其中 14 题 1.0 满分，9 题 83%~92% 高分），全部落盘合法 64 位十六进制容器指纹，保持 `harbor: false`。在全量 36 道具备独立验真器的 Hard 题集中，已实测完成 75.0%（27/36），未测 Hard 题仅剩 9 道。DeepSeek 账户余额为 7.89 元人民币。
+### 4.17 步骤 2.2 / 2.3 扩大题集 R62 评测（5 任务全满分大捷，62/62 断言全通 100.0%，平均分 1.0000）
+- **评测时间**：2026-11-02
+- **并发机制**：`--concurrency 5`（宿主机自适应限制为 4 线程安全并发），每任务分配独立工作区与 Docker 验真容器
+- **模型**：`deepseek-chat`（DeepSeek 官方 API）
+- **沙箱镜像**：`python:3.12-slim-amd64`（amd64 架构，集成 Git，严格单容器单任务隔离）
+- **评测题目（5 道跨领域 Hard 题，均为 Phase V 首次进入容器评测）**：
+  1. `performance-hard-help_format_cache`（性能优化：帮助文档格式化缓存与参数换行，木三局，预算 4）
+  2. `performance-hard-template_cache`（性能优化：模板渲染编译缓存与动态变量逃逸，金四局，预算 5）
+  3. `product_analytics-hard-ab_test_analysis`（产品分析：A/B 实验统计功效、p-value 假设检验与置信区间，木三局，预算 4）
+  4. `feature_pipeline-hard-text_hashing`（特征工程：MurmurHash3 稀疏文本特征分桶与碰撞约束，水二局，预算 3）
+  5. `refactor-hard-sync_async_bridge`（重构维护：同步异步事件循环上下文桥接与线程安全死锁防范，水二局，预算 3）
+- **评测结果文件（`results-r62-batch.jsonl`）真实记录**：
+  ```json
+  {"task_id": "performance-hard-help_format_cache", "model": "deepseek-chat", "status": "completed", "reason": null, "outcome_status_code": 63, "iching_status_code": 39, "repair_attempt_count": 0, "bureau_name": "木三局", "bureau_turn_budget": 4, "host_reward": 1.0, "harbor": false, "duration_s": 3.87, "detail": "", "container_id": "7fad3ca9d0cc34f01b29a1a9b35d92805acb42aed6d2dec1046c5a839a3399b7", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  {"task_id": "performance-hard-template_cache", "model": "deepseek-chat", "status": "completed", "reason": null, "outcome_status_code": 63, "iching_status_code": 39, "repair_attempt_count": 1, "bureau_name": "金四局", "bureau_turn_budget": 5, "host_reward": 1.0, "harbor": false, "duration_s": 5.91, "detail": "", "container_id": "46d517b1a640c932305038822393b4f95f915de8a1bcf4c30c47d3787afdc546", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  {"task_id": "product_analytics-hard-ab_test_analysis", "model": "deepseek-chat", "status": "completed", "reason": null, "outcome_status_code": 63, "iching_status_code": 39, "repair_attempt_count": 0, "bureau_name": "木三局", "bureau_turn_budget": 4, "host_reward": 1.0, "harbor": false, "duration_s": 6.39, "detail": "", "container_id": "2a287090db227f8fef07aec9fdab0826645e1378f5321e64f5e37e61442f5e47", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  {"task_id": "feature_pipeline-hard-text_hashing", "model": "deepseek-chat", "status": "completed", "reason": null, "outcome_status_code": 63, "iching_status_code": 39, "repair_attempt_count": 0, "bureau_name": "水二局", "bureau_turn_budget": 3, "host_reward": 1.0, "harbor": false, "duration_s": 6.51, "detail": "", "container_id": "7b8381bb3db05322e8e9e69327866612bccca9dc8782bdbeb975c1f1132794d4", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  {"task_id": "refactor-hard-sync_async_bridge", "model": "deepseek-chat", "status": "completed", "reason": null, "outcome_status_code": 63, "iching_status_code": 39, "repair_attempt_count": 0, "bureau_name": "水二局", "bureau_turn_budget": 3, "host_reward": 1.0, "harbor": false, "duration_s": 18.56, "detail": "", "container_id": "b48b0664713f320058346b37a9e3847fe0687f5a184111550436109cdd25f13a", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  ```
+- **核心数据与技术实证**：
+  1. **断言与得分汇总**：
+     - `performance-hard-help_format_cache`：12/12 项断言全通，首轮 0 修复直接满分，耗时 3.87 秒；
+     - `performance-hard-template_cache`：12/12 项断言全通，自愈 1 轮达到满分 1.0，终局容器 `46d517b1a640...`，耗时 5.91 秒；
+     - `product_analytics-hard-ab_test_analysis`：13/13 项断言全通，首轮 0 修复直接满分，耗时 6.39 秒；
+     - `feature_pipeline-hard-text_hashing`：14/14 项断言全通，首轮 0 修复直接满分，耗时 6.51 秒；
+     - `refactor-hard-sync_async_bridge`：11/11 项断言全通，首轮 0 修复直接满分，耗时 18.56 秒；
+     - **断言总计**：5 题账本分母相加为 $12 + 12 + 13 + 14 + 11 = 62$ 项，通过 **62/62 项（通过率 100.0%）**，五题平均得分准确值为 **1.0000**；
+  2. **耗时说明**：汇总文件 `results-r62-batch.jsonl` 每行记录各任务自身的 `duration_s`，无全局墙钟字段；五题中单题耗时最长为 **18.56 秒**；
+  3. **易经数理卦象**：
+     - 全部 5 道题均斩获满分，统一落入卦象 63（乾为天，变卦 39 山天大畜）；
+  4. **全阶段 Docker 覆盖累计**：Phase V 累计已在真实 Docker 容器（`python:3.12-slim-amd64`）中闭环验真 **32 道不同业务领域的 Hard 难度题目**（其中 19 题 1.0 满分，9 题 83%~92% 高分），全部落盘合法 64 位十六进制容器指纹，保持 `harbor: false`。在全量 36 道具备独立验真器的 Hard 题集中，实测覆盖率达 **88.89%（32/36）**，未测 Hard 题仅剩最后 4 道。DeepSeek 账户余额为 7.89 元人民币。
