@@ -47,7 +47,7 @@
 
 ### 2.4 Harbor 接入准备
 
-`harbor: true` 只在跑 Harbor 那套评测时写入。接入前先写成一份环境变量和目录契约：题目包、工作区、隐藏测试、奖励文件各放哪里。在那份契约落地并实际跑通之前，主机分和容器分都保持 `harbor: false`。
+`harbor: true` 只在跑 Harbor 那套评测时写入。接入前先写成一份环境变量和目录契约：题目包、工作区、隐藏测试、奖励文件各放哪里。详见规范契约文件 [`docs/closure/ONECODE_HARBOR_INTEGRATION_CONTRACT_2026-11-02.md`](ONECODE_HARBOR_INTEGRATION_CONTRACT_2026-11-02.md)。在那份契约落地并实际跑通之前，主机分和容器分都保持 `harbor: false`。
 
 ## 3. 不在本阶段改动的部分
 
@@ -131,6 +131,13 @@
   - 单次隔离容器内执行耗时：958 毫秒，退出码 0，12/12 断言全部通过。
 - **五题跨轮次累计基线（非同一次评测的同一结果文件）**：
   59/59 是把分属不同独立结果文件与历史轮次（第 48 轮三题、第 49 轮路径穿越单独文件、第 51 轮模板缓存单独文件）的各题终分相加得到（12 + 12 + 12 + 11 + 12 = 59/59），覆盖了 5 个不同目录前缀（`api_contract`、`security_hardening`、`feature_pipeline`、`refactor`、`performance`），并非同一次连续评测写进同一个 jsonl 文件。四题前缀 `b3d3fec0228c`、`8c2b9e50a727`、`a065785d5bc5`、`688ba9ee8582` 仅为命令行交互输出，严格不在任何 jsonl 文件中。
+
+### 4.6 步骤 2.4 Harbor 接入契约制定
+- 正式制定独立契约规范：[`docs/closure/ONECODE_HARBOR_INTEGRATION_CONTRACT_2026-11-02.md`](ONECODE_HARBOR_INTEGRATION_CONTRACT_2026-11-02.md)；
+- 明确 7 项标准环境变量：`HARBOR_TASK_ID`、`HARBOR_TASK_PACKAGE`、`HARBOR_WORKSPACE`、`HARBOR_HIDDEN_TESTS`、`HARBOR_LOG_DIR`、`HARBOR_IMAGE`、`HARBOR_EVAL_MODE`；
+- 规定题目包（RO）、运行工作区（RW）、隐藏断言脚本（评分阶段只读挂载）、日志输出目录（RW）的标准拓扑；
+- 容器执行协议：强制通过 `--cidfile` 抓取 64 位十六进制容器 ID，严格约束 `--network none`、`--security-opt no-new-privileges` 与内存 CPU 配额；
+- 真实性准入：在 Harbor 评测流水线上实际调用并跑通之前，所有单机与远端执行一律保持 `harbor: false`。
 
 
 
