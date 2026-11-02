@@ -548,6 +548,21 @@
     - `onecode doctor`：全项通过（`status: ok`）；
   - **核心模型循环测试**：`tests/test_model_loop.py` 与 `tests/test_web_api.py` 共 220 项单元测试在本地（8.09s）与远程 Linux 宿主机 `n100`（27.73s）均实现 **220/220 全量通过（100% OK）**。
 
+### 4.23 原生 SSE 流式传输扩展与 kimi-k3 四道 Hard 任务实测（提交 `68d43d3` 与 `ae5a8ec`）
+- **背景与 CDN 瓶颈攻坚**：
+  在接入外部全新 API 渠道（`https://happycoding.xyz`，New-API 架构）时，探测发现前置阿里云 ESA CDN（`Server: ESA`）对非流式请求设有 31.5 秒的原点硬超时（HTTP 524 Origin Time-out）。为彻底杜绝长耗时代码规划被网关掐断，在 `src/onecode/kernel/model_provider.py` 中引入原生标准库 SSE 流式处理（`ONECODE_STREAM_CHAT=1`，提交 `68d43d3`）：
+  - 依赖 Python 标准库 `urllib` 实时消费 `text/event-stream` 分块并自动收拢为带 `choices[0].message` 的标准 Chat Completion 报文；
+  - 严格保持 `pyproject.toml` 的 `dependencies = []` 纯标准库；
+  - 本地全量回归测试套件（`./scripts/verify.sh`）全通：1500+ 项测试 100% 通过，测试覆盖率达 86%，静态质量与 `doctor` 均为 `ok`。
+- **`kimi-k3` 四道 Hard 难度基准任务实测事实（`results-kimi-k3-4tasks.jsonl`，提交 `ae5a8ec`）**：
+  在 `n100` 宿主机上通过 `scripts/bench_workbuddy.py` 拉起真实 Docker 隔离容器（`python:3.12-slim-amd64`）执行验证：
+  1. `data_reporting-hard-support_sla`：奖励 **1.0**，0 修复首轮通关，状态 `completed`，卦象 63/39（乾为天 $\to$ 山天大畜），耗时 92.89s，容器 ID `1b2ad0fa5af7...`；
+  2. `feature_pipeline-hard-cross_categorical`：奖励 **1.0**，0 修复首轮通关，状态 `completed`，卦象 63/39，耗时 34.21s，容器 ID `fbd60a39aa94...`；
+  3. `refactor-hard-sync_async_bridge`：奖励 **1.0**，0 修复首轮通关，状态 `completed`，卦象 63/39，耗时 64.77s，容器 ID `88cc6b270700...`；
+  4. `data_quality-hard-label_conflicts`：奖励 **0.9231**（对应 12/13），3 轮自愈，状态 `halted`（`verifier_failed`），卦象 40/40（火地晋），耗时 706.95s，容器 ID `266888482f6f...`（自愈第 2 轮在遭遇格式偶发波动时由状态机触发 `model-repair-after-check-2-retry` 快速重试收敛）；
+  - **四题平均得分准确值**：**0.9808**（$(1.0 + 1.0 + 1.0 + 0.9230769) / 4$）；
+  - **规范合规**：所有记录模型为 `kimi-k3`，镜像为 `python:3.12-slim-amd64`，harbor 字段保持 `false`，4 个容器号均为 64 位小写十六进制，结果文件准确记录浮点奖励。本地网络探测核实远程 `10.0.0.184` 随后处于离线超时状态，账本未进行二次重读。
+
 ## 5. Phase V 终局总结与全量优化任务闭环宣告
 
 截至 2026-11-02，OneCode Phase V 开发路线图规划的所有核心工程与优化任务已**全部圆满达成并实现严密闭环**：
