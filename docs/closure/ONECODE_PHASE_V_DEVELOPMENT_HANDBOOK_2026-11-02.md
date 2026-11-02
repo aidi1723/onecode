@@ -156,6 +156,29 @@
   1. 泛化能力验证：模型在没有任何提示注入的前提下，纯靠题目设计与 zero-shot 生成即达到了 78.6% 的高通过率；
   2. 超时参数调优：对复杂长上下文及带思维链（CoT）的强推理模型，单次修复请求宜配置 `--timeout 600` 或以上，以提供充足的推理时间。
 
+### 4.8 规则漏洞深度排查与修复加固（针对 R52 中断排查）
+在对第 52 轮评测的底层账本、轨迹跟踪与模型交互日志进行全量复盘后，查明四项深层次规则与工程逻辑漏洞，并已全面修复闭环：
+
+1. **验真诊断 JSON 正则解析漏洞（严重影响修复理解）**：
+   - **漏洞根因**：原 `format_verifier_diagnostics` 使用 `stdout.find('{"overall"')` 精确字符串匹配。而 WorkBuddy 标准验真器在输出测评报告时统一采用带缩进和换行的 `json.dumps(reward, indent=2)`（`{\n  "overall": ...`），导致 `find` 返回 -1。
+   - **恶果**：标准评测报告完全无法被解析为结构化的断言列表，跌落为字符串末尾切片截断（`out[-600:]`），向模型输送了首尾破碎的残片（如 `onnect", "passed": false, "detail": ""`），严重扰乱模型对失败原因的理解并极大延长其思考时间。
+   - **修复**：改用 `re.finditer(r'\{\s*"(?:overall|tests)"', stdout)` 弹性匹配所有格式化 JSON，输出清晰整齐的 `Verifier report: X/Y tests passed.`、`Failed tests:` 与 `Passed tests:` 结构化报告。
+
+2. **修复中断/超时状态丢损漏洞（抹去修复次数与真实容器数据）**：
+   - **漏洞根因**：原 `_finish_verified_task` 与 `_run_model_task_repair_loop` 在模型调用发生非致命异常（如超时 `model_provider_timeout`）时，直接调用 `failed_model_result` 重新生成结果字典，但**只拷贝了 `host_reward`**。
+   - **恶果**：导致先前已成功执行的第 1 轮修复及其补丁被抹去（`repair_attempt_count` 被默认重置为 0），`turn_history` 轨迹丢弃，且已由真实容器验真捕获的 64 位 `container_id`、`container_image`、`container_arch` 均被丢失，导致结果文件写成 `repairs: 0` 且缺少容器字段。
+   - **修复**：实现 `_enrich_failed_model_with_repair_state` 状态保护器，在中断时强制完整继承前序验真与轮次已捕获的所有容器指纹、轮次历史与真实修复计数。
+
+3. **评测超时参数与 WorkBuddy 标准规范脱节漏洞**：
+   - **漏洞根因**：WorkBuddy 全题库 80 道题目在 `task.toml` 中统一明确规定 `[verifier] timeout_sec = 600.0`，而启动脚本默认或传入参数设置过低（如 420s）。
+   - **恶果**：`kimi-k2.7-code` 作为长思维链（CoT）推理模型，在第 2 轮深度分析 14 项断言时耗时 432 秒，仅因超出 420 秒 12 秒就被外层 HTTP 客户端硬性掐断。
+   - **修复**：`bench_workbuddy.py` 默认 `--timeout` 提升为 600.0 秒，并在运行前自动读取题目 `task.toml` 声明的基准时限，确保不低于官方标准。
+
+4. **通用领域异常检查引导空缺（零契约泄露）**：
+   - **漏洞根因**：对于阻断或重放失败的测试场景，模型初次生成时容易抛出底层的通用异常（如 `ConnectionError`）或缺少关键的状态丢失短语。
+   - **修复**：在 `repair_prompt` 通用引导中补充常识性指引："若测试检查某项无效操作或失败被阻断，请检查工作区内的异常定义模块（如 errors 模块），抛出领域专用的异常类并携带明确状态说明，避免使用未处理的通用错误"，在零先验注入前提下规范异常处理。
+
+
 
 
 
