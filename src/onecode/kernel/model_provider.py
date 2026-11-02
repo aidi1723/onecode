@@ -431,12 +431,17 @@ def _imported_test_framework(node: ast.Call) -> str | None:
 
 
 def validate_no_action(value: Any) -> str:
-    if not isinstance(value, dict) or set(value) != {"reason"}:
-        raise ValueError("no_action must contain only reason")
-    reason = value.get("reason")
-    if not isinstance(reason, str) or not reason.strip():
-        raise ValueError("no_action.reason must be a non-empty string")
-    return reason.strip()
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    if isinstance(value, dict):
+        reason = value.get("reason")
+        if isinstance(reason, str) and reason.strip():
+            return reason.strip()
+        for fallback_k in ("detail", "explanation", "summary", "notes"):
+            fb = value.get(fallback_k)
+            if isinstance(fb, str) and fb.strip():
+                return fb.strip()
+    raise ValueError("no_action must contain only reason")
 
 
 def validate_execution_plan(execution_plan: Any) -> list[ModelExecutionStep]:
@@ -603,6 +608,32 @@ def normalize_model_plan_payload(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(payload, dict):
         return payload
     normalized = dict(payload)
+    if "no_action" in normalized:
+        na = normalized["no_action"]
+        if na is False or na is None or na == "":
+            normalized.pop("no_action", None)
+        elif na is True:
+            normalized["no_action"] = {"reason": "no further action required"}
+        elif isinstance(na, str):
+            trimmed = na.strip()
+            if trimmed:
+                normalized["no_action"] = {"reason": trimmed}
+            else:
+                normalized.pop("no_action", None)
+        elif isinstance(na, dict):
+            reason = (
+                na.get("reason")
+                or na.get("detail")
+                or na.get("explanation")
+                or na.get("summary")
+                or na.get("notes")
+                or ""
+            )
+            reason_str = str(reason).strip() if reason else ""
+            if reason_str:
+                normalized["no_action"] = {"reason": reason_str}
+            else:
+                normalized["no_action"] = {"reason": "no further action required"}
     if not normalized.get("task") or not isinstance(normalized.get("task"), str):
         normalized["task"] = "workspace_task"
     if "assets" not in normalized and ("target" in normalized or "path" in normalized) and "content" in normalized:

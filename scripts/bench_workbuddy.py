@@ -68,12 +68,10 @@ def run_benchmark_task(
     verifier = task_dir / "tests" / "verifier.py"
     if verifier.is_file():
         (workspace / ".onecode_host_verifier").write_text(str(verifier), encoding="utf-8")
-        os.environ["ONECODE_HOST_VERIFIER"] = str(verifier)
     else:
         (workspace / ".onecode_host_verifier").unlink(missing_ok=True)
-        os.environ.pop("ONECODE_HOST_VERIFIER", None)
 
-    os.environ["ONECODE_SURVEY_MAX_TURNS"] = "0"
+    os.environ.setdefault("ONECODE_SURVEY_MAX_TURNS", "0")
 
     bureau = resolve_task_bureau(workspace)
     print(

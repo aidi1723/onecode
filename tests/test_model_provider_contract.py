@@ -11,6 +11,7 @@ from onecode.kernel.model_provider import (
     OpenAIChatCompletionsProvider,
     OpenAIResponsesProvider,
     json_object_from_model_text,
+    normalize_model_plan_payload,
     validate_model_plan,
 )
 
@@ -190,6 +191,33 @@ class ModelProviderContractTests(unittest.TestCase):
         self.assertEqual(plan.no_action_reason, "no workspace action")
         self.assertEqual(plan.assets, [])
         self.assertEqual(plan.execution_steps, [])
+
+    def test_model_plan_normalizes_flexible_no_action(self):
+        # String reason
+        p_str = validate_model_plan(
+            normalize_model_plan_payload({"task": "explain", "no_action": "already complete"})
+        )
+        self.assertEqual(p_str.no_action_reason, "already complete")
+
+        # Dict with extra metadata keys
+        p_extra = validate_model_plan(
+            normalize_model_plan_payload({
+                "task": "explain",
+                "no_action": {"reason": "already done", "status": "completed", "notes": "ok"},
+            })
+        )
+        self.assertEqual(p_extra.no_action_reason, "already done")
+
+        # False no_action alongside patches should strip no_action and succeed
+        p_false = validate_model_plan(
+            normalize_model_plan_payload({
+                "task": "edit",
+                "patches": [{"path": "a.py", "search_block": "x=1", "replace_block": "x=2"}],
+                "no_action": False,
+            })
+        )
+        self.assertIsNone(p_false.no_action_reason)
+        self.assertEqual(len(p_false.patches), 1)
 
     def test_responses_payload_can_drop_schema_for_a_gateway_cache_key(self):
         with patch.dict(os.environ, {}, clear=False):
