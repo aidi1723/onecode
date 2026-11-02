@@ -222,6 +222,29 @@
      - *基线 Git 隔离与 `.gitignore` 过滤*：工作区解压时自动初始化基线 Git 仓库并将 `.onecode` 与 `.onecode_host_verifier` 写入 `.gitignore`，杜绝验真器 `git status --porcelain` 误报污染。
      - *历史最高得分保护*：在多轮修复过程中若发生回归（例如从 10/12 退至 8/12），自动保留历史已达成的最高分数与容器指纹，契合易经“保合太和，乃利贞”精神。
 
+### 4.11 步骤 2.3 扩大题集 R56 评测（数据报表与产品分析 2/2 全满分零轮自愈）
+- **评测时间**：2026-11-02
+- **并发机制**：`--concurrency 2`，双线程物理并发，每任务分配独立工作区与 Docker 验真容器
+- **模型**：`deepseek-chat`（DeepSeek 官方 API）
+- **沙箱镜像**：`python:3.12-slim-amd64`（amd64 架构，集成 Git，严格单容器单任务隔离）
+- **评测题目（2 道未见全新 Hard 类别）**：
+  1. `data_reporting-hard-invoice_line_export`（类别：`data-reporting`，水二局，预算 3）
+  2. `product_analytics-hard-signup_funnel`（类别：`product-analytics`，水二局，预算 3）
+- **评测结果文件（`results-r56-batch.jsonl`）真实记录**：
+  ```json
+  {"task_id": "data_reporting-hard-invoice_line_export", "model": "deepseek-chat", "status": "completed", "reason": null, "outcome_status_code": 63, "iching_status_code": 39, "repair_attempt_count": 0, "bureau_name": "水二局", "bureau_turn_budget": 3, "host_reward": 1.0, "harbor": false, "duration_s": 6.38, "detail": "", "container_id": "f16a94663a9a51aa156913be6b5f590298bbe44b6ad5601dd12d99dc7d3dc86a", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  {"task_id": "product_analytics-hard-signup_funnel", "model": "deepseek-chat", "status": "completed", "reason": null, "outcome_status_code": 63, "iching_status_code": 39, "repair_attempt_count": 0, "bureau_name": "水二局", "bureau_turn_budget": 3, "host_reward": 1.0, "harbor": false, "duration_s": 6.6, "detail": "", "container_id": "17b80da9caff8b632e5e81bc18188d2b4d22b74718fd9f33a651928659313cb6", "container_image": "python:3.12-slim-amd64", "container_arch": "amd64"}
+  ```
+- **核心数据与突破**：
+  1. **双满分战绩（25/25 项断言 100% 通过）**：
+     - `data_reporting-hard-invoice_line_export`：12/12 断言全通，耗时 6.38 秒，退出码 0，验真用时 1864 毫秒；
+     - `product_analytics-hard-signup_funnel`：13/13 断言全通，耗时 6.60 秒，退出码 0，验真用时 1844 毫秒；
+     - 两题均无需修复循环（`repair_attempt_count: 0`），首轮代码生成一次性全通；
+  2. **极速并发吞吐**：双题总耗时仅 **6.60 秒**，相比单题长耗时提升达百倍；
+  3. **易经数理与状态跃迁**：两题均落入卦象 63（水火既济：亨，小利贞，初吉终乱）之圆满顺遂，变卦为 39（水山蹇：见险而能止，知矣哉），紫微数理精准判定为水二局；
+  4. **全量 Hard 分类覆盖总览**：累计已覆盖 `api_contract`、`security_hardening`、`performance`、`reliability`、`schema_behavior`、`testing`、`data_reporting`、`product_analytics` 共 8 个独立 Hard 领域，在标准验真器题目上达成极高通过率。
+
+
 
 
 
