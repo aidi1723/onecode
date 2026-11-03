@@ -736,11 +736,33 @@
 ### 6.3 单元测试与质量门禁扩充
 - **新增集成测试**：
   - [`tests/test_terminal_loop.py`](file:///Volumes/MacSSD/项目开发/one code/tests/test_terminal_loop.py) 新增 `TestTerminalModelLoopIntegration`（覆盖多轮 `read_file` -> `patch` -> `finish`、追踪流水线 `trace.jsonl` 记录、易经卦象 63 乾为天）；
-  - 新增 [`tests/test_harbor_adapter.py`](file:///Volumes/MacSSD/项目开发/one code/tests/test_harbor_adapter.py)（覆盖 `dry_run` 模式模式透传、CLI 参数解析、`reward.json` 生成）；
+  - 新增 [`tests/test_harbor_adapter.py`](file:///Volumes/MacSSD/项目开发/one code/tests/test_harbor_adapter.py)（覆盖 `dry_run` 模式透传、CLI 参数解析、`reward.json` 生成）；
 - **门禁检验**：
   - 代码质量规范校验器通过（单函数 $\le 200$ 行，单类 $\le 500$ 行）；
   - `ruff check src tests scripts` All checks passed；
   - `mypy src/ scripts/harbor_adapter.py` 111 个源文件 0 错误；
   - `onecode doctor` 9/9 项全部通过；
   - 本地测试套件 1,522 项测试全部通过（0 错误，0 失败）。
+
+### 6.4 Harbor 调度器真实多文件任务实机实测与对账（`n100` 节点）
+- **评测任务**：`data_reporting-hard-support_sla`（多文件业务指标统计与 SLA 告警系统，包含 `app/report.py`、`data/tickets.csv`、`pytest.ini`、`tests/`）；
+- **调度执行命令**：
+  ```bash
+  python3 scripts/harbor_scheduler.py \
+    --tasks data_reporting-hard-support_sla \
+    --eval-dir /home/aidi/workbuddy-exam/harbor-scheduler-eval-terminal \
+    --model deepseek-v4.1-flash \
+    --endpoint https://happycoding.xyz/v1 \
+    --key-file /tmp/onecode_happycoding_key \
+    --agent-mode terminal
+  ```
+- **实测分阶段与对账指标**：
+  - **阶段 1（智能体自主交互）**：43.43 秒，终端智能体自主执行 `read_file` 探查 `app/report.py` 与数据结构，生成高精度 `patch` 精准重写实现逻辑，多轮自检后完成；
+  - **阶段 2（Docker 沙箱独立验真）**：1.42 秒，调度器调用官方 Docker 镜像执行独立 `verifier.py`；
+  - **容器指纹与产物验证**：
+    - `container.cid`: `0095bcc2647ca5a1ef12f389330007893dbab35335a124f3d0f4d400d9f0bcd1`（Docker `--cidfile` 官方写入）；
+    - `reward.txt`: `1.0`（3 字节）；
+    - `reward.json`: 13/13 项全部通过（`test_status: pass`）；
+    - 汇总条目自动写入 `results-harbor-scheduler.jsonl`，标注 `"agent_mode": "terminal"` 与 `"harbor": true`。
+
 
