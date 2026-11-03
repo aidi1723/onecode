@@ -63,6 +63,7 @@ def run_benchmark_task(
     max_repairs: int = 8,
     timeout_seconds: float = 300.0,
     docker_image: str | None = None,
+    agent_mode: str = "classic",
 ) -> dict[str, Any]:
     task_dir = tasks_dir / task_id
     if not task_dir.is_dir():
@@ -120,6 +121,8 @@ def run_benchmark_task(
     extras["max_repair_attempts"] = max_repairs
     extras["provider_kind"] = "chat"
     extras["endpoint"] = endpoint
+    if agent_mode:
+        extras["agent_mode"] = agent_mode
 
     if docker_image:
         from onecode.kernel.sandbox import SandboxConfig
@@ -171,6 +174,7 @@ def run_benchmark_task(
     record = {
         "task_id": task_id,
         "model": model,
+        "agent_mode": agent_mode,
         "status": result.get("status"),
         "reason": result.get("reason"),
         "outcome_status_code": outcome_code,
@@ -210,6 +214,12 @@ def main() -> int:
     parser.add_argument("--max-repairs", type=int, default=8)
     parser.add_argument("--timeout", type=float, default=600.0)
     parser.add_argument("--docker", type=str, default=None, help="Docker sandbox image (e.g. python:3.12-slim-amd64)")
+    parser.add_argument(
+        "--agent-mode",
+        choices=["classic", "terminal"],
+        default="classic",
+        help="Agent architecture mode: classic (plan-repair) or terminal (interactive bash/read/patch)",
+    )
     parser.add_argument("--concurrency", "-j", type=int, default=1, help="Max concurrent tasks (capped by CPU cores)")
     args = parser.parse_args()
 
@@ -263,6 +273,7 @@ def main() -> int:
                 max_repairs=args.max_repairs,
                 timeout_seconds=args.timeout,
                 docker_image=args.docker,
+                agent_mode=args.agent_mode,
             )
             with output_lock:
                 results.append(res)

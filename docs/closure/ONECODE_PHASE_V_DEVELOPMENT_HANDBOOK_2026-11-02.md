@@ -830,4 +830,18 @@
   - [`tests/test_terminal_loop.py`](file:///Volumes/MacSSD/项目开发/one%20code/tests/test_terminal_loop.py) 补充覆盖 Go/TS/Rust/Python 多语言测试的 patch 拦截与 7 种危险命令拦截用例；
   - [`tests/test_multi_lang_symbols.py`](file:///Volumes/MacSSD/项目开发/one%20code/tests/test_multi_lang_symbols.py) 增补多级目录测试文件判定用例。
 
+### 6.7 SWE-bench 官方标准预测集适配器与工作流基准统合（Phase VII Step 3: 打榜评测就绪）
+- **背景与目标**：
+  此前系统仅能复现官方 gold_patch，无自主智能体端到端求解产出。随着终端模式 [`terminal_loop.py`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/terminal_loop.py)、防暗滞自愈、沙箱动态挂载恢复与多语言防篡改全栈成型，OneCode 正式具备了向 SWE-bench（及 SWE-bench Lite）输出标准化预测集的工程条件。
+- **SWE-bench 适配器实现（[`scripts/swebench_adapter.py`](file:///Volumes/MacSSD/项目开发/one%20code/scripts/swebench_adapter.py)）**：
+  1. **零第三方依赖**：纯原生 Python 3.12+ 标准库实现，支持解析官方 JSON 与 JSONL 格式题目集（内置加载 `benchmarks/swebench-lite/subset.jsonl`）；
+  2. **工作区自动化拓扑**：根据 `instance["base_commit"]` 自动完成 git checkout 或本地沙箱初始化，并注入 `.onecode/` 与 `__pycache__/` 过滤规则；
+  3. **双模智能体驱动**：支持 `--agent-mode terminal`（默认，终端多轮探索循环）与 `--agent-mode classic`；
+  4. **标准预测产物导出**：执行完成后通过 `git diff` 原生提取模型修改补丁，导出符合官方打榜标准的 `predictions.jsonl`（`{"instance_id": ..., "model_patch": ..., "model_name_or_path": ..., "status": ...}`）；
+  5. **安全 dry-run 支持**：提供 `--dry-run` 标志，供无网络、无大模型环境下的基准管线与拓扑完整性校验。
+- **WorkBuddy 基准脚本全模统合（[`scripts/bench_workbuddy.py`](file:///Volumes/MacSSD/项目开发/one%20code/scripts/bench_workbuddy.py)）**：
+  - 新增 `--agent-mode {classic,terminal}` 参数支持，使所有评测脚本（Harbor 适配器、Harbor 调度器、WorkBuddy 基准跑分、SWE-bench 适配器）的命令行参数规范完全统一。
+- **测试套件扩充**：
+  - 新增 [`tests/test_swebench_adapter.py`](file:///Volumes/MacSSD/项目开发/one%20code/tests/test_swebench_adapter.py)（4 项测试全过，覆盖实例加载过滤、Git 工作区初始化与 diff 提取、Prompt 模板格式化、dry-run 运行记录）。
+
 
