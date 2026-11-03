@@ -91,7 +91,6 @@ def run_scheduler_task(
     adapter_cmd = [
         sys.executable,
         str(adapter_script),
-        "--agent-only",
         "--task-id", task_id,
         "--task-package", str(task_package),
         "--workspace", str(workspace),

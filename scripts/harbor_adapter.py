@@ -83,7 +83,7 @@ def run_harbor_task(
     max_repairs: int = 4,
     timeout_seconds: float = 300.0,
     dry_run: bool = False,
-    agent_only: bool = False,
+    agent_only: bool = True,
 ) -> dict[str, Any]:
     log_dir.mkdir(parents=True, exist_ok=True)
     archive = task_package / "environment" / "workspace.tar.gz"
@@ -228,7 +228,11 @@ def main() -> int:
     parser.add_argument("--key-file", type=Path, default=Path("/tmp/onecode_key_once"))
     parser.add_argument("--max-repairs", type=int, default=4)
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--agent-only", action="store_true", default=os.environ.get("HARBOR_AGENT_ONLY") == "1", help="Execute agent solving only without generating final reward artifacts")
+    parser.add_argument(
+        "--standalone-self-eval",
+        action="store_true",
+        help="Deprecated debug mode: self-grade inside adapter instead of relying on Harbor scheduler",
+    )
 
     args = parser.parse_args()
     if not args.task_id:
@@ -251,6 +255,8 @@ def main() -> int:
     elif "ONECODE_API_KEY" in os.environ:
         api_key = os.environ["ONECODE_API_KEY"]
 
+    agent_only = not args.standalone_self_eval
+
     record = run_harbor_task(
         task_id=args.task_id,
         task_package=task_package,
@@ -264,7 +270,7 @@ def main() -> int:
         api_key=api_key,
         max_repairs=args.max_repairs,
         dry_run=args.dry_run,
-        agent_only=args.agent_only,
+        agent_only=agent_only,
     )
     print(json.dumps(record, indent=2))
     return 0
