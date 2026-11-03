@@ -3123,7 +3123,8 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
                 "import os\n"
                 "from pathlib import Path\n"
                 "log_dir = Path(os.environ['LOG_DIR'])\n"
-                "(log_dir / 'reward.txt').write_text('1.0')\n",
+                "(log_dir / 'reward.txt').write_text('1.0')\n"
+                "(log_dir / 'reward.json').write_text('{\"tests_passed\": 1, \"tests_total\": 1}')\n",
                 encoding="utf-8",
             )
             old_env = os.environ.get("ONECODE_HOST_VERIFIER")
@@ -3153,7 +3154,8 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
                 "import os\n"
                 "from pathlib import Path\n"
                 "log_dir = Path(os.environ['LOG_DIR'])\n"
-                "(log_dir / 'reward.txt').write_text('1.0')\n",
+                "(log_dir / 'reward.txt').write_text('1.0')\n"
+                "(log_dir / 'reward.json').write_text('{\"tests_passed\": 1, \"tests_total\": 1}')\n",
                 encoding="utf-8",
             )
             marker = workspace / ".onecode_host_verifier"

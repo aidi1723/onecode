@@ -1,10 +1,10 @@
 # OneCode v1.1 受控内核与终端模式交付封板清单 (Release Manifest v1.1)
 
-- **版本基线**：Git Commit [`4ea91f3`](https://github.com/aidi1723/onecode/commit/4ea91f3) on `main`
+- **版本基线**：P0 整改提交 [`1805702`](https://github.com/aidi1723/onecode/commit/1805702) 之后的 `main` 工作区。评分目录隔离、满分奖励的断言计数核对、测试文件回滚和内核异常留痕在该提交之后补上。
 - **封板日期**：2026-11-03
 - **运行环境支持**：macOS (Darwin arm64) & Linux (Ubuntu x86_64 / `n100` @ 10.0.0.184)
 - **依赖状态**：`pyproject.toml` 保持 `dependencies = []`（纯 Python 3.11+ 原生标准库实现，推荐 Python 3.12+，无外部第三方运行时依赖）
-- **全量门禁状态**：双端 31 项终端与适配器测试 100% 通过，本地全量 1,525+ 项测试无回归，`check_source_quality.py` 通过，`ruff` 全绿，`mypy` 检查 `src/`（110 个核心源文件）及评测适配器（共 114 个源文件）0 错误，`onecode doctor` 9/9 检查全部通过。
+- **全量门禁状态**：本地 1,562 项测试通过、跳过 1 项，`check_source_quality.py` 通过，`ruff` 全绿，`mypy` 检查 `src/` 110 个源文件 0 错误。这次补丁没有在 n100 上重跑全量测试。
 
 ---
 
@@ -24,7 +24,7 @@
      3) `require_modification` 默认开启（`True`），在还没有一次成功的 patch 时，`finish` 会返回 `unmodified_workspace`，易数卦象码记为 39（山天大畜），会话继续进行；成功的 `finish` 记为 63（乾为天）；
    - **沙箱断链自愈机制**：[`src/onecode/kernel/sandbox.py`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/sandbox.py) 在 `docker exec` 输出中捕获到 `possible container breakout detected` 时，自动执行 `docker rm -f` 销毁旧容器并重新创建重试一次。
 3. **跨语言测试防篡改与命令过滤体系 (Multi-Language Anti-Tamper System)**：
-   - 原生标准库判定器 [`is_any_test_path`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/symbol_locator.py#L57) 识别 `tests/`、`__tests__/`、文件名中的 `.test.` 和 `.spec.`，以及 `_test.go`、`_test.rs`、`_test.py`、`_test.js`、`_test.ts`、`_spec.rb`（注：`foo_test.rb` 不在此后缀名单内）；
+   - 原生标准库判定器 [`is_any_test_path`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/symbol_locator.py#L57) 识别 `tests/`、`test/`、`spec/`、`__tests__/`、文件名中的 `.test.` 和 `.spec.`，以及 `_test.go`、`_test.rs`、`_test.py`、`_test.js`、`_test.ts`、`_spec.rb`、`_test.rb` 和 `test_*.rb`；
    - 终端补丁拦截全面纳管上述测试文件，严禁修改测试断言；
    - 危险命令拦截复合正则与参数词元深度拦截 `rm`、`unlink`、`truncate`、`shred`、`sed -i`、重定向（`>`、`>>`）、`tee`、`cp`、`mv`；
    - 严格保证合法只读命令（`cat`、`head`）与常规测试运行命令（`pytest`、`go test`、`cargo test`、`npm test`）零误报放行。
@@ -41,7 +41,7 @@
 ### 1.2 边界与非交付范围明确界定 (Non-Scope & Boundary)
 - **非“零漏洞”声明**：`pyproject.toml` 的 `dependencies = []` 保持为空，消除了第三方包引入的外部供应链依赖风险，但这绝不代表自身业务代码与边界处理存在“零漏洞”；
 - **非“SWE-bench 已可打榜”声明**：适配器能导出符合格式规范的 `predictions.jsonl`，但不代表 SWE-bench 官方打榜工作已经完成；官方 500 题的大规模 Docker 镜像拉取、环境构建与评测跑分**不在此次封板范围内**，当前仓库内亦不包含官方 500 题的评测日志；
-- **测试后缀已知边界**：Ruby 测试后缀当前仅覆盖 RSpec 规范的 `_spec.rb` 与 `.spec.`，Minitest 风格的 `foo_test.rb` 尚未纳入后缀判定；
+- **测试后缀覆盖**：Ruby 同时识别 RSpec 的 `_spec.rb`、`.spec.`，以及 Minitest 风格的 `_test.rb` 与 `test_*.rb`；
 - **模型接口约束**：智能体执行依赖外部 OpenAI 兼容协议的模型接口，需宿主提供有效 API Key 与对应算力端点。
 
 ---
@@ -67,7 +67,7 @@
 | **`feature_pipeline-hard-cross_categorical`** | 4 步（精准 patch $\to$ 运行 CLI $\to$ 行内打印验证 $\to$ finish） | 25.21s | 1.43s | `2255af6aa306decc9ae63be1b3747873295f2555a880f243f0c64c243255f0bb` | `1.0` (3 字节) | **13/13 (100%)** |
 
 - **综合表现**：通过率 **2/2（100%）**，平均得分 **1.0000**，断言通过率 **26/26（100%）**；
-- **防伪与权属**：`container.cid` 由 Docker CLI 宿主权限生成（属主 `aidi:aidi`），`reward.txt` 与 `reward.json` 由容器内独立验真进程生成。在只读挂载与非 root 隔离策略下，杜绝无特权代码对评测产物的直接写入；不保证防范宿主 root 权限或内核级逃逸攻击。
+- **防伪与权属**：`container.cid` 由 Docker CLI 在宿主侧生成。正式 `log_dir` 不挂进容器。容器内 `/log_dir` 绑定到正式目录同级的宿主中转目录，容器以 `--rm` 退出后中转文件仍在。调度器核对退出码、`tests_passed` / `tests_total` 和 `tests` 数组，再写入正式的 `reward.txt` 与 `reward.json`。退出码非 0 却给出正分、满分缺少正的断言计数，或 `tests` 数组为空、与计数不一致时，正式奖励记 0.0。求解阶段不把隐藏验真器路径写入工作区。这不覆盖宿主 root 或内核级逃逸。
 
 ---
 

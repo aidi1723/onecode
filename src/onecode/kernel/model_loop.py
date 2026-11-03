@@ -1,3 +1,4 @@
+import contextvars
 import difflib
 import functools
 import hashlib
@@ -39,6 +40,32 @@ from onecode.kernel.patching import PatchIntent, PatchRejected, apply_patch_prev
 from onecode.kernel.path_guard import PathGuard, PathGuardError
 from onecode.kernel.preset_tests import is_preset_test_path
 from onecode.kernel.read_preface import with_preface
+
+_KERNEL_WARNINGS: contextvars.ContextVar[list[str] | None] = contextvars.ContextVar(
+    "onecode_kernel_warnings",
+    default=None,
+)
+
+
+def _record_kernel_fault(scope: str, exc: BaseException) -> None:
+    """Keep the current control flow, and retain the exception on the active task."""
+    bucket = _KERNEL_WARNINGS.get()
+    if bucket is None:
+        return
+    message = f"{scope}: {type(exc).__name__}: {exc}"
+    if message not in bucket:
+        bucket.append(message)
+
+
+def _merge_kernel_warnings(result: dict[str, Any], bucket: list[str]) -> dict[str, Any]:
+    if not bucket:
+        return result
+    warnings = result.setdefault("warnings", [])
+    if isinstance(warnings, list):
+        for item in bucket:
+            if item not in warnings:
+                warnings.append(item)
+    return result
 
 
 def write_texts_from_plan(plan: ModelPlan) -> list[str]:
@@ -908,8 +935,8 @@ def _recovery_defense_alerts(
         deities = rec.get("twelve_deities", {})
         if deities.get("suipo_clash"):
             alerts.append(f"- Sui Po clash barrier (岁破隔离): {deities.get('reason')}")
-    except Exception:
-        pass
+    except Exception as ex:
+        _record_kernel_fault("recovery_defense_alerts", ex)
     return alerts
 
 
@@ -925,8 +952,8 @@ def _cached_workspace_scale_stats(workspace_key: str, mtime_ns: int = 0) -> tupl
         file_count += 1
         try:
             total_loc += len(path.read_text(encoding="utf-8", errors="ignore").splitlines())
-        except Exception:
-            pass
+        except OSError as ex:
+            _record_kernel_fault("workspace_line_count", ex)
     return file_count, total_loc
 
 
@@ -936,7 +963,8 @@ def workspace_scale_stats(workspace: Path) -> tuple[int, int]:
         resolved = workspace.resolve()
         mtime_ns = resolved.stat().st_mtime_ns if resolved.exists() else 0
         return _cached_workspace_scale_stats(str(resolved), mtime_ns)
-    except Exception:
+    except (OSError, ValueError) as ex:
+        _record_kernel_fault("workspace_scale_stats", ex)
         return 1, 40
 
 
@@ -956,8 +984,8 @@ def _contract_spec_snippet(workspace: Path | None, max_chars: int = 1500) -> str
                 text = doc_path.read_text(encoding="utf-8", errors="replace")[:max_chars].strip()
                 if text:
                     return f"Workspace Contract Specification (文昌文曲·契约印信 - {candidate}):\n{text}\n\n"
-            except Exception:
-                pass
+            except OSError as ex:
+                _record_kernel_fault("contract_spec", ex)
     return ""
 
 
@@ -1068,10 +1096,10 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
                             try:
                                 content = target_file.read_text(encoding="utf-8")
                                 ws_files[loc.file_path] = content[:4000]
-                            except OSError:
-                                pass
-        except Exception:
-            pass
+                            except OSError as ex:
+                                _record_kernel_fault("fault_localization_read", ex)
+        except Exception as ex:
+            _record_kernel_fault("fault_localization", ex)
     if fault_hints:
         prompt += "\n".join(fault_hints) + "\n"
     spec_snippet = _contract_spec_snippet(workspace)
@@ -1266,7 +1294,8 @@ def _plan_has_existing_file_rewrite(plan: ModelPlan, workspace: Path) -> bool:
             target = PathGuard.resolve_target(workspace, asset.path)
             if target.is_file() and target.stat().st_size > 0:
                 return True
-        except Exception:
+        except (OSError, PathGuardError) as ex:
+            _record_kernel_fault("rewrite_probe", ex)
             continue
     for step in plan.execution_steps:
         for tool_call in step.tool_calls:
@@ -1277,7 +1306,8 @@ def _plan_has_existing_file_rewrite(plan: ModelPlan, workspace: Path) -> bool:
                         target = PathGuard.resolve_target(workspace, path_val)
                         if target.is_file() and target.stat().st_size > 0:
                             return True
-                    except Exception:
+                    except (OSError, PathGuardError) as ex:
+                        _record_kernel_fault("rewrite_probe", ex)
                         continue
     return False
 
@@ -1303,8 +1333,8 @@ def _resolve_governance_mode(run_metadata: dict[str, Any]) -> str:
             if breaking.get("execution_posture") in ("partially_broken_degraded", "severely_broken_quarantine"):
                 return "degraded"
             return brightness_mode
-        except Exception:
-            pass
+        except (TypeError, ValueError, KeyError) as ex:
+            _record_kernel_fault("governance_mode", ex)
     if os.environ.get("ONECODE_GOVERNANCE_MODE"):
         return os.environ["ONECODE_GOVERNANCE_MODE"]
     return "autonomous"
@@ -2291,8 +2321,8 @@ def _compute_repair_cooldown(
                 base_ms = cooldown_ms if cooldown_ms > 0 else (50 if attempt >= 2 else 0)
                 if base_ms > 0:
                     cooldown_ms = int(base_ms / damping)
-    except Exception:
-        pass
+    except (TypeError, ValueError, KeyError, ImportError) as ex:
+        _record_kernel_fault("recovery_cooldown", ex)
     return cooldown_ms
 
 
@@ -2414,8 +2444,8 @@ def _build_repair_metadata(
             metadata["force_wal_checkpoint_sync"] = True
         if interv.get("adaptive_cooldown_ms", 0) > 0:
             metadata["cooldown_pause_ms"] = interv["adaptive_cooldown_ms"]
-    except Exception:
-        pass
+    except (TypeError, ValueError, KeyError, ImportError) as ex:
+        _record_kernel_fault("repair_coupling", ex)
     return metadata
 
 
@@ -2729,8 +2759,8 @@ def _enrich_bureau_and_brightness_metadata(workspace: Path, run_metadata: dict[s
             if intervention.get("adaptive_cooldown_ms", 0) > 0:
                 run_metadata["cooldown_pause_ms"] = intervention["adaptive_cooldown_ms"]
             run_metadata.setdefault("governance_mode", gov_mode)
-        except Exception:
-            pass
+        except (TypeError, ValueError, KeyError, ImportError) as ex:
+            _record_kernel_fault("bureau_profile", ex)
 
 
 def _run_terminal_model_task(
@@ -2807,8 +2837,8 @@ def _run_terminal_model_task(
                     "observation": step.observation.to_dict(),
                     "hexagram_code": step.hexagram_code,
                 })
-            except Exception:
-                pass
+            except Exception as ex:
+                _record_kernel_fault("terminal_on_turn", ex)
 
     term_result = run_terminal_session(
         task,
@@ -2878,6 +2908,60 @@ def _run_terminal_model_task(
 
 
 def run_model_task(
+    task: str,
+    workspace: Path,
+    http_timeout_seconds: float = 60,
+    run_id: str | None = None,
+    resume_from_run_id: str | None = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    provider: Any | None = None,
+    provider_kind: str = "responses",
+    endpoint: str | None = None,
+    plan_approval: Callable[[ModelPlan], bool] | None = None,
+    max_repair_attempts: int = 0,
+    task_mode: str | None = None,
+    safe_agent_route: SafeAgentRoute | None = None,
+    require_explicit_approval: bool = True,
+    execution_approval: Callable[[ExecutionStep], bool] | None = None,
+    on_turn: Callable[[dict[str, Any]], None] | None = None,
+    sandbox_config: Any | None = None,
+    preface: str | None = None,
+    approval_mode: str = "strict",
+    agent_mode: str = "classic",
+) -> dict[str, Any]:
+    bucket: list[str] = []
+    token = _KERNEL_WARNINGS.set(bucket)
+    try:
+        result = _execute_model_task(
+            task,
+            workspace,
+            http_timeout_seconds=http_timeout_seconds,
+            run_id=run_id,
+            resume_from_run_id=resume_from_run_id,
+            model=model,
+            api_key=api_key,
+            provider=provider,
+            provider_kind=provider_kind,
+            endpoint=endpoint,
+            plan_approval=plan_approval,
+            max_repair_attempts=max_repair_attempts,
+            task_mode=task_mode,
+            safe_agent_route=safe_agent_route,
+            require_explicit_approval=require_explicit_approval,
+            execution_approval=execution_approval,
+            on_turn=on_turn,
+            sandbox_config=sandbox_config,
+            preface=preface,
+            approval_mode=approval_mode,
+            agent_mode=agent_mode,
+        )
+    finally:
+        _KERNEL_WARNINGS.reset(token)
+    return _merge_kernel_warnings(result, bucket)
+
+
+def _execute_model_task(
     task: str,
     workspace: Path,
     http_timeout_seconds: float = 60,
@@ -3177,8 +3261,8 @@ def _run_model_task_repair_loop(
                 repair_metadata["force_wal_checkpoint_sync"] = True
             if interv.get("adaptive_cooldown_ms", 0) > 0:
                 repair_metadata["cooldown_pause_ms"] = interv["adaptive_cooldown_ms"]
-        except Exception:
-            pass
+        except (TypeError, ValueError, KeyError, ImportError) as ex:
+            _record_kernel_fault("repair_metadata_coupling", ex)
         repair_result = execute_model_plan(
             repair_plan,
             workspace=workspace,

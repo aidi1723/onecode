@@ -17,6 +17,7 @@ import json
 from pathlib import Path
 import posixpath
 import re
+import shutil
 import time
 from typing import Any, Callable
 
@@ -163,6 +164,8 @@ class TerminalSession:
         self.consecutive_stalls = 0
         self.last_read_signature = ""
         self.consecutive_read_stalls = 0
+        self.initial_test_bytes: dict[str, bytes] = {}
+        self.test_integrity_broken = False
         self.initial_test_hashes = self._snapshot_test_files()
 
     def _snapshot_test_files(self) -> dict[str, str]:
@@ -170,39 +173,83 @@ class TerminalSession:
         if not self.workspace.is_dir():
             return hashes
         for p in self.workspace.rglob("*"):
-            if p.is_file():
-                try:
-                    rel = p.relative_to(self.workspace).as_posix()
-                except ValueError:
-                    continue
-                if is_any_test_path(rel):
-                    try:
-                        hashes[rel] = hashlib.sha256(p.read_bytes()).hexdigest()
-                    except OSError:
-                        pass
+            if not p.is_file():
+                continue
+            try:
+                rel = p.relative_to(self.workspace).as_posix()
+            except ValueError:
+                continue
+            if not is_any_test_path(rel):
+                continue
+            try:
+                payload = p.read_bytes()
+            except OSError:
+                continue
+            self.initial_test_bytes[rel] = payload
+            hashes[rel] = hashlib.sha256(payload).hexdigest()
         return hashes
 
-    def verify_test_files_integrity(self) -> tuple[bool, str]:
-        """Compares workspace test files against session baseline snapshot to detect tampering."""
+    def _test_file_tamper_reason(self) -> str:
         for rel, orig_hash in self.initial_test_hashes.items():
-            f = self.workspace / rel
-            if not f.is_file():
-                return False, f"Test file '{rel}' was deleted"
+            target = self.workspace / rel
+            if not target.is_file():
+                return f"Test file '{rel}' was deleted"
             try:
-                curr_hash = hashlib.sha256(f.read_bytes()).hexdigest()
+                current_hash = hashlib.sha256(target.read_bytes()).hexdigest()
             except OSError as ex:
-                return False, f"Test file '{rel}' could not be read: {ex}"
-            if curr_hash != orig_hash:
-                return False, f"Test file '{rel}' was modified (SHA-256 hash mismatch)"
-        for p in self.workspace.rglob("*"):
-            if p.is_file():
-                try:
-                    rel = p.relative_to(self.workspace).as_posix()
-                except ValueError:
-                    continue
-                if rel not in self.initial_test_hashes and is_any_test_path(rel):
-                    return False, f"New test file '{rel}' was created"
-        return True, ""
+                return f"Test file '{rel}' could not be read: {ex}"
+            if current_hash != orig_hash:
+                return f"Test file '{rel}' was modified (SHA-256 hash mismatch)"
+        for path in self.workspace.rglob("*"):
+            if not path.is_file():
+                continue
+            try:
+                rel = path.relative_to(self.workspace).as_posix()
+            except ValueError:
+                continue
+            if rel not in self.initial_test_hashes and is_any_test_path(rel):
+                return f"New test file '{rel}' was created"
+        return ""
+
+    def restore_test_files(self) -> list[str]:
+        """Put every snapshotted test file back and remove test files created during the session."""
+        restored: list[str] = []
+        for rel, payload in self.initial_test_bytes.items():
+            target = self.workspace / rel
+            try:
+                current = target.read_bytes() if target.is_file() else None
+            except OSError:
+                current = None
+            if current == payload:
+                continue
+            if target.is_dir() and not target.is_symlink():
+                shutil.rmtree(target)
+            elif target.exists() or target.is_symlink():
+                target.unlink()
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(payload)
+            restored.append(rel)
+        for path in list(self.workspace.rglob("*")):
+            if not path.is_file():
+                continue
+            try:
+                rel = path.relative_to(self.workspace).as_posix()
+            except ValueError:
+                continue
+            if rel in self.initial_test_hashes or not is_any_test_path(rel):
+                continue
+            path.unlink()
+            restored.append(rel)
+        return restored
+
+    def verify_test_files_integrity(self) -> tuple[bool, str]:
+        """Compares workspace test files against the session snapshot and restores them on mismatch."""
+        problem = self._test_file_tamper_reason()
+        if not problem and not self.test_integrity_broken:
+            return True, ""
+        self.test_integrity_broken = True
+        self.restore_test_files()
+        return False, problem or "Test files were modified earlier in this session and have been restored"
 
     def is_command_tampering(self, cmd_tokens: tuple[str, ...]) -> bool:
         if not cmd_tokens:

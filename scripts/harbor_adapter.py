@@ -91,8 +91,7 @@ def run_harbor_task(
     setup_workspace(archive, workspace)
 
     verifier = hidden_tests / "verifier.py"
-    if verifier.is_file():
-        (workspace / ".onecode_host_verifier").write_text(str(verifier), encoding="utf-8")
+    (workspace / ".onecode_host_verifier").unlink(missing_ok=True)
 
     bureau = resolve_task_bureau(workspace)
     instruction_file = task_package / "instruction.md"

@@ -589,6 +589,18 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
         self.assertEqual(res["wal_write_error_count"], 1)
         self.assertTrue(any("wal_write_failed" in w for w in res.get("warnings", [])))
 
+    def test_kernel_faults_are_attached_to_the_task_result(self) -> None:
+        from unittest.mock import patch
+        from onecode.kernel.model_loop import _record_kernel_fault, run_model_task
+
+        def _probe(*_args: object, **_kwargs: object) -> dict[str, str]:
+            _record_kernel_fault("probe", RuntimeError("probe-fault"))
+            return {"status": "halted", "reason": "probe"}
+
+        with patch("onecode.kernel.model_loop._execute_model_task", side_effect=_probe):
+            result = run_model_task("probe", workspace=self.workspace, api_key="mock-key", provider=object())
+        self.assertTrue(any("probe-fault" in item for item in result.get("warnings", [])))
+
     def test_anti_tamper_hash_baseline_catches_python_c_and_ruby_tests(self) -> None:
         """Tests P0-3: Multi-language hash baseline detects test modifications via python -c and covers _test.rb."""
         from unittest.mock import patch
@@ -616,8 +628,16 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
             self.assertEqual(obs.reason, "preset_test_immutable")
             self.assertIn("Anti-tamper protection active", obs.stderr)
             self.assertIn("pkg/order_test.go", obs.stderr)
+            self.assertEqual(go_test.read_text(encoding="utf-8"), "package order\n// Original test\n")
             # Step hexagram code should be 40 (火地晋)
             self.assertEqual(session.steps[-1].hexagram_code, 40)
+
+            created = session.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "open('spec/extra_test.rb','w').write('x')"),
+            ))
+            self.assertEqual(created.reason, "preset_test_immutable")
+            self.assertFalse((self.workspace / "spec" / "extra_test.rb").exists())
 
             # Attempting finish after tampering must also be blocked with 40
             finish_obs = session.execute_action(TerminalAction(action_type="finish"))

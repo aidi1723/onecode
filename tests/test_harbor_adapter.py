@@ -205,6 +205,83 @@ sys.exit(0)
         self.assertEqual(res["security_violation"], "sys_path_hijack_detected")
         self.assertIn("json.py", res["detail"])
 
+    def test_official_log_dir_receives_only_scheduler_reward_files(self) -> None:
+        (self.log_dir / "reward.txt").write_text("9.9\n", encoding="utf-8")
+        (self.workspace / "app.py").write_text(
+            "import os\nfrom pathlib import Path\n"
+            "log_dir = Path(os.environ['LOG_DIR'])\n"
+            "(log_dir / 'scratch.txt').write_text('leaked', encoding='utf-8')\n"
+            "SECRET_42 = True\n",
+            encoding="utf-8",
+        )
+        res = harbor_scheduler.run_stage2_evaluation(
+            task_id="task-scratch",
+            workspace=self.workspace,
+            hidden_tests=self.hidden_tests,
+            log_dir=self.log_dir,
+            use_docker=False,
+        )
+        self.assertTrue(res["passed"])
+        self.assertFalse((self.log_dir / "scratch.txt").exists())
+        self.assertEqual((self.log_dir / "reward.txt").read_text(encoding="utf-8").strip(), "1.0")
+
+    def test_full_score_with_empty_assertion_list_is_rejected(self) -> None:
+        (self.hidden_tests / "verifier.py").write_text(
+            "import json, os\nfrom pathlib import Path\n"
+            "log_dir = Path(os.environ['LOG_DIR'])\n"
+            "(log_dir / 'reward.json').write_text(json.dumps({'overall': 1.0, 'tests_passed': 1, 'tests_total': 1, 'tests': []}))\n"
+            "(log_dir / 'reward.txt').write_text('1.0\\n')\n"
+            "raise SystemExit(0)\n",
+            encoding="utf-8",
+        )
+        res = harbor_scheduler.run_stage2_evaluation(
+            task_id="task-empty-assertions",
+            workspace=self.workspace,
+            hidden_tests=self.hidden_tests,
+            log_dir=self.log_dir,
+            use_docker=False,
+        )
+        self.assertFalse(res["passed"])
+        self.assertEqual(res["host_reward"], 0.0)
+        self.assertEqual(res["security_violation"], "reward_forgery_detected")
+        self.assertEqual((self.log_dir / "reward.txt").read_text(encoding="utf-8").strip(), "0.0")
+
+    def test_docker_command_mounts_staging_and_not_the_official_log_dir(self) -> None:
+        staging = self.root / "staging"
+        staging.mkdir()
+        command = harbor_scheduler.build_stage2_docker_command(
+            workspace=self.workspace,
+            verifier_script=self.hidden_tests / "verifier.py",
+            staging_dir=staging,
+            image="python:3.12-slim-amd64",
+            cidfile=None,
+            workspace_tests=None,
+        )
+        rendered = " ".join(command)
+        self.assertNotIn(str(self.log_dir), rendered)
+        self.assertIn(f"type=bind,src={staging},dst=/log_dir", command)
+        self.assertNotIn("/log_dir:rw,nosuid,size=16m", rendered)
+        self.assertIn("--rm", command)
+        self.assertIn("--user", command)
+        self.assertIn("no-new-privileges", rendered)
+
+    def test_agent_only_does_not_publish_the_hidden_verifier_path(self) -> None:
+        (self.hidden_tests / "verifier.py").write_text("print(1)\n", encoding="utf-8")
+        (self.workspace / ".onecode_host_verifier").write_text("stale\n", encoding="utf-8")
+        task_package = self.root / "task_pkg"
+        task_package.mkdir()
+        (task_package / "instruction.md").write_text("Fix everything", encoding="utf-8")
+        harbor_adapter.run_harbor_task(
+            task_id="dry-hidden",
+            task_package=task_package,
+            workspace=self.workspace,
+            hidden_tests=self.hidden_tests,
+            log_dir=self.log_dir,
+            dry_run=True,
+            agent_only=True,
+        )
+        self.assertFalse((self.workspace / ".onecode_host_verifier").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

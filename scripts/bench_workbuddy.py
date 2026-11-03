@@ -77,10 +77,7 @@ def run_benchmark_task(
     extract_workspace(archive, workspace)
 
     verifier = task_dir / "tests" / "verifier.py"
-    if verifier.is_file():
-        (workspace / ".onecode_host_verifier").write_text(str(verifier), encoding="utf-8")
-    else:
-        (workspace / ".onecode_host_verifier").unlink(missing_ok=True)
+    (workspace / ".onecode_host_verifier").unlink(missing_ok=True)
 
     os.environ.setdefault("ONECODE_SURVEY_MAX_TURNS", "0")
 

@@ -687,6 +687,41 @@ class VerifierExecutionTests(unittest.TestCase):
             self.assertEqual(reward, 1.0)
             self.assertEqual(checked.id, "host-verifier")
 
+    def test_run_host_verifier_rejects_full_score_without_assertion_counts(self):
+        from onecode.kernel.verifier import run_host_verifier
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            workspace = tmp_path / "workspace"
+            workspace.mkdir()
+            verifier = tmp_path / "verifier.py"
+            verifier.write_text(
+                "import os\n"
+                "from pathlib import Path\n"
+                "log_dir = Path(os.environ['LOG_DIR'])\n"
+                "(log_dir / 'reward.txt').write_text('1.0')\n",
+                encoding="utf-8",
+            )
+            checked, reward = run_host_verifier(workspace, verifier)
+            self.assertEqual(checked.status, "failed")
+            self.assertEqual(checked.reason, "reward_forgery_detected")
+            self.assertEqual(reward, 0.0)
+
+    def test_run_host_verifier_rejects_stdlib_shadow_before_execution(self):
+        from onecode.kernel.verifier import run_host_verifier
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            workspace = tmp_path / "workspace"
+            workspace.mkdir()
+            (workspace / "json.py").write_text("def dumps(*args, **kwargs):\n    return '{}'\n", encoding="utf-8")
+            verifier = tmp_path / "verifier.py"
+            verifier.write_text("raise SystemExit(0)\n", encoding="utf-8")
+            checked, reward = run_host_verifier(workspace, verifier)
+            self.assertEqual(checked.status, "failed")
+            self.assertEqual(checked.reason, "sys_path_hijack_detected")
+            self.assertEqual(reward, 0.0)
+
     def test_run_host_verifier_fails_when_reward_less_than_one(self):
         from onecode.kernel.verifier import run_host_verifier
 

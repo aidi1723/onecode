@@ -575,6 +575,95 @@ def run_two_stage_verifier(
     return stage2_result, results
 
 
+SHADOWED_STDLIB_MODULES = frozenset({
+    "json", "os", "sys", "subprocess", "pathlib", "shutil",
+    "unittest", "pytest", "io", "re", "time", "builtins", "site",
+})
+
+
+def audit_workspace_for_sys_path_hijacking(workspace: Path) -> list[str]:
+    """Reject workspace-root files that would shadow the verifier's standard library imports."""
+    violations: list[str] = []
+    if not workspace.is_dir():
+        return violations
+    for name in SHADOWED_STDLIB_MODULES:
+        for suffix in (".py", ".pyw", ".so"):
+            candidate = workspace / f"{name}{suffix}"
+            if candidate.is_file():
+                violations.append(f"Rogue standard library module shadowing '{candidate.name}' in workspace root")
+        package = workspace / name
+        if package.is_dir() and (package / "__init__.py").is_file():
+            violations.append(f"Rogue package shadowing standard library '{name}' in workspace root")
+    return violations
+
+
+def assertion_counts(detail: dict[str, Any]) -> tuple[int, int] | None:
+    for passed_key, total_key in (("tests_passed", "tests_total"), ("passed", "total")):
+        passed = detail.get(passed_key)
+        total = detail.get(total_key)
+        if isinstance(passed, bool) or isinstance(total, bool):
+            continue
+        if isinstance(passed, int) and isinstance(total, int):
+            return passed, total
+    return None
+
+
+def full_score_problem(returncode: int | None, reward: float, detail: dict[str, Any]) -> str:
+    """Return a forgery explanation when a positive or full score disagrees with the verifier evidence."""
+    tests = detail.get("tests")
+    failed_case = isinstance(tests, list) and any(isinstance(item, dict) and not item.get("passed") for item in tests)
+    counts = assertion_counts(detail)
+    if returncode not in (None, 0) and reward > 0.0:
+        return "reward.txt claimed a positive score but the verifier exited non-zero"
+    if returncode == 0 and abs(reward - 1.0) < 1e-6:
+        if counts is None or counts[1] <= 0 or counts[0] != counts[1]:
+            return "a full score requires tests_passed == tests_total and tests_total > 0"
+        if isinstance(tests, list) and (not tests or len(tests) != counts[1] or failed_case):
+            return "reward.json tests do not match the claimed assertion counts"
+    return ""
+
+
+def apply_host_reward_policy(
+    *,
+    returncode: int | None,
+    reward: object,
+    detail: dict[str, Any],
+    timed_out: bool,
+) -> tuple[object, str | None, VerifierFailureKind | None]:
+    if timed_out:
+        return reward, "verifier_timeout", "timeout"
+    if isinstance(reward, (int, float)) and not isinstance(reward, bool):
+        problem = full_score_problem(returncode, float(reward), detail)
+        if problem:
+            return 0.0, "reward_forgery_detected", "command_failed"
+    if returncode == 0 and reward == 1.0:
+        return reward, None, None
+    return reward, "verifier_failed", "command_failed"
+
+
+def _read_grade_artifacts(log_dir: Path) -> tuple[object, dict[str, Any], str]:
+    reward: object = "ungraded"
+    detail: dict[str, Any] = {}
+    raw_json = ""
+    reward_file = log_dir / "reward.txt"
+    if reward_file.is_file():
+        text = reward_file.read_text(encoding="utf-8").strip()
+        try:
+            reward = float(text)
+        except ValueError:
+            reward = text or "ungraded"
+    reward_json_file = log_dir / "reward.json"
+    if reward_json_file.is_file():
+        try:
+            raw_json = reward_json_file.read_text(encoding="utf-8").strip()
+            parsed = json.loads(raw_json) if raw_json else None
+        except (OSError, json.JSONDecodeError):
+            parsed = None
+        if isinstance(parsed, dict):
+            detail = parsed
+    return reward, detail, raw_json
+
+
 def run_host_verifier(
     workspace: Path,
     verifier_path: Path | str,
@@ -587,6 +676,24 @@ def run_host_verifier(
     Strict passing condition: proc.returncode == 0 and host_reward == 1.0.
     """
     verifier = Path(verifier_path).expanduser().resolve()
+    violations = audit_workspace_for_sys_path_hijacking(workspace)
+    if violations:
+        detail_text = "; ".join(violations)
+        result = VerifierResult(
+            id="host-verifier",
+            status="failed",
+            reason="sys_path_hijack_detected",
+            failure_kind="exception",
+            exit_code=1,
+            duration_ms=0,
+            stdout_tail="",
+            stderr_tail=detail_text,
+            stdout_sha256=sha256_bytes(b""),
+            stderr_sha256=sha256_bytes(detail_text.encode("utf-8")),
+            cwd=str(workspace),
+            command=[sys.executable, str(verifier)],
+        )
+        return result, 0.0
     if not verifier.is_file():
         result = VerifierResult(
             id="host-verifier",
@@ -662,42 +769,21 @@ def _run_native_host_verifier(
             stderr = exc.stderr if isinstance(exc.stderr, str) else (exc.stderr or b"").decode("utf-8", "replace")
             timed_out = True
 
-        reward: object = "ungraded"
-        reward_file = log_dir / "reward.txt"
-        if reward_file.is_file():
-            text = reward_file.read_text(encoding="utf-8").strip()
-            try:
-                reward = float(text)
-            except ValueError:
-                reward = text or "ungraded"
-
-        reward_json_file = log_dir / "reward.json"
-        if reward_json_file.is_file():
-            try:
-                reward_json_str = reward_json_file.read_text(encoding="utf-8").strip()
-                if reward_json_str and reward_json_str not in stdout:
-                    stdout = reward_json_str + "\n" + stdout
-            except Exception:
-                pass
-
-        if timed_out:
-            passed = False
-            reason: str | None = "verifier_timeout"
-            failure_kind: VerifierFailureKind | None = "timeout"
-        elif returncode == 0 and reward == 1.0:
-            passed = True
-            reason = None
-            failure_kind = None
-        else:
-            passed = False
-            reason = "verifier_failed"
-            failure_kind = "command_failed"
+        reward, detail, raw_json = _read_grade_artifacts(log_dir)
+        if raw_json and raw_json not in stdout:
+            stdout = raw_json + "\n" + stdout
+        reward, reason, failure_kind = apply_host_reward_policy(
+            returncode=returncode,
+            reward=reward,
+            detail=detail,
+            timed_out=timed_out,
+        )
 
         stdout_bytes = stdout.encode("utf-8", errors="replace")
         stderr_bytes = stderr.encode("utf-8", errors="replace")
         checked = VerifierResult(
             id="host-verifier",
-            status="passed" if passed else "failed",
+            status="passed" if reason is None else "failed",
             reason=reason,
             failure_kind=failure_kind,
             exit_code=returncode,
@@ -883,42 +969,21 @@ def _run_container_verifier(
                 command=docker_cmd,
             ), "ungraded"
 
-        reward: object = "ungraded"
-        reward_file = log_dir / "reward.txt"
-        if reward_file.is_file():
-            text = reward_file.read_text(encoding="utf-8").strip()
-            try:
-                reward = float(text)
-            except ValueError:
-                reward = text or "ungraded"
-
-        reward_json_file = log_dir / "reward.json"
-        if reward_json_file.is_file():
-            try:
-                reward_json_str = reward_json_file.read_text(encoding="utf-8").strip()
-                if reward_json_str and reward_json_str not in stdout:
-                    stdout = reward_json_str + "\n" + stdout
-            except Exception:
-                pass
-
-        if timed_out:
-            passed = False
-            reason: str | None = "verifier_timeout"
-            failure_kind: VerifierFailureKind | None = "timeout"
-        elif returncode == 0 and reward == 1.0:
-            passed = True
-            reason = None
-            failure_kind = None
-        else:
-            passed = False
-            reason = "verifier_failed"
-            failure_kind = "command_failed"
+        reward, detail, raw_json = _read_grade_artifacts(log_dir)
+        if raw_json and raw_json not in stdout:
+            stdout = raw_json + "\n" + stdout
+        reward, reason, failure_kind = apply_host_reward_policy(
+            returncode=returncode,
+            reward=reward,
+            detail=detail,
+            timed_out=timed_out,
+        )
 
         stdout_bytes = stdout.encode("utf-8", errors="replace")
         stderr_bytes = stderr.encode("utf-8", errors="replace")
         checked = VerifierResult(
             id="host-verifier",
-            status="passed" if passed else "failed",
+            status="passed" if reason is None else "failed",
             reason=reason,
             failure_kind=failure_kind,
             exit_code=returncode,
