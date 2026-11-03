@@ -350,6 +350,7 @@ class TestRunTerminalSessionLoop(unittest.TestCase):
             self.workspace,
             provider,
             max_turns=5,
+            approval_mode="scoped_auto",
             on_step=lambda step: recorded_steps.append(step),
         )
 
@@ -422,6 +423,7 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
             run_id="test-term-run",
             api_key="mock-key",
             agent_mode="terminal",
+            approval_mode="scoped_auto",
             provider=SequenceProvider(responses),
             on_turn=lambda t: turn_events.append(t),
         )
@@ -471,6 +473,7 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
                 run_id="test-term-env",
                 api_key="mock-key",
                 agent_mode="classic",
+                approval_mode="scoped_auto",
                 provider=SequenceProvider(responses),
             )
             self.assertEqual(result["status"], "completed")
@@ -480,6 +483,147 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
                 os.environ.pop("ONECODE_AGENT_MODE", None)
             else:
                 os.environ["ONECODE_AGENT_MODE"] = old_env
+
+
+    def test_run_model_task_terminal_mode_approval_gates(self) -> None:
+        """Tests P0-2: approval_mode=strict blocks write actions without callback, and respects approval callback."""
+        from onecode.kernel.model_loop import run_model_task
+
+        responses_patch = [
+            json.dumps({"action_type": "patch", "path": "src/target.py", "search_block": "x = 10", "replace_block": "x = 50"}),
+            json.dumps({"action_type": "finish"}),
+        ]
+
+        class SequenceProvider:
+            def __init__(self, resps: list[str]) -> None:
+                self.resps = resps
+                self.idx = 0
+
+            def complete(self, prompt: str, **kwargs: object) -> str:
+                res = self.resps[self.idx]
+                self.idx += 1
+                return res
+
+        # 1. Strict mode without callback -> write action blocked with approval_required
+        res_no_callback = run_model_task(
+            "Fix target",
+            workspace=self.workspace,
+            run_id="test-term-strict-no-cb",
+            api_key="mock-key",
+            agent_mode="terminal",
+            approval_mode="strict",
+            require_explicit_approval=True,
+            execution_approval=None,
+            provider=SequenceProvider(list(responses_patch)),
+        )
+        self.assertEqual(res_no_callback["status"], "halted")
+        self.assertEqual(res_no_callback["approval_mode"], "strict")
+        self.assertFalse(res_no_callback["auto_approved_for_eval"])
+        self.assertGreaterEqual(res_no_callback["blocked_approvals_count"], 1)
+
+        # 2. Strict mode with callback that rejects -> blocked with approval_denied
+        res_rejected = run_model_task(
+            "Fix target",
+            workspace=self.workspace,
+            run_id="test-term-strict-rejected",
+            api_key="mock-key",
+            agent_mode="terminal",
+            approval_mode="strict",
+            execution_approval=lambda action: False,
+            provider=SequenceProvider(list(responses_patch)),
+        )
+        self.assertEqual(res_rejected["status"], "halted")
+        self.assertGreaterEqual(res_rejected["blocked_approvals_count"], 1)
+
+        # 3. Strict mode with callback that approves -> completes and records approval evidence
+        res_approved = run_model_task(
+            "Fix target",
+            workspace=self.workspace,
+            run_id="test-term-strict-approved",
+            api_key="mock-key",
+            agent_mode="terminal",
+            approval_mode="strict",
+            execution_approval=lambda action: True,
+            provider=SequenceProvider(list(responses_patch)),
+        )
+        self.assertEqual(res_approved["status"], "completed")
+        self.assertGreaterEqual(res_approved["approved_actions_count"], 1)
+        self.assertEqual(res_approved["approval_mode"], "strict")
+
+    def test_run_model_task_wal_write_failure_visibility(self) -> None:
+        """Tests P0-5: WAL write failure is recorded in warnings and wal_write_error_count."""
+        from unittest.mock import patch
+        from onecode.kernel.model_loop import run_model_task
+
+        responses = [
+            json.dumps({"action_type": "patch", "path": "src/target.py", "search_block": "x = 10", "replace_block": "x = 99"}),
+            json.dumps({"action_type": "finish", "explanation": "Target updated to 99"}),
+        ]
+
+        class SequenceProvider:
+            def __init__(self, resps: list[str]) -> None:
+                self.resps = resps
+                self.idx = 0
+
+            def complete(self, prompt: str, **kwargs: object) -> str:
+                res = self.resps[self.idx]
+                self.idx += 1
+                return res
+
+        def _exploding_wal(*args: object, **kwargs: object) -> None:
+            raise IOError("Simulated disk I/O failure during WAL fsync")
+
+        with patch("onecode.kernel.checkpoint.write_global_wal", side_effect=_exploding_wal):
+            res = run_model_task(
+                "Update x",
+                workspace=self.workspace,
+                run_id="test-wal-fail",
+                api_key="mock-key",
+                agent_mode="terminal",
+                approval_mode="scoped_auto",
+                provider=SequenceProvider(responses),
+            )
+
+        self.assertEqual(res["status"], "completed")
+        self.assertEqual(res["wal_write_status"], "failed")
+        self.assertEqual(res["wal_write_error_count"], 1)
+        self.assertTrue(any("wal_write_failed" in w for w in res.get("warnings", [])))
+
+    def test_anti_tamper_hash_baseline_catches_python_c_and_ruby_tests(self) -> None:
+        """Tests P0-3: Multi-language hash baseline detects test modifications via python -c and covers _test.rb."""
+        from unittest.mock import patch
+
+        go_test = self.workspace / "pkg" / "order_test.go"
+        go_test.parent.mkdir(parents=True, exist_ok=True)
+        go_test.write_text("package order\n// Original test\n", encoding="utf-8")
+
+        rb_test = self.workspace / "spec" / "user_test.rb"
+        rb_test.parent.mkdir(parents=True, exist_ok=True)
+        rb_test.write_text("# Original ruby minitest\n", encoding="utf-8")
+
+        session = TerminalSession(self.workspace, "Audit test", approval_mode="scoped_auto")
+        self.assertIn("pkg/order_test.go", session.initial_test_hashes)
+        self.assertIn("spec/user_test.rb", session.initial_test_hashes)
+
+        # Modify pkg/order_test.go via python -c (bypassing simple command regex)
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            tamper_action = TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "open('pkg/order_test.go', 'w').write('package order\\n// HACKED\\n')"),
+            )
+            obs = session.execute_action(tamper_action)
+            self.assertEqual(obs.status, "blocked")
+            self.assertEqual(obs.reason, "preset_test_immutable")
+            self.assertIn("Anti-tamper protection active", obs.stderr)
+            self.assertIn("pkg/order_test.go", obs.stderr)
+            # Step hexagram code should be 40 (火地晋)
+            self.assertEqual(session.steps[-1].hexagram_code, 40)
+
+            # Attempting finish after tampering must also be blocked with 40
+            finish_obs = session.execute_action(TerminalAction(action_type="finish"))
+            self.assertEqual(finish_obs.status, "blocked")
+            self.assertEqual(finish_obs.reason, "preset_test_immutable")
+            self.assertEqual(session.steps[-1].hexagram_code, 40)
 
 
 if __name__ == "__main__":

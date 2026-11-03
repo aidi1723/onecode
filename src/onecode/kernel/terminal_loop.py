@@ -12,6 +12,7 @@ This module implements a stateful terminal agent session:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import hashlib
 import json
 from pathlib import Path
 import posixpath
@@ -23,7 +24,7 @@ from onecode.kernel.execution_tools import ToolRegistry, default_tool_registry
 from onecode.kernel.path_guard import PathGuard
 from onecode.kernel.symbol_locator import SymbolLocator, is_any_test_path
 
-_TEST_PATH_PAT = r"(?:tests?/|__tests__/|[^\s]*_test\.[a-z0-9]+|[^\s]*\.(?:test|spec)\.[a-z0-9]+|[^\s]*tests\.rs\b|[^\s]*test_\w+\.py\b)"
+_TEST_PATH_PAT = r"(?:tests?/|test/|__tests__/|spec/|[^\s]*_test\.[a-z0-9]+|[^\s]*\.(?:test|spec)\.[a-z0-9]+|[^\s]*tests\.rs\b|[^\s]*test_\w+\.(?:py|pyw|rb)\b)"
 
 _FORBIDDEN_TEST_CMD_PATTERNS = (
     re.compile(rf"\b(?:rm|unlink|truncate|shred)\s+.*{_TEST_PATH_PAT}", re.IGNORECASE),
@@ -141,12 +142,20 @@ class TerminalSession:
         max_turns: int = 15,
         tool_registry: ToolRegistry | None = None,
         require_modification: bool = True,
+        approval_mode: str = "scoped_auto",
+        execution_approval: Callable[[TerminalAction], bool] | None = None,
+        auto_approved_for_eval: bool = False,
     ) -> None:
         self.workspace = workspace.resolve()
         self.task = task
         self.max_turns = max_turns
         self.tool_registry = tool_registry or default_tool_registry()
         self.require_modification = require_modification
+        self.approval_mode = approval_mode
+        self.execution_approval = execution_approval
+        self.auto_approved_for_eval = auto_approved_for_eval
+        self.approved_actions_count = 0
+        self.blocked_approvals_count = 0
         self.steps: list[TerminalStep] = []
         self.is_finished = False
         self.finish_explanation = ""
@@ -154,6 +163,46 @@ class TerminalSession:
         self.consecutive_stalls = 0
         self.last_read_signature = ""
         self.consecutive_read_stalls = 0
+        self.initial_test_hashes = self._snapshot_test_files()
+
+    def _snapshot_test_files(self) -> dict[str, str]:
+        hashes: dict[str, str] = {}
+        if not self.workspace.is_dir():
+            return hashes
+        for p in self.workspace.rglob("*"):
+            if p.is_file():
+                try:
+                    rel = p.relative_to(self.workspace).as_posix()
+                except ValueError:
+                    continue
+                if is_any_test_path(rel):
+                    try:
+                        hashes[rel] = hashlib.sha256(p.read_bytes()).hexdigest()
+                    except OSError:
+                        pass
+        return hashes
+
+    def verify_test_files_integrity(self) -> tuple[bool, str]:
+        """Compares workspace test files against session baseline snapshot to detect tampering."""
+        for rel, orig_hash in self.initial_test_hashes.items():
+            f = self.workspace / rel
+            if not f.is_file():
+                return False, f"Test file '{rel}' was deleted"
+            try:
+                curr_hash = hashlib.sha256(f.read_bytes()).hexdigest()
+            except OSError as ex:
+                return False, f"Test file '{rel}' could not be read: {ex}"
+            if curr_hash != orig_hash:
+                return False, f"Test file '{rel}' was modified (SHA-256 hash mismatch)"
+        for p in self.workspace.rglob("*"):
+            if p.is_file():
+                try:
+                    rel = p.relative_to(self.workspace).as_posix()
+                except ValueError:
+                    continue
+                if rel not in self.initial_test_hashes and is_any_test_path(rel):
+                    return False, f"New test file '{rel}' was created"
+        return True, ""
 
     def is_command_tampering(self, cmd_tokens: tuple[str, ...]) -> bool:
         if not cmd_tokens:
@@ -170,7 +219,69 @@ class TerminalSession:
 
     def execute_action(self, action: TerminalAction) -> TerminalObservation:
         """Executes an action under sandbox security policies and records the observation."""
+        # Immutable security invariant: test anti-tamper is always enforced first
+        if action.action_type == "patch" and is_any_test_path(action.path):
+            obs = TerminalObservation(
+                action_type="patch",
+                status="blocked",
+                reason="preset_test_immutable",
+                stderr=(
+                    f"Anti-tamper protection active: Modification of test files ({action.path}) is strictly prohibited "
+                    "across all languages (Python, Go, TypeScript/JavaScript, Rust, Ruby). Patch implementation files instead."
+                ),
+            )
+            self._record_step(action, obs, hexagram_code=40)
+            return obs
+
+        if action.action_type == "command" and self.is_command_tampering(action.command):
+            obs = TerminalObservation(
+                action_type="command",
+                status="blocked",
+                reason="preset_test_immutable",
+                stderr="Anti-tamper protection active: Shell commands modifying test files are forbidden across all languages.",
+            )
+            self._record_step(action, obs, hexagram_code=40)
+            return obs
+
+        # Approval gate policy check
+        if self.approval_mode == "strict" and action.action_type in {"patch", "command"}:
+            if self.execution_approval is not None:
+                if not self.execution_approval(action):
+                    self.blocked_approvals_count += 1
+                    obs = TerminalObservation(
+                        action_type=action.action_type,
+                        status="blocked",
+                        reason="approval_denied",
+                        stderr=f"Approval denied for {action.action_type}: rejected by execution_approval callback.",
+                    )
+                    self._record_step(action, obs, hexagram_code=39)
+                    return obs
+                self.approved_actions_count += 1
+            elif not self.auto_approved_for_eval:
+                self.blocked_approvals_count += 1
+                obs = TerminalObservation(
+                    action_type=action.action_type,
+                    status="blocked",
+                    reason="approval_required",
+                    stderr=f"Action '{action.action_type}' blocked: approval_mode is strict but no execution_approval callback provided.",
+                )
+                self._record_step(action, obs, hexagram_code=39)
+                return obs
+            else:
+                self.approved_actions_count += 1
+
         if action.action_type == "finish":
+            intact, tamper_reason = self.verify_test_files_integrity()
+            if not intact:
+                obs = TerminalObservation(
+                    action_type="finish",
+                    status="blocked",
+                    reason="preset_test_immutable",
+                    stderr=f"Cannot finish: {tamper_reason}. Test files are strictly immutable across all languages.",
+                )
+                self._record_step(action, obs, hexagram_code=40)
+                return obs
+
             has_modified = any(s.action.action_type == "patch" and s.observation.status == "ok" for s in self.steps)
             if self.require_modification and not has_modified:
                 obs = TerminalObservation(
@@ -322,6 +433,19 @@ class TerminalSession:
             res = tool.execute({"argv": list(action.command), "timeout_seconds": 60}, self.workspace)
             code = res.get("returncode")
             status = "ok" if code == 0 else "error"
+            intact, tamper_reason = self.verify_test_files_integrity()
+            if not intact:
+                return TerminalObservation(
+                    action_type="command",
+                    status="blocked",
+                    exit_code=code,
+                    reason="preset_test_immutable",
+                    stdout=res.get("stdout") or "",
+                    stderr=(
+                        f"Anti-tamper protection active: Command modified test files ({tamper_reason}). "
+                        "Test files are strictly immutable across all languages."
+                    ),
+                )
             return TerminalObservation(
                 action_type="command",
                 status=status,
@@ -418,10 +542,21 @@ def run_terminal_session(
     *,
     max_turns: int = 15,
     require_modification: bool = True,
+    approval_mode: str = "strict",
+    execution_approval: Callable[[TerminalAction], bool] | None = None,
+    auto_approved_for_eval: bool = False,
     on_step: Callable[[TerminalStep], None] | None = None,
 ) -> dict[str, Any]:
     """Runs a multi-turn open-ended terminal exploration loop until finish or turn exhaustion."""
-    session = TerminalSession(workspace, task, max_turns=max_turns, require_modification=require_modification)
+    session = TerminalSession(
+        workspace,
+        task,
+        max_turns=max_turns,
+        require_modification=require_modification,
+        approval_mode=approval_mode,
+        execution_approval=execution_approval,
+        auto_approved_for_eval=auto_approved_for_eval,
+    )
 
     for turn in range(max_turns):
         prompt = session.render_turn_prompt()
@@ -442,6 +577,10 @@ def run_terminal_session(
                 "error": str(last_provider_error),
                 "turns_completed": len(session.steps),
                 "steps": [s.to_dict() for s in session.steps],
+                "approval_mode": session.approval_mode,
+                "auto_approved_for_eval": session.auto_approved_for_eval,
+                "approved_actions_count": session.approved_actions_count,
+                "blocked_approvals_count": session.blocked_approvals_count,
             }
 
         # Parse JSON action from response
@@ -457,6 +596,22 @@ def run_terminal_session(
                 "explanation": session.finish_explanation,
                 "turns_completed": len(session.steps),
                 "steps": [s.to_dict() for s in session.steps],
+                "approval_mode": session.approval_mode,
+                "auto_approved_for_eval": session.auto_approved_for_eval,
+                "approved_actions_count": session.approved_actions_count,
+                "blocked_approvals_count": session.blocked_approvals_count,
+            }
+
+        if obs.reason == "preset_test_immutable":
+            return {
+                "status": "halted",
+                "reason": "preset_test_immutable",
+                "turns_completed": len(session.steps),
+                "steps": [s.to_dict() for s in session.steps],
+                "approval_mode": session.approval_mode,
+                "auto_approved_for_eval": session.auto_approved_for_eval,
+                "approved_actions_count": session.approved_actions_count,
+                "blocked_approvals_count": session.blocked_approvals_count,
             }
 
         if obs.status == "halted":
@@ -465,6 +620,10 @@ def run_terminal_session(
                 "reason": obs.reason or "stagnation_halt",
                 "turns_completed": len(session.steps),
                 "steps": [s.to_dict() for s in session.steps],
+                "approval_mode": session.approval_mode,
+                "auto_approved_for_eval": session.auto_approved_for_eval,
+                "approved_actions_count": session.approved_actions_count,
+                "blocked_approvals_count": session.blocked_approvals_count,
             }
 
     return {
@@ -472,6 +631,10 @@ def run_terminal_session(
         "reason": "turn_limit_exhausted",
         "turns_completed": len(session.steps),
         "steps": [s.to_dict() for s in session.steps],
+        "approval_mode": session.approval_mode,
+        "auto_approved_for_eval": session.auto_approved_for_eval,
+        "approved_actions_count": session.approved_actions_count,
+        "blocked_approvals_count": session.blocked_approvals_count,
     }
 
 

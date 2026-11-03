@@ -11,6 +11,7 @@ except ImportError:
 if textual is None:
     raise unittest.SkipTest("textual is not installed")
 
+from onecode import __version__
 from onecode.tui.app import (
     API_KEY_WARNING,
     DEFAULT_MODEL,
@@ -71,7 +72,7 @@ class TuiLayoutTests(unittest.TestCase):
             panel = WelcomePanel(app)
             text = str(panel.renderable)
 
-            self.assertIn("一字诀 OneWord v1.0.0", text)
+            self.assertIn(f"一字诀 OneWord v{__version__}", text)
             self.assertIn("test-model", text)
             self.assertIn("接入大模型", text)
             self.assertIn("状态: 未配置 API 密钥", text)

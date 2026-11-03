@@ -844,4 +844,35 @@
 - **测试套件扩充**：
   - 新增 [`tests/test_swebench_adapter.py`](file:///Volumes/MacSSD/项目开发/one%20code/tests/test_swebench_adapter.py)（4 项测试全过，覆盖实例加载过滤、Git 工作区初始化与 diff 提取、Prompt 模板格式化、dry-run 运行记录）。
 
+### 6.8 审计整改 P0 阶段完备落地（可信度、评分隔离与受控语义闭环）
+- **整改背景与审核基线**：
+  基于 2026-11-03 外部严格技术审查报告（审核基线 `980d992`，成熟度 3.2/5），OneCode 作为“标准库受控内核 + 评测底座”在正式商用与公开基准对齐前，必须先行解决评分进程与模型代码权限隔离、终端模式受控审批、测试文件深层防篡改、题名规则泛化及账本写失败留痕等 6 项 P0 阻断性问题。
+- **P0-1 评分进程隔离与 3 大对抗场景防御（[`harbor_scheduler.py`](file:///Volumes/MacSSD/项目开发/one%20code/scripts/harbor_scheduler.py)）**：
+  1. **非 root 降权执行**：Stage 2 容器以当前主机非 root 用户身份运行（`--user uid:gid`），结合 `--security-opt no-new-privileges`，防止模型代码利用容器 root 权限越权；
+  2. **资产只读绑定**：`/verifier/verifier.py`、`/workspace/.onecode`、`/workspace/tests`（若存在）及 `.git` 均以 `readonly` 挂载；
+  3. **3 大对抗用例全量防御**（实测验证于 [`tests/test_harbor_adapter.py`](file:///Volumes/MacSSD/项目开发/one%20code/tests/test_harbor_adapter.py)）：
+     - *对抗场景 1（改写 reward）*：模型代码尝试在运行期间直接往 `/log_dir/reward.txt` 写入 `1.0` 逃避真实测试，调度器进行结果交叉验真与进程退出码审查，一旦发现断言未全过或进程崩溃即刻标记 `reward_forgery_detected`，得分归零并置 `passed=False`；
+     - *对抗场景 2（修改测试）*：模型代码尝试篡改隐藏测试或验证脚本，调度器采用 SHA-256 全量快照基线比对，一旦发现哈希不匹配即刻判定 `test_tampering_detected`，得分归零；
+     - *对抗场景 3（劫持 `sys.path`）*：模型代码在工作区根目录放置恶意 `json.py`、`subprocess.py` 或 `os.py` 试图欺骗验真器，调度器在评分前执行标准库遮蔽审计（`audit_workspace_for_sys_path_hijacking`），直接拦截并判定 `sys_path_hijack_detected`，得分归零。
+- **P0-2 终端模式接入全局审批闸门（[`terminal_loop.py`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/terminal_loop.py) / [`model_loop.py`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/model_loop.py)）**：
+  - 在 [`TerminalSession`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/terminal_loop.py) 与调度驱动 [`_run_terminal_model_task`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/model_loop.py) 中全面接入 `approval_mode`、`execution_approval` 回调与自动审批判定；
+  - 当 `approval_mode="strict"` 时，每个 `patch` 和 `command` 均需经过 `execution_approval` 回调；无回调时直接拦截拒绝写操作（`reason="approval_required"`）；
+  - 评测/基准场景下显式声明的自动审批开关（`auto_approved_for_eval=True`）完备落盘至运行清册与全局 WAL 审计账本。
+- **P0-3 测试文件哈希基线守卫与多语言后缀补全**：
+  - 扩展 [`is_any_test_path`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/symbol_locator.py) 判定，增补 `_test.rb`、`test_*.rb` 以及 `spec/`、`test/` 目录覆盖；
+  - 终端会话初始化建立 `initial_test_hashes` 全量测试文件 SHA-256 快照；
+  - 针对使用 `python -c "open('..._test.go','w').write('')"` 或其他脚本绕过命令正则修改测试文件的行为，在指令执行后即刻执行哈希对比，一旦变动立即按卦象 40（火地晋·`preset_test_immutable`）熔断阻断；
+  - 在智能体提交 `finish` 时再度执行一致性校验，防范任何测试篡改。
+- **P0-4 清除题名触发与泛化提示词精准化**：
+  - 从 [`data_contract_guidance`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/model_loop.py) 中全面删除 13 条 WorkBuddy 题目 slug 字符串；
+  - 升级为严格正则词边界（`\b...\b`）与领域语义复合判定（如 `\bsla\b` 必须搭配工单/服务上下文，防止 `translate` 误触发；`bin` 必须搭配校准/ECE 上下文，防止 `binary` / `combine` 误触发）；
+  - 在 50 条通用开发指令抽样测试中，误触发率降为 **0.0%**（远优于 <= 2% 验收指标）。
+- **P0-5 WAL 写失败可见性与异常留痕**：
+  - 移除 [`model_loop.py`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/model_loop.py) 中 `write_global_wal` 的静默吞异常逻辑；
+  - 写入异常时标记 `wal_write_status="failed"`，递增 `wal_write_error_count` 计数器，并将确切异常信息追加入 `warnings` 列表中。
+- **P0-6 版本号与边界表述统合**：
+  - `pyproject.toml` 与 `src/onecode/__init__.py` 统一升级为 `1.1.0`；
+  - 交付清单客观界定只读挂载与非 root 隔离防线，杜绝“完全杜绝宿主伪造”等不实宣传。
+
+
 

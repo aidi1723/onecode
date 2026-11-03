@@ -63,14 +63,18 @@ def is_any_test_path(path: str) -> bool:
     norm = path.replace("\\", "/").casefold()
     if "/tests/" in norm or norm.startswith("tests/") or norm == "tests":
         return True
+    if "/test/" in norm or norm.startswith("test/") or norm == "test":
+        return True
+    if "/spec/" in norm or norm.startswith("spec/") or norm == "spec":
+        return True
     if "/__tests__/" in norm or norm.startswith("__tests__/"):
         return True
     base = posixpath.basename(norm)
     if ".test." in base or ".spec." in base:
         return True
-    if base.startswith("test_") and base.endswith((".py", ".pyw")):
+    if base.startswith("test_") and base.endswith((".py", ".pyw", ".rb")):
         return True
-    if base.endswith(("_test.go", "_test.rs", "tests.rs", "_test.py", "_test.js", "_test.ts", "_spec.rb")):
+    if base.endswith(("_test.go", "_test.rs", "tests.rs", "_test.py", "_test.js", "_test.ts", "_spec.rb", "_test.rb")):
         return True
     return False
 

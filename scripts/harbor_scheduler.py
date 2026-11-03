@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -27,6 +28,259 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
 CID_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+
+SHADOWED_STDLIB_MODULES = frozenset({
+    "json", "os", "sys", "subprocess", "pathlib", "shutil",
+    "unittest", "pytest", "io", "re", "time", "builtins", "site",
+})
+
+
+def audit_workspace_for_sys_path_hijacking(workspace: Path) -> list[str]:
+    """Audits workspace root for rogue files attempting to shadow standard library modules."""
+    violations: list[str] = []
+    if not workspace.is_dir():
+        return violations
+    for name in SHADOWED_STDLIB_MODULES:
+        for suffix in (".py", ".pyw", ".so"):
+            f = workspace / f"{name}{suffix}"
+            if f.is_file():
+                violations.append(f"Rogue standard library module shadowing '{f.name}' in workspace root")
+        pkg_dir = workspace / name
+        if pkg_dir.is_dir() and (pkg_dir / "__init__.py").is_file():
+            violations.append(f"Rogue package shadowing standard library '{name}' in workspace root")
+    return violations
+
+
+def snapshot_test_hashes(hidden_tests: Path, workspace_tests: Path | None = None) -> dict[str, str]:
+    """Takes a SHA-256 snapshot of all test files and verifier scripts."""
+    hashes: dict[str, str] = {}
+    if hidden_tests.is_dir():
+        for p in hidden_tests.rglob("*"):
+            if p.is_file():
+                try:
+                    rel = f"hidden_tests/{p.relative_to(hidden_tests).as_posix()}"
+                    hashes[rel] = hashlib.sha256(p.read_bytes()).hexdigest()
+                except OSError:
+                    pass
+    if workspace_tests and workspace_tests.is_dir():
+        for p in workspace_tests.rglob("*"):
+            if p.is_file():
+                try:
+                    rel = f"workspace_tests/{p.relative_to(workspace_tests).as_posix()}"
+                    hashes[rel] = hashlib.sha256(p.read_bytes()).hexdigest()
+                except OSError:
+                    pass
+    return hashes
+
+
+def verify_test_hashes(baseline: dict[str, str], hidden_tests: Path, workspace_tests: Path | None = None) -> tuple[bool, str]:
+    """Verifies that no test files have been modified or deleted."""
+    current = snapshot_test_hashes(hidden_tests, workspace_tests)
+    for rel, orig_hash in baseline.items():
+        if rel not in current:
+            return False, f"Test asset '{rel}' was deleted"
+        if current[rel] != orig_hash:
+            return False, f"Test asset '{rel}' was tampered with (SHA-256 mismatch)"
+    for rel in current:
+        if rel not in baseline:
+            return False, f"Unexpected test asset '{rel}' was created"
+    return True, ""
+
+
+def run_stage2_evaluation(
+    *,
+    task_id: str,
+    workspace: Path,
+    hidden_tests: Path,
+    log_dir: Path,
+    image: str = "python:3.12-slim-amd64",
+    timeout_seconds: float = 300.0,
+    cidfile: Path | None = None,
+    use_docker: bool = True,
+) -> dict[str, Any]:
+    """Executes containerized or sandboxed Stage 2 grading with strict anti-tamper and sys.path isolation."""
+    verifier_script = hidden_tests / "verifier.py"
+    if not verifier_script.is_file():
+        raise FileNotFoundError(f"Verifier script missing: {verifier_script}")
+
+    reward_txt_file = log_dir / "reward.txt"
+    reward_json_file = log_dir / "reward.json"
+
+    # Step 1: Pre-grading workspace audit for sys.path hijacking
+    sys_path_violations = audit_workspace_for_sys_path_hijacking(workspace)
+    if sys_path_violations:
+        violation_msg = "; ".join(sys_path_violations)
+        reward_txt_file.write_text("0.0\n", encoding="utf-8")
+        reward_json_file.write_text(json.dumps({
+            "overall": 0.0,
+            "test_pass_rate": 0.0,
+            "tests_passed": 0,
+            "tests_total": 1,
+            "test_status": "fail",
+            "security_violation": "sys_path_hijack_detected",
+            "detail": violation_msg,
+        }, indent=2), encoding="utf-8")
+        return {
+            "status": "failed",
+            "reason": "sys_path_hijack_detected",
+            "security_violation": "sys_path_hijack_detected",
+            "detail": violation_msg,
+            "host_reward": 0.0,
+            "passed": False,
+            "verifier_exit_code": 1,
+            "verifier_duration_s": 0.0,
+        }
+
+    # Step 2: Baseline test snapshot
+    ws_tests = workspace / "tests" if (workspace / "tests").is_dir() else None
+    baseline_hashes = snapshot_test_hashes(hidden_tests, ws_tests)
+
+    # Step 3: Clean log_dir before execution
+    if reward_txt_file.exists():
+        reward_txt_file.unlink()
+    if reward_json_file.exists():
+        reward_json_file.unlink()
+
+    (workspace / ".onecode").mkdir(parents=True, exist_ok=True)
+
+    t0_verifier = time.monotonic()
+    if use_docker:
+        if cidfile and cidfile.exists():
+            cidfile.unlink()
+        docker_cmd = [
+            "docker", "run", "--rm",
+            *(["--cidfile", str(cidfile)] if cidfile else []),
+            "--network", "none",
+            "--memory", "512m",
+            "--cpus", "1",
+            "--pids-limit", "256",
+            "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
+            "--security-opt", "no-new-privileges",
+            "--user", f"{os.getuid()}:{os.getgid()}",
+            "--mount", f"type=bind,src={workspace},dst=/workspace",
+            "--mount", f"type=bind,src={log_dir},dst=/log_dir",
+            "--mount", f"type=bind,src={verifier_script},dst=/verifier/verifier.py,readonly",
+            "--mount", f"type=bind,src={workspace / '.onecode'},dst=/workspace/.onecode,readonly",
+        ]
+        if ws_tests:
+            docker_cmd.extend(["--mount", f"type=bind,src={ws_tests},dst=/workspace/tests,readonly"])
+        for name in (".git", ".github"):
+            if (workspace / name).exists():
+                docker_cmd.extend(["--mount", f"type=bind,src={workspace / name},dst=/workspace/{name},readonly"])
+
+        docker_cmd.extend([
+            "--env", "WORKSPACE=/workspace",
+            "--env", "LOG_DIR=/log_dir",
+            "--env", "PYTHONSAFEPATH=1",
+            "--workdir", "/workspace",
+            image,
+            "python3", "/verifier/verifier.py",
+        ])
+        verifier_proc = subprocess.run(docker_cmd, capture_output=True, text=True, timeout=timeout_seconds)
+        returncode = verifier_proc.returncode
+    else:
+        # Host / direct execution for testing environments
+        env = {
+            **os.environ,
+            "WORKSPACE": str(workspace),
+            "LOG_DIR": str(log_dir),
+            "PYTHONSAFEPATH": "1",
+        }
+        verifier_proc = subprocess.run(
+            [sys.executable, str(verifier_script)],
+            cwd=str(workspace),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+        returncode = verifier_proc.returncode
+
+    verifier_duration = round(time.monotonic() - t0_verifier, 2)
+
+    # Step 4: Verify test hash integrity post-execution
+    intact, tamper_msg = verify_test_hashes(baseline_hashes, hidden_tests, ws_tests)
+    if not intact:
+        reward_txt_file.write_text("0.0\n", encoding="utf-8")
+        reward_json_file.write_text(json.dumps({
+            "overall": 0.0,
+            "test_pass_rate": 0.0,
+            "tests_passed": 0,
+            "tests_total": 1,
+            "test_status": "fail",
+            "security_violation": "test_tampering_detected",
+            "detail": tamper_msg,
+        }, indent=2), encoding="utf-8")
+        return {
+            "status": "failed",
+            "reason": "test_tampering_detected",
+            "security_violation": "test_tampering_detected",
+            "detail": tamper_msg,
+            "host_reward": 0.0,
+            "passed": False,
+            "verifier_exit_code": returncode,
+            "verifier_duration_s": verifier_duration,
+        }
+
+    # Step 5: Validate reward artifacts
+    if not reward_txt_file.is_file():
+        return {
+            "status": "failed",
+            "reason": "missing_reward_txt",
+            "host_reward": 0.0,
+            "passed": False,
+            "verifier_exit_code": returncode,
+            "verifier_duration_s": verifier_duration,
+        }
+
+    try:
+        reward = float(reward_txt_file.read_text(encoding="utf-8").strip())
+    except ValueError:
+        reward = 0.0
+
+    # Cross-validation against reward forgery
+    reward_detail: dict[str, Any] = {}
+    if reward_json_file.is_file():
+        try:
+            reward_detail = json.loads(reward_json_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    tests_list = reward_detail.get("tests", [])
+    has_failed_tests = any(not t.get("passed") for t in tests_list if isinstance(t, dict))
+    if (returncode != 0 and reward > 0.0) or (has_failed_tests and reward >= 1.0):
+        reward = 0.0
+        reward_txt_file.write_text("0.0\n", encoding="utf-8")
+        reward_detail["overall"] = 0.0
+        reward_detail["test_status"] = "fail"
+        reward_detail["security_violation"] = "reward_forgery_detected"
+        reward_json_file.write_text(json.dumps(reward_detail, indent=2), encoding="utf-8")
+        return {
+            "status": "failed",
+            "reason": "reward_forgery_detected",
+            "security_violation": "reward_forgery_detected",
+            "detail": "reward.txt claimed passing score but verifier tests failed or crashed",
+            "host_reward": 0.0,
+            "passed": False,
+            "verifier_exit_code": returncode,
+            "verifier_duration_s": verifier_duration,
+        }
+
+    tests_passed = reward_detail.get("tests_passed", 0)
+    tests_total = reward_detail.get("tests_total", 0)
+    passed = returncode == 0 and is_full_pass(reward)
+
+    return {
+        "status": "completed" if passed else "failed",
+        "reason": "full_pass" if passed else "tests_failed",
+        "host_reward": reward,
+        "tests_passed": tests_passed,
+        "tests_total": tests_total,
+        "passed": passed,
+        "verifier_exit_code": returncode,
+        "verifier_duration_s": verifier_duration,
+        "reward_detail": reward_detail,
+    }
 
 
 def run_scheduler_task(
@@ -131,72 +385,41 @@ def run_scheduler_task(
         )
 
     # Stage 2: Harbor Container Grading
-    print("[HARBOR SCHEDULER] Stage 2: Executing Docker verifier container...", flush=True)
-    verifier_script = hidden_tests / "verifier.py"
-    if not verifier_script.is_file():
-        raise FileNotFoundError(f"Verifier script missing: {verifier_script}")
+    print("[HARBOR SCHEDULER] Stage 2: Executing isolated verifier container...", flush=True)
+    stage2 = run_stage2_evaluation(
+        task_id=task_id,
+        workspace=workspace,
+        hidden_tests=hidden_tests,
+        log_dir=log_dir,
+        image=image,
+        timeout_seconds=timeout_seconds,
+        cidfile=cidfile,
+        use_docker=True,
+    )
 
-    # Ensure .onecode exists in workspace so Docker bind mount succeeds
-    (workspace / ".onecode").mkdir(parents=True, exist_ok=True)
-
-    docker_cmd = [
-        "docker", "run", "--rm",
-        "--cidfile", str(cidfile),
-        "--network", "none",
-        "--memory", "512m",
-        "--cpus", "1",
-        "--pids-limit", "256",
-        "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
-        "--security-opt", "no-new-privileges",
-        "--mount", f"type=bind,src={workspace},dst=/workspace",
-        "--mount", f"type=bind,src={log_dir},dst=/log_dir",
-        "--mount", f"type=bind,src={verifier_script},dst=/verifier/verifier.py,readonly",
-        "--mount", f"type=bind,src={workspace / '.onecode'},dst=/workspace/.onecode,readonly",
-        "--env", "WORKSPACE=/workspace",
-        "--env", "LOG_DIR=/log_dir",
-        "--env", "PYTHONSAFEPATH=1",
-        "--workdir", "/workspace",
-        image,
-        "python3", "/verifier/verifier.py",
-    ]
-
-    t0_verifier = time.monotonic()
-    verifier_proc = subprocess.run(docker_cmd, capture_output=True, text=True, timeout=timeout_seconds)
-    verifier_duration = round(time.monotonic() - t0_verifier, 2)
+    verifier_duration = stage2.get("verifier_duration_s", 0.0)
+    verifier_exit_code = stage2.get("verifier_exit_code", 1)
+    passed = stage2.get("passed", False)
+    reward = stage2.get("host_reward", 0.0)
+    tests_passed = stage2.get("tests_passed", 0)
+    tests_total = stage2.get("tests_total", 0)
 
     # Stage 3: Reconcile and inspect artifacts
-    if not cidfile.is_file():
-        raise FileNotFoundError(f"Docker failed to write --cidfile at {cidfile}")
-    cid = cidfile.read_text(encoding="utf-8").strip()
-    if not CID_PATTERN.match(cid):
-        raise ValueError(f"Invalid container CID written by docker: {cid!r}")
-
-    if not reward_txt_file.is_file():
-        raise FileNotFoundError(f"Container verifier failed to write reward.txt at {reward_txt_file}")
-    reward_raw = reward_txt_file.read_text(encoding="utf-8").strip()
-    try:
-        reward = float(reward_raw)
-    except ValueError as exc:
-        raise ValueError(f"Invalid reward.txt content: {reward_raw!r}") from exc
-
-    if not reward_json_file.is_file():
-        raise FileNotFoundError(f"Container verifier failed to write reward.json at {reward_json_file}")
-    try:
-        reward_detail = json.loads(reward_json_file.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"reward.json is not valid JSON at {reward_json_file}") from exc
-
-    tests_passed = reward_detail.get("tests_passed", 0)
-    tests_total = reward_detail.get("tests_total", 0)
-    passed = is_full_pass(reward)
+    cid = ""
+    if cidfile.is_file():
+        cid_candidate = cidfile.read_text(encoding="utf-8").strip()
+        if CID_PATTERN.match(cid_candidate):
+            cid = cid_candidate
 
     print(f"[HARBOR SCHEDULER VERIFIED] {task_id}:", flush=True)
     print(f"  Container CID:       {cid}", flush=True)
     print(f"  Reward (reward.txt): {reward} ({tests_passed}/{tests_total})", flush=True)
-    print(f"  Verifier Exit Code:  {verifier_proc.returncode}", flush=True)
+    print(f"  Verifier Exit Code:  {verifier_exit_code}", flush=True)
     print(f"  Adapter Time:        {adapter_duration}s", flush=True)
     print(f"  Verifier Time:       {verifier_duration}s", flush=True)
     print(f"  Full Pass:           {passed}", flush=True)
+    if stage2.get("security_violation"):
+        print(f"  Security Violation:  {stage2.get('security_violation')}: {stage2.get('detail')}", flush=True)
 
     report: dict[str, Any] = {
         "harbor": True,
@@ -216,7 +439,8 @@ def run_scheduler_task(
         "verifier_duration_s": verifier_duration,
         "total_duration_s": round(adapter_duration + verifier_duration, 2),
         "adapter_exit_code": adapter_proc.returncode,
-        "verifier_exit_code": verifier_proc.returncode,
+        "verifier_exit_code": verifier_exit_code,
+        "security_violation": stage2.get("security_violation"),
         "artifacts": {
             "container_cid": str(cidfile),
             "reward_txt": str(reward_txt_file),

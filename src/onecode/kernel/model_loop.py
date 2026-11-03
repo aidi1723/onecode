@@ -278,9 +278,11 @@ def narrow_plan_prompt(task: str, failure: dict[str, Any], written: list[str] | 
 def data_contract_guidance(task: str) -> str:
     task_lower = task.lower()
     rules: list[str] = []
-    if any(k in task_lower for k in ("invoice", "billing", "credit", "账单", "发票", "导出", "报表")) or (
-        any(k in task_lower for k in ("export", "table", "csv")) and any(k in task_lower for k in ("line", "lines", "order", "item", "customer"))
-    ):
+
+    def match(phrase_pat: str) -> bool:
+        return bool(re.search(rf"(?:^|[\s\-_])(?:{phrase_pat})(?:$|[\s\-_])", task_lower))
+
+    if match(r"invoices?|billing|credit[_\s-]+notes?") or any(k in task for k in ("账单", "发票")):
         rules.append(
             "For invoice line and tabular exports (Tianfu-Tianxiang Stamp & Command Contract 府相朝垣·印令昭明): "
             "write pure UTF-8 encoding (never use utf-8-sig or write UTF-8 BOM bytes); "
@@ -289,7 +291,7 @@ def data_contract_guidance(task: str) -> str:
             "format credits and negative adjustments distinctly as required; "
             "sort rows deterministically."
         )
-    if any(k in task_lower for k in ("hash", "hashing", "text_features", "哈希")):
+    if match(r"text[_\s-]+hashing|feature[_\s-]+hashing|hashing[_\s-]+vectorizer|hash[_\s-]+trick|deterministic[_\s-]+hash|hashlib") or "特征哈希" in task:
         rules.append(
             "For text or feature hashing: use hashlib (e.g. hashlib.md5 or hashlib.sha256) "
             "for deterministic hashing invariant across Python hash seeds, never built-in hash(); "
@@ -298,9 +300,7 @@ def data_contract_guidance(task: str) -> str:
             "output sparse features sorted by numeric bucket; "
             "handle empty or filtered-out inputs gracefully without unhandled exceptions."
         )
-    if any(k in task_lower for k in ("label_conflict", "label conflict", "conflict label", "conflict", "conflicts", "冲突", "标签")) and (
-        "label" in task_lower or "conflict" in task_lower or "冲突" in task_lower
-    ):
+    if match(r"label[_\s-]+conflicts?|conflicting[_\s-]+labels?|entity[_\s-]+resolution") or "标签冲突" in task:
         rules.append(
             "For label conflicts (Zhen-Kan Cleansing & Priority Contract 震坎涤瑕·权重定争): "
             "adhere to declared source priorities when resolving entity label conflicts; "
@@ -308,7 +308,7 @@ def data_contract_guidance(task: str) -> str:
             "separate valid consensus records from ambiguous or conflicting records into designated clean and rejected outputs; "
             "select the newest event timestamp when breaking ties within winning priority."
         )
-    if any(k in task_lower for k in ("winsorize", "winsorization", "outlier", "outliers", "截断", "异常值")):
+    if match(r"winsoriz\w*|outliers?[_\s-]+clipping|outlier[_\s-]+truncation|outlier[_\s-]+winsorize") or any(k in task for k in ("异常值截断", "缩尾")):
         rules.append(
             "For outlier winsorization (Tianliang-Tiantong Protective Imputation 荫福化解·补全与边界): "
             "clip values strictly at declared lower and upper bounds; "
@@ -317,9 +317,7 @@ def data_contract_guidance(task: str) -> str:
             "in tabular output, format whole numbers without trailing '.0' (e.g. '1' not '1.0'); "
             "generate accurate summary statistics of filled and clipped counts per numeric column."
         )
-    if any(k in task_lower for k in ("schema_drift", "schema drift", "drift", "schema", "漂移", "多余字段")) and (
-        "drift" in task_lower or "schema" in task_lower or "漂移" in task_lower
-    ):
+    if match(r"schema[_\s-]+drift|drift[_\s-]+detection") or any(k in task for k in ("模式漂移", "架构漂移")):
         rules.append(
             "For schema drift audit (Tianxiang Yintie · Audit Schema Contract 天相印绶·规范审计): "
             "validate each record systematically against declared schema definitions; "
@@ -328,73 +326,78 @@ def data_contract_guidance(task: str) -> str:
             "ensure nullable fields allowing null/None are not falsely flagged; "
             "preserve stable input row ordering in output."
         )
-    if any(k in task_lower for k in ("time_leakage", "time leakage", "leakage", "cutoff", "leak", "时间泄漏", "截止时间")):
+    if match(r"time[_\s-]+leakage|temporal[_\s-]+leakage|feature[_\s-]+leakage") or any(k in task for k in ("时间泄漏", "时序穿越")):
         rules.append(
             "For time leakage audit (Tianliang Canopy Audit 荫星照微·截止容限): "
             "verify that feature timestamps do not exceed configured cutoff times plus declared tolerance windows; "
             "partition clean training samples from time-leaking samples into designated clean and rejected outputs; "
             "preserve input ordering for clean records and record detailed leakage diagnostics."
         )
-    if any(k in task_lower for k in ("support_sla", "support sla", "sla", "ticket", "tickets", "工单")):
+    if match(r"support[_\s-]+sla|service[_\s-]+level[_\s-]+agreement") or (match(r"sla") and match(r"tickets?|support|customer[_\s-]+service")) or "工单履约" in task:
         rules.append(
             "For support SLA metrics (Tianxiang Inspection 督考巡历·工单履约): "
             "compute response and resolution times accurately against declared service level agreements (SLA thresholds); "
             "identify SLA misses consistently for overdue or missing responses; "
             "aggregate team-level performance metrics and round numerical averages appropriately."
         )
-    if any(k in task_lower for k in ("cross_categorical", "cross categorical", "cross_features", "交叉特征")):
+    if match(r"cross[_\s-]categorical|categorical[_\s-]+interactions?|feature[_\s-]+cross(?:es)?") or "交叉特征" in task:
         rules.append(
             "For cross categorical features: normalize categorical values by trimming and lowercasing; "
             "generate interaction cross-features deterministically; "
             "map categorical values to integer vocab IDs rather than copying raw strings."
         )
-    if any(k in task_lower for k in ("train_serve", "train_serve_parity", "train-serve", "parity", "serving", "一致性", "训练推断")):
+    if match(r"train[_\s-]serv(?:e|ing)[_\s-]+parity|training[_\s-]+serving[_\s-]+skew") or any(k in task for k in ("训练推断一致性", "训练服务一致性")):
         rules.append(
             "For train-serve parity: impute missing values consistently with defaults, "
             "compute normalization accurately across training and serving distributions, and respect inclusive boundary comparisons."
         )
-    if any(k in task_lower for k in ("window_aggregates", "window aggregates", "window", "aggregates", "rolling", "recency", "窗口", "聚合", "滑动")):
+    if match(r"rolling[_\s-]+window|sliding[_\s-]+window|window[_\s-]+aggregat\w*") or any(k in task for k in ("滑动窗口", "时间窗口聚合")):
         rules.append(
             "For window aggregates: compute event recency deltas relative to the anchor timestamp, "
             "handle zero-event entities cleanly with appropriate null or zero defaults, and preserve anchor reference time."
         )
-    if any(k in task_lower for k in ("calibration_bins", "calibration bins", "calibration", "ece", "bin", "bins", "校准", "校准桶")):
+    if match(r"expected[_\s-]+calibration[_\s-]+error|ece|calibration[_\s-]+bins?") or (match(r"calibrat\w*") and match(r"bins?|reliability[_\s-]+diagram")) or "校准桶" in task:
         rules.append(
             "For calibration bins and ECE: partition confidence scores into calibration bins, "
             "compute accuracy and calibration gaps per bin, handle empty bins cleanly with zero counts, "
             "and aggregate weighted Expected Calibration Error (ECE) across all bins."
         )
-    if any(k in task_lower for k in ("crash_in_local", "crash in local", "crash", "unbound", "local variable", "崩溃", "作用域")):
+    if match(r"(?:a[_\s-]+)?crash[_\s-]+in[_\s-]+local|unbound[_\s-]+local[_\s-]+variable|unboundlocalerror") or "未绑定局部变量" in task:
         rules.append(
             "For local crash and bug fixes: defensively guard against None, missing keys, and empty collections; "
             "ensure local variables are initialized across all conditional branches, preserve original exception types, "
             "and preserve existing package import structures and relative imports within packages to avoid circular import issues."
         )
-    if any(k in task_lower for k in ("envless", "envless_file_load", "file_load", "无环境", "环境变量")):
+    if match(r"envless[_\s-]+file[_\s-]+load|environment[_\s-]+fallback|zero[_\s-]+env[_\s-]+load") or "无环境" in task:
         rules.append(
             "For environment-less file loading: support loading configuration without environment prefix constraints, "
             "safely resolve relative and absolute paths with default search fallbacks when env vars are unset, "
             "and preserve default environment loading behaviors."
         )
-    if any(k in task_lower for k in ("uriref", "eliminate_uriref", "validation_to_eliminate", "uri_ref")):
+    if match(r"(?:validation[_\s-]+to[_\s-]+)?eliminate[_\s-]+uriref|uriref[_\s-]+validation|uri[_\s-]+reference"):
         rules.append(
             "For URI reference elimination and component validation: deeply validate URI components, "
             "and raise designated domain exception classes when components fail validation."
         )
-    if any(k in task_lower for k in ("filtered_relation", "queryset_arg", "relation_queryset")):
+    if match(r"filtered[_\s-]+relation|relation[_\s-]+queryset|queryset[_\s-]+filters?|filtered[_\s-]+relation[_\s-]+queryset[_\s-]+arg"):
         rules.append(
             "For filtered relations and querysets: preserve custom query arguments and kwargs without clobbering existing query filters or relation joins."
         )
-    if any(k in task_lower for k in ("sort", "order", "排", "顺序")) and not any("sort" in r for r in rules):
-        rules.append("Sort outputs deterministically by specified keys; preserve required row and column ordering.")
-    if any(k in task_lower for k in ("null", "nan", "missing", "empty", "zero", "空", "缺失", "零值")) and not any("missing" in r for r in rules):
-        rules.append("Explicitly handle missing values and empty groups/bins (e.g. fill with 0 or default values rather than omitting).")
-    if any(k in task_lower for k in ("threshold", "bound", "cutoff", "window", "阈值", "截止", "范围", "inclusive")) and not any("threshold" in r for r in rules):
-        rules.append("Respect boundary conditions carefully (check >= vs >, <= vs <, inclusive vs exclusive).")
-    if any(k in task_lower for k in ("schema", "column", "field", "gap", "字段", "列")) and not any("field" in r for r in rules):
-        rules.append("Match exact field names and output schema without extra or omitted columns.")
-    if any(k in task_lower for k in ("summary", "total", "合计", "汇总")) and not any("total" in r for r in rules):
-        rules.append("Include any requested summary, total, or aggregate rows.")
+
+    # General tabular contract rules apply ONLY when the task is working with datasets/tabular contracts
+    is_tabular_contract = bool(re.search(r"\b(dataset|dataframe|tabular|csv|table|records?|schema|jsonl)\b", task_lower) or any(c in task for c in ("数据集", "表格", "数据表", "字段", "数据清洗")))
+    if is_tabular_contract:
+        if match(r"sort|ordering|sorted") and not any("sort" in r for r in rules):
+            rules.append("Sort outputs deterministically by specified keys; preserve required row and column ordering.")
+        if match(r"null|nan|missing|empty|impute") and not any("missing" in r for r in rules):
+            rules.append("Explicitly handle missing values and empty groups/bins (e.g. fill with 0 or default values rather than omitting).")
+        if match(r"threshold|bound|cutoff|limits?|inclusive") and not any("threshold" in r for r in rules):
+            rules.append("Respect boundary conditions carefully (check >= vs >, <= vs <, inclusive vs exclusive).")
+        if match(r"schema|column|field|columns?|fields?") and not any("field" in r for r in rules):
+            rules.append("Match exact field names and output schema without extra or omitted columns.")
+        if match(r"summary|total|aggregate|aggregates?") and not any("total" in r for r in rules):
+            rules.append("Include any requested summary, total, or aggregate rows.")
+
     return (" " + " ".join(rules)) if rules else ""
 
 
@@ -2742,10 +2745,18 @@ def _run_terminal_model_task(
     on_turn: Callable[[dict[str, Any]], None] | None,
     resolved_model: str,
     http_timeout_seconds: float = 60.0,
+    approval_mode: str = "strict",
+    require_explicit_approval: bool = True,
+    execution_approval: Callable[[Any], bool] | None = None,
+    plan_approval: Callable[[Any], bool] | None = None,
 ) -> dict[str, Any]:
-    from onecode.kernel.terminal_loop import TerminalStep, run_terminal_session
+    from onecode.kernel.terminal_loop import TerminalAction, TerminalStep, run_terminal_session
 
     max_turns = max(10, max_repair_attempts * 3)
+    auto_approved_for_eval = (approval_mode == "scoped_auto") or (not require_explicit_approval and execution_approval is None)
+    term_approval_callback: Callable[[TerminalAction], bool] | None = None
+    if execution_approval is not None:
+        term_approval_callback = execution_approval
 
     if trace_path.exists():
         try:
@@ -2804,6 +2815,9 @@ def _run_terminal_model_task(
         workspace,
         adapted_provider,
         max_turns=max_turns,
+        approval_mode=approval_mode,
+        execution_approval=term_approval_callback,
+        auto_approved_for_eval=auto_approved_for_eval,
         on_step=on_step_callback,
     )
 
@@ -2842,6 +2856,10 @@ def _run_terminal_model_task(
         "trace_path": str(trace_path),
         "agent_mode": "terminal",
         "resolved_model": resolved_model,
+        "approval_mode": term_result.get("approval_mode", approval_mode),
+        "auto_approved_for_eval": term_result.get("auto_approved_for_eval", auto_approved_for_eval),
+        "approved_actions_count": term_result.get("approved_actions_count", 0),
+        "blocked_approvals_count": term_result.get("blocked_approvals_count", 0),
     }
 
     verified = _with_sandbox_tests(raw_result, workspace, sandbox_config)
@@ -2850,8 +2868,11 @@ def _run_terminal_model_task(
         try:
             from onecode.kernel.checkpoint import write_global_wal
             write_global_wal(model_context, verified)
-        except Exception:
-            pass
+            verified["wal_write_status"] = "ok"
+        except Exception as ex:
+            verified["wal_write_status"] = "failed"
+            verified["wal_write_error_count"] = verified.get("wal_write_error_count", 0) + 1
+            verified.setdefault("warnings", []).append(f"wal_write_failed: {type(ex).__name__}: {ex}")
 
     return verified
 
@@ -2906,6 +2927,10 @@ def run_model_task(
             on_turn=on_turn,
             resolved_model=resolved_model,
             http_timeout_seconds=http_timeout_seconds,
+            approval_mode=approval_mode,
+            require_explicit_approval=require_explicit_approval,
+            execution_approval=execution_approval,
+            plan_approval=plan_approval,
         )
     plan, failure, narrowed = _initial_model_plan(
         task=task,

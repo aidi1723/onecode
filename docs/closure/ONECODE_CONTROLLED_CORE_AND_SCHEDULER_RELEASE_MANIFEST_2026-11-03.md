@@ -3,8 +3,8 @@
 - **版本基线**：Git Commit [`4ea91f3`](https://github.com/aidi1723/onecode/commit/4ea91f3) on `main`
 - **封板日期**：2026-11-03
 - **运行环境支持**：macOS (Darwin arm64) & Linux (Ubuntu x86_64 / `n100` @ 10.0.0.184)
-- **依赖状态**：`pyproject.toml` 保持 `dependencies = []`（纯 Python 3.12+ 原生标准库实现，无外部第三方库依赖）
-- **全量门禁状态**：双端 31 项终端与适配器测试 100% 通过，本地全量 1,525+ 项测试无回归，`check_source_quality.py` 通过，`ruff` 全绿，`mypy` 114 个源文件 0 错误，`onecode doctor` 9/9 检查全部通过。
+- **依赖状态**：`pyproject.toml` 保持 `dependencies = []`（纯 Python 3.11+ 原生标准库实现，推荐 Python 3.12+，无外部第三方运行时依赖）
+- **全量门禁状态**：双端 31 项终端与适配器测试 100% 通过，本地全量 1,525+ 项测试无回归，`check_source_quality.py` 通过，`ruff` 全绿，`mypy` 检查 `src/`（110 个核心源文件）及评测适配器（共 114 个源文件）0 错误，`onecode doctor` 9/9 检查全部通过。
 
 ---
 
@@ -67,7 +67,7 @@
 | **`feature_pipeline-hard-cross_categorical`** | 4 步（精准 patch $\to$ 运行 CLI $\to$ 行内打印验证 $\to$ finish） | 25.21s | 1.43s | `2255af6aa306decc9ae63be1b3747873295f2555a880f243f0c64c243255f0bb` | `1.0` (3 字节) | **13/13 (100%)** |
 
 - **综合表现**：通过率 **2/2（100%）**，平均得分 **1.0000**，断言通过率 **26/26（100%）**；
-- **防伪与权属**：`container.cid` 由 Docker CLI 宿主权限生成（属主 `aidi:aidi`），`reward.txt` 与 `reward.json` 由容器内验真进程生成（属主 `root:root`），完全杜绝宿主伪造可能。
+- **防伪与权属**：`container.cid` 由 Docker CLI 宿主权限生成（属主 `aidi:aidi`），`reward.txt` 与 `reward.json` 由容器内独立验真进程生成。在只读挂载与非 root 隔离策略下，杜绝无特权代码对评测产物的直接写入；不保证防范宿主 root 权限或内核级逃逸攻击。
 
 ---
 
