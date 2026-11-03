@@ -83,6 +83,7 @@ def run_harbor_task(
     max_repairs: int = 4,
     timeout_seconds: float = 300.0,
     dry_run: bool = False,
+    agent_only: bool = False,
 ) -> dict[str, Any]:
     log_dir.mkdir(parents=True, exist_ok=True)
     archive = task_package / "environment" / "workspace.tar.gz"
@@ -133,8 +134,9 @@ def run_harbor_task(
             "duration_s": round(time.monotonic() - started_at, 2),
             "host_reward": 0.0,
         }
-        (log_dir / "reward.txt").write_text("0.0\n", encoding="utf-8")
-        (log_dir / "reward.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
+        if not agent_only:
+            (log_dir / "reward.txt").write_text("0.0\n", encoding="utf-8")
+            (log_dir / "reward.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
         return record
 
     extras = dict(prepared["extras"])
@@ -155,6 +157,27 @@ def run_harbor_task(
         http_timeout_seconds=effective_timeout,
         **extras,
     )
+
+    if agent_only:
+        record = {
+            "task_id": task_id,
+            "model": model,
+            "status": result.get("status"),
+            "reason": result.get("reason"),
+            "outcome_status_code": result.get("outcome_status_code") or result.get("global_status_code"),
+            "iching_status_code": result.get("iching_status_code"),
+            "repair_attempt_count": result.get("repair_attempt_count", 0),
+            "bureau_name": bureau.get("bureau_name"),
+            "bureau_turn_budget": bureau.get("turn_budget"),
+            "harbor": True,
+            "stage": "agent_completed",
+            "duration_s": round(time.monotonic() - started_at, 2),
+            "detail": str(result.get("detail") or result.get("reason") or "")[:300],
+        }
+        agent_meta = workspace / ".onecode" / "harbor_agent_manifest.json"
+        agent_meta.parent.mkdir(parents=True, exist_ok=True)
+        agent_meta.write_text(json.dumps(record, indent=2), encoding="utf-8")
+        return record
 
     host_reward = result.get("host_reward")
     if (host_reward is None or host_reward == "ungraded") and verifier.is_file():
@@ -205,6 +228,7 @@ def main() -> int:
     parser.add_argument("--key-file", type=Path, default=Path("/tmp/onecode_key_once"))
     parser.add_argument("--max-repairs", type=int, default=4)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--agent-only", action="store_true", default=os.environ.get("HARBOR_AGENT_ONLY") == "1", help="Execute agent solving only without generating final reward artifacts")
 
     args = parser.parse_args()
     if not args.task_id:
@@ -240,6 +264,7 @@ def main() -> int:
         api_key=api_key,
         max_repairs=args.max_repairs,
         dry_run=args.dry_run,
+        agent_only=args.agent_only,
     )
     print(json.dumps(record, indent=2))
     return 0

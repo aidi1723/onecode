@@ -580,6 +580,30 @@
   - **总执行耗时**：**283.44 秒**（相较 `kimi-k3` 的 898.82 秒提速 **3.17 倍**）；
   - **规范一致性**：所有 4 条记录模型均为 `deepseek-v4.1-flash`，镜像为 `python:3.12-slim-amd64`，`harbor` 字段严格为 `false`，4 个容器号全部为 64 位小写十六进制。
 
+### 4.25 Harbor 独立调度器接入与双题对账实测（`scripts/harbor_scheduler.py` 与 `results-harbor-scheduler.jsonl`）
+- **调度器与适配器架构权责分离**：
+  - **痛点与准入红线**：此前由 `scripts/harbor_adapter.py` 一体化执行时，评分文件（`reward.txt`、`reward.json`、`container.cid`）均在适配器进程末尾写盘。为达成严格的基准可对账性，必须证明**评分文件是由独立调度器与 Docker 验真容器原生生成，而非适配器自写自评**。
+  - **分层重构实现**：
+    1. **Agent 适配器（`scripts/harbor_adapter.py`）**：支持 `--agent-only` 模式（由 `HARBOR_AGENT_ONLY=1` 环境变量触发），仅负责工作区代码生成与补丁应用，写入工作区级元数据 `workspace/.onecode/harbor_agent_manifest.json`，**严禁触碰或创建 `log_dir` 下的任何评分凭证**；
+    2. **Harbor 调度器（`scripts/harbor_scheduler.py`）**：作为 Harbor Harness 调度主控，按 [`docs/closure/ONECODE_HARBOR_INTEGRATION_CONTRACT_2026-11-02.md`](ONECODE_HARBOR_INTEGRATION_CONTRACT_2026-11-02.md) 协议接管目录拓扑分配与全阶段调度。
+- **两阶段调度与真实验证流**：
+  - **Stage 1（Agent 求解）**：调度器注入 `HARBOR_*` 契约环境变量并调用适配器（`--agent-only`）。求解结束后，调度器核验 `log_dir` 处于洁净状态（`reward.txt`、`reward.json` 与 `container.cid` 均不存在）；
+  - **Stage 2（Docker 容器验真）**：调度器执行官方契约 `docker run --rm --cidfile ${log_dir}/container.cid`，挂载工作区、日志目录与只读 `verifier.py`：
+    - Docker 引擎 CLI 原生生成 64 位小写十六进制 `container.cid`（宿主用户权限）；
+    - 容器内 `root` 权限的 `python3 /verifier/verifier.py` 执行断言并原生写出 `reward.txt` 与 `reward.json`（文件属主为 `root:root`，明确排除了宿主适配器进程伪造的可能）。
+- **`support_sla` 与 `cross_categorical` 实测对账事实（`results-harbor-scheduler.jsonl`）**：
+  1. `data_reporting-hard-support_sla`：
+     - **奖励得分**：**1.0**（断言 13/13 全过）；
+     - **执行耗时**：适配器 46.16s，验真器 1.42s（总耗时 47.58s）；
+     - **容器指纹**：`9cade3254c625966f0e9565296ffff63e3f18256230bfd341697efc0f32784ac`；
+     - **状态与退出码**：`adapter_exit_code: 0`, `verifier_exit_code: 0`；
+  2. `feature_pipeline-hard-cross_categorical`：
+     - **奖励得分**：**1.0**（断言 13/13 全过）；
+     - **执行耗时**：适配器 32.66s，验真器 1.51s（总耗时 34.17s）；
+     - **容器指纹**：`19cb2f3fafed1e9c3efc50c036bf056093fb7c1ee29804196dd2d914ae3f85e8`；
+     - **状态与退出码**：`adapter_exit_code: 0`, `verifier_exit_code: 0`；
+  - **汇总指标**：2 题平均得分 **1.0000**，通过率 **2/2（100%）**，合法写入 `"harbor": true`，所有凭证真实可对账。
+
 ## 5. Phase V 终局总结与全量优化任务闭环宣告
 
 截至 2026-11-02，OneCode Phase V 开发路线图规划的所有核心工程与优化任务已**全部圆满达成并实现严密闭环**：
