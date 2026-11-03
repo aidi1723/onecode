@@ -40,6 +40,7 @@ def run_scheduler_task(
     image: str = "python:3.12-slim-amd64",
     timeout_seconds: float = 300.0,
     max_repairs: int = 4,
+    agent_mode: str = "classic",
 ) -> dict[str, Any]:
     task_package = (tasks_dir / task_id).resolve()
     if not task_package.is_dir():
@@ -80,6 +81,7 @@ def run_scheduler_task(
     env["HARBOR_IMAGE"] = image
     env["HARBOR_EVAL_MODE"] = "container"
     env["HARBOR_AGENT_ONLY"] = "1"
+    env["HARBOR_AGENT_MODE"] = agent_mode
     env["ONECODE_STREAM_CHAT"] = "1"
     env["ONECODE_MODEL"] = model
     env["ONECODE_ENDPOINT"] = endpoint
@@ -100,6 +102,7 @@ def run_scheduler_task(
         "--model", model,
         "--endpoint", endpoint,
         "--max-repairs", str(max_repairs),
+        "--agent-mode", agent_mode,
     ]
 
     t0_agent = time.monotonic()
@@ -198,6 +201,7 @@ def run_scheduler_task(
     report: dict[str, Any] = {
         "harbor": True,
         "task_id": task_id,
+        "agent_mode": agent_mode,
         "model": model,
         "scheduler": "onecode_harbor_scheduler_v1",
         "eval_mode": "container",
@@ -254,6 +258,12 @@ def main() -> int:
     parser.add_argument("--endpoint", type=str, default="https://happycoding.xyz/v1")
     parser.add_argument("--key-file", type=Path, default=Path("/tmp/onecode_happycoding_key"))
     parser.add_argument("--image", type=str, default="python:3.12-slim-amd64")
+    parser.add_argument(
+        "--agent-mode",
+        choices=["classic", "terminal"],
+        default=os.environ.get("HARBOR_AGENT_MODE", "classic"),
+        help="Agent loop architecture: classic (plan-repair) or terminal (interactive bash/read/patch)",
+    )
     parser.add_argument("--max-repairs", type=int, default=4)
     parser.add_argument("--timeout", type=float, default=300.0)
 
@@ -286,6 +296,7 @@ def main() -> int:
             image=args.image,
             timeout_seconds=args.timeout,
             max_repairs=args.max_repairs,
+            agent_mode=args.agent_mode,
         )
         all_reports.append(report)
         with open(summary_jsonl, "a", encoding="utf-8") as f:
