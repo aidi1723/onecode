@@ -1,9 +1,9 @@
-# OneCode v1.1 受控内核与全自主终端智能体全量交付封板清单 (Release Manifest v1.1)
+# OneCode v1.1 受控内核与终端模式交付封板清单 (Release Manifest v1.1)
 
-- **版本基线**：Git Commit [`13535d6`](https://github.com/aidi1723/onecode/commit/13535d6) on `main`
+- **版本基线**：Git Commit [`4ea91f3`](https://github.com/aidi1723/onecode/commit/4ea91f3) on `main`
 - **封板日期**：2026-11-03
 - **运行环境支持**：macOS (Darwin arm64) & Linux (Ubuntu x86_64 / `n100` @ 10.0.0.184)
-- **依赖状态**：`pyproject.toml` 保持 `dependencies = []`（纯 Python 3.12+ 原生标准库实现，零第三方依赖）
+- **依赖状态**：`pyproject.toml` 保持 `dependencies = []`（纯 Python 3.12+ 原生标准库实现，无外部第三方库依赖）
 - **全量门禁状态**：双端 31 项终端与适配器测试 100% 通过，本地全量 1,525+ 项测试无回归，`check_source_quality.py` 通过，`ruff` 全绿，`mypy` 114 个源文件 0 错误，`onecode doctor` 9/9 检查全部通过。
 
 ---
@@ -16,29 +16,33 @@
    - 具备只读探索、行号区间分页、防越界路径守卫（[`PathGuard`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/path_guard.py)）及受控模型自愈修复循环（[`model_loop.py`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/model_loop.py)）。
 2. **开放式全自主终端智能体循环 (Autonomous Terminal Agent Loop)**：
    - 规范实现于 [`src/onecode/kernel/terminal_loop.py`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/terminal_loop.py)，由 [`run_model_task`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/model_loop.py) 统一调度驱动（`--agent-mode terminal` / `agent_mode="terminal"`）；
-   - 具备命令执行、按需读码、精准外科打补丁、完结确认四项基础元动作交互能力；
-   - 拥有 4,000 字符最新观察窗口预算保障，杜绝小模型因信息缺失导致的盲目循环；
-   - 具备陀罗暗滞（`stagnation_loop`）守卫：连续 2 次相同报错命令或连续 3 次相同文件区间读取直接触发熔断预警；
-   - 设置未修改代码防提前完结守卫（`require_modification=True`），杜绝早衰与幻觉式完成；
-   - 具备 Docker 容器 bind mount dangling inode 断链自动销毁并重建的沙箱自愈机制。
-3. **跨语言全后缀测试防篡改与命令过滤体系 (Multi-Language Anti-Tamper System)**：
-   - 原生标准库判定器 [`is_any_test_path`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/symbol_locator.py#L57) 全面覆盖 Python（`tests/` 及任意深度 `test_*.py`）、Go（`*_test.go`）、TypeScript/JavaScript（`*.test.ts`, `*.spec.ts`, `__tests__/`）、Rust（`tests.rs`, `tests/*.rs`）、Ruby（`*_spec.rb`）；
-   - 终端补丁拦截全面纳管上述全语言测试文件，严禁修改任何测试断言；
-   - 危险命令拦截复合正则与参数词元深度拦截 `rm`、`unlink`、`truncate`、`shred`、`sed -i`、`>`、`>>`、`tee`、`cp`、`mv` 对测试文件的篡改；
-   - 严格保证只读命令（`cat`、`head`）与常规测试运行命令（`pytest`、`go test`、`cargo test`、`npm test`）零误报放行。
+   - 具备 `command`、`read_file`、`patch`、`finish` 四项基础动作交互能力；
+   - 观察结果预算保障：stdout、stderr、output 均截断至 4,000 字符；
+   - **终端循环三道防御闸门**：
+     1) 同一条失败命令会先执行两次，第三次相同请求在执行前停下，状态记录为 `halted`，原因记为 `stagnation_loop`；
+     2) 同一文件、同一行区间的读取，第三次相同请求停下，原因同样记为 `stagnation_loop`；
+     3) `require_modification` 默认开启（`True`），在还没有一次成功的 patch 时，`finish` 会返回 `unmodified_workspace`，易数卦象码记为 39（山天大畜），会话继续进行；成功的 `finish` 记为 63（乾为天）；
+   - **沙箱断链自愈机制**：[`src/onecode/kernel/sandbox.py`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/sandbox.py) 在 `docker exec` 输出中捕获到 `possible container breakout detected` 时，自动执行 `docker rm -f` 销毁旧容器并重新创建重试一次。
+3. **跨语言测试防篡改与命令过滤体系 (Multi-Language Anti-Tamper System)**：
+   - 原生标准库判定器 [`is_any_test_path`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/symbol_locator.py#L57) 识别 `tests/`、`__tests__/`、文件名中的 `.test.` 和 `.spec.`，以及 `_test.go`、`_test.rs`、`_test.py`、`_test.js`、`_test.ts`、`_spec.rb`（注：`foo_test.rb` 不在此后缀名单内）；
+   - 终端补丁拦截全面纳管上述测试文件，严禁修改测试断言；
+   - 危险命令拦截复合正则与参数词元深度拦截 `rm`、`unlink`、`truncate`、`shred`、`sed -i`、重定向（`>`、`>>`）、`tee`、`cp`、`mv`；
+   - 严格保证合法只读命令（`cat`、`head`）与常规测试运行命令（`pytest`、`go test`、`cargo test`、`npm test`）零误报放行。
 4. **跨语言符号索引与逆向调用链定位器 (Multi-Language Symbol Locator)**：
    - 原生标准库实现于 [`src/onecode/kernel/symbol_locator.py`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/symbol_locator.py) 与 [`src/onecode/kernel/symbol_parsers.py`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/symbol_parsers.py)；
-   - 覆盖 Python（AST 递归）、Go、TypeScript/JavaScript、Rust 四大主流语言，具备栈帧解析、相对导入穿透、测试作用域符号提取与非测试实现文件置顶能力。
+   - 覆盖 Python（AST 递归）、Go、TypeScript/JavaScript、Rust 四大语言，具备栈帧解析、相对导入穿透、测试作用域符号提取与非测试实现文件置顶能力。
 5. **Harbor 规范兼容评测适配器与独立调度器 (Harbor Harness Scheduler & Adapter)**：
    - 规范落地于 [`scripts/harbor_adapter.py`](file:///Volumes/MacSSD/项目开发/one%20code/scripts/harbor_adapter.py) 与 [`scripts/harbor_scheduler.py`](file:///Volumes/MacSSD/项目开发/one%20code/scripts/harbor_scheduler.py)；
    - 严格遵循 `ONECODE_HARBOR_INTEGRATION_CONTRACT_2026-11-02`，实现 Stage 1（Agent 求解）与 Stage 2（Docker 原生容器验真）权责彻底分离。
-6. **SWE-bench 官方标准预测集适配器与基准统合 (SWE-bench Adapter & WorkBuddy Suite)**：
-   - 规范落地于 [`scripts/swebench_adapter.py`](file:///Volumes/MacSSD/项目开发/one%20code/scripts/swebench_adapter.py)，原生输出符合官方打榜标准的 `predictions.jsonl`，具备直接打榜能力；
+6. **SWE-bench 预测集导出适配器与基准统合 (SWE-bench Predictions Adapter & WorkBuddy Suite)**：
+   - 规范落地于 [`scripts/swebench_adapter.py`](file:///Volumes/MacSSD/项目开发/one%20code/scripts/swebench_adapter.py)，原生将工作区 git diff 提取并写成带 `instance_id` 与 `model_patch` 的 `predictions.jsonl`，随附 4 项单元测试（含 dry-run）；
    - WorkBuddy 综合评测脚本 [`scripts/bench_workbuddy.py`](file:///Volumes/MacSSD/项目开发/one%20code/scripts/bench_workbuddy.py) 全面统合 `--agent-mode {classic,terminal}` 开关。
 
-### 1.2 边界与约束声明 (Boundary & Constraints)
-- **标准库纯粹性约束**：系统不引入任何重型第三方包（如 langchain, autogen, tree-sitter 等），所有解析、沙箱、调度与状态机全部运行在纯标准库之上；
-- **模型接口约束**：智能体执行依赖兼容 OpenAI 协议的模型接口（ChatCompletions / Responses API），生产打榜运行需提供有效 API Key 与对应算力端点。
+### 1.2 边界与非交付范围明确界定 (Non-Scope & Boundary)
+- **非“零漏洞”声明**：`pyproject.toml` 的 `dependencies = []` 保持为空，消除了第三方包引入的外部供应链依赖风险，但这绝不代表自身业务代码与边界处理存在“零漏洞”；
+- **非“SWE-bench 已可打榜”声明**：适配器能导出符合格式规范的 `predictions.jsonl`，但不代表 SWE-bench 官方打榜工作已经完成；官方 500 题的大规模 Docker 镜像拉取、环境构建与评测跑分**不在此次封板范围内**，当前仓库内亦不包含官方 500 题的评测日志；
+- **测试后缀已知边界**：Ruby 测试后缀当前仅覆盖 RSpec 规范的 `_spec.rb` 与 `.spec.`，Minitest 风格的 `foo_test.rb` 尚未纳入后缀判定；
+- **模型接口约束**：智能体执行依赖外部 OpenAI 兼容协议的模型接口，需宿主提供有效 API Key 与对应算力端点。
 
 ---
 
@@ -47,7 +51,7 @@
 1. **真实 Docker 沙箱验真**：
    - 验真进程严格在 `python:3.12-slim-amd64` 容器内运行，回传 64 位小写十六进制真实容器指纹；
    - 杜绝非 Docker 环境下的假验真，非 Harbor 场景严格维持 `"harbor": false`。
-2. **WorkBuddy 36 道 Hard 题目基准综合表现**：
+2. **WorkBuddy 36 道 Hard 题目基准表现**：
    - 在 `wb-bench-code-v1.0` 题库中全部 36 道具备独立验真器的 Hard 题目基准实测中：
      - **平均奖励得分**：**0.8474**；
      - **满分题数**：**21 道获得 1.0 满分**（满分率 58.3%）；
@@ -92,8 +96,8 @@
 ## 4. 易经数理与状态跃迁规范定义
 
 系统中统一定义的易数状态码规范（收录于手册与状态机）：
-- **63（乾为天）**：任务顺利完工，元亨利贞，成功状态；
-- **39（山天大畜）**：遭遇环境受阻或命令报错，刚健笃实，进入冷却或重试自愈；
+- **63（乾为天）**：任务顺利完工，元亨利贞，成功状态（如 `finish` 成功完工）；
+- **39（山天大畜）**：遭遇环境受阻、未修改代码提前完结拦截或命令报错，刚健笃实，进入冷却或重试自愈；
 - **40（火地晋）**：越界阻断、防篡改触发或停滞熔断，顺而丽大明，阻断违规操作；
 - **17（水雷屯）**：网络超时或连接等待，险而健，保存快照断点；
 - **21（水火既济）** / **20（水山蹇）** / **10（雷水解）**：备用辅助跃迁卦象。
@@ -117,12 +121,10 @@
 
 ## 6. 终审封板与交付结论 (Final Delivery Sign-Off)
 
-OneCode 项目在坚持纯 Python 原生标准库零三方依赖的架构底线下，现已完整打通：
-1. **周易六十四卦数理受控内核**；
-2. **开放式全自主终端智能体交互探索循环**；
-3. **跨语言符号逆向调用链溯源定位器**；
-4. **多语言全后缀测试防篡改安全防御网**；
-5. **Harbor Harness 独立调度两阶段容器验真闭环（Hard 题 100% 满分通过）**；
-6. **SWE-bench 官方标准预测集导出与基准统合工具链**。
+在已经完成实机实测与严格对账的技术边界内，OneCode v1.1 作为**标准库受控智能体内核**正式封板交付：
+1. **纯标准库受控内核**：零外部第三方依赖，周易六十四卦状态机控制流，全局 WAL 事务账本；
+2. **两道 Hard 题目的真实容器对账**：`support_sla` 与 `cross_categorical` 阶段 2 奖励 1.0、断言 13/13 全过、Docker 64 字节 CID 属主 `aidi:aidi`、容器奖励属主 `root:root`；
+3. **多语言符号定位实测样本**：Python AST 递归解析（`marshmallow` 实测第 1 名命中缺陷修复点）、Go/TS/Rust 多语言符号索引与跨栈帧调用链溯源；
+4. **预测文件导出器**：[`scripts/swebench_adapter.py`](file:///Volumes/MacSSD/项目开发/one%20code/scripts/swebench_adapter.py) 支持按标准格式输出 `predictions.jsonl`（随附 4 项测试含 dry-run）。
 
-全量单元测试、跨平台质量门禁与实机实测证明系统功能完备、鲁棒自愈、无安全逃逸漏洞。**OneCode v1.1 全量交付正式封板，同意验收交付！**
+**明确说明**：官方 500 题的大规模镜像拉取和跑分评测不在此版封板交付范围内。系统在已对账范围内指标真实、权属清晰、状态一致，**正式作为受控内核交付封板！**
