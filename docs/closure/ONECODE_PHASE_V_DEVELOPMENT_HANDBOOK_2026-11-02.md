@@ -645,7 +645,7 @@
   1. **数据契约与统一动作协议（[`TerminalAction`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/terminal_loop.py#L37-L86)、[`TerminalObservation`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/terminal_loop.py#L88-L108)、[`TerminalStep`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/terminal_loop.py#L111-L127)）**：
      - 标准化支持 4 类核心动作：`command`（沙箱内命令执行）、`read_file`（带行号区间安全分页与防越界）、`patch`（基于 `patch_text` 局部上下文精准替换）、`finish`（模型自主确认通过验证并完工交付）；
      - 具备多别名字段容错解析（`cmd`/`argv` $\to$ `command`, `reason` $\to$ `explanation`）；
-     - 易数状态映射：成功动作标注卦象 63（水火既济），命令报错标注 39（水山蹇），越界阻断与停滞熔断标注 40（火地晋/雷水解）。
+     - 易数状态映射：成功动作标注卦象 63（乾为天），命令报错标注 39（山天大畜），越界阻断与停滞熔断标注 40（火地晋）。
   2. **防篡改与安全全向隔离（Anti-Tamper & PathGuard）**：
      - **命令级防篡改拦截（`is_command_tampering`）**：严格拦截诸如 `rm tests/...`、`sed -i ... tests/`、`> tests/...`、`tee tests/...` 等试图修改测试文件的 shell 命令；
      - **补丁级防篡改拦截（`_handle_patch`）**：严格校验 `is_preset_test_path`，坚决禁止向 `tests/` 目录应用任何补丁，强制模型仅能修改 `src/` 等实现源码；

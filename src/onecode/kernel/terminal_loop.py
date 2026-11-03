@@ -112,7 +112,7 @@ class TerminalStep:
     turn_index: int
     action: TerminalAction
     observation: TerminalObservation
-    hexagram_code: int = 63  # 63: 既济, 39: 蹇, 40: 解
+    hexagram_code: int = 63  # 63: 乾为天, 39: 山天大畜, 40: 火地晋
     timestamp_ns: int = 0
 
     def to_dict(self) -> dict[str, Any]:
