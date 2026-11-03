@@ -784,4 +784,30 @@
     - **`reward.json`**：13/13 项全部通过（`test_status: pass`）；
     - 汇总条目写入 `results-harbor-scheduler.jsonl`，标志 OneCode 自主终端模式实测对账圆满成功。
 
+### 6.5 第二道 Hard 真实基准题双向对账实测（`feature_pipeline-hard-cross_categorical`）与终端双题全过闭环
+- **评测任务**：`feature_pipeline-hard-cross_categorical`（算法类目交叉特征流水线，包含 `app/cross_features.py`、`data/vocab.json`、`data/events.csv`、`docs/usage.md`）；
+- **任务目标**：修复类别特征流水线中的空值、大小写和未知组合行为：单字段先按 vocab 编码，`country/device` 与 `plan/channel` 交叉字段按 cross vocab 编码，未知/缺失值走默认桶（`__UNK__` / id 0），输出严格整型特征且无原始字段泄漏；
+- **调度执行命令**：
+  ```bash
+  python3 scripts/harbor_scheduler.py \
+    --tasks feature_pipeline-hard-cross_categorical \
+    --eval-dir /home/aidi/workbuddy-exam/harbor-scheduler-eval-terminal \
+    --model deepseek-v4.1-flash \
+    --endpoint https://happycoding.xyz/v1 \
+    --key-file /tmp/onecode_happycoding_key \
+    --agent-mode terminal
+  ```
+- **智能体执行轨迹（4 轮达成，乾为天·63）**：
+  - Turn 1 (`patch`)：基于提示词中的符号映射与目标文件预览，直接在 [`app/cross_features.py`](file:///home/aidi/workbuddy-exam/harbor-scheduler-eval-terminal/feature_pipeline-hard-cross_categorical/workspace/app/cross_features.py) 精准打补丁，一次性完成空值归一化（trim + lower）、单字段与交叉特征字典查找与默认桶回退；
+  - Turn 2 (`command`)：执行 `python app/cross_features.py --data data --out /tmp/cross_features.jsonl`，返回码为 0，成功生成输出文件；
+  - Turn 3 (`command`)：执行 Python 单行命令 `python -c "import json;print(json.dumps([json.loads(l) for l in open('/tmp/cross_features.jsonl')],indent=1))"`，自主校验生成的 4 条样本记录（验证 u1~u4 的已知特征、交叉组合、未知回退与全空行表现）；
+  - Turn 4 (`finish`)：输出详尽修复说明并终结终端循环（`outcome_status_code: 0`, `iching_status_code: 63` 乾为天）；
+- **实机对账凭证与双节点真实验真（`n100` 节点）**：
+  - **Stage 1 Agent 耗时**：25.21 秒（工作区清册记录 `duration_s: 24.39`，`repair_attempt_count: 1`）；
+  - **Stage 2 Docker 独立验真耗时**：1.43 秒；
+  - **容器指纹 `container.cid`**：`2255af6aa306decc9ae63be1b3747873295f2555a880f243f0c64c243255f0bb`（64 字节真实十六进制，宿主用户权限）；
+  - **评分文本 `reward.txt`**：`1.0`（3 字节，由 Docker 容器内 `root:root` 原生写出）；
+  - **断言详情 `reward.json`**：13/13 项全部通过（100%，`test_status: "pass"`）；
+  - **双题终端汇总**：Harbor 调度器终端模式两道 Hard 题目全部满分通过，平均得分 **1.0000**，总通过率 **2/2（100%）**。
+
 
