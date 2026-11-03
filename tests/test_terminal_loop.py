@@ -202,8 +202,34 @@ class TestTerminalSessionExecution(unittest.TestCase):
             self.assertEqual(obs3.status, "halted")
             self.assertEqual(obs3.reason, "stagnation_loop")
 
+    def test_read_stagnation_detection(self) -> None:
+        act = TerminalAction(action_type="read_file", path="src/app.py", start_line=1, end_line=10)
+        obs1 = self.session.execute_action(act)
+        self.assertEqual(obs1.status, "ok")
+
+        obs2 = self.session.execute_action(act)
+        self.assertEqual(obs2.status, "ok")
+
+        obs3 = self.session.execute_action(act)
+        self.assertEqual(obs3.status, "halted")
+        self.assertEqual(obs3.reason, "stagnation_loop")
+        self.assertIn("陀罗暗滞", obs3.stderr)
+
     def test_finish_action(self) -> None:
         act = TerminalAction(action_type="finish", explanation="All tests pass successfully.")
+        obs_blocked = self.session.execute_action(act)
+        self.assertEqual(obs_blocked.status, "error")
+        self.assertEqual(obs_blocked.reason, "unmodified_workspace")
+        self.assertFalse(self.session.is_finished)
+
+        patch_act = TerminalAction(
+            action_type="patch",
+            path="src/app.py",
+            search_block="return 41",
+            replace_block="return 42",
+        )
+        self.session.execute_action(patch_act)
+
         obs = self.session.execute_action(act)
         self.assertEqual(obs.status, "ok")
         self.assertTrue(self.session.is_finished)
@@ -392,12 +418,19 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
         from onecode.kernel.model_loop import run_model_task
 
         responses = [
-            json.dumps({"action_type": "finish", "explanation": "No change needed"}),
+            json.dumps({"action_type": "patch", "path": "src/target.py", "search_block": "x = 10", "replace_block": "x = 30"}),
+            json.dumps({"action_type": "finish", "explanation": "Target updated to 30"}),
         ]
 
-        class SimpleProvider:
+        class SequenceProvider:
+            def __init__(self, resps: list[str]) -> None:
+                self.resps = resps
+                self.idx = 0
+
             def complete(self, prompt: str, **kwargs: object) -> str:
-                return responses[0]
+                res = self.resps[self.idx]
+                self.idx += 1
+                return res
 
         old_env = os.environ.get("ONECODE_AGENT_MODE")
         try:
@@ -408,7 +441,7 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
                 run_id="test-term-env",
                 api_key="mock-key",
                 agent_mode="classic",
-                provider=SimpleProvider(),
+                provider=SequenceProvider(responses),
             )
             self.assertEqual(result["status"], "completed")
             self.assertEqual(result["agent_mode"], "terminal")

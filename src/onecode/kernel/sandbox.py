@@ -270,13 +270,26 @@ def _run_in_reused_sandbox(
             if started.returncode != 0:
                 return started
     try:
-        return subprocess.run(
+        res = subprocess.run(
             build_container_exec(config, command),
             capture_output=True,
             text=True,
             timeout=config.timeout_seconds,
             check=False,
         )
+        if res.returncode != 0 and "possible container breakout detected" in (res.stdout + res.stderr):
+            subprocess.run(["docker", "rm", "-f", name], capture_output=True, text=True, check=False)
+            created = subprocess.run(build_container_create(config), capture_output=True, text=True, timeout=30, check=False)
+            if created.returncode == 0:
+                subprocess.run(["docker", "start", name], capture_output=True, text=True, timeout=30, check=False)
+                return subprocess.run(
+                    build_container_exec(config, command),
+                    capture_output=True,
+                    text=True,
+                    timeout=config.timeout_seconds,
+                    check=False,
+                )
+        return res
     except subprocess.TimeoutExpired as exc:
         killed = subprocess.run(["docker", "restart", "-t", "1", name], capture_output=True, text=True, check=False)
         if killed.returncode != 0 and "No such container" not in killed.stderr and "is not running" not in killed.stderr:

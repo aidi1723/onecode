@@ -2747,6 +2747,12 @@ def _run_terminal_model_task(
 
     max_turns = max(10, max_repair_attempts * 3)
 
+    if trace_path.exists():
+        try:
+            trace_path.unlink()
+        except OSError:
+            pass
+
     class _TerminalProviderAdapter:
         def __init__(self, inner: Any, model: str, timeout: float) -> None:
             self.inner = inner
@@ -2821,6 +2827,8 @@ def _run_terminal_model_task(
     raw_result: dict[str, Any] = {
         "status": status,
         "reason": reason,
+        "detail": term_result.get("error") or reason,
+        "error": term_result.get("error"),
         "outcome_status_code": outcome_status_code,
         "iching_status_code": iching_code,
         "global_status_code": outcome_status_code,

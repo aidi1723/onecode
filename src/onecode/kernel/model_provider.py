@@ -982,7 +982,10 @@ def _chat_message_text(payload: dict[str, Any]) -> str:
     message = choices[0].get("message")
     content = _message_text(message.get("content")) if isinstance(message, dict) else None
     if not isinstance(content, str) or content.strip() == "":
-        raise ModelProviderError("missing chat completion message content")
+        if isinstance(message, dict) and isinstance(message.get("reasoning_content"), str) and message["reasoning_content"].strip():
+            content = message["reasoning_content"]
+        else:
+            raise ModelProviderError("missing chat completion message content")
     return content
 
 

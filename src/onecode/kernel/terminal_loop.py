@@ -135,16 +135,20 @@ class TerminalSession:
         *,
         max_turns: int = 15,
         tool_registry: ToolRegistry | None = None,
+        require_modification: bool = True,
     ) -> None:
         self.workspace = workspace.resolve()
         self.task = task
         self.max_turns = max_turns
         self.tool_registry = tool_registry or default_tool_registry()
+        self.require_modification = require_modification
         self.steps: list[TerminalStep] = []
         self.is_finished = False
         self.finish_explanation = ""
         self.last_command_signature = ""
         self.consecutive_stalls = 0
+        self.last_read_signature = ""
+        self.consecutive_read_stalls = 0
 
     def is_command_tampering(self, cmd_tokens: tuple[str, ...]) -> bool:
         cmd_str = " ".join(cmd_tokens)
@@ -153,6 +157,16 @@ class TerminalSession:
     def execute_action(self, action: TerminalAction) -> TerminalObservation:
         """Executes an action under sandbox security policies and records the observation."""
         if action.action_type == "finish":
+            has_modified = any(s.action.action_type == "patch" and s.observation.status == "ok" for s in self.steps)
+            if self.require_modification and not has_modified:
+                obs = TerminalObservation(
+                    action_type="finish",
+                    status="error",
+                    reason="unmodified_workspace",
+                    stderr="Cannot finish: no implementation files have been modified or patched yet. First inspect files, apply patches, and verify.",
+                )
+                self._record_step(action, obs, hexagram_code=39)
+                return obs
             self.is_finished = True
             self.finish_explanation = action.explanation or "Task completed by agent."
             obs = TerminalObservation(
@@ -164,18 +178,26 @@ class TerminalSession:
             return obs
 
         if action.action_type == "patch":
+            self.last_command_signature = ""
+            self.consecutive_stalls = 0
+            self.last_read_signature = ""
+            self.consecutive_read_stalls = 0
             obs = self._handle_patch(action)
             hex_code = 63 if obs.status == "ok" else 39
             self._record_step(action, obs, hexagram_code=hex_code)
             return obs
 
         if action.action_type == "read_file":
+            self.last_command_signature = ""
+            self.consecutive_stalls = 0
             obs = self._handle_read_file(action)
-            hex_code = 63 if obs.status == "ok" else 40
+            hex_code = 63 if obs.status == "ok" else (40 if obs.status in {"blocked", "halted"} else 39)
             self._record_step(action, obs, hexagram_code=hex_code)
             return obs
 
         if action.action_type == "command":
+            self.last_read_signature = ""
+            self.consecutive_read_stalls = 0
             obs = self._handle_command(action)
             hex_code = 63 if obs.status == "ok" else (40 if obs.status == "blocked" else 39)
             self._record_step(action, obs, hexagram_code=hex_code)
@@ -226,6 +248,19 @@ class TerminalSession:
         target = self.workspace / action.path
         if not target.is_file():
             return TerminalObservation(action_type="read_file", status="error", reason="file_not_found", stderr=f"File '{action.path}' does not exist.")
+        read_sig = f"{action.path}:{action.start_line or 1}:{action.end_line or 0}"
+        if read_sig == self.last_read_signature:
+            self.consecutive_read_stalls += 1
+            if self.consecutive_read_stalls >= 2:
+                return TerminalObservation(
+                    action_type="read_file",
+                    status="halted",
+                    reason="stagnation_loop",
+                    stderr=f"Stagnation warning (陀罗暗滞·化权破滞): Detected identical repeated read of '{action.path}'. Do not repeat the same read; run verification tests with 'command' or submit 'finish'.",
+                )
+        else:
+            self.last_read_signature = read_sig
+            self.consecutive_read_stalls = 0
         try:
             lines = target.read_text(encoding="utf-8").splitlines()
             total_lines = len(lines)
@@ -327,25 +362,32 @@ class TerminalSession:
                                 f"(lines {loc.line_start}-{loc.line_end}, confidence {loc.confidence:.2f}). Reason: {loc.reason}"
                             )
 
+        has_applied_patch = any(s.action.action_type == "patch" and s.observation.status == "ok" for s in self.steps)
+        if has_applied_patch:
+            sections.append("")
+            sections.append("Status Directive: You have already applied a code patch. Avoid redundant re-reading of the same file. Proceed to run verification tests with 'command' or submit 'finish' to complete the task.")
+
         if self.steps:
             sections.append("")
             sections.append("Execution History:")
-            for s in self.steps[-6:]:
+            for i, s in enumerate(self.steps[-6:]):
+                is_latest = (i == len(self.steps[-6:]) - 1)
                 act = s.action
                 obs = s.observation
                 sections.append(f"Turn {s.turn_index}: Action={act.action_type} Status={obs.status}")
                 if act.action_type == "command":
                     sections.append(f"  Command: {' '.join(act.command)} (exit_code={obs.exit_code})")
                     if obs.stdout:
-                        sections.append(f"  Stdout tail: {obs.stdout[-600:].strip()}")
+                        sections.append(f"  Stdout tail: {obs.stdout[-1200:].strip()}")
                     if obs.stderr:
-                        sections.append(f"  Stderr tail: {obs.stderr[-600:].strip()}")
+                        sections.append(f"  Stderr tail: {obs.stderr[-1200:].strip()}")
                 elif act.action_type == "patch":
                     sections.append(f"  Patch path={act.path} result={obs.output or obs.stderr}")
                 elif act.action_type == "read_file":
                     sections.append(f"  Read {act.path}")
                     if obs.output:
-                        sections.append(f"  Snippet:\n{obs.output[:600]}")
+                        preview_limit = 4000 if is_latest else 400
+                        sections.append(f"  Content:\n{obs.output[:preview_limit]}")
 
         sections.append("")
         sections.append("Respond with a single JSON object containing your next action.")
@@ -358,21 +400,29 @@ def run_terminal_session(
     provider: Any,
     *,
     max_turns: int = 15,
+    require_modification: bool = True,
     on_step: Callable[[TerminalStep], None] | None = None,
 ) -> dict[str, Any]:
     """Runs a multi-turn open-ended terminal exploration loop until finish or turn exhaustion."""
-    session = TerminalSession(workspace, task, max_turns=max_turns)
+    session = TerminalSession(workspace, task, max_turns=max_turns, require_modification=require_modification)
 
     for turn in range(max_turns):
         prompt = session.render_turn_prompt()
-        try:
-            # Model call (OpenAIChatCompletionsProvider or compatible)
-            response_text = provider.complete(prompt) if hasattr(provider, "complete") else str(provider(prompt))
-        except Exception as ex:
+        response_text: str | None = None
+        last_provider_error: Exception | None = None
+        for attempt in range(2):
+            try:
+                response_text = provider.complete(prompt) if hasattr(provider, "complete") else str(provider(prompt))
+                break
+            except Exception as ex:
+                last_provider_error = ex
+                if attempt == 0:
+                    time.sleep(1.0)
+        if response_text is None:
             return {
                 "status": "halted",
                 "reason": "provider_error",
-                "error": str(ex),
+                "error": str(last_provider_error),
                 "turns_completed": len(session.steps),
                 "steps": [s.to_dict() for s in session.steps],
             }

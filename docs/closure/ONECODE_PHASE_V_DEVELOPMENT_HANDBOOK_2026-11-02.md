@@ -756,13 +756,32 @@
     --key-file /tmp/onecode_happycoding_key \
     --agent-mode terminal
   ```
-- **实测分阶段与对账指标**：
-  - **阶段 1（智能体自主交互）**：43.43 秒，终端智能体自主执行 `read_file` 探查 `app/report.py` 与数据结构，生成高精度 `patch` 精准重写实现逻辑，多轮自检后完成；
-  - **阶段 2（Docker 沙箱独立验真）**：1.42 秒，调度器调用官方 Docker 镜像执行独立 `verifier.py`；
-  - **容器指纹与产物验证**：
-    - `container.cid`: `0095bcc2647ca5a1ef12f389330007893dbab35335a124f3d0f4d400d9f0bcd1`（Docker `--cidfile` 官方写入）；
-    - `reward.txt`: `1.0`（3 字节）；
-    - `reward.json`: 13/13 项全部通过（`test_status: pass`）；
-    - 汇总条目自动写入 `results-harbor-scheduler.jsonl`，标注 `"agent_mode": "terminal"` 与 `"harbor": true`。
+- **首轮实测分析与缺陷归因**：
+  - 首轮实测中，智能体在第 2 步即成功打上 100% 正确的补丁，但随后在第 3 至第 12 步重复执行 `read_file` 直至 12 轮耗尽退出；
+  - **根本原因**：
+    1. `render_turn_prompt()` 历史记录对 `read_file` 观察内容施加了过于严苛的 600 字符截断（仅约 15 行），导致模型反复认为“尚未看全完整文件”，进而不断重试读取；
+    2. 陀罗暗滞（`stagnation_loop`）原先仅挂载在 `command` 执行失败上，未覆盖完全相同的重复 `read_file`；
+    3. 未设置“未修改代码禁止提前 finish”的防御守卫。
+- **架构级加固与自愈机制落地**：
+  1. **观察窗口放宽**：在 `render_turn_prompt` 中对最新一步 `read_file` 观察结果放宽至 4,000 字符预览（与 OneCode 全局预览预算对齐），历史步骤维持紧凑摘要；
+  2. **读取防暗滞守卫**：在 [`_handle_read_file`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/terminal_loop.py#L236-L255) 中引入 `last_read_signature` 追踪，连续 3 次相同路径与行区间的读取直接触发 `stagnation_loop`；
+  3. **未修改禁止完结**：设置 `require_modification=True`，严禁在未成功应用任何 `patch` 前提前提交 `finish`；
+  4. **沙箱绑定自愈**：在 [`src/onecode/kernel/sandbox.py`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/sandbox.py#L272-L290) 中，针对宿主机重置目录导致的 `possible container breakout detected`（dangling bind-mount inode）引入自动销毁并重建容器的自愈机制；
+  5. **模型 Provider 容灾**：加入 1 次指数退避重试，并兼容 DeepSeek 系列模型将输出置于 `reasoning_content` 的解析路径。
+- **次轮实测终局验证（完美自主闭环）**：
+  - **智能体执行轨迹（6 轮达成，乾为天·63）**：
+    - Turn 1 (`command`)：自主探索工作区文件结构（`ls` / `find`）；
+    - Turn 2 (`read_file`)：精读 `tests/test_smoke.py` 明确指标断言与数据格式；
+    - Turn 3 (`patch`)：对 `app/report.py` 执行外科手术式打补丁，一次性正确实现所有 SLA 指标与团队分组聚合；
+    - Turn 4 (`command`)：自主运行 CLI 脚本发现参数格式错误；
+    - Turn 5 (`command`)：调整参数重新运行 CLI 验证输出 JSON 符合预期；
+    - Turn 6 (`finish`)：输出完结摘要，圆满达成任务！
+  - **实测指标与产物对账**：
+    - **Stage 1 智能体耗时**：46.59 秒，`harbor_agent_manifest.json` 记录 `status: "completed"`, `outcome_status_code: 0`, `iching_status_code: 63`（乾为天）, `repair_attempt_count: 1`；
+    - **Stage 2 Docker 容器独立验真**：1.43 秒；
+    - **容器指纹 `container.cid`**：`438282cf865b90c801cb113dccdc15ea63e03e01125f58a7ffed084f8b4c5187`（64 字节纯十六进制）；
+    - **`reward.txt`**：`1.0`（3 字节，满分通过）；
+    - **`reward.json`**：13/13 项全部通过（`test_status: pass`）；
+    - 汇总条目写入 `results-harbor-scheduler.jsonl`，标志 OneCode 自主终端模式实测对账圆满成功。
 
 
