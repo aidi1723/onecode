@@ -662,6 +662,34 @@
   - 本地与 `n100` 节点测试通过率保持 100%（**244/244 项全量通过**，本地用时 8.171s，`n100` 用时 28.282s）；
   - `scripts/check_source_quality.py src`、`ruff check`、`mypy`（109 个源文件 0 错误）与 `onecode doctor`（`status: ok`）双端全绿。
 
+### 4.28 Phase VI Step 3：多语言符号与调用链定位器扩展（Go、TypeScript/JavaScript、Rust）
+- **面向场景与多语言扩展挑战**：
+  在 SWE-bench 演进与真实混合多语言仓库（Go、TypeScript/Node、Rust）中，智能体同样面临定位缺陷源文件的挑战。各种语言的异常栈格式、语法组织结构与包导入关系各不相同，且严苛要求保持零外部依赖（`dependencies = []`），不可引入复杂的第三方重量级 AST 解析器。
+- **纯标准库零外部依赖设计与模块落地（[`src/onecode/kernel/symbol_parsers.py`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/symbol_parsers.py)）**：
+  1. **Go 符号扫描器（[`GoSymbolScanner`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/symbol_parsers.py#L58-L120)）**：
+     - 精准提取 Go 顶层函数、带接收者的方法（`func (s *Receiver) Method`）、结构体与接口（`type Name struct/interface`）；
+     - 支持单行导入与括号多行导入块（`import (...)`）的模块与别名解析；
+     - 基于花括号嵌套状态机自动计算函数与类型定义的起止行区间。
+  2. **TypeScript / JavaScript 扫描器（[`TypeScriptSymbolScanner`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/symbol_parsers.py#L143-L270)）**：
+     - 解析类定义及类内部成员方法；
+     - 解析具名导出函数、默认函数与带返回类型注解的箭头函数（`const fn = (...): Type =>`）；
+     - 支持接口与类型别名声明；
+     - 解析解构导入（`import { a as b } from "..."`）、默认导入与全量别名导入（`import * as x`）。
+  3. **Rust 符号扫描器（[`RustSymbolScanner`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/symbol_parsers.py#L291-L370)）**：
+     - 解析顶层函数、`struct`、`enum`、`trait`；
+     - 识别 `impl Type` 块，将块内 `fn` 方法映射至关联类型；
+     - 解析 `use crate::...::{...};` 模块依赖树。
+  4. **跨语言执行栈帧与 Panic 捕获器（[`MultiLangFrameParser`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/symbol_parsers.py#L400-L499)）**：
+     - **Go**：捕获 panic 堆栈帧（`\tpath/file.go:line +0x...`）及 `go test` 失败行（`file_test.go:line:`），并关联前序函数签名；
+     - **TypeScript / JS**：捕获 Node/V8/Jest/Vitest 调用栈帧（`at Class.method (path/file.ts:line:col)`）；
+     - **Rust**：捕获 `thread panicked at '...', path.rs:line:col` 及 `cargo test` 回溯栈帧。
+  5. **全向防篡改与多语言测试路径判定（[`is_any_test_path`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/symbol_locator.py#L41-L57)）**：
+     - 自动识别 Python（`tests/`）、Go（`*_test.go`）、TS/JS（`*.test.ts`, `*.spec.tsx`, `__tests__/`）、Rust（`tests/*.rs`, `tests.rs`），严格置底候选列表，绝不推荐修改测试文件。
+- **实测验证结果与双端质量门禁**：
+  - 新增 [`tests/test_multi_lang_symbols.py`](file:///Volumes/MacSSD/项目开发/one code/tests/test_multi_lang_symbols.py)（7 项单元测试，覆盖 Go、TS、Rust 的符号扫描、导入解析、异常栈帧捕获与故障定位置信度）；
+  - 测试套件扩充至 **251 项**，本地 macOS（8.247 秒）与 `n100`（28.519 秒）双端全绿 **100% 通过**；
+  - `scripts/check_source_quality.py src`、`ruff check`、`mypy`（110 个源文件 0 错误）与 `onecode doctor`（`status: ok`）双端全绿。
+
 ## 5. Phase V 终局总结与全量优化任务闭环宣告
 
 截至 2026-11-02，OneCode Phase V 开发路线图规划的所有核心工程与优化任务已**全部圆满达成并实现严密闭环**：

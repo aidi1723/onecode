@@ -19,13 +19,43 @@ from typing import Any
 
 from onecode.kernel.path_guard import PathGuard
 from onecode.kernel.preset_tests import is_preset_test_path
+from onecode.kernel.symbol_parsers import (
+    GoSymbolScanner,
+    MultiLangFrameParser,
+    RustSymbolScanner,
+    TypeScriptSymbolScanner,
+)
 
 _PY_EXTENSIONS = {".py", ".pyw"}
+_GO_EXTENSIONS = {".go"}
+_TS_EXTENSIONS = {".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}
+_RS_EXTENSIONS = {".rs"}
+_LANG_EXTENSIONS = _PY_EXTENSIONS | _GO_EXTENSIONS | _TS_EXTENSIONS | _RS_EXTENSIONS
+
 _IGNORE_DIRS = {
     ".git", ".venv", "venv", ".tox", ".nox", "__pycache__",
     ".mypy_cache", ".pytest_cache", ".ruff_cache", "build", "dist",
-    "egg-info", ".eggs", ".onecode",
+    "egg-info", ".eggs", ".onecode", "node_modules", "target", "vendor",
 }
+
+
+def is_any_test_path(path: str) -> bool:
+    """Identifies test files across Python, Go, TypeScript/JavaScript, and Rust."""
+    if not isinstance(path, str) or not path.strip():
+        return False
+    if is_preset_test_path(path):
+        return True
+    norm = path.replace("\\", "/").casefold()
+    base = posixpath.basename(norm)
+    if base.endswith("_test.go"):
+        return True
+    if base.endswith((".test.ts", ".spec.ts", ".test.tsx", ".spec.tsx", ".test.js", ".spec.js", ".test.jsx", ".spec.jsx")):
+        return True
+    if "/__tests__/" in norm or norm.startswith("__tests__/"):
+        return True
+    if base.endswith(("_test.rs", "tests.rs")) or norm.startswith("tests/") or "/tests/" in norm:
+        return True
+    return False
 
 _FRAME_RE = re.compile(
     r'File\s+["\'](?P<path>[^"\']+)["\'],\s+line\s+(?P<line>\d+)(?:,\s+in\s+(?P<func>[^\n]+))?'
@@ -141,13 +171,13 @@ class WorkspaceSymbolIndex:
     def _should_skip_dir(self, dir_name: str) -> bool:
         return dir_name in _IGNORE_DIRS or dir_name.endswith(".egg-info")
 
-    def _collect_py_files(self) -> list[Path]:
+    def _collect_source_files(self) -> list[Path]:
         files: list[Path] = []
         for root, dirs, filenames in os.walk(self.workspace):
             dirs[:] = [d for d in dirs if not self._should_skip_dir(d)]
             for fn in filenames:
                 ext = posixpath.splitext(fn)[1].casefold()
-                if ext in _PY_EXTENSIONS:
+                if ext in _LANG_EXTENSIONS:
                     candidate = Path(root) / fn
                     if not candidate.is_symlink():
                         files.append(candidate)
@@ -163,8 +193,26 @@ class WorkspaceSymbolIndex:
 
         try:
             content = file_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return
+
+        ext = posixpath.splitext(file_path.name)[1].casefold()
+        if ext in _PY_EXTENSIONS:
+            self._parse_python_content(content, rel_path)
+        elif ext in _GO_EXTENSIONS:
+            raw_symbols, raw_imports = GoSymbolScanner.scan(content, rel_path)
+            self._register_scanned(raw_symbols, raw_imports, rel_path)
+        elif ext in _TS_EXTENSIONS:
+            raw_symbols, raw_imports = TypeScriptSymbolScanner.scan(content, rel_path)
+            self._register_scanned(raw_symbols, raw_imports, rel_path)
+        elif ext in _RS_EXTENSIONS:
+            raw_symbols, raw_imports = RustSymbolScanner.scan(content, rel_path)
+            self._register_scanned(raw_symbols, raw_imports, rel_path)
+
+    def _parse_python_content(self, content: str, rel_path: str) -> None:
+        try:
             tree = ast.parse(content, filename=rel_path)
-        except (OSError, UnicodeDecodeError, SyntaxError):
+        except (SyntaxError, ValueError):
             return
 
         self.scanned_files_count += 1
@@ -197,6 +245,37 @@ class WorkspaceSymbolIndex:
                         self.symbols_by_name.setdefault(method_sym.name, []).append(method_sym)
                         self.symbols_by_name.setdefault(f"{node.name}.{item.name}", []).append(method_sym)
 
+        self.symbols_by_file[rel_path] = file_symbols
+        self.imports_by_file[rel_path] = file_imports
+
+    def _register_scanned(
+        self,
+        raw_symbols: list[dict[str, Any]],
+        raw_imports: dict[str, Any],
+        rel_path: str,
+    ) -> None:
+        self.scanned_files_count += 1
+        file_symbols: list[SymbolDef] = []
+        file_imports: dict[str, ImportRef] = {}
+        for s in raw_symbols:
+            sym = SymbolDef(
+                name=s["name"],
+                kind=s["kind"],
+                file_path=s["file_path"],
+                line_start=s["line_start"],
+                line_end=s["line_end"],
+                class_name=s.get("class_name"),
+            )
+            file_symbols.append(sym)
+            self.symbols_by_name.setdefault(sym.name, []).append(sym)
+            if sym.class_name:
+                self.symbols_by_name.setdefault(f"{sym.class_name}.{sym.name}", []).append(sym)
+        for alias, imp in raw_imports.items():
+            file_imports[alias] = ImportRef(
+                module=imp["module"],
+                symbol=imp.get("symbol", ""),
+                alias=imp.get("alias", alias),
+            )
         self.symbols_by_file[rel_path] = file_symbols
         self.imports_by_file[rel_path] = file_imports
 
@@ -241,15 +320,45 @@ class WorkspaceSymbolIndex:
             parameters=params,
         )
 
-    def resolve_import_file(self, imp: ImportRef, *, max_depth: int = 3) -> str | None:
+    def resolve_import_file(
+        self,
+        imp: ImportRef,
+        *,
+        importing_file: str = "",
+        max_depth: int = 3,
+    ) -> str | None:
         """Resolves an ImportRef into a relative file path in the workspace."""
         candidates: list[str] = []
-        if imp.symbol:
-            candidates.append(f"{imp.module}.{imp.symbol}".replace(".", "/") + ".py")
-        candidates.append(imp.module.replace(".", "/") + ".py")
-        if imp.symbol:
-            candidates.append(f"{imp.module}.{imp.symbol}".replace(".", "/") + "/__init__.py")
-        candidates.append(imp.module.replace(".", "/") + "/__init__.py")
+        mod = imp.module
+        sym = imp.symbol
+
+        # 1. Python candidates
+        if sym:
+            candidates.append(f"{mod}.{sym}".replace(".", "/") + ".py")
+        candidates.append(mod.replace(".", "/") + ".py")
+        if sym:
+            candidates.append(f"{mod}.{sym}".replace(".", "/") + "/__init__.py")
+        candidates.append(mod.replace(".", "/") + "/__init__.py")
+
+        # 2. Go candidates
+        mod_clean = mod.strip("/").strip('"')
+        candidates.append(f"{mod_clean}.go")
+        candidates.append(f"{mod_clean}/main.go")
+        base_mod = posixpath.basename(mod_clean)
+
+        # 3. TS / JS candidates
+        if importing_file and mod.startswith("."):
+            imp_dir = posixpath.dirname(importing_file)
+            rel_target = posixpath.normpath(posixpath.join(imp_dir, mod))
+            for ext in (".ts", ".tsx", ".js", ".jsx", "/index.ts", "/index.js"):
+                candidates.append(rel_target + ext)
+        for ext in (".ts", ".tsx", ".js", ".jsx", "/index.ts", "/index.js"):
+            candidates.append(mod.lstrip("./") + ext)
+
+        # 4. Rust candidates
+        rs_mod = mod.replace("::", "/").lstrip("/")
+        candidates.append(f"{rs_mod}.rs")
+        candidates.append(f"{rs_mod}/mod.rs")
 
         # Also consider src/ prefix and stripping leading components
         expanded: list[str] = []
@@ -266,24 +375,31 @@ class WorkspaceSymbolIndex:
                 found_path = cand
                 break
 
+        # Fallback for Go: package folder match
+        if not found_path and base_mod:
+            for f in self.symbols_by_file:
+                if f.endswith(".go") and (f"/{base_mod}/" in f"/{f}" or f.startswith(f"{base_mod}/")):
+                    found_path = f
+                    break
+
         if not found_path:
             return None
 
-        # If found file is an __init__.py or does not define the symbol, check for re-exports
+        # If found file does not define the symbol, check for re-exports
         if imp.symbol and max_depth > 0:
             sym_defs = [s.name for s in self.symbols_by_file.get(found_path, [])]
             if imp.symbol not in sym_defs and found_path in self.imports_by_file:
                 reexport = self.imports_by_file[found_path].get(imp.symbol)
                 if reexport:
-                    deeper = self.resolve_import_file(reexport, max_depth=max_depth - 1)
+                    deeper = self.resolve_import_file(reexport, importing_file=found_path, max_depth=max_depth - 1)
                     if deeper:
                         return deeper
 
         return found_path
 
     def _build_index(self) -> None:
-        for py_file in self._collect_py_files():
-            self._parse_file(py_file)
+        for src_file in self._collect_source_files():
+            self._parse_file(src_file)
 
 
 class SymbolLocator:
@@ -295,6 +411,15 @@ class SymbolLocator:
 
     def parse_stack_frames(self, text: str) -> list[StackFrame]:
         frames: list[StackFrame] = []
+        seen: set[tuple[str, int]] = set()
+
+        for ml_item in MultiLangFrameParser.parse_frames(text):
+            norm = self._normalize_frame_path(ml_item["file_path"])
+            key = (norm, ml_item["line"])
+            if key not in seen:
+                seen.add(key)
+                frames.append(StackFrame(file_path=norm, line=ml_item["line"], function_name=ml_item["function_name"]))
+
         for line in text.splitlines():
             match = _FRAME_RE.search(line)
             if match:
@@ -302,7 +427,10 @@ class SymbolLocator:
                 line_no = int(match.group("line"))
                 func = (match.group("func") or "").strip()
                 norm = self._normalize_frame_path(raw_path)
-                frames.append(StackFrame(file_path=norm, line=line_no, function_name=func))
+                key = (norm, line_no)
+                if key not in seen:
+                    seen.add(key)
+                    frames.append(StackFrame(file_path=norm, line=line_no, function_name=func))
             else:
                 pytest_match = _PYTEST_FRAME_RE.search(line)
                 if pytest_match:
@@ -311,7 +439,10 @@ class SymbolLocator:
                     raw_func = (pytest_match.group("func") or "").strip()
                     func = "" if (raw_func.endswith("Error") or raw_func.endswith("Exception")) else raw_func
                     norm = self._normalize_frame_path(raw_path)
-                    frames.append(StackFrame(file_path=norm, line=line_no, function_name=func))
+                    key = (norm, line_no)
+                    if key not in seen:
+                        seen.add(key)
+                        frames.append(StackFrame(file_path=norm, line=line_no, function_name=func))
         return frames
 
     def _normalize_frame_path(self, raw_path: str) -> str:
@@ -380,7 +511,7 @@ class SymbolLocator:
         """Extract code tokens from the test function body containing the failure line."""
         tokens: list[str] = []
         for frame in frames:
-            if not is_preset_test_path(frame.file_path):
+            if not is_any_test_path(frame.file_path):
                 continue
             test_file = self.workspace / frame.file_path
             if not test_file.is_file():
@@ -423,7 +554,7 @@ class SymbolLocator:
 
         # Step 1: Traverse stack frames from bottom (closest to failure) to top
         for frame_idx, frame in enumerate(reversed(frames)):
-            is_test = is_preset_test_path(frame.file_path)
+            is_test = is_any_test_path(frame.file_path)
             depth_weight = 1.0 - (frame_idx * 0.15)
             depth_weight = max(depth_weight, 0.4)
 
@@ -456,21 +587,21 @@ class SymbolLocator:
         test_path = test_file_hint
         if not test_path and frames:
             for f in frames:
-                if is_preset_test_path(f.file_path):
+                if is_any_test_path(f.file_path):
                     test_path = f.file_path
                     break
 
         if not test_path:
             for match in _PYTEST_FAIL_RE.finditer(failure_text):
                 p = match.group("path")
-                if p and is_preset_test_path(p):
+                if p and is_any_test_path(p):
                     test_path = p
                     break
 
         if test_path and test_path in self.index.imports_by_file:
             test_imports = self.index.imports_by_file[test_path]
             for local_alias, imp_ref in test_imports.items():
-                target_file = self.index.resolve_import_file(imp_ref)
+                target_file = self.index.resolve_import_file(imp_ref, importing_file=test_path)
                 if not target_file:
                     continue
 
@@ -501,7 +632,7 @@ class SymbolLocator:
         for sym_name in candidate_symbols:
             defs = self.index.symbols_by_name.get(sym_name, [])
             for sym in defs:
-                is_test = is_preset_test_path(sym.file_path)
+                is_test = is_any_test_path(sym.file_path)
                 key = (sym.file_path, sym.name, sym.line_start)
                 if key not in seen_keys:
                     seen_keys.add(key)
