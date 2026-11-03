@@ -156,6 +156,7 @@ class TestTerminalSessionExecution(unittest.TestCase):
         self.assertEqual(self.src_file.read_text(encoding="utf-8"), "def solve():\n    return 42\n")
 
     def test_patch_anti_tamper_blocks_test_modifications(self) -> None:
+        # Python tests/
         act = TerminalAction(
             action_type="patch",
             path="tests/test_app.py",
@@ -166,8 +167,28 @@ class TestTerminalSessionExecution(unittest.TestCase):
         self.assertEqual(obs.status, "blocked")
         self.assertEqual(obs.reason, "preset_test_immutable")
         self.assertIn("Anti-tamper protection active", obs.stderr)
-        # Test file must remain unchanged
         self.assertIn("assert solve() == 42", self.test_file.read_text(encoding="utf-8"))
+
+        # Multi-language test paths (Go, TypeScript, Rust, Python test_*.py)
+        for lang_test_path in [
+            "pkg/service/order_test.go",
+            "src/components/button.test.tsx",
+            "src/services/api.spec.ts",
+            "src/__tests__/utils.js",
+            "src/tests.rs",
+            "tests/integration_test.rs",
+            "app/test_worker.py",
+        ]:
+            act_lang = TerminalAction(
+                action_type="patch",
+                path=lang_test_path,
+                search_block="assert true",
+                replace_block="assert false",
+            )
+            obs_lang = self.session.execute_action(act_lang)
+            self.assertEqual(obs_lang.status, "blocked", f"Should block patch on {lang_test_path}")
+            self.assertEqual(obs_lang.reason, "preset_test_immutable")
+            self.assertIn("Anti-tamper protection active", obs_lang.stderr)
 
     def test_command_execution_and_anti_tamper(self) -> None:
         from unittest.mock import patch
@@ -178,11 +199,20 @@ class TestTerminalSessionExecution(unittest.TestCase):
             self.assertEqual(obs_ok.status, "ok")
             self.assertIn("hello_onecode", obs_ok.stdout)
 
-        # Anti-tamper command attempting to delete test
-        act_tamper = TerminalAction(action_type="command", command=("rm", "-rf", "tests/test_app.py"))
-        obs_tamper = self.session.execute_action(act_tamper)
-        self.assertEqual(obs_tamper.status, "blocked")
-        self.assertEqual(obs_tamper.reason, "preset_test_immutable")
+        # Anti-tamper command attempting to delete or overwrite tests across languages
+        for tamper_cmd in [
+            ("rm", "-rf", "tests/test_app.py"),
+            ("rm", "-f", "pkg/service/order_test.go"),
+            ("unlink", "src/services/api.spec.ts"),
+            ("sed", "-i", "s/fail/pass/", "src/components/button.test.tsx"),
+            ("tee", "src/tests.rs"),
+            ("bash", "-c", "echo ok > tests/test_smoke.py"),
+            ("sh", "-c", "echo void > pkg/order_test.go"),
+        ]:
+            act_tamper = TerminalAction(action_type="command", command=tamper_cmd)
+            obs_tamper = self.session.execute_action(act_tamper)
+            self.assertEqual(obs_tamper.status, "blocked", f"Should block command {tamper_cmd}")
+            self.assertEqual(obs_tamper.reason, "preset_test_immutable")
 
     def test_stagnation_detection(self) -> None:
         from unittest.mock import patch

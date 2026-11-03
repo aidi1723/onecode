@@ -14,22 +14,27 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
+import posixpath
 import re
 import time
 from typing import Any, Callable
 
 from onecode.kernel.execution_tools import ToolRegistry, default_tool_registry
 from onecode.kernel.path_guard import PathGuard
-from onecode.kernel.preset_tests import is_preset_test_path
-from onecode.kernel.symbol_locator import SymbolLocator
+from onecode.kernel.symbol_locator import SymbolLocator, is_any_test_path
+
+_TEST_PATH_PAT = r"(?:tests?/|__tests__/|[^\s]*_test\.[a-z0-9]+|[^\s]*\.(?:test|spec)\.[a-z0-9]+|[^\s]*tests\.rs\b|[^\s]*test_\w+\.py\b)"
 
 _FORBIDDEN_TEST_CMD_PATTERNS = (
-    re.compile(r"\brm\s+.*tests?/", re.IGNORECASE),
-    re.compile(r"\bsed\s+.*-i.*tests?/", re.IGNORECASE),
-    re.compile(r"\b>\s*tests?/", re.IGNORECASE),
-    re.compile(r"\b>>\s*tests?/", re.IGNORECASE),
-    re.compile(r"\btee\s+.*tests?/", re.IGNORECASE),
+    re.compile(rf"\b(?:rm|unlink|truncate|shred)\s+.*{_TEST_PATH_PAT}", re.IGNORECASE),
+    re.compile(rf"\bsed\s+.*-i.*{_TEST_PATH_PAT}", re.IGNORECASE),
+    re.compile(rf">\s*{_TEST_PATH_PAT}", re.IGNORECASE),
+    re.compile(rf">>\s*{_TEST_PATH_PAT}", re.IGNORECASE),
+    re.compile(rf"\btee\s+.*{_TEST_PATH_PAT}", re.IGNORECASE),
+    re.compile(rf"\b(?:cp|mv)\s+.*{_TEST_PATH_PAT}\s*$", re.IGNORECASE),
 )
+
+_DESTRUCTIVE_CMDS = frozenset({"rm", "unlink", "truncate", "shred", "sed", "tee"})
 
 
 @dataclass(frozen=True)
@@ -151,8 +156,17 @@ class TerminalSession:
         self.consecutive_read_stalls = 0
 
     def is_command_tampering(self, cmd_tokens: tuple[str, ...]) -> bool:
+        if not cmd_tokens:
+            return False
         cmd_str = " ".join(cmd_tokens)
-        return any(pat.search(cmd_str) for pat in _FORBIDDEN_TEST_CMD_PATTERNS)
+        if any(pat.search(cmd_str) for pat in _FORBIDDEN_TEST_CMD_PATTERNS):
+            return True
+        first_cmd = posixpath.basename(cmd_tokens[0].lower())
+        if first_cmd in _DESTRUCTIVE_CMDS:
+            for tok in cmd_tokens[1:]:
+                if not tok.startswith("-") and is_any_test_path(tok):
+                    return True
+        return False
 
     def execute_action(self, action: TerminalAction) -> TerminalObservation:
         """Executes an action under sandbox security policies and records the observation."""
@@ -215,12 +229,15 @@ class TerminalSession:
     def _handle_patch(self, action: TerminalAction) -> TerminalObservation:
         if not action.path:
             return TerminalObservation(action_type="patch", status="error", reason="empty_path", stderr="Path cannot be empty.")
-        if is_preset_test_path(action.path):
+        if is_any_test_path(action.path):
             return TerminalObservation(
                 action_type="patch",
                 status="blocked",
                 reason="preset_test_immutable",
-                stderr="Anti-tamper protection active: Modification of test files under tests/ is strictly prohibited. Patch implementation files instead.",
+                stderr=(
+                    f"Anti-tamper protection active: Modification of test files ({action.path}) is strictly prohibited "
+                    "across all languages (Python, Go, TypeScript/JavaScript, Rust). Patch implementation files instead."
+                ),
             )
         tool = self.tool_registry.get("patch_text")
         if tool is None:
@@ -281,7 +298,7 @@ class TerminalSession:
                 action_type="command",
                 status="blocked",
                 reason="preset_test_immutable",
-                stderr="Anti-tamper protection active: Shell commands modifying tests/ are forbidden.",
+                stderr="Anti-tamper protection active: Shell commands modifying test files are forbidden across all languages.",
             )
 
         cmd_sig = " ".join(action.command)
@@ -339,7 +356,7 @@ class TerminalSession:
             "4. Finish: {\"action_type\":\"finish\", \"explanation\":\"Verification passed and all criteria satisfied.\"}",
             "",
             "Rules & Policies:",
-            "- Anti-tamper: All paths under tests/ are strictly immutable. Only patch non-test implementation source files.",
+            "- Anti-tamper: All test files (tests/, *_test.go, *.test.ts, *.spec.js, etc.) are strictly immutable. Only patch non-test implementation source files.",
             "- Verification: Use 'command' to run existing tests to verify your hypotheses before and after patching.",
             "- Focus: When confident that the tests pass and the solution is complete, submit 'finish'.",
         ]

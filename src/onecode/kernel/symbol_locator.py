@@ -55,7 +55,7 @@ def _is_test_symbol(name: str) -> bool:
 
 
 def is_any_test_path(path: str) -> bool:
-    """Identifies test files across Python, Go, TypeScript/JavaScript, and Rust."""
+    """Identifies test files across Python, Go, TypeScript/JavaScript, Rust, Ruby, etc."""
     if not isinstance(path, str) or not path.strip():
         return False
     if is_preset_test_path(path):
@@ -68,7 +68,9 @@ def is_any_test_path(path: str) -> bool:
     base = posixpath.basename(norm)
     if ".test." in base or ".spec." in base:
         return True
-    if base.endswith(("_test.go", "_test.rs", "tests.rs", "_test.py", "_test.js", "_test.ts")):
+    if base.startswith("test_") and base.endswith((".py", ".pyw")):
+        return True
+    if base.endswith(("_test.go", "_test.rs", "tests.rs", "_test.py", "_test.js", "_test.ts", "_spec.rb")):
         return True
     return False
 

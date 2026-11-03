@@ -810,4 +810,24 @@
   - **断言详情 `reward.json`**：13/13 项全部通过（100%，`test_status: "pass"`）；
   - **双题终端汇总**：Harbor 调度器终端模式两道 Hard 题目全部满分通过，平均得分 **1.0000**，总通过率 **2/2（100%）**。
 
+### 6.6 多语言全后缀防篡改与终端命令防御完备化（Phase VII Step 2: 终端防御体系闭环）
+- **核心痛点与盲区治理**：
+  此前终端智能体防篡改拦截主要依赖 [`is_preset_test_path`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/preset_tests.py) 匹配以 `tests/` 开头的路径，命令拦截仅覆盖针对 `tests/` 目录的重定向与删除。在 Go（`*_test.go`）、TypeScript/JavaScript（`*.test.ts`, `*.spec.ts`, `__tests__/`）、Rust（`tests.rs`, `tests/*.rs`）或放置于实现子目录的测试文件（如 `app/test_*.py`）场景下，存在潜在的防篡改逃逸漏洞。
+- **跨语言测试文件判定器强化（[`is_any_test_path`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/symbol_locator.py)）**：
+  - 补充 `base.startswith("test_") and base.endswith((".py", ".pyw"))` 规则，将非 `tests/` 根目录下的各类 Python 测试模块纳入管控；
+  - 扩充 `_spec.rb` 等常见规范后缀，保持无第三方依赖的纯标准库轻量实现。
+- **终端会话（[`terminal_loop.py`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/terminal_loop.py)）防御链全面收紧**：
+  1. **补丁应用拦截（`_handle_patch`）**：
+     - 将文件路径判定全面替换为 [`is_any_test_path`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/symbol_locator.py)，只要涉及 Python、Go、TypeScript、Rust 等任何语言测试文件，一律返回 `status="blocked"`、`reason="preset_test_immutable"`，严禁修改任何测试断言；
+  2. **命令篡改深度防御（`is_command_tampering`）**：
+     - 构建全语言测试路径复合正则 `_TEST_PATH_PAT`，涵盖 `tests?/`、`__tests__/`、`*_test.*`、`*.test.*`、`*.spec.*`、`tests.rs`、`test_*.py` 等；
+     - 覆盖 `rm`、`unlink`、`truncate`、`shred`、`sed -i`、`>`、`>>`、`tee`、`cp`、`mv` 等破坏性操作；
+     - 增加破坏性指令的参数词元遍历校验，非 flag 参数只要命中测试路径即刻阻断；
+     - 严格确保合法只读与测试运行命令（`cat`、`pytest`、`go test`、`cargo test`、`npm test`）零误报放行。
+  3. **交互提示词对齐（`render_turn_prompt`）**：
+     - 明确提示智能体跨语言全量测试文件均处于防篡改锁定状态，必须通过修改实现代码解决缺陷。
+- **测试覆盖与门禁验证**：
+  - [`tests/test_terminal_loop.py`](file:///Volumes/MacSSD/项目开发/one%20code/tests/test_terminal_loop.py) 补充覆盖 Go/TS/Rust/Python 多语言测试的 patch 拦截与 7 种危险命令拦截用例；
+  - [`tests/test_multi_lang_symbols.py`](file:///Volumes/MacSSD/项目开发/one%20code/tests/test_multi_lang_symbols.py) 增补多级目录测试文件判定用例。
+
 

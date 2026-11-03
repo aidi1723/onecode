@@ -238,6 +238,7 @@ class TestMultiLangTestPathIsolation(unittest.TestCase):
     def test_is_any_test_path_detection(self) -> None:
         # Python
         self.assertTrue(is_any_test_path("tests/test_foo.py"))
+        self.assertTrue(is_any_test_path("app/test_foo.py"))
         self.assertFalse(is_any_test_path("src/foo.py"))
 
         # Go
@@ -255,6 +256,9 @@ class TestMultiLangTestPathIsolation(unittest.TestCase):
         self.assertTrue(is_any_test_path("tests/integration_test.rs"))
         self.assertTrue(is_any_test_path("src/tests.rs"))
         self.assertFalse(is_any_test_path("src/lib.rs"))
+
+        # Ruby / Other
+        self.assertTrue(is_any_test_path("spec/models/user_spec.rb"))
 
 
 if __name__ == "__main__":
