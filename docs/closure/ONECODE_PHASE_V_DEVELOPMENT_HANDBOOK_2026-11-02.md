@@ -685,10 +685,24 @@
      - **Rust**：捕获 `thread panicked at '...', path.rs:line:col` 及 `cargo test` 回溯栈帧。
   5. **全向防篡改与多语言测试路径判定（[`is_any_test_path`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/symbol_locator.py#L41-L57)）**：
      - 自动识别 Python（`tests/`）、Go（`*_test.go`）、TS/JS（`*.test.ts`, `*.spec.tsx`, `__tests__/`）、Rust（`tests/*.rs`, `tests.rs`），严格置底候选列表，绝不推荐修改测试文件。
-- **实测验证结果与双端质量门禁**：
-  - 新增 [`tests/test_multi_lang_symbols.py`](file:///Volumes/MacSSD/项目开发/one code/tests/test_multi_lang_symbols.py)（7 项单元测试，覆盖 Go、TS、Rust 的符号扫描、导入解析、异常栈帧捕获与故障定位置信度）；
-  - 测试套件扩充至 **251 项**，本地 macOS（8.247 秒）与 `n100`（28.519 秒）双端全绿 **100% 通过**；
-  - `scripts/check_source_quality.py src`、`ruff check`、`mypy`（110 个源文件 0 错误）与 `onecode doctor`（`status: ok`）双端全绿。
+- **实测验证结果与真实多语言开源/工程仓库实测对账**：
+  - **真实三语言开源与工程仓库实机对账（`n100` 节点）**：
+    1. **TypeScript 真实工程仓库（`/home/aidi/agentcore-os/src`，515 个 TS/TSX 源文件）**：
+       - 扫描索引 515 个文件、2,267 个符号定义；
+       - 注入真实报错栈帧（`upsertRecruitingRecord (lib/recruiting.ts:42:15)` 调自 `__tests__/recruiting.test.ts`）；
+       - 定位器精准输出 `lib/recruiting.ts [save]`（置信度 0.90）与 `lib/recruiting.ts [upsertRecruitingRecord]`（0.85），`__tests__` 与 `.test.mjs` 测试文件严格置底隔离（`is_test=False`）；
+    2. **Rust 真实工程仓库（`/home/aidi/agentcore-os/src-tauri`）**：
+       - 扫描 `src/main.rs`、`build.rs`，提取 18 个符号（`main`, `SidecarState`, `build_sidecar_path_env`, `sidecar_target_triple` 等）；
+       - 注入 Rust panic 栈帧（`thread panicked at ..., src/main.rs:45:9`）；
+       - 定位器精准输出 `src/main.rs [sidecar_target_triple]` 置信度 **1.00**，`is_test=False`；
+    3. **Go 真实开源加密库（`/home/aidi/go/pkg/mod/filippo.io/edwards25519@v1.1.1`，24 个 Go 源文件）**：
+       - 扫描索引 24 个文件、274 个符号定义；
+       - 注入标准 Go panic / test 异常栈（`filippo.io/edwards25519.(*Scalar).Multiply` `scalarmult.go:40`，来自 `scalarmult_test.go`）；
+       - 定位器精准输出实现文件 `scalarmult.go [Point.ScalarBaseMult]`（0.90）与 `scalar.go [Scalar.Multiply]`（0.85），测试文件与 `Test*`/`Benchmark*` 测试框架符号被坚决过滤与置底。
+  - **单元测试与双端质量门禁**：
+    - 新增 [`tests/test_multi_lang_symbols.py`](file:///Volumes/MacSSD/项目开发/one code/tests/test_multi_lang_symbols.py)（7 项单元测试，覆盖 Go、TS、Rust 的符号扫描、导入解析、异常栈帧捕获与故障定位置信度）；
+    - 测试套件扩充至 **251 项**，本地 macOS（8.247 秒）与 `n100`（28.519 秒）双端全绿 **100% 通过**；
+    - `scripts/check_source_quality.py src`、`ruff check`、`mypy`（110 个源文件 0 错误）与 `onecode doctor`（`status: ok`）双端全绿。
 
 ## 5. Phase V 终局总结与全量优化任务闭环宣告
 

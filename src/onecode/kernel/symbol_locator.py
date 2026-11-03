@@ -39,6 +39,21 @@ _IGNORE_DIRS = {
 }
 
 
+_TEST_HARNESS_SYMBOLS = {
+    "test", "describe", "it", "expect", "suite", "setup", "teardown",
+    "before", "after", "beforeeach", "aftereach", "assert",
+}
+
+
+def _is_test_symbol(name: str) -> bool:
+    low = name.casefold()
+    if low in _TEST_HARNESS_SYMBOLS:
+        return True
+    if name.startswith("test_") or name.startswith("Test") or name.startswith("Benchmark") or name.startswith("Fuzz"):
+        return True
+    return False
+
+
 def is_any_test_path(path: str) -> bool:
     """Identifies test files across Python, Go, TypeScript/JavaScript, and Rust."""
     if not isinstance(path, str) or not path.strip():
@@ -46,14 +61,14 @@ def is_any_test_path(path: str) -> bool:
     if is_preset_test_path(path):
         return True
     norm = path.replace("\\", "/").casefold()
-    base = posixpath.basename(norm)
-    if base.endswith("_test.go"):
-        return True
-    if base.endswith((".test.ts", ".spec.ts", ".test.tsx", ".spec.tsx", ".test.js", ".spec.js", ".test.jsx", ".spec.jsx")):
+    if "/tests/" in norm or norm.startswith("tests/") or norm == "tests":
         return True
     if "/__tests__/" in norm or norm.startswith("__tests__/"):
         return True
-    if base.endswith(("_test.rs", "tests.rs")) or norm.startswith("tests/") or "/tests/" in norm:
+    base = posixpath.basename(norm)
+    if ".test." in base or ".spec." in base:
+        return True
+    if base.endswith(("_test.go", "_test.rs", "tests.rs", "_test.py", "_test.js", "_test.ts")):
         return True
     return False
 
@@ -485,7 +500,7 @@ class SymbolLocator:
         # Frame function names
         for match in _FRAME_RE.finditer(text):
             func = (match.group("func") or "").strip()
-            if func and func != "<module>" and not func.startswith("test_"):
+            if func and func != "<module>" and not _is_test_symbol(func):
                 names.append(func)
 
         # Quoted tokens
@@ -495,14 +510,14 @@ class SymbolLocator:
         # Any identifier in failure text matching a known workspace symbol
         tokens = set(re.findall(r"\b[a-zA-Z_]\w+\b", text))
         for token in tokens:
-            if token in self.index.symbols_by_name and not token.startswith("test_"):
+            if token in self.index.symbols_by_name and not _is_test_symbol(token):
                 names.append(token)
 
         # Deduplicate preserving order
         seen: set[str] = set()
         result: list[str] = []
         for n in names:
-            if n not in seen and len(n) > 1 and not n.startswith("test_"):
+            if n not in seen and len(n) > 1 and not _is_test_symbol(n):
                 seen.add(n)
                 result.append(n)
         return result
@@ -530,7 +545,7 @@ class SymbolLocator:
                 end = min(len(lines), target_sym.line_end)
                 scope_text = "\n".join(lines[start:end])
                 for word in re.findall(r"\b[a-zA-Z_]\w+\b", scope_text):
-                    if word in self.index.symbols_by_name and not word.startswith("test_"):
+                    if word in self.index.symbols_by_name and not _is_test_symbol(word):
                         tokens.append(word)
             except OSError:
                 pass
