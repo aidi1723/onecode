@@ -604,6 +604,29 @@
      - **状态与退出码**：`adapter_exit_code: 0`, `verifier_exit_code: 0`；
   - **汇总指标**：2 题平均得分 **1.0000**，通过率 **2/2（100%）**，合法写入 `"harbor": true`，所有凭证真实可对账。
 
+### 4.26 Phase VI 启动与 Step 1：大仓库符号与调用链定位器实测闭环（`src/onecode/kernel/symbol_locator.py`）
+- **SWE-bench 面向场景与核心痛点**：
+  在真实大仓库代码演化与修复任务中，失败通常发生在 `tests/` 下的某个测试断言，但真实缺陷深埋于内部实现模块。过去如果候选文件列表依赖简单的全局字母序扫描（`_src_files_for_repair` 默认取前 8 个文件），在大仓库中极易发生截断导致模型在 `Current source:` 中看不到目标实现文件；同时模型极易倾向于修改 `tests/` 下的断言文件以通过测试（违背防篡改铁律）。
+- **四阶符号索引与逆向调用链溯源架构**：
+  1. **AST 全局符号与引用索引（[`WorkspaceSymbolIndex`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/symbol_locator.py#L106-L215)）**：
+     - 递归扫描工作区 Python 源码（严格排除 `.git`, `.venv`, `__pycache__` 等敏感与缓存目录）；
+     - 利用 `ast.parse` 提取所有顶层函数、异步函数、类以及类方法，建立精确起止行号（`line_start`, `line_end`）、参数列表与文档字符串映射；
+     - 建立模块导入倒排映射（`ImportRef`），记录 `import ...` 与 `from ... import ...` 依赖关系。
+  2. **跨栈帧与调用链溯源（[`SymbolLocator`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/symbol_locator.py#L217-L380)）**：
+     - 解析真实堆栈帧（`StackFrame`）与异常特征（`AttributeError`, `TypeError`, `NameError`, `ImportError`, pytest FAILED 行等）；
+     - 从栈底（最深执行点）向上遍历调用链，优先匹配最窄作用域的方法/函数；
+     - 具备直接导入链回退解析（当断言仅在测试层报错时，沿 `test -> import target_module -> target_symbol` 顺藤摸瓜锁定实现文件）。
+  3. **防篡改与实现文件优先级准则**：
+     - 自动检测并标记 `is_test_file`（严格复用 `is_preset_test_path` 准则）；
+     - 非测试实现文件（`is_test_file=False`）获得最高置信度优先级，候选列表严格将测试文件置底，彻底杜绝篡改测试的可能。
+  4. **自愈规划闭环集成（[`model_loop.py`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/model_loop.py#L1040-L1070)）**：
+     - 在 [`repair_prompt`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/model_loop.py#L961-L1080) 自愈提示词中注入 `Fault localization (天相印绶·符号溯源定位)`，直接向大模型输出目标文件路径、目标符号名、起止行号及溯源依据；
+     - **动态按需拉取补丁文件**：若定位到的目标实现文件未在默认工作区切片中，自动将其源码安全拉入 `workspace_files`，确保大模型生成的 `search_block` 具备真实源码依据。
+- **实测验证结果**：
+  - 新增 [`tests/test_symbol_locator.py`](file:///Volumes/MacSSD/项目开发/one code/tests/test_symbol_locator.py)（8 项全量单元测试与集成测试，覆盖 AST 索引、栈帧解析、多层类方法收敛、跨模块导入追踪、语法容错与自愈闭环）；
+  - 本地与 `n100` 节点测试通过率保持 100%（228/228 项全过，本地用时 8.267 秒，`n100` 用时 28.569 秒）；
+  - `scripts/check_source_quality.py`、`ruff check`、`mypy`（108 个源文件 0 错误）与 `onecode doctor`（`status: ok`）全部绿灯。
+
 ## 5. Phase V 终局总结与全量优化任务闭环宣告
 
 截至 2026-11-02，OneCode Phase V 开发路线图规划的所有核心工程与优化任务已**全部圆满达成并实现严密闭环**：

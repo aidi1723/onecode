@@ -514,6 +514,7 @@ def _src_files_for_repair(
     workspace: Path,
     preview_limit: int | None = None,
     max_files: int | None = None,
+    priority_paths: list[str] | None = None,
 ) -> dict[str, str]:
     if preview_limit is None or max_files is None:
         bureau = resolve_task_bureau(workspace)
@@ -522,12 +523,31 @@ def _src_files_for_repair(
         if max_files is None:
             max_files = bureau.get("repair_file_limit", 8)
     files: dict[str, str] = {}
+    if priority_paths:
+        for p in priority_paths:
+            if len(files) >= max_files:
+                break
+            cand = workspace / p
+            if cand.is_file() and not is_preset_test_path(p) and not PathGuard.is_sensitive_read_path(Path(p)):
+                try:
+                    content = cand.read_text(encoding="utf-8")
+                    if len(content) > preview_limit:
+                        files[p] = (
+                            content[:preview_limit]
+                            + f"\n# [TRUNCATED: preview limited to {preview_limit} of {len(content)} chars. Use search_block/replace_block patches rather than rewriting full file]"
+                        )
+                    else:
+                        files[p] = content
+                except OSError:
+                    pass
     for root in _repair_roots(workspace):
         paths = [root] if root.is_file() else sorted(root.rglob("*.py"))
         for path in paths:
             if not path.is_file() or "__pycache__" in path.parts:
                 continue
             relative = path.relative_to(workspace).as_posix()
+            if relative in files:
+                continue
             if is_preset_test_path(relative) or Path(relative).name in {"unittest.py", "pytest.py", "conftest.py"}:
                 continue
             content = path.read_text(encoding="utf-8")
@@ -972,12 +992,17 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
                     failure_details.append(
                         f"tool {tool_result.get('tool_name')}: {tool_result.get('reason')}"
                     )
+    raw_error_texts: list[str] = []
     for v in failed_result.get("verifier_results", []):
         if not isinstance(v, dict):
             continue
         v_reason = v.get("reason") or v.get("status")
         err = str(v.get("stderr_tail") or "").strip()
         out = str(v.get("stdout_tail") or "").strip()
+        if err:
+            raw_error_texts.append(err)
+        if out:
+            raw_error_texts.append(out)
         diag = format_verifier_diagnostics(out, err)
         if diag:
             failure_details.append(diag)
@@ -1017,6 +1042,35 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
     ziwei_hints = _format_ziwei_repair_guidance(failed_result, failure_details)
     if ziwei_hints:
         prompt += "Diagnostic guidance:\n" + "\n".join(ziwei_hints) + "\n"
+    fault_hints: list[str] = []
+    if workspace is not None and workspace.is_dir():
+        try:
+            from onecode.kernel.symbol_locator import SymbolLocator
+
+            corpus = "\n".join(failure_details + raw_error_texts)
+            locator = SymbolLocator(workspace)
+            locations = locator.locate_fault(corpus)
+            target_locations = [loc for loc in locations if not loc.is_test_file][:3]
+            if target_locations:
+                fault_hints.append("Fault localization (天相印绶·符号溯源定位):")
+                ws_files = failed_result.setdefault("workspace_files", {})
+                for loc in target_locations:
+                    fault_hints.append(
+                        f"- Recommended patch target: file '{loc.file_path}', symbol '{loc.symbol_name}' "
+                        f"(lines {loc.line_start}-{loc.line_end}, confidence {loc.confidence:.2f}). Reason: {loc.reason}"
+                    )
+                    if isinstance(ws_files, dict) and loc.file_path not in ws_files:
+                        target_file = workspace / loc.file_path
+                        if target_file.is_file():
+                            try:
+                                content = target_file.read_text(encoding="utf-8")
+                                ws_files[loc.file_path] = content[:4000]
+                            except OSError:
+                                pass
+        except Exception:
+            pass
+    if fault_hints:
+        prompt += "\n".join(fault_hints) + "\n"
     spec_snippet = _contract_spec_snippet(workspace)
     if spec_snippet:
         prompt += spec_snippet
