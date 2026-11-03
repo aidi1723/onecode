@@ -30,6 +30,9 @@ _IGNORE_DIRS = {
 _FRAME_RE = re.compile(
     r'File\s+["\'](?P<path>[^"\']+)["\'],\s+line\s+(?P<line>\d+)(?:,\s+in\s+(?P<func>[^\n]+))?'
 )
+_PYTEST_FRAME_RE = re.compile(
+    r"^\s*(?P<path>[^:\s\n]+\.py):(?P<line>\d+):(?:\s+(?:in\s+)?(?P<func>[^\n]+))?"
+)
 _PYTEST_FAIL_RE = re.compile(
     r'(?:FAILED|ERROR)\s+(?P<path>[^:\s]+)(?:::)?(?P<test>[^\s]*)'
 )
@@ -170,7 +173,7 @@ class WorkspaceSymbolIndex:
 
         for node in tree.body:
             if isinstance(node, (ast.Import, ast.ImportFrom)):
-                self._index_import(node, file_imports)
+                self._index_import(node, file_imports, rel_path=rel_path)
             elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 sym = self._make_func_symbol(node, rel_path)
                 file_symbols.append(sym)
@@ -197,13 +200,24 @@ class WorkspaceSymbolIndex:
         self.symbols_by_file[rel_path] = file_symbols
         self.imports_by_file[rel_path] = file_imports
 
-    def _index_import(self, node: ast.Import | ast.ImportFrom, target_dict: dict[str, ImportRef]) -> None:
+    def _index_import(
+        self,
+        node: ast.Import | ast.ImportFrom,
+        target_dict: dict[str, ImportRef],
+        rel_path: str = "",
+    ) -> None:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 name = alias.asname or alias.name
                 target_dict[name] = ImportRef(module=alias.name, alias=name)
         elif isinstance(node, ast.ImportFrom):
             mod = node.module or ""
+            if node.level and node.level > 0 and rel_path:
+                pkg_parts = Path(rel_path).parent.parts
+                cut = node.level - 1
+                base_parts = pkg_parts[: len(pkg_parts) - cut] if cut < len(pkg_parts) else ()
+                prefix = ".".join(base_parts)
+                mod = f"{prefix}.{mod}" if (prefix and mod) else (prefix or mod)
             for alias in node.names:
                 name = alias.asname or alias.name
                 target_dict[name] = ImportRef(module=mod, symbol=alias.name, alias=name)
@@ -227,15 +241,15 @@ class WorkspaceSymbolIndex:
             parameters=params,
         )
 
-    def resolve_import_file(self, imp: ImportRef) -> str | None:
+    def resolve_import_file(self, imp: ImportRef, *, max_depth: int = 3) -> str | None:
         """Resolves an ImportRef into a relative file path in the workspace."""
-        candidates = [
-            imp.module.replace(".", "/") + ".py",
-            imp.module.replace(".", "/") + "/__init__.py",
-        ]
+        candidates: list[str] = []
         if imp.symbol:
             candidates.append(f"{imp.module}.{imp.symbol}".replace(".", "/") + ".py")
+        candidates.append(imp.module.replace(".", "/") + ".py")
+        if imp.symbol:
             candidates.append(f"{imp.module}.{imp.symbol}".replace(".", "/") + "/__init__.py")
+        candidates.append(imp.module.replace(".", "/") + "/__init__.py")
 
         # Also consider src/ prefix and stripping leading components
         expanded: list[str] = []
@@ -246,10 +260,26 @@ class WorkspaceSymbolIndex:
             elif cand.startswith("src/"):
                 expanded.append(cand[4:])
 
+        found_path: str | None = None
         for cand in expanded:
             if cand in self.symbols_by_file:
-                return cand
-        return None
+                found_path = cand
+                break
+
+        if not found_path:
+            return None
+
+        # If found file is an __init__.py or does not define the symbol, check for re-exports
+        if imp.symbol and max_depth > 0:
+            sym_defs = [s.name for s in self.symbols_by_file.get(found_path, [])]
+            if imp.symbol not in sym_defs and found_path in self.imports_by_file:
+                reexport = self.imports_by_file[found_path].get(imp.symbol)
+                if reexport:
+                    deeper = self.resolve_import_file(reexport, max_depth=max_depth - 1)
+                    if deeper:
+                        return deeper
+
+        return found_path
 
     def _build_index(self) -> None:
         for py_file in self._collect_py_files():
@@ -273,6 +303,15 @@ class SymbolLocator:
                 func = (match.group("func") or "").strip()
                 norm = self._normalize_frame_path(raw_path)
                 frames.append(StackFrame(file_path=norm, line=line_no, function_name=func))
+            else:
+                pytest_match = _PYTEST_FRAME_RE.search(line)
+                if pytest_match:
+                    raw_path = pytest_match.group("path")
+                    line_no = int(pytest_match.group("line"))
+                    raw_func = (pytest_match.group("func") or "").strip()
+                    func = "" if (raw_func.endswith("Error") or raw_func.endswith("Exception")) else raw_func
+                    norm = self._normalize_frame_path(raw_path)
+                    frames.append(StackFrame(file_path=norm, line=line_no, function_name=func))
         return frames
 
     def _normalize_frame_path(self, raw_path: str) -> str:
@@ -381,7 +420,52 @@ class SymbolLocator:
                         )
                     )
 
-        # Step 2: AST lookup for explicitly failed symbols
+        # Step 2: Call-chain import resolution from test file hint
+        test_path = test_file_hint
+        if not test_path and frames:
+            for f in frames:
+                if is_preset_test_path(f.file_path):
+                    test_path = f.file_path
+                    break
+
+        if not test_path:
+            for match in _PYTEST_FAIL_RE.finditer(failure_text):
+                p = match.group("path")
+                if p and is_preset_test_path(p):
+                    test_path = p
+                    break
+
+        if test_path and test_path in self.index.imports_by_file:
+            test_imports = self.index.imports_by_file[test_path]
+            for local_alias, imp_ref in test_imports.items():
+                target_file = self.index.resolve_import_file(imp_ref)
+                if not target_file:
+                    continue
+
+                for sym in self.index.symbols_by_file.get(target_file, []):
+                    # Check if symbol matches failing candidates, imported symbol, or alias
+                    matches_candidate = sym.name in candidate_symbols or sym.qualified_name in candidate_symbols
+                    matches_import = sym.name == imp_ref.symbol or sym.name == local_alias
+                    if matches_candidate or matches_import:
+                        key = (sym.file_path, sym.name, sym.line_start)
+                        if key not in seen_keys:
+                            seen_keys.add(key)
+                            conf = 0.92 if matches_candidate else 0.40
+                            candidates.append(
+                                FaultLocation(
+                                    file_path=sym.file_path,
+                                    symbol_name=sym.qualified_name,
+                                    symbol_kind=sym.kind,
+                                    line_start=sym.line_start,
+                                    line_end=sym.line_end,
+                                    confidence=conf,
+                                    call_chain=(test_path, local_alias, target_file, sym.name),
+                                    is_test_file=False,
+                                    reason=f"Direct import reference from test '{test_path}'" + (" (symbol in failure context)" if matches_candidate else ""),
+                                )
+                            )
+
+        # Step 3: AST lookup for explicitly failed symbols across workspace
         for sym_name in candidate_symbols:
             defs = self.index.symbols_by_name.get(sym_name, [])
             for sym in defs:
@@ -403,43 +487,6 @@ class SymbolLocator:
                             reason=f"Explicit symbol definition match for '{sym_name}'",
                         )
                     )
-
-        # Step 3: Call-chain import resolution from test file hint
-        test_path = test_file_hint
-        if not test_path and frames:
-            for f in frames:
-                if is_preset_test_path(f.file_path):
-                    test_path = f.file_path
-                    break
-
-        if test_path and test_path in self.index.imports_by_file:
-            test_imports = self.index.imports_by_file[test_path]
-            for local_alias, imp_ref in test_imports.items():
-                target_file = self.index.resolve_import_file(imp_ref)
-                if not target_file:
-                    continue
-
-                for sym in self.index.symbols_by_file.get(target_file, []):
-                    # Check if symbol matches failing candidates, imported symbol, or alias
-                    matches_candidate = sym.name in candidate_symbols or sym.qualified_name in candidate_symbols
-                    matches_import = sym.name == imp_ref.symbol or sym.name == local_alias
-                    if matches_candidate or matches_import:
-                        key = (sym.file_path, sym.name, sym.line_start)
-                        if key not in seen_keys:
-                            seen_keys.add(key)
-                            candidates.append(
-                                FaultLocation(
-                                    file_path=sym.file_path,
-                                    symbol_name=sym.qualified_name,
-                                    symbol_kind=sym.kind,
-                                    line_start=sym.line_start,
-                                    line_end=sym.line_end,
-                                    confidence=0.90,
-                                    call_chain=(test_path, local_alias, target_file, sym.name),
-                                    is_test_file=False,
-                                    reason=f"Direct import reference from test '{test_path}'",
-                                )
-                            )
 
         # Sort: Non-test files first, then by confidence descending
         candidates.sort(key=lambda loc: (loc.is_test_file, -loc.confidence))

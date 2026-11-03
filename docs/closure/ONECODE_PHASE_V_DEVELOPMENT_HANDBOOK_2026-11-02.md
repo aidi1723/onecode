@@ -622,10 +622,21 @@
   4. **自愈规划闭环集成（[`model_loop.py`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/model_loop.py#L1040-L1070)）**：
      - 在 [`repair_prompt`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/model_loop.py#L961-L1080) 自愈提示词中注入 `Fault localization (天相印绶·符号溯源定位)`，直接向大模型输出目标文件路径、目标符号名、起止行号及溯源依据；
      - **动态按需拉取补丁文件**：若定位到的目标实现文件未在默认工作区切片中，自动将其源码安全拉入 `workspace_files`，确保大模型生成的 `search_block` 具备真实源码依据。
-- **实测验证结果**：
-  - 新增 [`tests/test_symbol_locator.py`](file:///Volumes/MacSSD/项目开发/one code/tests/test_symbol_locator.py)（8 项全量单元测试与集成测试，覆盖 AST 索引、栈帧解析、多层类方法收敛、跨模块导入追踪、语法容错与自愈闭环）；
-  - 本地与 `n100` 节点测试通过率保持 100%（228/228 项全过，本地用时 8.267 秒，`n100` 用时 28.569 秒）；
-  - `scripts/check_source_quality.py`、`ruff check`、`mypy`（108 个源文件 0 错误）与 `onecode doctor`（`status: ok`）全部绿灯。
+- **实测验证结果与真实多文件仓库对账**：
+  - **真实多文件 Python 开源仓库实测（`marshmallow`，36 个源文件）**：
+    在 `n100` 节点解包真实题目工作区（`bug_fix-medium-error_key_uses_data_key`，注入测试 `tests/test_decorators.py::TestValidatesSchemaDecorator::test_data_key_is_used_in_errors_dict`）：
+    1. **Case A（真实 Pytest 原生断言报错，无实现层深层帧）**：
+       - 测试在第 712 行断言失败（`AssertionError: assert {'fooKey': ...} == {'fooKey': ...}`）；
+       - 定位器识别到 `tests/test_decorators.py:712`，提取上下文符号（`Schema`, `load`, `ValidationError`, `validates`, `validates_schema`）；
+       - 沿 `tests/test_decorators.py` 的导入链追踪至 `marshmallow/__init__.py`，递归穿透相对导入重导出（`from .schema import Schema`、`from .decorators import validates, validates_schema`）；
+       - **输出前 4 位候选全为实现文件**：`src/marshmallow/schema.py [Schema]`（置信度 0.92）、`src/marshmallow/schema.py [Schema.load]`（0.92）、`src/marshmallow/exceptions.py [ValidationError]`（0.92）、`src/marshmallow/decorators.py [validates]`（0.92），测试文件被坚决置底；
+    2. **Case B（运行时深层调用栈抛出异常）**：
+       - 模拟捕获深层异常栈（从 `test_decorators.py` 进入 `schema.py` line 778 `load` $\to$ line 938 `_do_load` $\to$ line 842 `_run_validator`）；
+       - 定位器解析 4 层调用栈，精准输出第 1 候选：`src/marshmallow/schema.py [Schema._run_validator]` lines 825-843，置信度 **1.00**（与官方基准补丁修改的目标函数完全吻合）。
+  - **单元测试与双端质量门禁**：
+    - [`tests/test_symbol_locator.py`](file:///Volumes/MacSSD/项目开发/one code/tests/test_symbol_locator.py) 扩充至 9 项测试（新增包级相对导入重导出穿透与 pytest 原生栈帧提取）；
+    - 本地（8.106s）与 `n100`（28.113s）测试全量 **229 项 100% 通过**；
+    - `scripts/check_source_quality.py`、`ruff check`、`mypy`（108 个源文件 0 错误）与 `onecode doctor`（`status: ok`）双端全绿。
 
 ## 5. Phase V 终局总结与全量优化任务闭环宣告
 

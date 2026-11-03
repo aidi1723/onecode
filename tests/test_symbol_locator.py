@@ -288,6 +288,58 @@ ValueError: invalid order
             self.assertIn("## src/engine/calculator.py", prompt)
             self.assertIn("compute_discount", failed_result["workspace_files"]["src/engine/calculator.py"])
 
+    def test_pytest_stack_frame_parsing_and_reexport_resolution(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            pkg_dir = tmp_path / "src" / "shop"
+            pkg_dir.mkdir(parents=True)
+            tests_dir = tmp_path / "tests"
+            tests_dir.mkdir(parents=True)
+
+            # 1. Implementation modules
+            (pkg_dir / "service.py").write_text(
+                "class ShopService:\n    def checkout(self): pass\n",
+                encoding="utf-8",
+            )
+            (pkg_dir / "calc.py").write_text(
+                "def calculate_tax(amount: float) -> float:\n    return amount * 0.05\n",
+                encoding="utf-8",
+            )
+            # 2. Package re-exporting in __init__.py
+            (pkg_dir / "__init__.py").write_text(
+                "from .service import ShopService\nfrom .calc import calculate_tax\n",
+                encoding="utf-8",
+            )
+            # 3. Test file importing from shop package
+            (tests_dir / "test_shop.py").write_text(
+                "from shop import ShopService, calculate_tax\n\ndef test_shop():\n    assert calculate_tax(100) == 10.0\n",
+                encoding="utf-8",
+            )
+
+            locator = SymbolLocator(tmp_path)
+
+            # Test pytest frame parsing
+            pytest_output = """
+tests/test_shop.py:4: in test_shop
+    assert calculate_tax(100) == 10.0
+E   AssertionError: assert 5.0 == 10.0
+FAILED tests/test_shop.py::test_shop - AssertionError
+"""
+            frames = locator.parse_stack_frames(pytest_output)
+            self.assertEqual(len(frames), 1)
+            self.assertEqual(frames[0].file_path, "tests/test_shop.py")
+            self.assertEqual(frames[0].line, 4)
+            self.assertEqual(frames[0].function_name, "test_shop")
+
+            # Locate fault: must resolve through __init__.py into src/shop/calc.py
+            candidates = locator.locate_fault(pytest_output)
+            self.assertGreaterEqual(len(candidates), 1)
+            top = candidates[0]
+            self.assertEqual(top.file_path, "src/shop/calc.py")
+            self.assertEqual(top.symbol_name, "calculate_tax")
+            self.assertFalse(top.is_test_file)
+            self.assertGreaterEqual(top.confidence, 0.90)
+
 
 if __name__ == "__main__":
     unittest.main()
