@@ -563,6 +563,23 @@
   - **四题平均得分准确值**：**0.9808**（$(1.0 + 1.0 + 1.0 + 0.9230769) / 4$）；
   - **规范合规**：所有记录模型为 `kimi-k3`，镜像为 `python:3.12-slim-amd64`，harbor 字段保持 `false`，4 个容器号均为 64 位小写十六进制，结果文件准确记录浮点奖励。本地网络探测核实远程 `10.0.0.184` 随后处于离线超时状态，账本未进行二次重读。
 
+### 4.24 `deepseek-v4.1-flash` 四道 Hard 难度基准实测与满分闭环（`results-deepseek-v4.1-flash-4tasks.jsonl`）
+- **测试环境与接入配置**：
+  - 渠道：`https://happycoding.xyz/v1`（New-API），模型标识：`deepseek-v4.1-flash`；
+  - 宿主机：远程 Linux `n100`（`10.0.0.184`，已恢复开机且 SSH 畅通）；
+  - 沙盒容器：`python:3.12-slim-amd64`（Docker 隔离运行，生成并记录 64 位小写十六进制 `--cidfile` 容器指纹）；
+  - 网络与流式传输：开启 `ONECODE_STREAM_CHAT=1` 原生 SSE 流式处理，彻底根除前置阿里云 ESA CDN 的 31.5s 原点超时（HTTP 524）。
+- **实测任务明细与成绩（`results-deepseek-v4.1-flash-4tasks.jsonl`）**：
+  1. `data_reporting-hard-support_sla`：奖励 **1.0**，0 修复首轮通关，状态 `completed`，卦象 63/39（乾为天 $\to$ 山天大畜），耗时 **36.73s**，容器 ID `83dafeac03dbd55e557d492c6b293ec9fe6fe093b766b490601919c10165cff9`；
+  2. `feature_pipeline-hard-cross_categorical`：奖励 **1.0**，0 修复首轮通关，状态 `completed`，卦象 63/39，耗时 **16.76s**，容器 ID `f00338b4d2caeee4ed8281ccd4ad07680c00b5d1a681123f86db5e2aaa8c1280`；
+  3. `refactor-hard-sync_async_bridge`：奖励 **1.0**，0 修复首轮通关，状态 `completed`，卦象 63/39，耗时 **78.51s**，容器 ID `f3c57b968f0163c27b89197ca91d4cbcc11437aa2309dbbab4756d84e2a194b3`；
+  4. `data_quality-hard-label_conflicts`：奖励 **1.0**，1 轮自愈，状态 `completed`，卦象 63/39，耗时 **151.44s**，容器 ID `72079ebad42eed9ea1922bdc064e5df74f0778ad667a0a6bbda5283edb2234ef`。第 0 轮验真遭遇差异后由易数状态机触发 `model-repair-after-check`，在第 1 轮自愈中精准修复所有清洗规则并完成满分验收。
+- **综合核心指标对比**：
+  - **四题综合平均奖励**：**1.0000（100.0% 满分通过）**；
+  - **满分通过率**：**100.0%（4/4）**；
+  - **总执行耗时**：**283.44 秒**（相较 `kimi-k3` 的 898.82 秒提速 **3.17 倍**）；
+  - **规范一致性**：所有 4 条记录模型均为 `deepseek-v4.1-flash`，镜像为 `python:3.12-slim-amd64`，`harbor` 字段严格为 `false`，4 个容器号全部为 64 位小写十六进制。
+
 ## 5. Phase V 终局总结与全量优化任务闭环宣告
 
 截至 2026-11-02，OneCode Phase V 开发路线图规划的所有核心工程与优化任务已**全部圆满达成并实现严密闭环**：
