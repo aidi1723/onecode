@@ -304,7 +304,7 @@ class TerminalSession:
             "4. Finish: {\"action_type\":\"finish\", \"explanation\":\"Verification passed and all criteria satisfied.\"}",
             "",
             "Rules & Policies:",
-            "- Anti-tamper: All paths under tests/ are strictly immutable. Only patch implementation source files under src/.",
+            "- Anti-tamper: All paths under tests/ are strictly immutable. Only patch non-test implementation source files.",
             "- Verification: Use 'command' to run existing tests to verify your hypotheses before and after patching.",
             "- Focus: When confident that the tests pass and the solution is complete, submit 'finish'.",
         ]
