@@ -795,6 +795,23 @@ class OpenAIResponsesProvider:
             existing_preset_tests=existing_preset_tests,
         )
 
+    def complete(
+        self,
+        prompt: str,
+        *,
+        model: str | None = None,
+        http_timeout_seconds: float = 60.0,
+    ) -> str:
+        resolved_model = model or os.environ.get("ONECODE_MODEL", "deepseek-chat")
+        body: dict[str, Any] = {
+            "model": resolved_model,
+            "stream": False,
+            "input": [_responses_input_message("user", prompt)],
+        }
+        body.update(_responses_prompt_cache())
+        payload = _post_model_json(self.endpoint, self.api_key, body, http_timeout_seconds)
+        return extract_response_text(payload)
+
 
 def _chat_thinking_fields() -> dict[str, Any]:
     mode = os.environ.get("ONECODE_CHAT_THINKING", "").strip().casefold()
@@ -895,6 +912,29 @@ class OpenAIChatCompletionsProvider:
             known_modules=known_modules,
             existing_preset_tests=existing_preset_tests,
         )
+
+    def complete(
+        self,
+        prompt: str,
+        *,
+        model: str | None = None,
+        http_timeout_seconds: float = 60.0,
+    ) -> str:
+        resolved_model = model or os.environ.get("ONECODE_MODEL", "deepseek-chat")
+        body: dict[str, Any] = {
+            "model": resolved_model,
+            "messages": [{"role": "user", "content": prompt}],
+            "response_format": {"type": "json_object"},
+        }
+        body.update(_chat_thinking_fields())
+        max_tokens_val = os.environ.get("ONECODE_MODEL_MAX_TOKENS")
+        if max_tokens_val:
+            try:
+                body["max_tokens"] = int(max_tokens_val)
+            except ValueError:
+                pass
+        payload = _post_model_json(self.endpoint, self.api_key, body, http_timeout_seconds)
+        return _chat_message_text(payload)
 
 
 def complete_model_text(

@@ -84,6 +84,7 @@ def run_harbor_task(
     timeout_seconds: float = 300.0,
     dry_run: bool = False,
     agent_only: bool = True,
+    agent_mode: str = "classic",
 ) -> dict[str, Any]:
     log_dir.mkdir(parents=True, exist_ok=True)
     archive = task_package / "environment" / "workspace.tar.gz"
@@ -102,6 +103,7 @@ def run_harbor_task(
             "task_id": task_id,
             "status": "dry_run",
             "harbor": True,
+            "agent_mode": agent_mode,
             "bureau_name": bureau.get("bureau_name"),
             "workspace": str(workspace),
             "log_dir": str(log_dir),
@@ -155,6 +157,7 @@ def run_harbor_task(
         execution_approval=lambda _step: True,
         require_explicit_approval=True,
         http_timeout_seconds=effective_timeout,
+        agent_mode=agent_mode,
         **extras,
     )
 
@@ -162,6 +165,7 @@ def run_harbor_task(
         record = {
             "task_id": task_id,
             "model": model,
+            "agent_mode": result.get("agent_mode", agent_mode),
             "status": result.get("status"),
             "reason": result.get("reason"),
             "outcome_status_code": result.get("outcome_status_code") or result.get("global_status_code"),
@@ -193,6 +197,7 @@ def run_harbor_task(
     record = {
         "task_id": task_id,
         "model": model,
+        "agent_mode": result.get("agent_mode", agent_mode),
         "status": result.get("status"),
         "reason": result.get("reason"),
         "outcome_status_code": result.get("outcome_status_code") or result.get("global_status_code"),
@@ -228,6 +233,12 @@ def main() -> int:
     parser.add_argument("--key-file", type=Path, default=Path("/tmp/onecode_key_once"))
     parser.add_argument("--max-repairs", type=int, default=4)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--agent-mode",
+        choices=["classic", "terminal"],
+        default=os.environ.get("HARBOR_AGENT_MODE", "classic"),
+        help="Agent loop architecture: classic (plan-repair) or terminal (interactive bash/read/patch)",
+    )
     parser.add_argument(
         "--standalone-self-eval",
         action="store_true",
@@ -271,6 +282,7 @@ def main() -> int:
         max_repairs=args.max_repairs,
         dry_run=args.dry_run,
         agent_only=agent_only,
+        agent_mode=args.agent_mode,
     )
     print(json.dumps(record, indent=2))
     return 0

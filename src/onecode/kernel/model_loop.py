@@ -2730,6 +2730,124 @@ def _enrich_bureau_and_brightness_metadata(workspace: Path, run_metadata: dict[s
             pass
 
 
+def _run_terminal_model_task(
+    *,
+    task: str,
+    workspace: Path,
+    active_provider: Any,
+    model_context: Any,
+    trace_path: Path,
+    sandbox_config: Any | None,
+    max_repair_attempts: int,
+    on_turn: Callable[[dict[str, Any]], None] | None,
+    resolved_model: str,
+    http_timeout_seconds: float = 60.0,
+) -> dict[str, Any]:
+    from onecode.kernel.terminal_loop import TerminalStep, run_terminal_session
+
+    max_turns = max(10, max_repair_attempts * 3)
+
+    class _TerminalProviderAdapter:
+        def __init__(self, inner: Any, model: str, timeout: float) -> None:
+            self.inner = inner
+            self.model = model
+            self.timeout = timeout
+
+        def complete(self, prompt: str) -> str:
+            if hasattr(self.inner, "complete"):
+                try:
+                    return str(self.inner.complete(prompt, model=self.model, http_timeout_seconds=self.timeout))
+                except TypeError:
+                    return str(self.inner.complete(prompt))
+            if callable(self.inner):
+                return str(self.inner(prompt))
+            raise RuntimeError(f"Provider {self.inner!r} has no complete method and is not callable")
+
+        def __call__(self, prompt: str) -> str:
+            return self.complete(prompt)
+
+    adapted_provider = _TerminalProviderAdapter(active_provider, resolved_model, http_timeout_seconds)
+
+    def on_step_callback(step: TerminalStep) -> None:
+        try:
+            trace_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(trace_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps({
+                    "step_type": "terminal_step",
+                    "turn_index": step.turn_index,
+                    "action": step.action.to_dict(),
+                    "observation": step.observation.to_dict(),
+                    "hexagram_code": step.hexagram_code,
+                    "timestamp_ns": step.timestamp_ns,
+                }) + "\n")
+        except OSError:
+            pass
+        if on_turn is not None:
+            try:
+                on_turn({
+                    "turn": step.turn_index,
+                    "action": step.action.to_dict(),
+                    "observation": step.observation.to_dict(),
+                    "hexagram_code": step.hexagram_code,
+                })
+            except Exception:
+                pass
+
+    term_result = run_terminal_session(
+        task,
+        workspace,
+        adapted_provider,
+        max_turns=max_turns,
+        on_step=on_step_callback,
+    )
+
+    is_completed = term_result.get("status") == "completed"
+    status = "completed" if is_completed else "halted"
+    reason = term_result.get("explanation") if is_completed else term_result.get("reason", "terminal_loop_halted")
+    outcome_status_code = 0 if is_completed else 1
+    iching_code = 63 if is_completed else (40 if term_result.get("reason") in {"stagnation_loop", "preset_test_immutable"} else 39)
+
+    steps_list = term_result.get("steps", [])
+    applied_patches = [
+        s["action"] for s in steps_list
+        if s.get("action", {}).get("action_type") == "patch"
+    ]
+    modified_paths: list[str] = []
+    for p in applied_patches:
+        path_str = p.get("path")
+        if path_str and path_str not in modified_paths:
+            modified_paths.append(path_str)
+
+    raw_result: dict[str, Any] = {
+        "status": status,
+        "reason": reason,
+        "outcome_status_code": outcome_status_code,
+        "iching_status_code": iching_code,
+        "global_status_code": outcome_status_code,
+        "repair_attempt_count": len(applied_patches),
+        "turns_completed": term_result.get("turns_completed", 0),
+        "terminal_steps": steps_list,
+        "applied_patches": applied_patches,
+        "modified_files": modified_paths,
+        "written": modified_paths,
+        "run_id": model_context.run_id,
+        "trace_path": str(trace_path),
+        "agent_mode": "terminal",
+        "resolved_model": resolved_model,
+    }
+
+    verified = _with_sandbox_tests(raw_result, workspace, sandbox_config)
+
+    if verified.get("status") == "completed" and verified.get("reason") != "verifier_failed":
+        try:
+            from onecode.kernel.checkpoint import write_global_wal
+            write_global_wal(model_context, verified)
+        except Exception:
+            pass
+
+    return verified
+
+
 def run_model_task(
     task: str,
     workspace: Path,
@@ -2751,6 +2869,7 @@ def run_model_task(
     sandbox_config: Any | None = None,
     preface: str | None = None,
     approval_mode: str = "strict",
+    agent_mode: str = "classic",
 ) -> dict[str, Any]:
     task = with_preface(task, preface)
     validate_model_task_limits(http_timeout_seconds, max_repair_attempts)
@@ -2765,6 +2884,21 @@ def run_model_task(
         return failed_model_result(model_context, {"failure_kind": ledger_mismatch, "reason": ledger_mismatch})
     if route is not None and route.status == "invalid":
         return invalid_safe_agent_result(model_context, trace_path, route)
+
+    effective_agent_mode = (os.environ.get("ONECODE_AGENT_MODE") or agent_mode).strip().lower()
+    if effective_agent_mode == "terminal":
+        return _run_terminal_model_task(
+            task=task,
+            workspace=workspace,
+            active_provider=active_provider,
+            model_context=model_context,
+            trace_path=trace_path,
+            sandbox_config=sandbox_config,
+            max_repair_attempts=max_repair_attempts,
+            on_turn=on_turn,
+            resolved_model=resolved_model,
+            http_timeout_seconds=http_timeout_seconds,
+        )
     plan, failure, narrowed = _initial_model_plan(
         task=task,
         max_repair_attempts=max_repair_attempts,

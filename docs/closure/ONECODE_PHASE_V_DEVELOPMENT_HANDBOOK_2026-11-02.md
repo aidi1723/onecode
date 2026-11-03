@@ -714,3 +714,33 @@
 5. **架构与模型提示词零契约净化（步骤 2.5）**：`data_contract_guidance` 彻底剔除历史遗留硬编码字段与数值常量，纯通用工程规范化改造完成，双端质量门禁与全量测试 100% 绿灯。
 
 至此，OneCode Phase V 全量研发与优化任务正式宣告封板胜利结项！
+
+---
+
+## 6. Phase VII: 开放式自主智能体内核集成（Step 1: 终端循环接入与 Harbor 调度器贯通）
+
+### 6.1 核心架构集成与双模驱动
+- **`run_model_task` 双模分发与接入**：
+  - 在 [`src/onecode/kernel/model_loop.py`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/model_loop.py) 中新增 `agent_mode: str = "classic"` 参数与 `ONECODE_AGENT_MODE` 环境变量支持；
+  - 默认模式 `"classic"` 完全兼容既有五行局单轮规划-多轮修复流水线；
+  - 当 `agent_mode="terminal"` 或环境变量置为 `"terminal"` 时，分发至全新实现的 [`_run_terminal_model_task`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/model_loop.py#L2730-L2850)；
+  - 内置 [`_TerminalProviderAdapter`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/model_loop.py#L2745-L2770) 自适应适配器，统一屏蔽模型 Provider 差异（支持 `complete(prompt, model=..., http_timeout_seconds=...)`、`complete(prompt)` 与可调用对象）；
+  - 在 [`OpenAIChatCompletionsProvider`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/model_provider.py#L810-L930) 与 [`OpenAIResponsesProvider`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/model_provider.py#L742-L800) 中原生实现 `complete(prompt, ...)` 方法，支持交互式单句/多句 JSON action 生成；
+  - 接入完整沙箱验真器闭环（`_with_sandbox_tests`）与全局账本 WAL 写入（[`write_global_wal`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/checkpoint.py)），确保持续运行不破环工作区一致性。
+
+### 6.2 Harbor 适配器双模升级（`harbor_adapter.py`）
+- 在 [`scripts/harbor_adapter.py`](file:///Volumes/MacSSD/项目开发/one code/scripts/harbor_adapter.py) 中新增 `--agent-mode` 命令行参数与 `HARBOR_AGENT_MODE` 环境变量读取；
+- `run_harbor_task` 支持透传 `agent_mode` 至 `run_model_task`；
+- 在 `reward.json`、`harbor_agent_manifest.json` 及执行返回记录中持久化 `agent_mode` 标识。
+
+### 6.3 单元测试与质量门禁扩充
+- **新增集成测试**：
+  - [`tests/test_terminal_loop.py`](file:///Volumes/MacSSD/项目开发/one code/tests/test_terminal_loop.py) 新增 `TestTerminalModelLoopIntegration`（覆盖多轮 `read_file` -> `patch` -> `finish`、追踪流水线 `trace.jsonl` 记录、易经卦象 63 乾为天）；
+  - 新增 [`tests/test_harbor_adapter.py`](file:///Volumes/MacSSD/项目开发/one code/tests/test_harbor_adapter.py)（覆盖 `dry_run` 模式模式透传、CLI 参数解析、`reward.json` 生成）；
+- **门禁检验**：
+  - 代码质量规范校验器通过（单函数 $\le 200$ 行，单类 $\le 500$ 行）；
+  - `ruff check src tests scripts` All checks passed；
+  - `mypy src/ scripts/harbor_adapter.py` 111 个源文件 0 错误；
+  - `onecode doctor` 9/9 项全部通过；
+  - 本地测试套件 1,522 项测试全部通过（0 错误，0 失败）。
+

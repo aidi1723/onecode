@@ -324,5 +324,98 @@ class TestRunTerminalSessionLoop(unittest.TestCase):
         self.assertEqual(res["turns_completed"], 2)
 
 
+class TestTerminalModelLoopIntegration(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp_dir = tempfile.TemporaryDirectory()
+        self.workspace = Path(self.tmp_dir.name)
+        (self.workspace / "src").mkdir(parents=True, exist_ok=True)
+        self.target = self.workspace / "src" / "target.py"
+        self.target.write_text("x = 10\n", encoding="utf-8")
+
+    def tearDown(self) -> None:
+        self.tmp_dir.cleanup()
+
+    def test_run_model_task_terminal_mode_success(self) -> None:
+        from onecode.kernel.model_loop import run_model_task
+
+        responses = [
+            json.dumps({"action_type": "read_file", "path": "src/target.py"}),
+            json.dumps({
+                "action_type": "patch",
+                "path": "src/target.py",
+                "search_block": "x = 10",
+                "replace_block": "x = 20",
+            }),
+            json.dumps({"action_type": "finish", "explanation": "Target updated to 20"}),
+        ]
+
+        class SequenceProvider:
+            def __init__(self, resps: list[str]) -> None:
+                self.resps = resps
+                self.idx = 0
+
+            def complete(self, prompt: str, **kwargs: object) -> str:
+                res = self.resps[self.idx]
+                self.idx += 1
+                return res
+
+        turn_events: list[dict[str, object]] = []
+        result = run_model_task(
+            "Fix target value to 20",
+            workspace=self.workspace,
+            run_id="test-term-run",
+            agent_mode="terminal",
+            provider=SequenceProvider(responses),
+            on_turn=lambda t: turn_events.append(t),
+        )
+
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["agent_mode"], "terminal")
+        self.assertEqual(result["outcome_status_code"], 0)
+        self.assertEqual(result["iching_status_code"], 63)
+        self.assertEqual(result["repair_attempt_count"], 1)
+        self.assertEqual(result["modified_files"], ["src/target.py"])
+        self.assertEqual(self.target.read_text(encoding="utf-8"), "x = 20\n")
+        self.assertEqual(len(turn_events), 3)
+
+        trace_file = Path(result["trace_path"])
+        self.assertTrue(trace_file.is_file())
+        trace_lines = [json.loads(line) for line in trace_file.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(len(trace_lines), 3)
+        self.assertEqual(trace_lines[0]["action"]["action_type"], "read_file")
+        self.assertEqual(trace_lines[1]["action"]["action_type"], "patch")
+        self.assertEqual(trace_lines[2]["action"]["action_type"], "finish")
+
+    def test_run_model_task_terminal_mode_via_env(self) -> None:
+        import os
+        from onecode.kernel.model_loop import run_model_task
+
+        responses = [
+            json.dumps({"action_type": "finish", "explanation": "No change needed"}),
+        ]
+
+        class SimpleProvider:
+            def complete(self, prompt: str, **kwargs: object) -> str:
+                return responses[0]
+
+        old_env = os.environ.get("ONECODE_AGENT_MODE")
+        try:
+            os.environ["ONECODE_AGENT_MODE"] = "terminal"
+            result = run_model_task(
+                "Check task",
+                workspace=self.workspace,
+                run_id="test-term-env",
+                agent_mode="classic",
+                provider=SimpleProvider(),
+            )
+            self.assertEqual(result["status"], "completed")
+            self.assertEqual(result["agent_mode"], "terminal")
+        finally:
+            if old_env is None:
+                os.environ.pop("ONECODE_AGENT_MODE", None)
+            else:
+                os.environ["ONECODE_AGENT_MODE"] = old_env
+
+
 if __name__ == "__main__":
     unittest.main()
