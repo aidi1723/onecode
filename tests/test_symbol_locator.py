@@ -340,6 +340,16 @@ FAILED tests/test_shop.py::test_shop - AssertionError
             self.assertFalse(top.is_test_file)
             self.assertGreaterEqual(top.confidence, 0.90)
 
+            # Test minimal 2-line log without code body: test scope token extraction must still achieve 0.92
+            minimal_log = "tests/test_shop.py:4: AssertionError\nFAILED tests/test_shop.py::test_shop\n"
+            min_candidates = locator.locate_fault(minimal_log)
+            self.assertGreaterEqual(len(min_candidates), 1)
+            min_top = min_candidates[0]
+            self.assertEqual(min_top.file_path, "src/shop/calc.py")
+            self.assertEqual(min_top.symbol_name, "calculate_tax")
+            self.assertFalse(min_top.is_test_file)
+            self.assertGreaterEqual(min_top.confidence, 0.90)
+
 
 if __name__ == "__main__":
     unittest.main()

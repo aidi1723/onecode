@@ -627,15 +627,15 @@
     在 `n100` 节点解包真实题目工作区（`bug_fix-medium-error_key_uses_data_key`，注入测试 `tests/test_decorators.py::TestValidatesSchemaDecorator::test_data_key_is_used_in_errors_dict`）：
     1. **Case A（真实 Pytest 原生断言报错，无实现层深层帧）**：
        - 测试在第 712 行断言失败（`AssertionError: assert {'fooKey': ...} == {'fooKey': ...}`）；
-       - 定位器识别到 `tests/test_decorators.py:712`，提取上下文符号（`Schema`, `load`, `ValidationError`, `validates`, `validates_schema`）；
+       - 定位器识别到 `tests/test_decorators.py:712`，自动通过 `_extract_tokens_from_test_scope` 扫描包含该行的测试函数作用域代码，提取核心符号（`Schema`, `load`, `ValidationError`, `validates`, `validates_schema`）；即使测试输出仅有 2 行极简错误日志，也能由源码作用域捕获符号；
        - 沿 `tests/test_decorators.py` 的导入链追踪至 `marshmallow/__init__.py`，递归穿透相对导入重导出（`from .schema import Schema`、`from .decorators import validates, validates_schema`）；
        - **输出前 4 位候选全为实现文件**：`src/marshmallow/schema.py [Schema]`（置信度 0.92）、`src/marshmallow/schema.py [Schema.load]`（0.92）、`src/marshmallow/exceptions.py [ValidationError]`（0.92）、`src/marshmallow/decorators.py [validates]`（0.92），测试文件被坚决置底；
     2. **Case B（运行时深层调用栈抛出异常）**：
        - 模拟捕获深层异常栈（从 `test_decorators.py` 进入 `schema.py` line 778 `load` $\to$ line 938 `_do_load` $\to$ line 842 `_run_validator`）；
        - 定位器解析 4 层调用栈，精准输出第 1 候选：`src/marshmallow/schema.py [Schema._run_validator]` lines 825-843，置信度 **1.00**（与官方基准补丁修改的目标函数完全吻合）。
   - **单元测试与双端质量门禁**：
-    - [`tests/test_symbol_locator.py`](file:///Volumes/MacSSD/项目开发/one code/tests/test_symbol_locator.py) 扩充至 9 项测试（新增包级相对导入重导出穿透与 pytest 原生栈帧提取）；
-    - 本地（8.106s）与 `n100`（28.113s）测试全量 **229 项 100% 通过**；
+    - [`tests/test_symbol_locator.py`](file:///Volumes/MacSSD/项目开发/one code/tests/test_symbol_locator.py) 扩充至 9 项测试（新增包级相对导入重导出穿透、pytest 原生栈帧提取与极简日志下的测试函数作用域符号自动捕获）；
+    - 本地（8.145s）与 `n100`（28.208s）测试全量 **229 项 100% 通过**；
     - `scripts/check_source_quality.py`、`ruff check`、`mypy`（108 个源文件 0 错误）与 `onecode doctor`（`status: ok`）双端全绿。
 
 ## 5. Phase V 终局总结与全量优化任务闭环宣告

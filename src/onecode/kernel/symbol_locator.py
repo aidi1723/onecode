@@ -376,6 +376,35 @@ class SymbolLocator:
                 result.append(n)
         return result
 
+    def _extract_tokens_from_test_scope(self, frames: list[StackFrame]) -> list[str]:
+        """Extract code tokens from the test function body containing the failure line."""
+        tokens: list[str] = []
+        for frame in frames:
+            if not is_preset_test_path(frame.file_path):
+                continue
+            test_file = self.workspace / frame.file_path
+            if not test_file.is_file():
+                continue
+            enclosing = [
+                s for s in self.index.symbols_by_file.get(frame.file_path, [])
+                if s.line_start <= frame.line <= s.line_end
+            ]
+            if not enclosing:
+                continue
+            enclosing.sort(key=lambda s: s.line_end - s.line_start)
+            target_sym = enclosing[0]
+            try:
+                lines = test_file.read_text(encoding="utf-8").splitlines()
+                start = max(0, target_sym.line_start - 1)
+                end = min(len(lines), target_sym.line_end)
+                scope_text = "\n".join(lines[start:end])
+                for word in re.findall(r"\b[a-zA-Z_]\w+\b", scope_text):
+                    if word in self.index.symbols_by_name and not word.startswith("test_"):
+                        tokens.append(word)
+            except OSError:
+                pass
+        return tokens
+
     def locate_fault(
         self,
         failure_text: str,
@@ -385,6 +414,9 @@ class SymbolLocator:
     ) -> list[FaultLocation]:
         frames = self.parse_stack_frames(failure_text)
         candidate_symbols = self.extract_failing_symbols(failure_text)
+        for tok in self._extract_tokens_from_test_scope(frames):
+            if tok not in candidate_symbols:
+                candidate_symbols.append(tok)
 
         candidates: list[FaultLocation] = []
         seen_keys: set[tuple[str, str, int]] = set()
