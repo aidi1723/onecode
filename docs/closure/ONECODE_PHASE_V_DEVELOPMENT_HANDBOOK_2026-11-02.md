@@ -638,6 +638,30 @@
     - 本地（8.145s）与 `n100`（28.208s）测试全量 **229 项 100% 通过**；
     - `scripts/check_source_quality.py`、`ruff check`、`mypy`（108 个源文件 0 错误）与 `onecode doctor`（`status: ok`）双端全绿。
 
+### 4.27 Phase VI Step 2：开放式多步终端交互与动态探查闭环（`src/onecode/kernel/terminal_loop.py`）
+- **面向场景与核心痛点**：
+  SWE-bench 任务高度依赖智能体在受限终端环境下的自主多轮闭环（执行命令、探查错误、按需读码、精准打补丁、回归测试并自主判断完工）。传统固定单步修补或无防护的多步执行容易导致：1) 篡改 `tests/` 断言以伪造测试通过；2) 陷入同一错误命令的机械盲目死循环（易数陀罗暗滞）；3) 无法实时结合符号定位器指引探索方向。
+- **架构组件与核心工程设计**：
+  1. **数据契约与统一动作协议（[`TerminalAction`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/terminal_loop.py#L37-L86)、[`TerminalObservation`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/terminal_loop.py#L88-L108)、[`TerminalStep`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/terminal_loop.py#L111-L127)）**：
+     - 标准化支持 4 类核心动作：`command`（沙箱内命令执行）、`read_file`（带行号区间安全分页与防越界）、`patch`（基于 `patch_text` 局部上下文精准替换）、`finish`（模型自主确认通过验证并完工交付）；
+     - 具备多别名字段容错解析（`cmd`/`argv` $\to$ `command`, `reason` $\to$ `explanation`）；
+     - 易数状态映射：成功动作标注卦象 63（水火既济），命令报错标注 39（水山蹇），越界阻断与停滞熔断标注 40（火地晋/雷水解）。
+  2. **防篡改与安全全向隔离（Anti-Tamper & PathGuard）**：
+     - **命令级防篡改拦截（`is_command_tampering`）**：严格拦截诸如 `rm tests/...`、`sed -i ... tests/`、`> tests/...`、`tee tests/...` 等试图修改测试文件的 shell 命令；
+     - **补丁级防篡改拦截（`_handle_patch`）**：严格校验 `is_preset_test_path`，坚决禁止向 `tests/` 目录应用任何补丁，强制模型仅能修改 `src/` 等实现源码；
+     - **路径安全读取拦截（`_handle_read_file`）**：严格联动 `PathGuard.is_sensitive_read_path`，阻断对 `.git/config` 等敏感凭据路径的访问。
+  3. **陀罗暗滞检测与化权破滞控制（Stagnation Loop Governance）**：
+     - 在 `_handle_command` 中维护执行签名与连续停滞计数器，一旦检测到模型连续两次以上重复发送相同的失败命令，立即阻断并返回 `status: halted, reason: stagnation_loop`，迫使智能体调整策略。
+  4. **符号定位器动态耦合（Fault Localization Coupling）**：
+     - 在 `render_turn_prompt` 提示词渲染器中，提取最近步骤的 stderr/stdout 日志，实时交由 [`SymbolLocator`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/symbol_locator.py) 进行溯源反查，将推荐的实现文件路径、符号名、起止行号与置信度作为 `Fault Localization Hints (天相印绶·符号溯源定位)` 直推给智能体。
+  5. **多轮终端驱动器（[`run_terminal_session`](file:///Volumes/MacSSD/项目开发/one code/src/onecode/kernel/terminal_loop.py#L356-L410)）**：
+     - 具备强大的 JSON 逆向截取能力（`_parse_model_action` 支持剥离 Markdown 代码块与前导解释性文本）；
+     - 优雅承载提供商异常、停滞熔断与最大探索步数截断。
+- **实测验证结果与双端质量门禁**：
+  - 新增 [`tests/test_terminal_loop.py`](file:///Volumes/MacSSD/项目开发/one code/tests/test_terminal_loop.py)（15 项全量单元测试与集成测试，覆盖动作序列化反序列化与多格式容错、命令/读取/补丁/完工执行全路径、防篡改隔离、敏感路径拦截、陀罗暗滞熔断、符号定位器提示词耦合、多轮驱动器成功与异常模拟）；
+  - 本地与 `n100` 节点测试通过率保持 100%（**244/244 项全量通过**，本地用时 8.171s，`n100` 用时 28.282s）；
+  - `scripts/check_source_quality.py src`、`ruff check`、`mypy`（109 个源文件 0 错误）与 `onecode doctor`（`status: ok`）双端全绿。
+
 ## 5. Phase V 终局总结与全量优化任务闭环宣告
 
 截至 2026-11-02，OneCode Phase V 开发路线图规划的所有核心工程与优化任务已**全部圆满达成并实现严密闭环**：
