@@ -364,6 +364,7 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
             "Fix target value to 20",
             workspace=self.workspace,
             run_id="test-term-run",
+            api_key="mock-key",
             agent_mode="terminal",
             provider=SequenceProvider(responses),
             on_turn=lambda t: turn_events.append(t),
@@ -405,6 +406,7 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
                 "Check task",
                 workspace=self.workspace,
                 run_id="test-term-env",
+                api_key="mock-key",
                 agent_mode="classic",
                 provider=SimpleProvider(),
             )
