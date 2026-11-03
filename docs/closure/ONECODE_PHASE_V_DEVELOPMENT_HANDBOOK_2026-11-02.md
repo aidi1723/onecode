@@ -849,11 +849,11 @@
   基于 2026-11-03 外部严格技术审查报告（审核基线 `980d992`，成熟度 3.2/5），OneCode 作为“标准库受控内核 + 评测底座”在正式商用与公开基准对齐前，必须先行解决评分进程与模型代码权限隔离、终端模式受控审批、测试文件深层防篡改、题名规则泛化及账本写失败留痕等 6 项 P0 阻断性问题。
 - **P0-1 评分进程隔离与 3 大对抗场景防御（[`harbor_scheduler.py`](file:///Volumes/MacSSD/项目开发/one%20code/scripts/harbor_scheduler.py)）**：
   1. **非 root 降权执行**：Stage 2 容器以当前主机非 root 用户身份运行（`--user uid:gid`），结合 `--security-opt no-new-privileges`，防止模型代码利用容器 root 权限越权；
-  2. **资产只读绑定**：`/verifier/verifier.py`、`/workspace/.onecode`、`/workspace/tests`（若存在）及 `.git` 均以 `readonly` 挂载。宿主正式 `log_dir` 不进入容器。容器内 `/log_dir` 绑定到 `log_dir` 同级的临时中转目录，容器 `--rm` 退出后文件仍在该目录；调度器核对后再写入正式奖励文件。Stage 1 不把隐藏验真器路径写入工作区；
+  2. **资产只读绑定**：`/verifier/verifier.py`、`/workspace/.onecode`、`/workspace/tests`（若存在）及 `.git` 均以 `readonly` 挂载。宿主正式 `log_dir` 不进入容器。容器内 `/log_dir` 绑定到 `log_dir` 同级的临时中转目录，容器 `--rm` 退出后文件仍在该目录；调度器核对后再写入正式奖励文件。内核容器验真的 `container.cid` 放在中转目录外面。Stage 1 不把隐藏验真器路径写入工作区。求解循环不读取 `.onecode_host_verifier`、`ONECODE_HOST_VERIFIER`、`ONECODE_HOST_VERIFIER_CMD`，也不执行工作区里的 `verifier.py`；求解期间只跑工作区可见的 `tests/`。
   3. **3 大对抗用例全量防御**（实测验证于 [`tests/test_harbor_adapter.py`](file:///Volumes/MacSSD/项目开发/one%20code/tests/test_harbor_adapter.py)）：
      - *对抗场景 1（改写 reward）*：模型代码写到验真器的 `LOG_DIR`。调度器核对退出码和断言计数；正分伴随非 0 退出码、满分缺少 `tests_passed == tests_total > 0`，或 `tests` 数组为空、与计数不一致时，标记 `reward_forgery_detected` 并把正式奖励写成 0.0；
      - *对抗场景 2（修改测试）*：模型代码尝试篡改隐藏测试或验证脚本，调度器采用 SHA-256 全量快照基线比对，一旦发现哈希不匹配即刻判定 `test_tampering_detected`，得分归零；
-     - *对抗场景 3（劫持 `sys.path`）*：模型代码在工作区根目录放置恶意 `json.py`、`subprocess.py` 或 `os.py` 试图欺骗验真器，调度器在评分前执行标准库遮蔽审计（`audit_workspace_for_sys_path_hijacking`），直接拦截并判定 `sys_path_hijack_detected`，得分归零。
+     - *对抗场景 3（劫持 `sys.path`）*：模型代码在工作区任意目录放置恶意 `json.py`、`subprocess.py`、`os.py`、`sitecustomize.py` 或 `.pth` 试图欺骗验真器，调度器在评分前执行标准库遮蔽审计（`audit_workspace_for_sys_path_hijacking`），直接拦截并判定 `sys_path_hijack_detected`，得分归零。
 - **P0-2 终端模式接入全局审批闸门（[`terminal_loop.py`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/terminal_loop.py) / [`model_loop.py`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/model_loop.py)）**：
   - 在 [`TerminalSession`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/terminal_loop.py) 与调度驱动 [`_run_terminal_model_task`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/model_loop.py) 中全面接入 `approval_mode`、`execution_approval` 回调与自动审批判定；
   - 当 `approval_mode="strict"` 时，每个 `patch` 和 `command` 均需经过 `execution_approval` 回调；无回调时直接拦截拒绝写操作（`reason="approval_required"`）；
@@ -861,7 +861,7 @@
 - **P0-3 测试文件哈希基线守卫与多语言后缀补全**：
   - 扩展 [`is_any_test_path`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/symbol_locator.py) 判定，增补 `_test.rb`、`test_*.rb` 以及 `spec/`、`test/` 目录覆盖；
   - 终端会话初始化建立 `initial_test_hashes` 全量测试文件 SHA-256 快照；
-  - 针对使用 `python -c "open('..._test.go','w').write('')"` 或其他脚本绕过命令正则修改测试文件的行为，在指令执行后即刻执行哈希对比，一旦变动立即按卦象 40（火地晋·`preset_test_immutable`）熔断阻断，并把快照中的测试文件写回、删除会话中新增的测试文件；
+  - `python -c`、`perl -pi`、`node -e`、`ruby -e` 的参数里一旦出现测试路径，命令在执行前即按卦象 40（火地晋·`preset_test_immutable`）拦截。未点名测试路径的脚本若在执行后改动测试文件，哈希对比仍会写回快照、删除新增测试文件，并在本轮会话内保持拦截；
   - 在智能体提交 `finish` 时再度执行一致性校验，防范任何测试篡改。
 - **P0-4 清除题名触发与泛化提示词精准化**：
   - 从 [`data_contract_guidance`](file:///Volumes/MacSSD/项目开发/one%20code/src/onecode/kernel/model_loop.py) 中全面删除 13 条 WorkBuddy 题目 slug 字符串；

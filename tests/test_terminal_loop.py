@@ -645,6 +645,45 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
             self.assertEqual(finish_obs.reason, "preset_test_immutable")
             self.assertEqual(session.steps[-1].hexagram_code, 40)
 
+    def test_interpreter_oneliners_are_blocked_before_they_touch_test_files(self) -> None:
+        from unittest.mock import patch
+
+        go_test = self.workspace / "pkg" / "order_test.go"
+        go_test.parent.mkdir(parents=True, exist_ok=True)
+        go_test.write_text("package order\n// Original test\n", encoding="utf-8")
+        session = TerminalSession(self.workspace, "Block before execution", approval_mode="scoped_auto")
+        sentinel = self.workspace / "sentinel.txt"
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            observed = session.execute_action(TerminalAction(
+                action_type="command",
+                command=(
+                    "python3", "-c",
+                    "open('sentinel.txt','w').write('ran'); open('pkg/order_test.go','w').write('hacked')",
+                ),
+            ))
+            self.assertEqual(observed.reason, "preset_test_immutable")
+            self.assertFalse(sentinel.exists())
+            self.assertEqual(go_test.read_text(encoding="utf-8"), "package order\n// Original test\n")
+
+            perl = session.execute_action(TerminalAction(
+                action_type="command",
+                command=("perl", "-pi", "-e", "s/Original/Hacked/", "pkg/order_test.go"),
+            ))
+            node = session.execute_action(TerminalAction(
+                action_type="command",
+                command=("node", "-e", "require('fs').writeFileSync('pkg/order_test.go','hacked')"),
+            ))
+            self.assertEqual(perl.reason, "preset_test_immutable")
+            self.assertEqual(node.reason, "preset_test_immutable")
+        clean = TerminalSession(self.workspace, "Allowed one-liner", approval_mode="scoped_auto")
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            allowed = clean.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "print(1)"),
+            ))
+        self.assertNotEqual(allowed.reason, "preset_test_immutable")
+        self.assertEqual(allowed.exit_code, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

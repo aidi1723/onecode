@@ -581,19 +581,30 @@ SHADOWED_STDLIB_MODULES = frozenset({
 })
 
 
+_AUDIT_SKIP_DIRS = frozenset({".git", ".github", ".onecode", "__pycache__", "node_modules", ".venv"})
+
+
 def audit_workspace_for_sys_path_hijacking(workspace: Path) -> list[str]:
-    """Reject workspace-root files that would shadow the verifier's standard library imports."""
+    """Reject files that would shadow the verifier's standard library imports from any workspace directory."""
     violations: list[str] = []
     if not workspace.is_dir():
         return violations
-    for name in SHADOWED_STDLIB_MODULES:
-        for suffix in (".py", ".pyw", ".so"):
-            candidate = workspace / f"{name}{suffix}"
-            if candidate.is_file():
-                violations.append(f"Rogue standard library module shadowing '{candidate.name}' in workspace root")
-        package = workspace / name
-        if package.is_dir() and (package / "__init__.py").is_file():
-            violations.append(f"Rogue package shadowing standard library '{name}' in workspace root")
+    for current, dirnames, filenames in os.walk(workspace):
+        dirnames[:] = [name for name in dirnames if name not in _AUDIT_SKIP_DIRS and not name.startswith(".")]
+        folder = Path(current)
+        relative = folder.relative_to(workspace).as_posix()
+        location = "workspace root" if relative == "." else relative
+        present = set(filenames)
+        for name in SHADOWED_STDLIB_MODULES:
+            for suffix in (".py", ".pyw", ".so"):
+                filename = f"{name}{suffix}"
+                if filename in present:
+                    violations.append(f"Rogue standard library module shadowing '{filename}' in {location}")
+            if name in dirnames and (folder / name / "__init__.py").is_file():
+                violations.append(f"Rogue package shadowing standard library '{name}' in {location}")
+        for filename in filenames:
+            if filename in {"sitecustomize.py", "usercustomize.py"} or filename.endswith(".pth"):
+                violations.append(f"Rogue import hook '{filename}' in {location}")
     return violations
 
 
@@ -914,8 +925,10 @@ def _run_container_verifier(
 
     import tempfile
 
-    log_dir = Path(tempfile.mkdtemp(prefix="oc-container-grade-"))
-    cidfile = log_dir / "container.cid"
+    grade_root = Path(tempfile.mkdtemp(prefix="oc-container-grade-"))
+    log_dir = grade_root / "staging"
+    log_dir.mkdir()
+    cidfile = grade_root / "container.cid"
     try:
         try:
             os.chmod(log_dir, 0o777)
@@ -1000,7 +1013,7 @@ def _run_container_verifier(
         )
         return checked, reward
     finally:
-        shutil.rmtree(log_dir, ignore_errors=True)
+        shutil.rmtree(grade_root, ignore_errors=True)
 
 
 def task_status_from_results(asset_result: dict[str, Any], verifier_results: list[VerifierResult]) -> dict[str, Any]:

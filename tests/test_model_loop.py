@@ -2777,10 +2777,11 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
             out = _with_sandbox_tests(res, workspace, sandbox_cfg)
             self.assertEqual(out["status"], "completed")
 
-            # Case 2: Host verifier via ONECODE_HOST_VERIFIER_CMD
+            # Case 2: A host verifier command or workspace verifier.py must not grade the solve.
             prev = os.environ.get("ONECODE_HOST_VERIFIER_CMD")
             try:
-                os.environ["ONECODE_HOST_VERIFIER_CMD"] = "python3 verifier.py"
+                os.environ["ONECODE_HOST_VERIFIER_CMD"] = "python3 /hidden/verifier.py"
+                (workspace / "verifier.py").write_text("print('check')\n", encoding="utf-8")
                 failed_res = VerifierResult(
                     id="host-verifier",
                     status="failed",
@@ -2797,29 +2798,23 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
                 )
                 with patch("onecode.kernel.verifier.run_verifier", return_value=failed_res) as mock_ver:
                     out_host = _with_sandbox_tests(res, workspace, sandbox_cfg)
-                    self.assertEqual(out_host["status"], "halted")
-                    self.assertEqual(out_host["reason"], "verifier_failed")
-                    self.assertTrue(any("AssertionError: host check failed" in str(v.get("stderr_tail")) for v in out_host.get("verifier_results", [])))
-                    mock_ver.assert_called_once()
+                    self.assertEqual(out_host["status"], "completed")
+                    self.assertNotIn("verifier_results", out_host)
+                    mock_ver.assert_not_called()
 
-                # Case 3: Even when tests/ exists, explicit host verifier cmd takes precedence
                 (workspace / "tests").mkdir(parents=True, exist_ok=True)
                 with patch("onecode.kernel.verifier.run_verifier", return_value=failed_res) as mock_ver3:
-                    out_host3 = _with_sandbox_tests(res, workspace, sandbox_cfg)
-                    self.assertEqual(out_host3["status"], "halted")
+                    _with_sandbox_tests(res, workspace, sandbox_cfg)
                     mock_ver3.assert_called_once()
                     called_spec = mock_ver3.call_args[0][1]
-                    self.assertEqual(called_spec.command, ["python3", "verifier.py"])
+                    self.assertEqual(called_spec.command, ["python3", "-m", "unittest", "discover", "-s", "tests"])
 
-                # Case 4: When tests/ exists and verifier.py exists (no host env), verifier.py takes precedence
                 os.environ.pop("ONECODE_HOST_VERIFIER_CMD", None)
-                (workspace / "verifier.py").write_text("print('check')\n", encoding="utf-8")
                 with patch("onecode.kernel.verifier.run_verifier", return_value=failed_res) as mock_ver4:
-                    out_host4 = _with_sandbox_tests(res, workspace, sandbox_cfg)
-                    self.assertEqual(out_host4["status"], "halted")
+                    _with_sandbox_tests(res, workspace, sandbox_cfg)
                     mock_ver4.assert_called_once()
                     called_spec4 = mock_ver4.call_args[0][1]
-                    self.assertEqual(called_spec4.command, ["python3", "verifier.py"])
+                    self.assertEqual(called_spec4.command, ["python3", "-m", "unittest", "discover", "-s", "tests"])
             finally:
                 if prev is not None:
                     os.environ["ONECODE_HOST_VERIFIER_CMD"] = prev
@@ -3133,8 +3128,8 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
                 res = _with_sandbox_tests({"status": "completed", "run_id": "test-host-verifier"}, workspace, sandbox_config=None)
                 self.assertEqual(res.get("status"), "completed")
                 self.assertIsNone(res.get("reason"))
-                self.assertEqual(res.get("host_reward"), 1.0)
-                self.assertIn("verifier_results", res)
+                self.assertNotIn("host_reward", res)
+                self.assertNotIn("verifier_results", res)
             finally:
                 if old_env is not None:
                     os.environ["ONECODE_HOST_VERIFIER"] = old_env
@@ -3168,7 +3163,7 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
 
                 res = _with_sandbox_tests({"status": "completed", "run_id": "test-marker-verifier"}, workspace, sandbox_config=None)
                 self.assertEqual(res.get("status"), "completed")
-                self.assertEqual(res.get("host_reward"), 1.0)
+                self.assertNotIn("host_reward", res)
             finally:
                 if old_env is not None:
                     os.environ["ONECODE_HOST_VERIFIER"] = old_env

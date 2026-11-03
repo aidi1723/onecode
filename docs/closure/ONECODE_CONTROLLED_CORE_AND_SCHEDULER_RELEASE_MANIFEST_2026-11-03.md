@@ -1,10 +1,10 @@
 # OneCode v1.1 受控内核与终端模式交付封板清单 (Release Manifest v1.1)
 
-- **版本基线**：P0 整改提交 [`1805702`](https://github.com/aidi1723/onecode/commit/1805702) 之后的 `main` 工作区。评分目录隔离、满分奖励的断言计数核对、测试文件回滚和内核异常留痕在该提交之后补上。
+- **版本基线**：P0 整改提交 [`1805702`](https://github.com/aidi1723/onecode/commit/1805702) 与 Stage 2 中转目录提交 [`63c94f8`](https://github.com/aidi1723/onecode/commit/63c94f8) 之后的交付工作区。本封板加上解释器单行命令的事前拦截、全工作区标准库影子审计、求解循环只跑可见的 `tests/`，以及内核容器把 `container.cid` 放在中转目录外面。
 - **封板日期**：2026-11-03
 - **运行环境支持**：macOS (Darwin arm64) & Linux (Ubuntu x86_64 / `n100` @ 10.0.0.184)
 - **依赖状态**：`pyproject.toml` 保持 `dependencies = []`（纯 Python 3.11+ 原生标准库实现，推荐 Python 3.12+，无外部第三方运行时依赖）
-- **全量门禁状态**：本地 1,562 项测试通过、跳过 1 项，`check_source_quality.py` 通过，`ruff` 全绿，`mypy` 检查 `src/` 110 个源文件 0 错误。这次补丁没有在 n100 上重跑全量测试。
+- **全量门禁状态**：本地 1,565 项测试通过、跳过 1 项，用时 50.6 秒。n100 上 1,565 项通过、跳过 2 项，用时 250.8 秒。`check_source_quality.py` 通过，`ruff` 全绿，`mypy` 检查 `src/` 110 个源文件 0 错误。
 
 ---
 
@@ -43,6 +43,7 @@
 - **非“SWE-bench 已可打榜”声明**：适配器能导出符合格式规范的 `predictions.jsonl`，但不代表 SWE-bench 官方打榜工作已经完成；官方 500 题的大规模 Docker 镜像拉取、环境构建与评测跑分**不在此次封板范围内**，当前仓库内亦不包含官方 500 题的评测日志；
 - **测试后缀覆盖**：Ruby 同时识别 RSpec 的 `_spec.rb`、`.spec.`，以及 Minitest 风格的 `_test.rb` 与 `test_*.rb`；
 - **模型接口约束**：智能体执行依赖外部 OpenAI 兼容协议的模型接口，需宿主提供有效 API Key 与对应算力端点。
+- **求解与评分分离**：求解循环只运行工作区里可见的 `tests/`。隐藏验真留在 Stage 2 和任务结束后的 `run_host_verifier`。命令文本里点名测试路径的 `python -c`、`perl -pi`、`node -e`、`ruby -e` 在执行前拦截。没有写出测试路径的脚本仍会先执行，执行后由测试文件哈希回滚并在本轮会话内保持熔断。
 
 ---
 
@@ -54,8 +55,7 @@
 2. **WorkBuddy 36 道 Hard 题目基准表现**：
    - 在 `wb-bench-code-v1.0` 题库中全部 36 道具备独立验真器的 Hard 题目基准实测中：
      - **平均奖励得分**：**0.8474**；
-     - **满分题数**：**21 道获得 1.0 满分**（满分率 58.3%）；
-     - **平均成本**：单题折合人民币不足半分钱。
+     - **满分题数**：**21 道获得 1.0 满分**（满分率 58.3%）。
 3. **Harbor 独立调度器终端模式实机实测（`--agent-mode terminal`）**：
    - 评测目录：`/home/aidi/workbuddy-exam/harbor-scheduler-eval-terminal`
    - 调度器名称：`onecode_harbor_scheduler_v1`，汇总记录 `"harbor": true`

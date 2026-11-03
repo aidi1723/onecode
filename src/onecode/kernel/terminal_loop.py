@@ -37,6 +37,32 @@ _FORBIDDEN_TEST_CMD_PATTERNS = (
 )
 
 _DESTRUCTIVE_CMDS = frozenset({"rm", "unlink", "truncate", "shred", "sed", "tee"})
+_PATH_FRAGMENT = re.compile(r"[A-Za-z0-9_.@+-]+(?:[/\\][A-Za-z0-9_.@+-]+)+|[A-Za-z0-9_.@+-]+\.(?:py|pyw|rb|go|js|ts|rs)")
+
+
+def _interpreter_test_target(cmd_tokens: tuple[str, ...]) -> str:
+    """Return the test path named by an interpreter one-liner, or an empty string."""
+    exe = posixpath.basename(cmd_tokens[0]).lower().removesuffix(".exe")
+    flags = cmd_tokens[1:]
+    is_eval = False
+    if exe in {"python", "python3", "pypy", "pypy3"} or re.fullmatch(r"python3?\.\d+", exe):
+        is_eval = "-c" in flags
+    elif exe == "perl":
+        is_eval = any(tok in {"-e", "-E"} or (tok.startswith("-") and "i" in tok) for tok in flags)
+    elif exe in {"node", "nodejs"}:
+        is_eval = "-e" in flags or "--eval" in flags
+    elif exe in {"ruby", "php"}:
+        is_eval = any(tok in {"-e", "-r"} or (tok.startswith("-") and ("i" in tok or "p" in tok)) for tok in flags)
+    if not is_eval:
+        return ""
+    for fragment in _PATH_FRAGMENT.findall(" ".join(cmd_tokens)):
+        if is_any_test_path(fragment):
+            return fragment
+    for tok in cmd_tokens:
+        cleaned = tok.strip("\"'")
+        if is_any_test_path(cleaned):
+            return cleaned
+    return ""
 
 
 @dataclass(frozen=True)
@@ -251,18 +277,25 @@ class TerminalSession:
         self.restore_test_files()
         return False, problem or "Test files were modified earlier in this session and have been restored"
 
-    def is_command_tampering(self, cmd_tokens: tuple[str, ...]) -> bool:
+    def command_tamper_target(self, cmd_tokens: tuple[str, ...]) -> str:
+        """Return the test path a command would modify, before the command runs."""
         if not cmd_tokens:
-            return False
+            return ""
         cmd_str = " ".join(cmd_tokens)
         if any(pat.search(cmd_str) for pat in _FORBIDDEN_TEST_CMD_PATTERNS):
-            return True
+            for fragment in _PATH_FRAGMENT.findall(cmd_str):
+                if is_any_test_path(fragment):
+                    return fragment
+            return "a preset test path"
         first_cmd = posixpath.basename(cmd_tokens[0].lower())
         if first_cmd in _DESTRUCTIVE_CMDS:
             for tok in cmd_tokens[1:]:
                 if not tok.startswith("-") and is_any_test_path(tok):
-                    return True
-        return False
+                    return tok
+        return _interpreter_test_target(cmd_tokens)
+
+    def is_command_tampering(self, cmd_tokens: tuple[str, ...]) -> bool:
+        return bool(self.command_tamper_target(cmd_tokens))
 
     def execute_action(self, action: TerminalAction) -> TerminalObservation:
         """Executes an action under sandbox security policies and records the observation."""
@@ -280,12 +313,17 @@ class TerminalSession:
             self._record_step(action, obs, hexagram_code=40)
             return obs
 
-        if action.action_type == "command" and self.is_command_tampering(action.command):
+        tamper_target = self.command_tamper_target(action.command) if action.action_type == "command" else ""
+        if tamper_target:
+            self.test_integrity_broken = True
             obs = TerminalObservation(
                 action_type="command",
                 status="blocked",
                 reason="preset_test_immutable",
-                stderr="Anti-tamper protection active: Shell commands modifying test files are forbidden across all languages.",
+                stderr=(
+                    f"Anti-tamper protection active: Shell commands modifying test files ({tamper_target}) "
+                    "are forbidden across all languages."
+                ),
             )
             self._record_step(action, obs, hexagram_code=40)
             return obs
@@ -451,12 +489,17 @@ class TerminalSession:
     def _handle_command(self, action: TerminalAction) -> TerminalObservation:
         if not action.command:
             return TerminalObservation(action_type="command", status="error", reason="empty_command", stderr="Command cannot be empty.")
-        if self.is_command_tampering(action.command):
+        tamper_target = self.command_tamper_target(action.command)
+        if tamper_target:
+            self.test_integrity_broken = True
             return TerminalObservation(
                 action_type="command",
                 status="blocked",
                 reason="preset_test_immutable",
-                stderr="Anti-tamper protection active: Shell commands modifying test files are forbidden across all languages.",
+                stderr=(
+                    f"Anti-tamper protection active: Shell commands modifying test files ({tamper_target}) "
+                    "are forbidden across all languages."
+                ),
             )
 
         cmd_sig = " ".join(action.command)

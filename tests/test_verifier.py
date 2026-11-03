@@ -722,6 +722,17 @@ class VerifierExecutionTests(unittest.TestCase):
             self.assertEqual(checked.reason, "sys_path_hijack_detected")
             self.assertEqual(reward, 0.0)
 
+    def test_run_host_verifier_rejects_nested_stdlib_shadow(self):
+        from onecode.kernel.verifier import audit_workspace_for_sys_path_hijacking
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            nested = workspace / "src" / "pkg"
+            nested.mkdir(parents=True)
+            (nested / "json.py").write_text("def dumps(*args, **kwargs):\n    return '{}'\n", encoding="utf-8")
+            violations = audit_workspace_for_sys_path_hijacking(workspace)
+            self.assertTrue(any("json.py" in item for item in violations))
+
     def test_run_host_verifier_fails_when_reward_less_than_one(self):
         from onecode.kernel.verifier import run_host_verifier
 
@@ -884,5 +895,38 @@ class VerifierExecutionTests(unittest.TestCase):
                     res, rew = _run_container_verifier(workspace, verifier, cfg)
                     self.assertIsNone(res.container_id)
                     self.assertIsNone(res.container_arch)
+
+    def test_container_log_mount_does_not_contain_the_cidfile(self):
+        from unittest.mock import patch
+        from onecode.kernel.sandbox import SandboxConfig
+        from onecode.kernel.verifier import _run_container_verifier
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            workspace.mkdir()
+            verifier = Path(tmp) / "verifier.py"
+            verifier.write_text("print('hello')", encoding="utf-8")
+            cfg = SandboxConfig(workspace=workspace, image="test-image")
+            captured: list[list[str]] = []
+
+            def record(argv, **kwargs):
+                captured.append(list(argv))
+                cidfile = Path(argv[4])
+                cidfile.write_text("b" * 64, encoding="utf-8")
+                return type("CompletedProc", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+            with patch("shutil.which", return_value="/usr/bin/docker"), \
+                 patch("onecode.kernel.verifier.image_platform_mismatch", return_value=False), \
+                 patch("onecode.kernel.sandbox._image_architecture", return_value="amd64"), \
+                 patch("subprocess.run", side_effect=record):
+                _run_container_verifier(workspace, verifier, cfg)
+            command = captured[0]
+            cidfile = Path(command[command.index("--cidfile") + 1])
+            mount = next(item for item in command if "dst=/log_dir" in item and "type=bind" in item)
+            staging = Path(next(part.removeprefix("src=") for part in mount.split(",") if part.startswith("src=")))
+            resolved_cid = cidfile.resolve()
+            resolved_staging = staging.resolve()
+            self.assertFalse(resolved_cid.is_relative_to(resolved_staging))
+            self.assertNotEqual(resolved_cid.parent, resolved_staging)
 
 
