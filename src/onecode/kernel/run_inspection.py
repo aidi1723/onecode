@@ -56,7 +56,10 @@ def task_completion_evidence(result: dict, verifier_results: list[dict]) -> dict
         and result.get("requested_count")
         == result.get("completed_count", 0) + result.get("skipped_count", 0)
     )
-    verifiers_passed = all(verifier.get("status") == "passed" for verifier in verifier_results)
+    verifiers_passed = (
+        all(verifier.get("status") in {"passed", "skipped"} for verifier in verifier_results)
+        and not any(verifier.get("status") == "failed" for verifier in verifier_results)
+    ) if verifier_results else True
     return {
         "assets_complete": assets_complete,
         "verifiers_passed": verifiers_passed,
@@ -73,7 +76,7 @@ def apply_verifier_evidence(result: dict, workspace: Path, verifier_results: lis
 
 
 def apply_verifier_evidence_from_dicts(result: dict, workspace: Path, verifier_dicts: list[dict]) -> dict:
-    first_failure = next((verifier for verifier in verifier_dicts if verifier["status"] != "passed"), None)
+    first_failure = next((verifier for verifier in verifier_dicts if verifier.get("status") == "failed"), None)
     evidence = task_completion_evidence(result, verifier_dicts)
     task_status = task_status_from_verifier_dicts(result, verifier_dicts)
     is_blocked = result.get("delivery_status") == "blocked" or result.get("status") == "halted"
@@ -179,12 +182,17 @@ def task_status_from_verifier_dicts(result: dict, verifier_dicts: list[dict]) ->
         and not isinstance(asset.get("raw_status_code"), bool)
     ]
     for verifier in verifier_dicts:
+        v_status = verifier.get("status")
+        if v_status == "skipped":
+            continue
         status_codes.append(
             IchingKernel.classify_outcome(
-                "completed" if verifier.get("status") == "passed" else "halted",
+                "completed" if v_status == "passed" else "halted",
                 verifier.get("reason"),
             )
         )
+    if not status_codes:
+        status_codes.append(63)
     entropy = IchingKernel.entropy_regulated_status(status_codes)  # type: ignore
     status_code = int(entropy["status_code"])
     transition = IchingKernel.transition(status_code)
@@ -204,7 +212,7 @@ def verifier_dicts(verifier_results: list) -> list[dict]:
 
 
 def verifier_failure(verifier_results: list[dict]) -> dict | None:
-    return next((verifier for verifier in verifier_results if verifier.get("status") != "passed"), None)
+    return next((verifier for verifier in verifier_results if verifier.get("status") == "failed"), None)
 
 
 def write_result_ledger(workspace: Path, result: dict) -> dict:

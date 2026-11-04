@@ -929,4 +929,54 @@ class VerifierExecutionTests(unittest.TestCase):
             self.assertFalse(resolved_cid.is_relative_to(resolved_staging))
             self.assertNotEqual(resolved_cid.parent, resolved_staging)
 
+    def test_skipped_verifier_does_not_halt_completed_run(self):
+        from onecode.kernel.run_inspection import apply_verifier_evidence
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            verifier = VerifierResult(
+                id="python-unittest",
+                status="skipped",
+                reason="no_unittest_collected",
+                failure_kind=None,
+                exit_code=0,
+                duration_ms=5,
+                stdout_tail="",
+                stderr_tail="Ran 0 tests in 0.000s\nOK",
+            )
+            result = {
+                "run_id": "test-skipped-verifier",
+                "status": "completed",
+                "reason": None,
+                "partial": False,
+                "requested_count": 1,
+                "completed_count": 1,
+                "skipped_count": 0,
+                "failed_count": 0,
+                "assets": [],
+                "iching_status_code": 63,
+            }
+            enhanced = apply_verifier_evidence(result, workspace, [verifier])
+            self.assertEqual(enhanced["status"], "completed")
+            self.assertIsNone(enhanced["reason"])
+            self.assertEqual(enhanced["delivery_status"], "deliverable")
+
+    def test_unittest_guard_executes_function_test_cases(self):
+        from onecode.kernel.verifier import guarded_unittest_command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            tests_dir = workspace / "tests"
+            tests_dir.mkdir()
+            (tests_dir / "test_smoke.py").write_text(
+                "import pathlib\n\ndef test_entry_present():\n    assert pathlib.Path('tests/test_smoke.py').exists()\n",
+                encoding="utf-8",
+            )
+            cmd = guarded_unittest_command([sys.executable, "-m", "unittest", "discover", "-s", "tests"])
+            proc = subprocess.run(cmd, cwd=workspace, capture_output=True, text=True)
+            self.assertEqual(proc.returncode, 0)
+            self.assertIn("Ran 1 test", proc.stderr + proc.stdout)
+            self.assertIn("OK", proc.stderr + proc.stdout)
+
+
 

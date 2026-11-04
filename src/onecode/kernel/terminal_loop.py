@@ -17,7 +17,9 @@ import json
 from pathlib import Path
 import posixpath
 import re
+import shlex
 import shutil
+import subprocess
 import time
 from typing import Any, Callable
 
@@ -38,6 +40,575 @@ _FORBIDDEN_TEST_CMD_PATTERNS = (
 
 _DESTRUCTIVE_CMDS = frozenset({"rm", "unlink", "truncate", "shred", "sed", "tee"})
 _PATH_FRAGMENT = re.compile(r"[A-Za-z0-9_.@+-]+(?:[/\\][A-Za-z0-9_.@+-]+)+|[A-Za-z0-9_.@+-]+\.(?:py|pyw|rb|go|js|ts|rs)")
+_TEST_DIR_NAMES = frozenset({"tests", "test", "spec", "__tests__"})
+_CONCAT_GAP = re.compile(r"\s*(?:\+|~|\.)\s*")
+_PATH_CALL = re.compile(r"(?:open|Path|join|joinpath|writeFileSync|writeFile)\s*\(\s*$")
+_MUTATING_CALL = re.compile(
+    r"write_text|write_bytes|writelines|writeFileSync|writeFile|\.write\s*\(|"
+    r"\bunlink\b|\brmtree\b|\bmkdir\b|\bmakedirs\b|\brename\s*\(|\btruncate\b|\bremove\s*\("
+)
+_OPEN_CALL = re.compile(r"\bopen\s*\(")
+_OPEN_MODE = re.compile(r"['\"]([rwaxtb+U]+)['\"]")
+_VARIABLE_SPLICE = re.compile(r"\s*(?:\+|~|\.)\s*[A-Za-z_$]")
+_OBFUSCATED_TEST_PREFIX = re.compile(r"(?:^|[/\\])(?:ests|sts|pec|tests__)(?:[/\\]|$)")
+_WRITE_CALL = re.compile(r"(?:open|writeFileSync|writeFile|Path)\s*\(")
+
+
+def _string_literals(script: str) -> list[tuple[int, int, str]]:
+    """Return each quoted literal as (start, end, decoded text)."""
+    found: list[tuple[int, int, str]] = []
+    index = 0
+    length = len(script)
+    while index < length:
+        if script.startswith(("'''", '"""'), index):
+            quote = script[index:index + 3]
+            end = script.find(quote, index + 3)
+            if end < 0:
+                break
+            found.append((index, end + 3, script[index + 3:end]))
+            index = end + 3
+            continue
+        if script[index] not in {"'", '"'}:
+            index += 1
+            continue
+        quote = script[index]
+        cursor = index + 1
+        chars: list[str] = []
+        while cursor < length:
+            if script[cursor] == "\\" and cursor + 1 < length:
+                chars.append(script[cursor + 1])
+                cursor += 2
+                continue
+            if script[cursor] == quote:
+                break
+            chars.append(script[cursor])
+            cursor += 1
+        if cursor >= length or script[cursor] != quote:
+            break
+        found.append((index, cursor + 1, "".join(chars)))
+        index = cursor + 1
+    return found
+
+
+def _script_mutates_files(script: str) -> bool:
+    if _MUTATING_CALL.search(script):
+        return True
+    for match in _OPEN_CALL.finditer(script):
+        window = script[match.end():match.end() + 160]
+        if any(any(char in mode for char in "wax+") for mode in _OPEN_MODE.findall(window)):
+            return True
+    return False
+
+
+def _test_root_prefix(text: str) -> bool:
+    cleaned = text.strip().strip("/\\")
+    if not cleaned:
+        return False
+    return re.split(r"[/\\]", cleaned, maxsplit=1)[0] in _TEST_DIR_NAMES
+
+
+def _literal_used_as_path(script: str, start: int, end: int, text: str) -> bool:
+    if not (is_any_test_path(text) or _test_root_prefix(text)):
+        return False
+    before = script[max(0, start - 48):start]
+    after = script[end:end + 24]
+    if _PATH_CALL.search(before):
+        return True
+    if re.match(r"\s*(?:\+|~|/)", after):
+        return True
+    return re.search(r"(?:\+|~|/)\s*$", before) is not None
+
+
+def _joined_literals(script: str, literals: list[tuple[int, int, str]]) -> list[tuple[int, int, str]]:
+    joined: list[tuple[int, int, str]] = []
+    index = 0
+    while index < len(literals):
+        start, end, text = literals[index]
+        nxt = index
+        while nxt + 1 < len(literals):
+            gap = script[end:literals[nxt + 1][0]]
+            if _CONCAT_GAP.fullmatch(gap) is None:
+                break
+            text += literals[nxt + 1][2]
+            end = literals[nxt + 1][1]
+            nxt += 1
+        joined.append((start, end, text))
+        index = nxt + 1
+    return joined
+
+
+def _call_arguments(script: str, open_paren: int) -> tuple[list[str], int] | None:
+    """Return call arguments and the index just after the closing parenthesis."""
+    depth = 1
+    bracket = 0
+    brace = 0
+    start = open_paren + 1
+    index = start
+    quote = ""
+    arguments: list[str] = []
+    while index < len(script):
+        char = script[index]
+        if quote:
+            if char == "\\" and index + 1 < len(script):
+                index += 2
+                continue
+            if char == quote:
+                quote = ""
+            index += 1
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            index += 1
+            continue
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                arguments.append(script[start:index])
+                return arguments, index + 1
+        elif char == "[":
+            bracket += 1
+        elif char == "]":
+            bracket = max(0, bracket - 1)
+        elif char == "{":
+            brace += 1
+        elif char == "}":
+            brace = max(0, brace - 1)
+        elif char == "," and depth == 1 and bracket == 0 and brace == 0:
+            arguments.append(script[start:index])
+            start = index + 1
+        index += 1
+    return None
+
+
+def _first_call_argument(script: str, open_paren: int) -> str | None:
+    """Return the text of the first argument, without crossing nested calls."""
+    parsed = _call_arguments(script, open_paren)
+    if not parsed or not parsed[0]:
+        return None
+    return parsed[0][0]
+
+
+def _unproven_write_target(script: str) -> str:
+    """Block a mutating interpreter script whose destination is not a static literal path."""
+    if not script or not _script_mutates_files(script):
+        return ""
+    for match in _WRITE_CALL.finditer(script):
+        argument = _first_call_argument(script, match.end() - 1)
+        if argument is None:
+            continue
+        stripped = argument.strip()
+        if stripped.startswith(("'''", '"""', "'", '"')):
+            continue
+        return "a computed path"
+    return ""
+
+
+def _spliced_test_target(script: str) -> str:
+    """Return a test path assembled inside an interpreter script, or an empty string."""
+    if not script or not _script_mutates_files(script):
+        return ""
+    computed = _unproven_write_target(script)
+    if computed:
+        return computed
+    literals = _string_literals(script)
+    if "chr(" in script:
+        for _start, _end, text in literals:
+            if _OBFUSCATED_TEST_PREFIX.search(text):
+                return text
+    for start, end, text in _joined_literals(script, literals):
+        if _literal_used_as_path(script, start, end, text):
+            return text
+        if _VARIABLE_SPLICE.match(script[end:]) and _test_root_prefix(text):
+            return text
+    return ""
+
+
+def _module_names(source: str) -> list[str]:
+    """Return imported module names, ignoring names pulled in by ``from module import name``."""
+    names: list[str] = []
+    without_from = re.sub(r"(?<![\w.])from\s+[A-Za-z_][\w.]*\s+import\b[^\n;]*", " ", source)
+    for match in re.finditer(
+        r"(?<![\w.])import\s+([A-Za-z_][\w.]*(?:\s*,\s*[A-Za-z_][\w.]*)*)",
+        without_from,
+    ):
+        names.extend(part.strip() for part in match.group(1).split(",") if part.strip())
+    names.extend(re.findall(r"(?<![\w.])from\s+([A-Za-z_][\w.]*)\s+import\b", source))
+    names.extend(re.findall(r"""(?:__import__|import_module)\(\s*['"]([A-Za-z_][\w.]*)['"]""", source))
+    return names
+
+
+def _local_module_file(workspace: Path, module: str) -> Path | None:
+    parts = module.split(".")
+    if any(part in {"", ".", ".."} for part in parts):
+        return None
+    root = workspace.resolve()
+    candidates = (root.joinpath(*parts).with_suffix(".py"), root.joinpath(*parts, "__init__.py"))
+    for candidate in candidates:
+        try:
+            resolved = candidate.resolve()
+        except OSError:
+            continue
+        if resolved.is_file() and resolved.is_relative_to(root):
+            return resolved
+    return None
+
+
+def _source_write_target(workspace: Path, source: str, seen: set[Path], depth: int = 0) -> str:
+    """Return a test write hidden in this source or in a workspace module it imports."""
+    if depth > 6:
+        return "a computed execution"
+    found = _spliced_test_target(source)
+    if found:
+        return found
+    executed = _dynamic_execution_target(workspace, source, seen, depth)
+    if executed:
+        return executed
+    dynamic = _unproven_dynamic_import(source)
+    if dynamic:
+        return dynamic
+    for module in _module_names(source):
+        path = _local_module_file(workspace, module)
+        if path is None or path in seen:
+            continue
+        seen.add(path)
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            return path.name
+        nested = _source_write_target(workspace, text, seen, depth)
+        if nested:
+            return nested
+    return ""
+
+
+def _python_module_flag(cmd_tokens: tuple[str, ...]) -> str:
+    for index, token in enumerate(cmd_tokens):
+        if token == "-m" and index + 1 < len(cmd_tokens):
+            return cmd_tokens[index + 1]
+    return ""
+
+
+def _unproven_dynamic_import(script: str) -> str:
+    """Block an interpreter script that imports a module through a non-literal expression."""
+    for match in re.finditer(r"(?:__import__|import_module)\s*\(", script):
+        argument = _first_call_argument(script, match.end() - 1)
+        if argument is None or not argument.strip().startswith(("'''", '"""', "'", '"')):
+            return "a computed import"
+    return ""
+
+
+def _module_flag_write_target(workspace: Path, module: str) -> str:
+    path = _local_module_file(workspace, module)
+    if path is None:
+        return ""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return module
+    return _source_write_target(workspace, text, {path})
+
+
+_EXECUTION_CALLS = (
+    ("exec", 0),
+    ("run_module", 0),
+    ("run_path", 0),
+    ("spec_from_file_location", 1),
+    ("SourceFileLoader", 1),
+)
+_FILE_EXECUTION_CALLS = frozenset({"run_path", "spec_from_file_location", "SourceFileLoader"})
+
+
+def _sole_string_literal(argument: str) -> str | None:
+    stripped = argument.strip()
+    literals = _string_literals(stripped)
+    if len(literals) != 1:
+        return None
+    start, end, text = literals[0]
+    if stripped[start:end] != stripped:
+        return None
+    return text
+
+
+def _path_escapes_workspace(relative: str) -> bool:
+    if not relative or relative.startswith(("/", "\\")):
+        return True
+    return ".." in Path(relative).parts
+
+
+def _workspace_source_file(workspace: Path, relative: str) -> Path | None:
+    if _path_escapes_workspace(relative):
+        return None
+    root = workspace.resolve()
+    try:
+        candidate = (root / relative).resolve()
+    except OSError:
+        return None
+    if candidate.is_file() and candidate.is_relative_to(root):
+        return candidate
+    return None
+
+
+def _file_write_target(workspace: Path, relative: str, seen: set[Path] | None = None, depth: int = 0) -> str:
+    if _path_escapes_workspace(relative):
+        return relative
+    path = _workspace_source_file(workspace, relative)
+    if path is None:
+        return ""
+    seen = set() if seen is None else seen
+    if path in seen:
+        return ""
+    seen.add(path)
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return relative
+    return _source_write_target(workspace, text, seen, depth)
+
+
+def _execution_argument_target(
+    workspace: Path,
+    call: str,
+    argument: str,
+    seen: set[Path] | None = None,
+    depth: int = 0,
+) -> str:
+    literal = _sole_string_literal(argument)
+    if literal is not None:
+        if call == "run_module":
+            return _module_flag_write_target(workspace, literal)
+        if call in _FILE_EXECUTION_CALLS:
+            return _file_write_target(workspace, literal, seen, depth)
+        return _source_write_target(workspace, literal, set() if seen is None else seen, depth)
+    paths = [text for _start, _end, text in _string_literals(argument) if text.endswith(".py")]
+    if not paths:
+        return "a computed execution"
+    for relative in paths:
+        found = _file_write_target(workspace, relative, seen, depth)
+        if found:
+            return found
+    return ""
+
+
+def _static_literal_text(argument: str) -> str | None:
+    """Return one literal, including adjacent pieces joined by ``+``."""
+    stripped = argument.strip()
+    literals = _string_literals(stripped)
+    if not literals:
+        return None
+    joined = _joined_literals(stripped, literals)
+    if len(joined) != 1:
+        return None
+    start, end, text = joined[0]
+    if stripped[start:end] != stripped:
+        return None
+    return text
+
+
+def _getattr_execution_target(
+    workspace: Path,
+    script: str,
+    seen: set[Path] | None = None,
+    depth: int = 0,
+) -> str:
+    """Block a loader reached through getattr, including a name joined from pieces."""
+    for match in re.finditer(r"(?<![\w])getattr\s*\(", script):
+        parsed = _call_arguments(script, match.end() - 1)
+        if parsed is None or len(parsed[0]) < 2:
+            return "a computed execution"
+        arguments, end = parsed
+        name = _static_literal_text(arguments[1])
+        rest = script[end:].lstrip()
+        if name is None:
+            if rest.startswith("("):
+                return "a computed execution"
+            continue
+        arg_index = dict(_EXECUTION_CALLS).get(name)
+        if arg_index is None or not rest.startswith("("):
+            continue
+        open_paren = end + (len(script[end:]) - len(rest))
+        invoked = _call_arguments(script, open_paren)
+        if invoked is None or arg_index >= len(invoked[0]):
+            return "a computed execution"
+        found = _execution_argument_target(workspace, name, invoked[0][arg_index], seen, depth)
+        if found:
+            return found
+    return ""
+
+
+_PROCESS_CALL = re.compile(
+    r"(?<![\w])(?:subprocess\.(?:run|call|check_call|check_output|Popen)|os\.(?:system|popen)|os\.execv(?:p|pe)?)\s*\("
+)
+
+
+def _command_tokens(argument: str) -> list[str] | None:
+    """Return argv when it is a literal string or a list of literal strings."""
+    stripped = argument.strip()
+    literal = _sole_string_literal(stripped)
+    if literal is not None:
+        try:
+            return shlex.split(literal)
+        except ValueError:
+            return None
+    if not (stripped.startswith("[") and stripped.endswith("]")):
+        return None
+    parsed = _call_arguments("(" + stripped[1:-1] + ")", 0)
+    if parsed is None:
+        return None
+    tokens: list[str] = []
+    for part in parsed[0]:
+        if not part.strip():
+            continue
+        text = _static_literal_text(part)
+        if text is None:
+            return None
+        tokens.append(text)
+    return tokens
+
+
+_SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ash"})
+
+
+def _shell_command_text(argv: tuple[str, ...]) -> str:
+    if not argv or posixpath.basename(argv[0]).lower() not in _SHELLS:
+        return ""
+    for index, token in enumerate(argv):
+        if token == "-c" and index + 1 < len(argv):
+            return argv[index + 1]
+    return ""
+
+
+def _scan_shell_script(workspace: Path, script: str, seen: set[Path] | None, depth: int) -> str:
+    """Block a shell -c script that launches a Python writer."""
+    if depth > 6:
+        return "a computed execution"
+    for segment in (part.strip() for part in re.split(r"(?:&&|\|\||;|\n)", script)):
+        if not segment:
+            continue
+        try:
+            tokens = shlex.split(segment)
+        except ValueError:
+            return "a computed execution"
+        if not tokens:
+            continue
+        if _is_python_command(tuple(tokens)):
+            if any("$" in token or "`" in token for token in tokens):
+                return "a computed execution"
+            found = _workspace_python_write_target(workspace, tuple(tokens), seen, depth + 1)
+            if found:
+                return found
+            continue
+        nested = _shell_command_text(tuple(tokens))
+        if nested:
+            found = _scan_shell_script(workspace, nested, seen, depth + 1)
+            if found:
+                return found
+    return ""
+
+
+def _subprocess_write_target(
+    workspace: Path,
+    script: str,
+    seen: set[Path] | None,
+    depth: int,
+) -> str:
+    """Block an interpreter launched through subprocess or os.system."""
+    if depth > 6:
+        return "a computed execution"
+    for match in _PROCESS_CALL.finditer(script):
+        parsed = _call_arguments(script, match.end() - 1)
+        if parsed is None or not parsed[0] or not parsed[0][0].strip():
+            return "a computed execution"
+        argv = _command_tokens(parsed[0][0])
+        if argv is None:
+            return "a computed execution"
+        if not argv:
+            continue
+        if _is_python_command(tuple(argv)):
+            found = _workspace_python_write_target(workspace, tuple(argv), seen, depth + 1)
+        else:
+            shell_text = _shell_command_text(tuple(argv))
+            found = _scan_shell_script(workspace, shell_text, seen, depth + 1) if shell_text else ""
+        if found:
+            return found
+    return ""
+
+
+def _dynamic_execution_target(
+    workspace: Path,
+    script: str,
+    seen: set[Path] | None = None,
+    depth: int = 0,
+) -> str:
+    """Block exec, runpy, and file loaders whose target can write a test file."""
+    for name, arg_index in _EXECUTION_CALLS:
+        pattern = rf"(?<![\w]){name}\s*\("
+        for match in re.finditer(pattern, script):
+            parsed = _call_arguments(script, match.end() - 1)
+            if parsed is None or arg_index >= len(parsed[0]):
+                return "a computed execution"
+            found = _execution_argument_target(workspace, name, parsed[0][arg_index], seen, depth)
+            if found:
+                return found
+    launched = _subprocess_write_target(workspace, script, seen, depth)
+    if launched:
+        return launched
+    return _getattr_execution_target(workspace, script, seen, depth)
+
+
+def _is_python_command(cmd_tokens: tuple[str, ...]) -> bool:
+    if not cmd_tokens:
+        return False
+    exe = posixpath.basename(cmd_tokens[0]).lower().removesuffix(".exe")
+    return exe in {"python", "python3", "pypy", "pypy3"} or re.fullmatch(r"python3?\.\d+", exe) is not None
+
+
+def _workspace_python_write_target(
+    workspace: Path,
+    cmd_tokens: tuple[str, ...],
+    seen: set[Path] | None = None,
+    depth: int = 0,
+) -> str:
+    """Block a Python command whose workspace module would write a test file."""
+    if depth > 6 or not _is_python_command(cmd_tokens):
+        return "a computed execution" if depth > 6 else ""
+    seen = set() if seen is None else seen
+    script = _eval_script_text(cmd_tokens)
+    if script:
+        dynamic = _unproven_dynamic_import(script)
+        if dynamic:
+            return dynamic
+        executed = _dynamic_execution_target(workspace, script, seen, depth)
+        if executed:
+            return executed
+        return _source_write_target(workspace, script, seen, depth)
+    module = _python_module_flag(cmd_tokens)
+    if module:
+        return _module_flag_write_target(workspace, module)
+    if len(cmd_tokens) < 2 or cmd_tokens[1].startswith("-"):
+        return ""
+    try:
+        candidate = (workspace / cmd_tokens[1]).resolve()
+        root = workspace.resolve()
+        if not candidate.is_file() or not candidate.is_relative_to(root):
+            return ""
+        if candidate in seen:
+            return ""
+        seen.add(candidate)
+        text = candidate.read_text(encoding="utf-8")
+    except (OSError, UnicodeError, ValueError):
+        return cmd_tokens[1]
+    return _source_write_target(workspace, text, seen, depth)
+
+
+def _eval_script_text(cmd_tokens: tuple[str, ...]) -> str:
+    for index, token in enumerate(cmd_tokens):
+        if token in {"-c", "-e", "-E", "--eval", "-r"} and index + 1 < len(cmd_tokens):
+            return cmd_tokens[index + 1]
+        if token.startswith("--eval="):
+            return token.split("=", 1)[1]
+    return ""
 
 
 def _interpreter_test_target(cmd_tokens: tuple[str, ...]) -> str:
@@ -62,7 +633,7 @@ def _interpreter_test_target(cmd_tokens: tuple[str, ...]) -> str:
         cleaned = tok.strip("\"'")
         if is_any_test_path(cleaned):
             return cleaned
-    return ""
+    return _spliced_test_target(_eval_script_text(cmd_tokens))
 
 
 @dataclass(frozen=True)
@@ -292,7 +863,16 @@ class TerminalSession:
             for tok in cmd_tokens[1:]:
                 if not tok.startswith("-") and is_any_test_path(tok):
                     return tok
-        return _interpreter_test_target(cmd_tokens)
+        found = _interpreter_test_target(cmd_tokens)
+        if found:
+            return found
+        found = _workspace_python_write_target(self.workspace, cmd_tokens)
+        if found:
+            return found
+        shell_text = _shell_command_text(cmd_tokens)
+        if shell_text:
+            return _scan_shell_script(self.workspace, shell_text, set(), 0)
+        return ""
 
     def is_command_tampering(self, cmd_tokens: tuple[str, ...]) -> bool:
         return bool(self.command_tamper_target(cmd_tokens))
@@ -450,7 +1030,7 @@ class TerminalSession:
                 output=res.get("summary") or f"Successfully patched {action.path}",
                 stderr=res.get("reason") or "",
             )
-        except Exception as ex:
+        except (OSError, ValueError, RuntimeError, TypeError, KeyError, AttributeError) as ex:
             return TerminalObservation(action_type="patch", status="error", reason="patch_failed", stderr=str(ex))
 
     def _handle_read_file(self, action: TerminalAction) -> TerminalObservation:
@@ -483,7 +1063,7 @@ class TerminalSession:
             numbered = [f"{i + start:4d} | {line}" for i, line in enumerate(selected)]
             out = f"## {action.path} (lines {start}-{end} of {total_lines})\n" + "\n".join(numbered)
             return TerminalObservation(action_type="read_file", status="ok", output=out)
-        except Exception as ex:
+        except (OSError, UnicodeError, ValueError) as ex:
             return TerminalObservation(action_type="read_file", status="error", reason="read_error", stderr=str(ex))
 
     def _handle_command(self, action: TerminalAction) -> TerminalObservation:
@@ -543,7 +1123,7 @@ class TerminalSession:
                 stdout=res.get("stdout") or "",
                 stderr=res.get("stderr") or "",
             )
-        except Exception as ex:
+        except (OSError, ValueError, RuntimeError, TypeError, KeyError, AttributeError, subprocess.SubprocessError) as ex:
             return TerminalObservation(action_type="command", status="error", reason="command_execution_error", stderr=str(ex))
 
     def _record_step(self, action: TerminalAction, observation: TerminalObservation, hexagram_code: int) -> None:

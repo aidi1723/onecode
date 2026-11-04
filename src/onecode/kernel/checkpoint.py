@@ -763,13 +763,13 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
             import json
             last_checkpoint = json.loads(existing_checkpoints[-1]["path"].read_text())
             base_status = last_checkpoint.get("iching_status_code")
-        except Exception:
+        except (OSError, json.JSONDecodeError, UnicodeError, TypeError, KeyError, AttributeError):
             try:
                 import json
                 last_path = context.evidence_root / existing_checkpoints[-1]["path"]
                 if last_path.is_file():
                     base_status = json.loads(last_path.read_text()).get("iching_status_code")
-            except Exception:
+            except (OSError, json.JSONDecodeError, UnicodeError, TypeError, KeyError, AttributeError):
                 pass
 
     telemetry = {}

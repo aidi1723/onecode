@@ -246,7 +246,7 @@ def _extract_command_from_verifier_toml(toml_path: Path) -> list[str] | None:
                     import shlex
 
                     return shlex.split(val)
-        except Exception:
+        except (ValueError, TypeError):
             pass
 
     # Simple regex fallback for command = "..."

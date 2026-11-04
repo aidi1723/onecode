@@ -43,7 +43,7 @@ def sandbox_unittest_runner(workspace: Path, command: list[str]) -> dict:
             spec,
             sandbox_config=SandboxConfig(workspace=workspace, timeout_seconds=30),
         )
-    except Exception as exc:
+    except (OSError, ValueError, RuntimeError, TypeError) as exc:
         return {"status": "failed", "reason": type(exc).__name__, "command": list(command)}
     return {"status": result.status, "reason": result.reason, "command": list(command)}
 

@@ -78,6 +78,87 @@ def is_any_test_path(path: str) -> bool:
         return True
     return False
 
+
+def _read_go_module(workspace: Path) -> str:
+    manifest = workspace / "go.mod"
+    if not manifest.is_file():
+        return ""
+    try:
+        lines = manifest.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return ""
+    for line in lines:
+        if line.startswith("module "):
+            return line.split(None, 1)[1].strip().strip('"')
+    return ""
+
+
+def go_import_suffix(module_path: str, go_module: str) -> str:
+    """Drop the go.mod module prefix so a full import path becomes a repo-relative package."""
+    cleaned = module_path.strip().strip('"').strip("/")
+    prefix = go_module.strip().strip('"').strip("/")
+    if not cleaned or not prefix:
+        return ""
+    if cleaned == prefix:
+        return ""
+    marker = prefix + "/"
+    if cleaned.startswith(marker):
+        return cleaned[len(marker):]
+    return ""
+
+
+def _go_file_in_package(file_path: str, package: str) -> bool:
+    normalized = file_path.removeprefix("src/")
+    return normalized == package + ".go" or normalized.startswith(package + "/")
+
+
+_DIFF_PATH_RE = re.compile(r"^\+\+\+ b/(.+)$", re.MULTILINE)
+
+
+def files_touched_by_patch(diff: str) -> list[str]:
+    paths: list[str] = []
+    for match in _DIFF_PATH_RE.finditer(diff):
+        path = match.group(1).strip()
+        if path and path != "/dev/null":
+            paths.append(path)
+    return list(dict.fromkeys(paths))
+
+
+def file_hit_rates(ranked_files: list[str], gold_files: list[str]) -> dict[str, bool]:
+    gold = set(gold_files)
+    return {
+        "top1": bool(ranked_files[:1]) and ranked_files[0] in gold,
+        "top5": any(path in gold for path in ranked_files[:5]),
+    }
+
+
+def aggregate_locator_hits(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    """Score ranked files against gold patch paths. Cases without a patch stay unscored."""
+    top1_hits = 0
+    top5_hits = 0
+    scored = 0
+    absent = 0
+    for case in cases:
+        patch = case.get("patch") or case.get("gold_patch") or ""
+        gold = list(case.get("gold_files") or []) or files_touched_by_patch(str(patch))
+        ranked = [str(path) for path in case.get("ranked_files") or []]
+        if not gold:
+            absent += 1
+            continue
+        scored += 1
+        rates = file_hit_rates(ranked, gold)
+        top1_hits += int(rates["top1"])
+        top5_hits += int(rates["top5"])
+    return {
+        "case_count": len(cases),
+        "scored_count": scored,
+        "patches_absent": absent,
+        "top1_hit_rate": None if scored == 0 else round(top1_hits / scored, 4),
+        "top5_hit_rate": None if scored == 0 else round(top5_hits / scored, 4),
+        "claims_mainstream_parity": False,
+    }
+
+
 _FRAME_RE = re.compile(
     r'File\s+["\'](?P<path>[^"\']+)["\'],\s+line\s+(?P<line>\d+)(?:,\s+in\s+(?P<func>[^\n]+))?'
 )
@@ -186,6 +267,9 @@ class WorkspaceSymbolIndex:
         self.symbols_by_name: dict[str, list[SymbolDef]] = {}
         self.symbols_by_file: dict[str, list[SymbolDef]] = {}
         self.imports_by_file: dict[str, dict[str, ImportRef]] = {}
+        self.callers_by_name: dict[str, list[tuple[str, str]]] = {}
+        self.callees_by_symbol: dict[tuple[str, str], list[str]] = {}
+        self.go_module_path = _read_go_module(workspace)
         self.scanned_files_count = 0
         self._build_index()
 
@@ -247,6 +331,7 @@ class WorkspaceSymbolIndex:
                 sym = self._make_func_symbol(node, rel_path)
                 file_symbols.append(sym)
                 self.symbols_by_name.setdefault(sym.name, []).append(sym)
+                self._record_call_edges(node, rel_path, sym.name)
             elif isinstance(node, ast.ClassDef):
                 cls_sym = SymbolDef(
                     name=node.name,
@@ -265,6 +350,7 @@ class WorkspaceSymbolIndex:
                         file_symbols.append(method_sym)
                         self.symbols_by_name.setdefault(method_sym.name, []).append(method_sym)
                         self.symbols_by_name.setdefault(f"{node.name}.{item.name}", []).append(method_sym)
+                        self._record_call_edges(item, rel_path, method_sym.name)
 
         self.symbols_by_file[rel_path] = file_symbols
         self.imports_by_file[rel_path] = file_imports
@@ -321,6 +407,23 @@ class WorkspaceSymbolIndex:
             for alias in node.names:
                 name = alias.asname or alias.name
                 target_dict[name] = ImportRef(module=mod, symbol=alias.name, alias=name)
+
+    def _record_call_edges(self, node: ast.AST, rel_path: str, caller_name: str) -> None:
+        callees: list[str] = []
+        for child in ast.walk(node):
+            if not isinstance(child, ast.Call):
+                continue
+            func = child.func
+            name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else ""
+            if not name or name == caller_name or _is_test_symbol(name):
+                continue
+            callees.append(name)
+            callers = self.callers_by_name.setdefault(name, [])
+            edge = (rel_path, caller_name)
+            if edge not in callers:
+                callers.append(edge)
+        if callees:
+            self.callees_by_symbol[(rel_path, caller_name)] = list(dict.fromkeys(callees))
 
     def _make_func_symbol(
         self,
@@ -395,6 +498,15 @@ class WorkspaceSymbolIndex:
             if cand in self.symbols_by_file:
                 found_path = cand
                 break
+
+        # Go module path: strip the go.mod module prefix before any basename guess.
+        if not found_path:
+            suffix = go_import_suffix(mod_clean, self.go_module_path)
+            if suffix:
+                for candidate in self.symbols_by_file:
+                    if candidate.endswith(".go") and _go_file_in_package(candidate, suffix):
+                        found_path = candidate
+                        break
 
         # Fallback for Go: package folder match
         if not found_path and base_mod:
@@ -471,7 +583,7 @@ class SymbolLocator:
         try:
             resolved = Path(p).resolve()
             return resolved.relative_to(self.workspace).as_posix()
-        except Exception:
+        except (ValueError, OSError):
             for part in p.split("/"):
                 if part in {"src", "lib", "tests", "app"}:
                     idx = p.find(part)
@@ -672,6 +784,40 @@ class SymbolLocator:
                         )
                     )
 
+        self._add_python_call_edges(candidates, seen_keys)
+
         # Sort: Non-test files first, then by confidence descending
         candidates.sort(key=lambda loc: (loc.is_test_file, -loc.confidence))
         return candidates[:max_candidates]
+
+    def _add_python_call_edges(
+        self,
+        candidates: list[FaultLocation],
+        seen_keys: set[tuple[str, str, int]],
+    ) -> None:
+        """Follow one hop from a non-test symbol to the functions it calls."""
+        for location in list(candidates):
+            if location.is_test_file:
+                continue
+            caller_name = location.symbol_name.rsplit(".", 1)[-1]
+            for callee in self.index.callees_by_symbol.get((location.file_path, caller_name), []):
+                for sym in self.index.symbols_by_name.get(callee, []):
+                    if is_any_test_path(sym.file_path):
+                        continue
+                    key = (sym.file_path, sym.name, sym.line_start)
+                    if key in seen_keys:
+                        continue
+                    seen_keys.add(key)
+                    candidates.append(
+                        FaultLocation(
+                            file_path=sym.file_path,
+                            symbol_name=sym.qualified_name,
+                            symbol_kind=sym.kind,
+                            line_start=sym.line_start,
+                            line_end=sym.line_end,
+                            confidence=0.62,
+                            call_chain=(location.file_path, caller_name, sym.file_path, sym.name),
+                            is_test_file=False,
+                            reason=f"Python call from {caller_name} to {sym.name}",
+                        )
+                    )

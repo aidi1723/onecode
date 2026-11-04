@@ -116,7 +116,7 @@ def halted_result(
                 iching_profile=profile,
                 skill_selection=skill_selection,
             )
-        except Exception as checkpoint_exc:
+        except OSError as checkpoint_exc:
             payload = {
                 **payload,
                 "checkpoint_write_error": error_payload(checkpoint_exc),
@@ -174,11 +174,11 @@ def halted_result(
                 },
             ),
         )
-    except Exception as trace_exc:
+    except OSError as trace_exc:
         result["trace_write_error"] = error_payload(trace_exc)
     try:
         write_ledger(context, result)
-    except Exception as ledger_exc:
+    except OSError as ledger_exc:
         result["ledger_write_error"] = error_payload(ledger_exc)
     return result
 

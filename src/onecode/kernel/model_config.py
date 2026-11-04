@@ -101,7 +101,7 @@ def write_private_text(path: Path, content: str) -> None:
             handle.write(content)
         os.replace(tmp_path, path)
         path.chmod(0o600)
-    except Exception:
+    except OSError:
         try:
             os.close(fd)
         except OSError:

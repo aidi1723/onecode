@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-MAX_FUNCTION_LINES = 200
+MAX_FUNCTION_LINES = 160
 MAX_CLASS_LINES = 500
 
 ALLOWED_LONG_FUNCTIONS: set[str] = set()

@@ -430,8 +430,11 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
 
         self.assertEqual(result["status"], "completed")
         self.assertEqual(result["agent_mode"], "terminal")
-        self.assertEqual(result["outcome_status_code"], 0)
+        self.assertEqual(result["outcome_status_code"], 63)
+        self.assertEqual(result["global_status_code"], 63)
         self.assertEqual(result["iching_status_code"], 63)
+        self.assertIn("iching_transition_action", result)
+        self.assertIn("dispatch_decision", result)
         self.assertEqual(result["repair_attempt_count"], 1)
         self.assertEqual(result["modified_files"], ["src/target.py"])
         self.assertEqual(self.target.read_text(encoding="utf-8"), "x = 20\n")
@@ -683,6 +686,533 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
             ))
         self.assertNotEqual(allowed.reason, "preset_test_immutable")
         self.assertEqual(allowed.exit_code, 0)
+
+    def test_spliced_test_paths_are_blocked_before_execution(self) -> None:
+        from unittest.mock import patch
+
+        session = TerminalSession(self.workspace, "Spliced test path", approval_mode="scoped_auto")
+        hidden = self.workspace / "tests" / "hidden_case.py"
+        spec_file = self.workspace / "spec" / "extra.rb"
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            literal = session.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "open('tests/' + 'hidden_case.py', 'w').write('x')"),
+            ))
+            variable = session.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "name='hidden_case.py'; open('tests/' + name, 'w').write('x')"),
+            ))
+            pathlib_write = session.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "from pathlib import Path; Path('spec').joinpath('extra.rb').write_text('x')"),
+            ))
+            encoded = session.execute_action(TerminalAction(
+                action_type="command",
+                command=(
+                    "python3", "-c",
+                    "open('sentinel.txt','w').write('ran'); open(chr(116)+'ests/hidden.py','w').write('x')",
+                ),
+            ))
+        self.assertEqual(literal.reason, "preset_test_immutable")
+        self.assertEqual(variable.reason, "preset_test_immutable")
+        self.assertEqual(pathlib_write.reason, "preset_test_immutable")
+        self.assertEqual(encoded.reason, "preset_test_immutable")
+        self.assertFalse(hidden.exists())
+        self.assertFalse(spec_file.exists())
+        self.assertFalse((self.workspace / "sentinel.txt").exists())
+        self.assertEqual(session.steps[-1].hexagram_code, 40)
+
+        readable = self.workspace / "tests" / "test_keep.py"
+        readable.parent.mkdir(parents=True, exist_ok=True)
+        readable.write_text("KEEP\n", encoding="utf-8")
+        (self.workspace / "src").mkdir(exist_ok=True)
+        implementation = TerminalSession(self.workspace, "Write implementation", approval_mode="scoped_auto")
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            wrote = implementation.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "open('src/app.py','w').write('tests passed')"),
+            ))
+        self.assertEqual(wrote.exit_code, 0)
+        self.assertNotEqual(wrote.reason, "preset_test_immutable")
+        self.assertEqual((self.workspace / "src" / "app.py").read_text(encoding="utf-8"), "tests passed")
+        self.assertEqual(readable.read_text(encoding="utf-8"), "KEEP\n")
+
+    def test_environment_test_paths_are_blocked_before_execution(self) -> None:
+        from unittest.mock import patch
+
+        session = TerminalSession(self.workspace, "Environment path", approval_mode="scoped_auto")
+        hidden = self.workspace / "tests" / "from_env.py"
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host", "ONECODE_TARGET": "tests/from_env.py"}):
+            observed = session.execute_action(TerminalAction(
+                action_type="command",
+                command=(
+                    "python3", "-c",
+                    "import os; open('sentinel.txt','w').write('ran'); open(os.environ['ONECODE_TARGET'],'w').write('x')",
+                ),
+            ))
+        self.assertEqual(observed.reason, "preset_test_immutable")
+        self.assertFalse((self.workspace / "sentinel.txt").exists())
+        self.assertFalse(hidden.exists())
+        self.assertEqual(session.steps[-1].hexagram_code, 40)
+
+        writer = TerminalSession(self.workspace, "Environment content", approval_mode="scoped_auto")
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host", "ONECODE_NOTE": "from-env"}):
+            wrote = writer.execute_action(TerminalAction(
+                action_type="command",
+                command=(
+                    "python3", "-c",
+                    "import os; open('src/app.py','w').write(os.environ.get('ONECODE_NOTE', 'from-env'))",
+                ),
+            ))
+        self.assertEqual(wrote.exit_code, 0)
+        self.assertNotEqual(wrote.reason, "preset_test_immutable")
+        self.assertEqual((self.workspace / "src" / "app.py").read_text(encoding="utf-8"), "from-env")
+
+    def test_computed_test_paths_are_blocked_before_execution(self) -> None:
+        from unittest.mock import patch
+
+        session = TerminalSession(self.workspace, "Computed path", approval_mode="scoped_auto")
+        hidden = self.workspace / "tests" / "hidden.py"
+        script = (
+            "def target():\n"
+            "    folder = 't' + 'ests'\n"
+            "    return folder + '/' + 'hidden.py'\n"
+            "open('sentinel.txt','w').write('ran')\n"
+            "open(target(),'w').write('x')\n"
+        )
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            observed = session.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", script),
+            ))
+        self.assertEqual(observed.reason, "preset_test_immutable")
+        self.assertFalse((self.workspace / "sentinel.txt").exists())
+        self.assertFalse(hidden.exists())
+        self.assertEqual(session.steps[-1].hexagram_code, 40)
+
+        writer = TerminalSession(self.workspace, "Literal pathlib write", approval_mode="scoped_auto")
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            wrote = writer.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "from pathlib import Path; Path('src/app.py').write_text('ok')"),
+            ))
+        self.assertEqual(wrote.exit_code, 0)
+        self.assertNotEqual(wrote.reason, "preset_test_immutable")
+        self.assertEqual((self.workspace / "src" / "app.py").read_text(encoding="utf-8"), "ok")
+
+    def test_imported_module_writes_are_blocked_before_execution(self) -> None:
+        from unittest.mock import patch
+
+        helper = self.workspace / "helper.py"
+        helper.write_text(
+            "open('sentinel.txt','w').write('ran')\nopen('tests/hidden.py','w').write('x')\n",
+            encoding="utf-8",
+        )
+        inner = self.workspace / "inner.py"
+        inner.write_text("open('tests/inner_hidden.py','w').write('x')\n", encoding="utf-8")
+        outer = self.workspace / "outer.py"
+        outer.write_text("import inner\nopen('outer_sentinel.txt','w').write('ran')\n", encoding="utf-8")
+        safe = self.workspace / "safe_writer.py"
+        safe.write_text("def dump():\n    open('src/app.py','w').write('ok')\n", encoding="utf-8")
+        hidden = self.workspace / "tests" / "hidden.py"
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            imported = TerminalSession(self.workspace, "Import write", approval_mode="scoped_auto")
+            observed = imported.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import helper"),
+            ))
+            self.assertEqual(observed.reason, "preset_test_immutable")
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertFalse(hidden.exists())
+            self.assertEqual(imported.steps[-1].hexagram_code, 40)
+
+            chained = TerminalSession(self.workspace, "Chained import", approval_mode="scoped_auto")
+            chain = chained.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import outer"),
+            ))
+            self.assertEqual(chain.reason, "preset_test_immutable")
+            self.assertFalse((self.workspace / "outer_sentinel.txt").exists())
+            self.assertFalse((self.workspace / "tests" / "inner_hidden.py").exists())
+
+            script = TerminalSession(self.workspace, "Run module", approval_mode="scoped_auto")
+            ran = script.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "helper.py"),
+            ))
+            self.assertEqual(ran.reason, "preset_test_immutable")
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+
+            allowed = TerminalSession(self.workspace, "Safe import", approval_mode="scoped_auto")
+            wrote = allowed.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import safe_writer; safe_writer.dump()"),
+            ))
+            printed = allowed.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import json; print(json.dumps({'a': 1}))"),
+            ))
+        self.assertEqual(wrote.exit_code, 0)
+        self.assertNotEqual(wrote.reason, "preset_test_immutable")
+        self.assertEqual((self.workspace / "src" / "app.py").read_text(encoding="utf-8"), "ok")
+        self.assertEqual(printed.exit_code, 0)
+        self.assertIn("a", printed.stdout)
+
+    def test_module_flag_and_variable_import_are_blocked_before_execution(self) -> None:
+        from unittest.mock import patch
+
+        writer = self.workspace / "mod_writer.py"
+        writer.write_text(
+            "open('sentinel.txt','w').write('ran')\nopen('tests/hidden.py','w').write('x')\n",
+            encoding="utf-8",
+        )
+        safe = self.workspace / "safe_mod.py"
+        safe.write_text("open('src/app.py','w').write('ok')\n", encoding="utf-8")
+        hidden = self.workspace / "tests" / "hidden.py"
+        hidden.parent.mkdir(parents=True, exist_ok=True)
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            by_flag = TerminalSession(self.workspace, "Dash m", approval_mode="scoped_auto")
+            flagged = by_flag.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-m", "mod_writer"),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertFalse(hidden.exists())
+            self.assertEqual(flagged.reason, "preset_test_immutable")
+            self.assertEqual(by_flag.steps[-1].hexagram_code, 40)
+
+            by_name = TerminalSession(self.workspace, "Variable import", approval_mode="scoped_auto")
+            variable = by_name.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "name='mod_writer'; __import__(name)"),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertEqual(variable.reason, "preset_test_immutable")
+
+            by_importlib = TerminalSession(self.workspace, "Importlib variable", approval_mode="scoped_auto")
+            loaded = by_importlib.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import importlib; name='mod_writer'; importlib.import_module(name)"),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertEqual(loaded.reason, "preset_test_immutable")
+
+            allowed = TerminalSession(self.workspace, "Safe module flag", approval_mode="scoped_auto")
+            wrote = allowed.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-m", "safe_mod"),
+            ))
+            printed = allowed.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "__import__('json'); print(1)"),
+            ))
+        self.assertEqual(wrote.exit_code, 0)
+        self.assertNotEqual(wrote.reason, "preset_test_immutable")
+        self.assertEqual((self.workspace / "src" / "app.py").read_text(encoding="utf-8"), "ok")
+        self.assertEqual(printed.exit_code, 0)
+        self.assertIn("1", printed.stdout)
+
+    def test_exec_and_loader_writes_are_blocked_before_execution(self) -> None:
+        from unittest.mock import patch
+
+        helper = self.workspace / "helper.py"
+        helper.write_text(
+            "open('sentinel.txt','w').write('ran')\nopen('tests/hidden.py','w').write('x')\n",
+            encoding="utf-8",
+        )
+        module = self.workspace / "mod_writer.py"
+        module.write_text(
+            "open('module_sentinel.txt','w').write('ran')\nopen('tests/hidden.py','w').write('x')\n",
+            encoding="utf-8",
+        )
+        safe = self.workspace / "safe_exec.py"
+        safe.write_text("open('src/app.py','w').write('ok')\n", encoding="utf-8")
+        (self.workspace / "tests").mkdir(exist_ok=True)
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            by_exec = TerminalSession(self.workspace, "Exec file", approval_mode="scoped_auto")
+            executed = by_exec.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "exec(open('helper.py').read())"),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertFalse((self.workspace / "tests" / "hidden.py").exists())
+            self.assertEqual(executed.reason, "preset_test_immutable")
+            self.assertEqual(by_exec.steps[-1].hexagram_code, 40)
+
+            by_path = TerminalSession(self.workspace, "Run path", approval_mode="scoped_auto")
+            ran_path = by_path.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import runpy; runpy.run_path('helper.py')"),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertEqual(ran_path.reason, "preset_test_immutable")
+
+            by_module = TerminalSession(self.workspace, "Run module", approval_mode="scoped_auto")
+            ran_module = by_module.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import runpy; name='mod_writer'; runpy.run_module(name)"),
+            ))
+            self.assertFalse((self.workspace / "module_sentinel.txt").exists())
+            self.assertEqual(ran_module.reason, "preset_test_immutable")
+
+            by_loader = TerminalSession(self.workspace, "File loader", approval_mode="scoped_auto")
+            loaded = by_loader.execute_action(TerminalAction(
+                action_type="command",
+                command=(
+                    "python3", "-c",
+                    "import importlib.util\n"
+                    "spec = importlib.util.spec_from_file_location('m', 'helper.py')\n"
+                    "mod = importlib.util.module_from_spec(spec)\n"
+                    "spec.loader.exec_module(mod)\n",
+                ),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertEqual(loaded.reason, "preset_test_immutable")
+
+            allowed = TerminalSession(self.workspace, "Safe exec", approval_mode="scoped_auto")
+            wrote = allowed.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "exec(open('safe_exec.py').read())"),
+            ))
+        self.assertEqual(wrote.exit_code, 0)
+        self.assertNotEqual(wrote.reason, "preset_test_immutable")
+        self.assertEqual((self.workspace / "src" / "app.py").read_text(encoding="utf-8"), "ok")
+
+    def test_getattr_and_source_loader_writes_are_blocked_before_execution(self) -> None:
+        from unittest.mock import patch
+
+        helper = self.workspace / "helper.py"
+        helper.write_text(
+            "open('sentinel.txt','w').write('ran')\nopen('tests/hidden.py','w').write('x')\n",
+            encoding="utf-8",
+        )
+        safe = self.workspace / "safe_exec.py"
+        safe.write_text("open('src/app.py','w').write('ok')\n", encoding="utf-8")
+        (self.workspace / "tests").mkdir(exist_ok=True)
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            by_loader = TerminalSession(self.workspace, "Source loader", approval_mode="scoped_auto")
+            loaded = by_loader.execute_action(TerminalAction(
+                action_type="command",
+                command=(
+                    "python3", "-c",
+                    "import importlib.machinery\n"
+                    "importlib.machinery.SourceFileLoader('m', 'helper.py').load_module()\n",
+                ),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertFalse((self.workspace / "tests" / "hidden.py").exists())
+            self.assertEqual(loaded.reason, "preset_test_immutable")
+            self.assertEqual(by_loader.steps[-1].hexagram_code, 40)
+
+            by_getattr = TerminalSession(self.workspace, "Getattr run path", approval_mode="scoped_auto")
+            fetched = by_getattr.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import runpy; getattr(runpy, 'run_' + 'path')('helper.py')"),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertEqual(fetched.reason, "preset_test_immutable")
+
+            by_split_loader = TerminalSession(self.workspace, "Getattr loader", approval_mode="scoped_auto")
+            split = by_split_loader.execute_action(TerminalAction(
+                action_type="command",
+                command=(
+                    "python3", "-c",
+                    "import importlib.machinery\n"
+                    "getattr(importlib.machinery, 'Source' + 'FileLoader')('m', 'helper.py').load_module()\n",
+                ),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertEqual(split.reason, "preset_test_immutable")
+
+            allowed = TerminalSession(self.workspace, "Safe loader", approval_mode="scoped_auto")
+            wrote = allowed.execute_action(TerminalAction(
+                action_type="command",
+                command=(
+                    "python3", "-c",
+                    "import importlib.machinery\n"
+                    "importlib.machinery.SourceFileLoader('m', 'safe_exec.py').load_module()\n",
+                ),
+            ))
+            printed = allowed.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import json; print(getattr(json, 'dumps')({'a': 1}))"),
+            ))
+        self.assertEqual(wrote.exit_code, 0)
+        self.assertNotEqual(wrote.reason, "preset_test_immutable")
+        self.assertEqual((self.workspace / "src" / "app.py").read_text(encoding="utf-8"), "ok")
+        self.assertEqual(printed.exit_code, 0)
+        self.assertIn("a", printed.stdout)
+
+    def test_loader_hidden_in_an_imported_module_is_blocked_before_execution(self) -> None:
+        from unittest.mock import patch
+
+        helper = self.workspace / "helper.py"
+        helper.write_text(
+            "open('sentinel.txt','w').write('ran')\nopen('tests/hidden.py','w').write('x')\n",
+            encoding="utf-8",
+        )
+        facade = self.workspace / "facade.py"
+        facade.write_text(
+            "import runpy\n"
+            "def go():\n"
+            "    getattr(runpy, 'run_' + 'path')('helper.py')\n",
+            encoding="utf-8",
+        )
+        loader = self.workspace / "loader_facade.py"
+        loader.write_text(
+            "import importlib.machinery\n"
+            "def go():\n"
+            "    importlib.machinery.SourceFileLoader('m', 'helper.py').load_module()\n",
+            encoding="utf-8",
+        )
+        safe = self.workspace / "safe_facade.py"
+        safe.write_text(
+            "def go():\n"
+            "    open('src/app.py','w').write('ok')\n",
+            encoding="utf-8",
+        )
+        (self.workspace / "tests").mkdir(exist_ok=True)
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            by_import = TerminalSession(self.workspace, "Facade getattr", approval_mode="scoped_auto")
+            observed = by_import.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import facade; facade.go()"),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertFalse((self.workspace / "tests" / "hidden.py").exists())
+            self.assertEqual(observed.reason, "preset_test_immutable")
+            self.assertEqual(by_import.steps[-1].hexagram_code, 40)
+
+            by_loader = TerminalSession(self.workspace, "Facade loader", approval_mode="scoped_auto")
+            loaded = by_loader.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import loader_facade; loader_facade.go()"),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertEqual(loaded.reason, "preset_test_immutable")
+
+            allowed = TerminalSession(self.workspace, "Safe facade", approval_mode="scoped_auto")
+            wrote = allowed.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import safe_facade; safe_facade.go()"),
+            ))
+        self.assertEqual(wrote.exit_code, 0)
+        self.assertNotEqual(wrote.reason, "preset_test_immutable")
+        self.assertEqual((self.workspace / "src" / "app.py").read_text(encoding="utf-8"), "ok")
+
+    def test_subprocess_interpreter_writes_are_blocked_before_execution(self) -> None:
+        from unittest.mock import patch
+
+        helper = self.workspace / "helper.py"
+        helper.write_text(
+            "open('sentinel.txt','w').write('ran')\nopen('tests/hidden.py','w').write('x')\n",
+            encoding="utf-8",
+        )
+        facade = self.workspace / "spawn_facade.py"
+        facade.write_text(
+            "import subprocess\n"
+            "def go():\n"
+            "    subprocess.run(['python3', 'helper.py'])\n",
+            encoding="utf-8",
+        )
+        safe = self.workspace / "safe_spawn.py"
+        safe.write_text("open('src/app.py','w').write('ok')\n", encoding="utf-8")
+        (self.workspace / "tests").mkdir(exist_ok=True)
+        inline = (
+            "import subprocess; subprocess.run(['python3', '-c', "
+            "\"open('c_sentinel.txt','w').write('ran'); open('tests/hidden.py','w').write('x')\"])"
+        )
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            by_module = TerminalSession(self.workspace, "Subprocess module", approval_mode="scoped_auto")
+            observed = by_module.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import spawn_facade; spawn_facade.go()"),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertFalse((self.workspace / "tests" / "hidden.py").exists())
+            self.assertEqual(observed.reason, "preset_test_immutable")
+            self.assertEqual(by_module.steps[-1].hexagram_code, 40)
+
+            by_inline = TerminalSession(self.workspace, "Subprocess inline", approval_mode="scoped_auto")
+            inline_obs = by_inline.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", inline),
+            ))
+            self.assertFalse((self.workspace / "c_sentinel.txt").exists())
+            self.assertEqual(inline_obs.reason, "preset_test_immutable")
+
+            by_system = TerminalSession(self.workspace, "Os system", approval_mode="scoped_auto")
+            system_obs = by_system.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import os; os.system('python3 helper.py')"),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertEqual(system_obs.reason, "preset_test_immutable")
+
+            by_variable = TerminalSession(self.workspace, "Variable argv", approval_mode="scoped_auto")
+            variable_obs = by_variable.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import subprocess; cmd=['python3', 'helper.py']; subprocess.run(cmd)"),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertEqual(variable_obs.reason, "preset_test_immutable")
+
+            allowed = TerminalSession(self.workspace, "Safe subprocess", approval_mode="scoped_auto")
+            wrote = allowed.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import subprocess; subprocess.run(['python3', 'safe_spawn.py'])"),
+            ))
+        self.assertEqual(wrote.exit_code, 0)
+        self.assertNotEqual(wrote.reason, "preset_test_immutable")
+        self.assertEqual((self.workspace / "src" / "app.py").read_text(encoding="utf-8"), "ok")
+
+    def test_shell_wrapped_interpreter_writes_are_blocked_before_execution(self) -> None:
+        from unittest.mock import patch
+
+        helper = self.workspace / "helper.py"
+        helper.write_text(
+            "open('sentinel.txt','w').write('ran')\nopen('tests/hidden.py','w').write('x')\n",
+            encoding="utf-8",
+        )
+        safe = self.workspace / "safe_shell.py"
+        safe.write_text("open('src/app.py','w').write('ok')\n", encoding="utf-8")
+        (self.workspace / "tests").mkdir(exist_ok=True)
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            by_shell = TerminalSession(self.workspace, "Bash wrapper", approval_mode="scoped_auto")
+            observed = by_shell.execute_action(TerminalAction(
+                action_type="command",
+                command=("bash", "-c", "python3 helper.py"),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertFalse((self.workspace / "tests" / "hidden.py").exists())
+            self.assertEqual(observed.reason, "preset_test_immutable")
+            self.assertEqual(by_shell.steps[-1].hexagram_code, 40)
+
+            by_subprocess = TerminalSession(self.workspace, "Subprocess bash", approval_mode="scoped_auto")
+            launched = by_subprocess.execute_action(TerminalAction(
+                action_type="command",
+                command=(
+                    "python3", "-c",
+                    "import subprocess; subprocess.run(['bash', '-c', 'python3 helper.py'])",
+                ),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertEqual(launched.reason, "preset_test_immutable")
+
+            allowed = TerminalSession(self.workspace, "Safe bash", approval_mode="scoped_auto")
+            wrote = allowed.execute_action(TerminalAction(
+                action_type="command",
+                command=("bash", "-c", "python3 safe_shell.py"),
+            ))
+            echoed = allowed.execute_action(TerminalAction(
+                action_type="command",
+                command=("bash", "-c", "echo ok"),
+            ))
+        self.assertEqual(wrote.exit_code, 0)
+        self.assertNotEqual(wrote.reason, "preset_test_immutable")
+        self.assertEqual((self.workspace / "src" / "app.py").read_text(encoding="utf-8"), "ok")
+        self.assertEqual(echoed.exit_code, 0)
+        self.assertIn("ok", echoed.stdout)
 
 
 if __name__ == "__main__":

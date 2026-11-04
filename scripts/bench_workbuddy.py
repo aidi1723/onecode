@@ -80,6 +80,7 @@ def run_benchmark_task(
     (workspace / ".onecode_host_verifier").unlink(missing_ok=True)
 
     os.environ.setdefault("ONECODE_SURVEY_MAX_TURNS", "0")
+    os.environ.setdefault("ONECODE_STREAM_CHAT", "1")
 
     bureau = resolve_task_bureau(workspace)
     print(
@@ -182,6 +183,7 @@ def run_benchmark_task(
         "host_reward": host_reward,
         "harbor": False,
         "duration_s": duration_s,
+        "model_usage": result.get("model_usage") or {},
         "detail": str(result.get("detail") or result.get("reason") or "")[:300],
     }
     if result.get("container_id"):
@@ -299,8 +301,20 @@ def main() -> int:
         sum(r["host_reward"] for r in results if isinstance(r.get("host_reward"), (int, float))) / total_count
         if total_count > 0 else 0.0
     )
+    from batch_report import batch_run_report
+    from heldout_eval import prompt_sha256
+
+    report = batch_run_report(
+        results,
+        model=args.model,
+        endpoint=args.endpoint,
+        prompt_sha256=prompt_sha256(),
+    )
+    report_path = args.output.with_name(args.output.stem + ".report.json")
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print("\n" + "=" * 60)
     print(f"Benchmark Complete | Passed: {passed_count}/{total_count} | Avg Reward: {avg_score:.4f}")
+    print(f"Batch report: {report_path}")
     print("=" * 60)
     return 0
 

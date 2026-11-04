@@ -1,5 +1,6 @@
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -85,6 +86,24 @@ elif len(args) == 1:
     suite = loader.loadTestsFromName(args[0])
 else:
     suite = loader.loadTestsFromNames(args)
+if suite.countTestCases() == 0:
+    import inspect, importlib.util
+    test_dir = Path(args[2]) if args[:2] == ["discover", "-s"] and len(args) >= 3 else (Path(args[0]).parent if len(args) == 1 and args[0].endswith(".py") else root / "tests")
+    if test_dir.is_dir():
+        for py_path in sorted(test_dir.glob("test*.py")):
+            mod_name = f"_custom_test_{py_path.stem}"
+            try:
+                spec = importlib.util.spec_from_file_location(mod_name, py_path)
+                if spec and spec.loader:
+                    mod = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(mod)
+                    for attr in dir(mod):
+                        if attr.startswith("test") and callable(getattr(mod, attr)):
+                            fn = getattr(mod, attr)
+                            if inspect.isfunction(fn) and fn.__module__ == mod.__name__:
+                                suite.addTest(unittest.FunctionTestCase(fn))
+            except Exception:
+                pass
 for name, method in saved.items():
     setattr(unittest.TestCase, name, method)
 result = unittest.TextTestRunner(verbosity=1).run(suite)
@@ -619,17 +638,66 @@ def assertion_counts(detail: dict[str, Any]) -> tuple[int, int] | None:
     return None
 
 
+def _reward_numbers_disagree(reward: float, detail: dict[str, Any]) -> bool:
+    for key in ("overall", "reward"):
+        value = detail.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            continue
+        if abs(float(value) - reward) > 1e-6:
+            return True
+    return False
+
+
+def _test_records_invalid(tests: object, total: int) -> bool:
+    if not isinstance(tests, list):
+        return False
+    if not tests or len(tests) != total:
+        return True
+    for item in tests:
+        if not isinstance(item, dict) or not isinstance(item.get("passed"), bool) or item.get("passed") is False:
+            return True
+    return False
+
+
+def _count_ratio_problem(reward: float, counts: tuple[int, int] | None) -> str:
+    if counts is None:
+        return ""
+    passed, total = counts
+    if total <= 0 or passed < 0 or passed > total:
+        return "assertion counts are outside the test total"
+    if abs(reward - (passed / total)) > 0.02:
+        return "reward.txt does not match tests_passed / tests_total"
+    return ""
+
+
+def _hidden_failure_problem(reward: float, detail: dict[str, Any]) -> str:
+    failed = detail.get("tests_failed")
+    if isinstance(failed, bool) or not isinstance(failed, int):
+        return ""
+    if failed > 0 and abs(reward - 1.0) < 1e-6:
+        return "a full score cannot include tests_failed"
+    return ""
+
+
 def full_score_problem(returncode: int | None, reward: float, detail: dict[str, Any]) -> str:
     """Return a forgery explanation when a positive or full score disagrees with the verifier evidence."""
-    tests = detail.get("tests")
-    failed_case = isinstance(tests, list) and any(isinstance(item, dict) and not item.get("passed") for item in tests)
     counts = assertion_counts(detail)
     if returncode not in (None, 0) and reward > 0.0:
         return "reward.txt claimed a positive score but the verifier exited non-zero"
+    if not math.isfinite(reward) or reward < 0.0 or reward > 1.0:
+        return "reward.txt is outside the closed range from 0 to 1"
+    if _reward_numbers_disagree(reward, detail):
+        return "reward.txt does not match reward.json overall"
+    ratio_problem = _count_ratio_problem(reward, counts)
+    if ratio_problem:
+        return ratio_problem
+    hidden_failure = _hidden_failure_problem(reward, detail)
+    if hidden_failure:
+        return hidden_failure
     if returncode == 0 and abs(reward - 1.0) < 1e-6:
         if counts is None or counts[1] <= 0 or counts[0] != counts[1]:
             return "a full score requires tests_passed == tests_total and tests_total > 0"
-        if isinstance(tests, list) and (not tests or len(tests) != counts[1] or failed_case):
+        if _test_records_invalid(detail.get("tests"), counts[1]):
             return "reward.json tests do not match the claimed assertion counts"
     return ""
 

@@ -475,7 +475,7 @@ def apply_run_plan_repair(
                     damping = float(jie.get("damping_factor", 0.75))
                     if damping > 0:
                         cooldown_s = round(0.05 / damping, 4)
-            except Exception:
+            except (TypeError, ValueError, KeyError, AttributeError):
                 pass
             time.sleep(cooldown_s)
         prompt = build_run_plan_repair_prompt(task, current_result, current_verifiers, planned_asset_paths)

@@ -271,7 +271,7 @@ def execute_step(
                                     )
                                 )
                                 break
-                except Exception:
+                except (OSError, ValueError, TypeError, KeyError, AttributeError):
                     pass
 
         try:

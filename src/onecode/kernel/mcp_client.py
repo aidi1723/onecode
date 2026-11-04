@@ -102,7 +102,7 @@ class McpStdioClient:
                 },
             )
             self._notify("notifications/initialized")
-        except Exception:
+        except (McpClientError, OSError, subprocess.SubprocessError, ValueError):
             self.close()
             raise
         return self
@@ -331,5 +331,5 @@ def load_mcp_servers(registry: ToolRegistry, workspace: Path) -> None:
                     server_name=server_name,
                     command=server_config["command"]
                 )
-    except Exception:
+    except (OSError, json.JSONDecodeError, UnicodeError, TypeError):
         pass

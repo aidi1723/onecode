@@ -34,7 +34,7 @@ def _resolve_default_turns(workspace: Path | None, max_turns: int | None) -> int
                 from onecode.kernel.model_loop import resolve_task_bureau
                 bureau = resolve_task_bureau(workspace)
                 return int(bureau.get("turn_budget", 8))
-            except Exception:
+            except (OSError, TypeError, ValueError, KeyError):
                 return 8
         return 8
     if os.environ.get("ONECODE_BUREAU_BUDGET") == "1" and workspace is not None:
@@ -42,7 +42,7 @@ def _resolve_default_turns(workspace: Path | None, max_turns: int | None) -> int
             from onecode.kernel.model_loop import resolve_task_bureau
             bureau = resolve_task_bureau(workspace)
             return min(max_turns, int(bureau.get("turn_budget", max_turns)))
-        except Exception:
+        except (OSError, TypeError, ValueError, KeyError):
             return max_turns
     return max_turns
 

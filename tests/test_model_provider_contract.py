@@ -265,6 +265,26 @@ class ModelProviderTimeoutTests(unittest.TestCase):
             with self.assertRaisesRegex(ModelProviderTimeout, "model request timed out"):
                 provider.create_plan("check", model="m", http_timeout_seconds=1)
 
+    def test_chat_plan_records_token_usage_for_the_active_run(self):
+        from onecode.kernel.model_provider import begin_model_usage, finish_model_usage
+
+        provider = OpenAIChatCompletionsProvider("key", endpoint="https://example.test/v1/chat/completions")
+        envelope = {
+            "choices": [{"message": {"content": '{"task": "write", "assets": [{"path": "src/a.py", "content": "x = 1\\n"}]}'}}],
+            "usage": {"prompt_tokens": 11, "completion_tokens": 7, "total_tokens": 18, "cost": 0.02},
+        }
+        token = begin_model_usage()
+        try:
+            with patch("onecode.kernel.model_provider._post_model_json", return_value=envelope):
+                provider.create_plan("check", model="m", http_timeout_seconds=1)
+        finally:
+            usage = finish_model_usage(token)
+        self.assertEqual(usage["prompt_tokens"], 11)
+        self.assertEqual(usage["completion_tokens"], 7)
+        self.assertEqual(usage["total_tokens"], 18)
+        self.assertEqual(usage["call_count"], 1)
+        self.assertEqual(usage["cost_usd"], 0.02)
+
     def test_chat_text_completion_sends_the_onecode_user_agent(self):
         from onecode.kernel.model_provider import complete_model_text
 
@@ -418,6 +438,43 @@ class ModelProviderTimeoutTests(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True), patch("onecode.kernel.model_provider._SAFE_OPENER.open", side_effect=opener):
             with self.assertRaises(ModelProviderError):
                 _post_model_json("https://primary.test/v1", "prim-key", {"model": "orig-model"}, 1)
+
+    def test_http_524_origin_timeout_raises_model_provider_timeout(self):
+        from onecode.kernel.model_provider import ModelProviderTimeout, _post_model_json, resumable_model_status
+
+        self.assertTrue(resumable_model_status(524))
+        self.assertTrue(resumable_model_status(520))
+
+        def opener(req, timeout=None):
+            raise urllib.error.HTTPError(req.full_url, 524, "Origin Time-out", hdrs=None, fp=io.BytesIO(b""))
+
+        with patch.dict(os.environ, {}, clear=True), patch("onecode.kernel.model_provider._SAFE_OPENER.open", side_effect=opener):
+            with self.assertRaises(ModelProviderTimeout):
+                _post_model_json("https://primary.test/v1/chat/completions", "key", {"model": "m"}, 1)
+
+    def test_streaming_chat_response_tracks_usage(self):
+        from onecode.kernel.model_provider import _read_streaming_chat_response
+
+        stream_lines = [
+            b'data: {"id":"chat-1","choices":[{"delta":{"content":"{\\"hello\\": "}}]}\n',
+            b'data: {"id":"chat-1","choices":[{"delta":{"content":"\\"world\\"}"}}]}\n',
+            b'data: {"id":"chat-1","choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}\n',
+            b'data: [DONE]\n',
+        ]
+        res = _read_streaming_chat_response(stream_lines)
+        self.assertEqual(res["choices"][0]["message"]["content"], '{"hello": "world"}')
+        self.assertEqual(res["usage"]["total_tokens"], 15)
+        self.assertEqual(res["usage"]["completion_tokens"], 5)
+
+    def test_streaming_enabled_by_default_in_chat_payload(self):
+        with patch.dict(os.environ, {}, clear=True):
+            chat = OpenAIChatCompletionsProvider("key").request_payload("check", model="m")
+            self.assertTrue(chat.get("stream"))
+            self.assertEqual(chat.get("stream_options"), {"include_usage": True})
+
+        with patch.dict(os.environ, {"ONECODE_STREAM_CHAT": "0"}, clear=True):
+            chat_disabled = OpenAIChatCompletionsProvider("key").request_payload("check", model="m")
+            self.assertFalse(chat_disabled.get("stream", False))
 
 
 if __name__ == "__main__":

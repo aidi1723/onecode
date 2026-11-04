@@ -116,7 +116,7 @@ def audit_tui_bootstrap() -> dict:
             )
         passed = False
         detail = {"shell": "tui", "error": f"{type(exc).__name__}: {exc}"}
-    except Exception as exc:  # pragma: no cover - exercised through audit output
+    except (ImportError, OSError, RuntimeError, AttributeError, TypeError, ValueError) as exc:
         passed = False
         detail = {"shell": "tui", "error": f"{type(exc).__name__}: {exc}"}
     return audit_check("tui_bootstrap", passed, detail)

@@ -1,4 +1,5 @@
 import ast
+import contextvars
 import json
 import os
 import time
@@ -18,6 +19,65 @@ from onecode.kernel.preset_tests import is_preset_test_path, new_test_asset_allo
 
 
 DEFAULT_OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
+_MODEL_USAGE: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar("onecode_model_usage", default=None)
+
+
+def empty_model_usage() -> dict[str, Any]:
+    return {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "call_count": 0, "cost_usd": None}
+
+
+def _usage_int(payload: dict[str, Any], *keys: str) -> int:
+    for key in keys:
+        value = payload.get(key)
+        if isinstance(value, int) and not isinstance(value, bool):
+            return value
+    return 0
+
+
+def usage_counts(payload: object) -> dict[str, Any]:
+    """Read token and cost fields from a provider response. Missing fields stay at zero."""
+    usage = payload.get("usage") if isinstance(payload, dict) else None
+    if not isinstance(usage, dict):
+        usage = {}
+    prompt_tokens = _usage_int(usage, "prompt_tokens", "input_tokens")
+    completion_tokens = _usage_int(usage, "completion_tokens", "output_tokens")
+    total_tokens = _usage_int(usage, "total_tokens") or prompt_tokens + completion_tokens
+    cost_usd = None
+    for key in ("cost", "total_cost", "cost_usd"):
+        value = usage.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            cost_usd = float(value)
+            break
+    return {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+        "call_count": 1 if usage else 0,
+        "cost_usd": cost_usd,
+    }
+
+
+def begin_model_usage() -> contextvars.Token[dict[str, Any] | None]:
+    return _MODEL_USAGE.set(empty_model_usage())
+
+
+def note_model_usage(payload: object) -> None:
+    current = _MODEL_USAGE.get()
+    if current is None:
+        return
+    counts = usage_counts(payload)
+    current["prompt_tokens"] += counts["prompt_tokens"]
+    current["completion_tokens"] += counts["completion_tokens"]
+    current["total_tokens"] += counts["total_tokens"]
+    current["call_count"] += counts["call_count"]
+    if counts["cost_usd"] is not None:
+        current["cost_usd"] = float(current["cost_usd"] or 0.0) + float(counts["cost_usd"])
+
+
+def finish_model_usage(token: contextvars.Token[dict[str, Any] | None]) -> dict[str, Any]:
+    totals = dict(_MODEL_USAGE.get() or empty_model_usage())
+    _MODEL_USAGE.reset(token)
+    return totals
 DEFAULT_OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions"
 DEFAULT_MODEL = "gpt-4.1-mini"
 
@@ -246,7 +306,7 @@ def normalize_chat_endpoint(endpoint_or_base_url: str) -> str:
 
 
 def resumable_model_status(code: int) -> bool:
-    return code in {408, 429, 502, 503, 504}
+    return code in {408, 429, 500, 502, 503, 504, 520, 521, 522, 524}
 
 
 def build_provider_config(
@@ -789,6 +849,7 @@ class OpenAIResponsesProvider:
             self.request_payload(task, model=model, planning_context=planning_context),
             http_timeout_seconds,
         )
+        note_model_usage(response_payload)
         return parse_response_plan(
             response_payload,
             known_modules=known_modules,
@@ -810,6 +871,7 @@ class OpenAIResponsesProvider:
         }
         body.update(_responses_prompt_cache())
         payload = _post_model_json(self.endpoint, self.api_key, body, http_timeout_seconds)
+        note_model_usage(payload)
         return extract_response_text(payload)
 
 
@@ -853,8 +915,10 @@ class OpenAIChatCompletionsProvider:
             "response_format": {"type": "json_object"},
         }
         payload.update(_chat_thinking_fields())
-        if os.environ.get("ONECODE_STREAM_CHAT", "").strip().lower() in {"1", "true", "yes"}:
+        stream_val = os.environ.get("ONECODE_STREAM_CHAT", "1").strip().lower()
+        if stream_val not in {"0", "false", "no", "off"}:
             payload["stream"] = True
+            payload["stream_options"] = {"include_usage": True}
         max_tokens_val = os.environ.get("ONECODE_MODEL_MAX_TOKENS")
         if max_tokens_val:
             try:
@@ -905,6 +969,7 @@ class OpenAIChatCompletionsProvider:
     ) -> ModelPlan:
         body = self.request_payload(task, model=model, planning_context=planning_context)
         response_payload = _post_model_json(self.endpoint, self.api_key, body, http_timeout_seconds)
+        note_model_usage(response_payload)
         if not isinstance(response_payload, dict):
             raise ModelProviderError("model response envelope must be an object")
         return self.parse_response(
@@ -934,6 +999,7 @@ class OpenAIChatCompletionsProvider:
             except ValueError:
                 pass
         payload = _post_model_json(self.endpoint, self.api_key, body, http_timeout_seconds)
+        note_model_usage(payload)
         return _chat_message_text(payload)
 
 
@@ -970,6 +1036,7 @@ def complete_model_text(
             except ValueError:
                 pass
     payload = _post_model_json(config.endpoint, api_key, body, timeout_seconds)
+    note_model_usage(payload)
     if config.provider_kind == "responses":
         return extract_response_text(payload)
     return _chat_message_text(payload)
@@ -1003,6 +1070,7 @@ def _read_streaming_chat_response(response: Any) -> dict[str, Any]:
     reasoning_parts: list[str] = []
     finish_reason: str | None = None
     resp_id: str | None = None
+    usage_dict: dict[str, Any] | None = None
     for raw_line in response:
         line = raw_line.decode("utf-8").strip()
         if not line or not line.startswith("data: "):
@@ -1014,6 +1082,8 @@ def _read_streaming_chat_response(response: Any) -> dict[str, Any]:
             chunk = json.loads(data_str)
             if not resp_id and chunk.get("id"):
                 resp_id = chunk.get("id")
+            if isinstance(chunk.get("usage"), dict):
+                usage_dict = chunk["usage"]
             choices = chunk.get("choices", [])
             if choices:
                 delta = choices[0].get("delta", {})
@@ -1023,11 +1093,20 @@ def _read_streaming_chat_response(response: Any) -> dict[str, Any]:
                     reasoning_parts.append(delta["reasoning_content"])
                 if choices[0].get("finish_reason"):
                     finish_reason = choices[0]["finish_reason"]
-        except Exception:
+        except json.JSONDecodeError:
             pass
+    if not usage_dict:
+        total_chars = sum(len(p) for p in content_parts) + sum(len(p) for p in reasoning_parts)
+        est_tokens = max(1, total_chars // 4)
+        usage_dict = {
+            "prompt_tokens": 0,
+            "completion_tokens": est_tokens,
+            "total_tokens": est_tokens,
+        }
     return {
         "id": resp_id,
         "object": "chat.completion",
+        "usage": usage_dict,
         "choices": [
             {
                 "index": 0,
@@ -1045,8 +1124,10 @@ def _read_streaming_chat_response(response: Any) -> dict[str, Any]:
 def _post_model_json_direct(endpoint: str, api_key: str, body: dict[str, Any], timeout_seconds: float) -> dict[str, Any]:
     last_url_error: urllib.error.URLError | None = None
     req_body = dict(body)
-    if os.environ.get("ONECODE_STREAM_CHAT", "").strip().lower() in {"1", "true", "yes"}:
+    stream_val = os.environ.get("ONECODE_STREAM_CHAT", "1").strip().lower()
+    if stream_val not in {"0", "false", "no", "off"} and ("chat/completions" in endpoint or "messages" in req_body):
         req_body["stream"] = True
+        req_body.setdefault("stream_options", {"include_usage": True})
     encoded_body = json.dumps(req_body).encode("utf-8")
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -1081,6 +1162,9 @@ def _post_model_json_direct(endpoint: str, api_key: str, body: dict[str, Any], t
             if exc.code in {403, 408, 429, 500, 502, 503, 504, 520, 521, 522, 524} and attempt < 2:
                 time.sleep(1.0 * (attempt + 1))
                 continue
+            reason_text = str(getattr(exc, "reason", "") or "")
+            if exc.code in {408, 504, 524} or "time-out" in reason_text.lower() or "timeout" in reason_text.lower():
+                raise ModelProviderTimeout(f"model request timed out: {exc.code} {reason_text}") from exc
             if resumable_model_status(exc.code):
                 raise ModelProviderTimeout(f"model request can be resumed: {exc.code}") from exc
             raise ModelProviderError(f"model request failed: {exc.reason}") from exc
@@ -1089,6 +1173,9 @@ def _post_model_json_direct(endpoint: str, api_key: str, body: dict[str, Any], t
             if attempt < 2:
                 time.sleep(1.0 * (attempt + 1))
                 continue
+            reason_text = str(getattr(exc, "reason", "") or "")
+            if isinstance(exc.reason, TimeoutError) or "timed out" in reason_text.lower() or "time-out" in reason_text.lower():
+                raise ModelProviderTimeout(f"model request timed out: {reason_text}") from exc
             raise ModelProviderError(f"model request failed: {exc.reason}") from exc
         except json.JSONDecodeError as exc:
             raise ModelProviderError("model response envelope was not valid JSON") from exc

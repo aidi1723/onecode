@@ -246,6 +246,160 @@ sys.exit(0)
         self.assertEqual(res["security_violation"], "reward_forgery_detected")
         self.assertEqual((self.log_dir / "reward.txt").read_text(encoding="utf-8").strip(), "0.0")
 
+    def test_adversarial_reward_txt_disagrees_with_json_overall(self) -> None:
+        (self.hidden_tests / "verifier.py").write_text(
+            "import json, os\nfrom pathlib import Path\n"
+            "log_dir = Path(os.environ['LOG_DIR'])\n"
+            "report = {'overall': 0.0, 'tests_passed': 1, 'tests_total': 1, "
+            "'tests': [{'name': 'secret_check', 'passed': True}]}\n"
+            "(log_dir / 'reward.json').write_text(json.dumps(report))\n"
+            "(log_dir / 'reward.txt').write_text('1.0\\n')\n"
+            "raise SystemExit(0)\n",
+            encoding="utf-8",
+        )
+        res = harbor_scheduler.run_stage2_evaluation(
+            task_id="task-overall-mismatch",
+            workspace=self.workspace,
+            hidden_tests=self.hidden_tests,
+            log_dir=self.log_dir,
+            use_docker=False,
+        )
+        self.assertFalse(res["passed"])
+        self.assertEqual(res["host_reward"], 0.0)
+        self.assertEqual(res["security_violation"], "reward_forgery_detected")
+
+    def test_adversarial_non_object_test_records_are_rejected(self) -> None:
+        (self.hidden_tests / "verifier.py").write_text(
+            "import json, os\nfrom pathlib import Path\n"
+            "log_dir = Path(os.environ['LOG_DIR'])\n"
+            "report = {'overall': 1.0, 'tests_passed': 1, 'tests_total': 1, 'tests': ['secret_check']}\n"
+            "(log_dir / 'reward.json').write_text(json.dumps(report))\n"
+            "(log_dir / 'reward.txt').write_text('1.0\\n')\n"
+            "raise SystemExit(0)\n",
+            encoding="utf-8",
+        )
+        res = harbor_scheduler.run_stage2_evaluation(
+            task_id="task-bad-test-record",
+            workspace=self.workspace,
+            hidden_tests=self.hidden_tests,
+            log_dir=self.log_dir,
+            use_docker=False,
+        )
+        self.assertFalse(res["passed"])
+        self.assertEqual(res["host_reward"], 0.0)
+        self.assertEqual(res["security_violation"], "reward_forgery_detected")
+
+    def test_adversarial_reward_above_one_is_rejected(self) -> None:
+        (self.hidden_tests / "verifier.py").write_text(
+            "import json, os\nfrom pathlib import Path\n"
+            "log_dir = Path(os.environ['LOG_DIR'])\n"
+            "report = {'overall': 1.5, 'tests_passed': 1, 'tests_total': 1, "
+            "'tests': [{'name': 'secret_check', 'passed': True}]}\n"
+            "(log_dir / 'reward.json').write_text(json.dumps(report))\n"
+            "(log_dir / 'reward.txt').write_text('1.5\\n')\n"
+            "raise SystemExit(0)\n",
+            encoding="utf-8",
+        )
+        res = harbor_scheduler.run_stage2_evaluation(
+            task_id="task-reward-above-one",
+            workspace=self.workspace,
+            hidden_tests=self.hidden_tests,
+            log_dir=self.log_dir,
+            use_docker=False,
+        )
+        self.assertFalse(res["passed"])
+        self.assertEqual(res["host_reward"], 0.0)
+        self.assertEqual(res["security_violation"], "reward_forgery_detected")
+
+    def test_adversarial_negative_reward_is_rejected(self) -> None:
+        (self.hidden_tests / "verifier.py").write_text(
+            "import json, os\nfrom pathlib import Path\n"
+            "log_dir = Path(os.environ['LOG_DIR'])\n"
+            "report = {'overall': -0.2, 'tests_passed': 0, 'tests_total': 1, "
+            "'tests': [{'name': 'secret_check', 'passed': False}]}\n"
+            "(log_dir / 'reward.json').write_text(json.dumps(report))\n"
+            "(log_dir / 'reward.txt').write_text('-0.2\\n')\n"
+            "raise SystemExit(0)\n",
+            encoding="utf-8",
+        )
+        res = harbor_scheduler.run_stage2_evaluation(
+            task_id="task-negative-reward",
+            workspace=self.workspace,
+            hidden_tests=self.hidden_tests,
+            log_dir=self.log_dir,
+            use_docker=False,
+        )
+        self.assertFalse(res["passed"])
+        self.assertEqual(res["host_reward"], 0.0)
+        self.assertEqual(res["security_violation"], "reward_forgery_detected")
+
+    def test_adversarial_reward_disagrees_with_pass_ratio(self) -> None:
+        (self.hidden_tests / "verifier.py").write_text(
+            "import json, os\nfrom pathlib import Path\n"
+            "log_dir = Path(os.environ['LOG_DIR'])\n"
+            "tests = [{'name': 'only', 'passed': True}] + "
+            "[{'name': f'miss-{i}', 'passed': False} for i in range(9)]\n"
+            "report = {'overall': 0.9, 'tests_passed': 1, 'tests_total': 10, 'tests': tests}\n"
+            "(log_dir / 'reward.json').write_text(json.dumps(report))\n"
+            "(log_dir / 'reward.txt').write_text('0.9\\n')\n"
+            "raise SystemExit(0)\n",
+            encoding="utf-8",
+        )
+        res = harbor_scheduler.run_stage2_evaluation(
+            task_id="task-ratio-mismatch",
+            workspace=self.workspace,
+            hidden_tests=self.hidden_tests,
+            log_dir=self.log_dir,
+            use_docker=False,
+        )
+        self.assertFalse(res["passed"])
+        self.assertEqual(res["host_reward"], 0.0)
+        self.assertEqual(res["security_violation"], "reward_forgery_detected")
+
+    def test_partial_reward_matching_pass_ratio_is_kept(self) -> None:
+        (self.hidden_tests / "verifier.py").write_text(
+            "import json, os\nfrom pathlib import Path\n"
+            "log_dir = Path(os.environ['LOG_DIR'])\n"
+            "report = {'overall': 0.5, 'tests_passed': 1, 'tests_total': 2, "
+            "'tests': [{'name': 'one', 'passed': True}, {'name': 'two', 'passed': False}]}\n"
+            "(log_dir / 'reward.json').write_text(json.dumps(report))\n"
+            "(log_dir / 'reward.txt').write_text('0.5\\n')\n"
+            "raise SystemExit(0)\n",
+            encoding="utf-8",
+        )
+        res = harbor_scheduler.run_stage2_evaluation(
+            task_id="task-honest-partial",
+            workspace=self.workspace,
+            hidden_tests=self.hidden_tests,
+            log_dir=self.log_dir,
+            use_docker=False,
+        )
+        self.assertFalse(res["passed"])
+        self.assertEqual(res["host_reward"], 0.5)
+        self.assertEqual(res["security_violation"], "")
+
+    def test_adversarial_full_score_with_failures_is_rejected(self) -> None:
+        (self.hidden_tests / "verifier.py").write_text(
+            "import json, os\nfrom pathlib import Path\n"
+            "log_dir = Path(os.environ['LOG_DIR'])\n"
+            "report = {'overall': 1.0, 'tests_passed': 1, 'tests_total': 1, 'tests_failed': 1, "
+            "'tests': [{'name': 'secret_check', 'passed': True}]}\n"
+            "(log_dir / 'reward.json').write_text(json.dumps(report))\n"
+            "(log_dir / 'reward.txt').write_text('1.0\\n')\n"
+            "raise SystemExit(0)\n",
+            encoding="utf-8",
+        )
+        res = harbor_scheduler.run_stage2_evaluation(
+            task_id="task-hidden-failure",
+            workspace=self.workspace,
+            hidden_tests=self.hidden_tests,
+            log_dir=self.log_dir,
+            use_docker=False,
+        )
+        self.assertFalse(res["passed"])
+        self.assertEqual(res["host_reward"], 0.0)
+        self.assertEqual(res["security_violation"], "reward_forgery_detected")
+
     def test_docker_command_mounts_staging_and_not_the_official_log_dir(self) -> None:
         staging = self.root / "staging"
         staging.mkdir()

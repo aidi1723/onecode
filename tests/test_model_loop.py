@@ -3076,11 +3076,11 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
             "host_reward": 1.0,
         }
 
-        with patch("onecode.kernel.model_loop.traced_provider_plan", return_value=(mock_plan, None)), \
-             patch("onecode.kernel.model_loop.synthesize_single_asset_repair", return_value=mock_plan), \
-             patch("onecode.kernel.model_loop.is_patch_only_repair_plan", return_value=True), \
-             patch("onecode.kernel.model_loop.execute_model_plan", return_value=mock_repair_result), \
-             patch("onecode.kernel.model_loop._with_sandbox_tests", return_value=mock_verified):
+        with patch("onecode.kernel.model_planning.traced_provider_plan", return_value=(mock_plan, None)), \
+             patch("onecode.kernel.model_repair.synthesize_single_asset_repair", return_value=mock_plan), \
+             patch("onecode.kernel.model_repair.is_patch_only_repair_plan", return_value=True), \
+             patch("onecode.kernel.model_planning.execute_model_plan", return_value=mock_repair_result), \
+             patch("onecode.kernel.model_repair._with_sandbox_tests", return_value=mock_verified):
             res = _run_model_task_repair_loop(
                 result={"status": "verifier_failed", "reason": "verifier_failed"},
                 task="test task",

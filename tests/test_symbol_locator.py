@@ -7,10 +7,14 @@ import unittest
 
 from onecode.kernel.symbol_locator import (
     FaultLocation,
+    ImportRef,
     StackFrame,
     SymbolDef,
     SymbolLocator,
     WorkspaceSymbolIndex,
+    aggregate_locator_hits,
+    file_hit_rates,
+    files_touched_by_patch,
 )
 
 
@@ -349,6 +353,55 @@ FAILED tests/test_shop.py::test_shop - AssertionError
             self.assertEqual(min_top.symbol_name, "calculate_tax")
             self.assertFalse(min_top.is_test_file)
             self.assertGreaterEqual(min_top.confidence, 0.90)
+
+    def test_python_call_edge_puts_the_callee_file_in_the_top_five(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = root / "src"
+            tests = root / "tests"
+            src.mkdir()
+            tests.mkdir()
+            (src / "app.py").write_text("def run():\n    return helper()\n", encoding="utf-8")
+            (src / "helper.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+            (tests / "test_app.py").write_text(
+                "from src.app import run\n\ndef test_run():\n    assert run() == 2\n",
+                encoding="utf-8",
+            )
+            locator = SymbolLocator(root)
+            self.assertIn(("src/app.py", "run"), locator.index.callers_by_name["helper"])
+            failure = (
+                'File "tests/test_app.py", line 4, in test_run\n'
+                "    assert run() == 2\n"
+                "AssertionError: 1 != 2\n"
+            )
+            ranked = [item.file_path for item in locator.locate_fault(failure)]
+            diff = "--- a/src/helper.py\n+++ b/src/helper.py\n@@\n-return 1\n+return 2\n"
+            gold = files_touched_by_patch(diff)
+            rates = file_hit_rates(ranked, gold)
+            self.assertIn("src/helper.py", ranked[:5])
+            self.assertTrue(rates["top5"])
+            summary = aggregate_locator_hits([{"ranked_files": ranked, "patch": diff}, {"instance_id": "missing"}])
+            self.assertEqual(summary["scored_count"], 1)
+            self.assertEqual(summary["patches_absent"], 1)
+            self.assertEqual(summary["top5_hit_rate"], 1.0)
+            self.assertFalse(summary["claims_mainstream_parity"])
+
+    def test_go_module_prefix_resolves_to_the_package_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "go.mod").write_text("module example.com/edwards\n\ngo 1.22\n", encoding="utf-8")
+            point = root / "point"
+            scalar = root / "scalar"
+            point.mkdir()
+            scalar.mkdir()
+            (point / "base.go").write_text("package point\nfunc ScalarBaseMult() {}\n", encoding="utf-8")
+            (scalar / "mul.go").write_text("package scalar\nfunc Multiply() {}\n", encoding="utf-8")
+            (root / "other").mkdir()
+            (root / "other" / "point.go").write_text("package other\nfunc Point() {}\n", encoding="utf-8")
+            index = WorkspaceSymbolIndex(root)
+            resolved = index.resolve_import_file(ImportRef(module="example.com/edwards/point"))
+        self.assertIsNotNone(resolved)
+        self.assertTrue(str(resolved).startswith("point/"))
 
 
 if __name__ == "__main__":
