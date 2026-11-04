@@ -278,6 +278,27 @@ def initial_asset_prompt(task: str, target: str) -> str:
     )
 
 
+def sanitize_host_failure_summary(detail: dict) -> str:
+    """Name the failed host checks without copying expected-answer text into the repair prompt."""
+    lines: list[str] = []
+    passed = detail.get("tests_passed")
+    total = detail.get("tests_total")
+    if isinstance(passed, int) and not isinstance(passed, bool) and isinstance(total, int) and not isinstance(total, bool):
+        lines.append(f"Verifier report: {passed}/{total} tests passed.")
+    tests = detail.get("tests")
+    failed_names: list[str] = []
+    if isinstance(tests, list):
+        for item in tests:
+            if isinstance(item, dict) and item.get("passed") is False:
+                name = str(item.get("name") or "unknown").strip() or "unknown"
+                if name not in failed_names:
+                    failed_names.append(name)
+    if failed_names:
+        lines.append("Failed tests:")
+        lines.extend(f"- [FAIL] {name}" for name in failed_names)
+    return "\n".join(lines)
+
+
 def format_verifier_diagnostics(stdout: str, stderr: str) -> str:
     """Parse verifier stdout/stderr into actionable diagnostics for repair prompts."""
     if stdout:

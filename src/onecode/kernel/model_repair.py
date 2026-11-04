@@ -1,6 +1,7 @@
 """Verifier repair loop, snapshots, and reward-guided retries."""
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -772,6 +773,48 @@ def _restore_workspace_snapshot(workspace: Path, snapshot: dict[str, str]) -> No
             pass
 
 
+def _testing_only_task(task: str) -> bool:
+    lowered = task.lower()
+    phrases = ("只补测试", "只写测试", "仅测试", "tests only", "only write tests", "test task", "modify tests only")
+    return any(phrase in task or phrase in lowered for phrase in phrases)
+
+
+def _deliver_best_repair(
+    workspace: Path,
+    current: dict[str, Any],
+    best_checked: dict[str, Any],
+    best_snapshot: dict[str, str],
+) -> dict[str, Any]:
+    """Return the higher host score and put that workspace snapshot back."""
+    delivered = dict(current)
+    best_reward = best_checked.get("host_reward")
+    current_reward = current.get("host_reward")
+    if isinstance(best_reward, (int, float)) and not isinstance(best_reward, bool):
+        worse = (
+            not isinstance(current_reward, (int, float))
+            or isinstance(current_reward, bool)
+            or float(best_reward) > float(current_reward)
+        )
+        if worse:
+            _restore_workspace_snapshot(workspace, best_snapshot)
+            delivered = dict(best_checked)
+            delivered["host_reward"] = float(best_reward)
+    reward = delivered.get("host_reward")
+    if isinstance(reward, (int, float)) and not isinstance(reward, bool) and float(reward) >= 1.0 - 1e-9:
+        delivered["status"] = "completed"
+        delivered["reason"] = None
+        delivered["partial"] = False
+        return delivered
+    if isinstance(reward, (int, float)) and not isinstance(reward, bool):
+        delivered["status"] = "completed"
+        delivered["partial"] = True
+        delivered["verifier_status"] = "partial"
+        if not delivered.get("reason"):
+            delivered["reason"] = "verifier_failed"
+        return delivered
+    return delivered
+
+
 def _build_repair_prompt_context(
     task: str,
     workspace: Path,
@@ -807,7 +850,19 @@ def _build_repair_prompt_context(
         task,
         {**current_checked, "workspace_files": _src_files_for_repair(workspace)},
         workspace=workspace,
-    ) + "\nDo not patch any path under tests/. Change the implementation so the existing tests pass."
+    )
+    if _testing_only_task(task):
+        prompt = prompt.replace(
+            "Do not patch any path under tests/.",
+            "STRICT: Do NOT touch application source code. Modify tests only.",
+        )
+        from onecode.kernel.model_guidance import protected_python_files
+
+        protected = protected_python_files(task)
+        if protected:
+            prompt += "\nForbidden files: " + ", ".join(protected) + "."
+    else:
+        prompt += "\nDo not patch any path under tests/. Change the implementation so the existing tests pass."
     if tails and all(t not in prompt for t in tails):
         prompt += "\nVerifier output:\n" + "\n".join(tails)
     if format_error_guidance:
@@ -880,6 +935,76 @@ def _seed_turn_history(result: dict[str, Any], modified: list[str] | None = None
     }]
 
 
+def _host_detail_from_stdout(stdout: str) -> dict:
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(stdout):
+        if char != "{":
+            continue
+        try:
+            parsed, _ = decoder.raw_decode(stdout[index:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict) and isinstance(parsed.get("tests"), list):
+            return parsed
+    return {}
+
+
+def apply_sanitized_host_grade(result: dict[str, Any], reward: object, detail: dict) -> dict[str, Any]:
+    """Record an external host score without placing the verifier or its expected answers in the workspace."""
+    from onecode.kernel.model_guidance import sanitize_host_failure_summary
+
+    updated = dict(result)
+    if isinstance(reward, bool) or not isinstance(reward, (int, float)):
+        return updated
+    score = float(reward)
+    updated["host_reward"] = score
+    if score >= 1.0 - 1e-9:
+        updated["status"] = "completed"
+        updated["reason"] = None
+        return updated
+    summary = sanitize_host_failure_summary(detail if isinstance(detail, dict) else {})
+    updated["status"] = "halted"
+    updated["reason"] = "verifier_failed"
+    updated["verifier_results"] = [
+        {
+            "id": "host-verifier",
+            "status": "failed",
+            "reason": "verifier_failed",
+            "stdout_tail": summary,
+            "stderr_tail": "",
+        }
+    ]
+    return updated
+
+
+def _apply_external_host_grade(
+    result: dict[str, Any],
+    workspace: Path,
+    run_metadata: dict[str, Any],
+) -> dict[str, Any]:
+    raw = str(run_metadata.get("host_verifier_path") or "").strip()
+    if not raw:
+        return result
+    path = Path(raw).expanduser()
+    try:
+        resolved = path.resolve()
+        root = workspace.resolve()
+    except OSError:
+        return result
+    if not resolved.is_file() or resolved.is_relative_to(root):
+        return result
+    from onecode.kernel.verifier import run_host_verifier
+
+    checked, reward = run_host_verifier(workspace, resolved)
+    detail = _host_detail_from_stdout(checked.stdout_tail)
+    graded = apply_sanitized_host_grade(result, reward, detail)
+    if checked.container_id:
+        graded["container_id"] = checked.container_id
+        graded["container_image"] = checked.container_image
+        graded["container_arch"] = checked.container_arch
+    return graded
+
+
 def _finish_verified_task(
     result: dict[str, Any],
     task: str,
@@ -904,7 +1029,8 @@ def _finish_verified_task(
     modified = _modified_paths_from_result(result)
     _generate_missing_artifacts(task, workspace, modified)
     checked = _with_sandbox_tests(result, workspace, sandbox_config)
-    has_testable_verifier = sandbox_config is not None
+    checked = _apply_external_host_grade(checked, workspace, run_metadata)
+    has_testable_verifier = sandbox_config is not None or bool(str(run_metadata.get("host_verifier_path") or "").strip())
     if checked.get("reason") != "verifier_failed" or max_repair_attempts <= 0 or not has_testable_verifier:
         return checked
     current_checked = dict(checked)
@@ -987,13 +1113,7 @@ def _finish_verified_task(
                 continue
             final_err = "repair_plan_must_use_patches_only" if safety_err == "repair_plan_cannot_modify_tests" else safety_err
             rejected = repair_rejected_result(current_checked, run_id, final_err, repair_attempt_count=attempt)
-            transition = IchingKernel.transition(IchingKernel.classify_outcome("halted", rejected["reason"]))
-            return {
-                **rejected,
-                "iching_status_code": transition.status_code,
-                "iching_transition_action": transition.action,
-                "iching_transition_reason": transition.reason,
-            }
+            return _deliver_best_repair(workspace, rejected, best_checked, best_snapshot)
         repair_metadata = _build_repair_metadata(run_metadata, failed_code, attempt, cooldown_ms)
         repaired = execute_model_plan(
             plan,
@@ -1012,6 +1132,7 @@ def _finish_verified_task(
             current_result = merged
             continue
         tested = _with_sandbox_tests(merged, workspace, sandbox_config)
+        tested = _apply_external_host_grade(tested, workspace, run_metadata)
         if tested.get("reason") != "verifier_failed":
             return tested
         cur_rew = tested.get("host_reward")
@@ -1023,16 +1144,7 @@ def _finish_verified_task(
                 best_snapshot = _snapshot_workspace_files(workspace)
         current_checked = tested
         current_result = tested
-    if isinstance(best_checked.get("host_reward"), (int, float)):
-        cur_rew = current_checked.get("host_reward")
-        if not isinstance(cur_rew, (int, float)) or best_checked["host_reward"] > cur_rew:
-            current_checked["host_reward"] = best_checked["host_reward"]
-            if best_checked.get("container_id"):
-                current_checked["container_id"] = best_checked["container_id"]
-                current_checked["container_image"] = best_checked.get("container_image")
-                current_checked["container_arch"] = best_checked.get("container_arch")
-            _restore_workspace_snapshot(workspace, best_snapshot)
-    return current_checked
+    return _deliver_best_repair(workspace, current_checked, best_checked, best_snapshot)
 
 
 def _resolve_host_verifier_path(workspace: Path) -> str:

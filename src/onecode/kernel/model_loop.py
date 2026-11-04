@@ -155,6 +155,7 @@ def run_model_task(
     preface: str | None = None,
     approval_mode: str = "strict",
     agent_mode: str = "classic",
+    host_verifier_path: str | None = None,
 ) -> dict[str, Any]:
     from onecode.kernel.model_provider import begin_model_usage, finish_model_usage
 
@@ -184,6 +185,7 @@ def run_model_task(
             preface=preface,
             approval_mode=approval_mode,
             agent_mode=agent_mode,
+            host_verifier_path=host_verifier_path,
         )
     finally:
         usage = finish_model_usage(usage_token)
@@ -215,6 +217,7 @@ def _execute_model_task(
     preface: str | None = None,
     approval_mode: str = "strict",
     agent_mode: str = "classic",
+    host_verifier_path: str | None = None,
 ) -> dict[str, Any]:
     task = with_preface(task, preface)
     validate_model_task_limits(http_timeout_seconds, max_repair_attempts)
@@ -274,6 +277,8 @@ def _execute_model_task(
     if plan_approval is not None and not plan_approval(plan):
         return _plan_user_rejected_result(plan, run_id, provider_config, resolved_model)
     run_metadata = _run_plan_metadata(provider_config, resolved_model, plan, planning_context["safe_agent"])
+    if host_verifier_path:
+        run_metadata["host_verifier_path"] = str(host_verifier_path)
     _enrich_bureau_and_brightness_metadata(workspace, run_metadata)
     callback = execution_approval
     if callback is None and approval_mode == "scoped_auto":

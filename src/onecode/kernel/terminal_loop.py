@@ -468,10 +468,15 @@ def _command_tokens(argument: str) -> list[str] | None:
 
 
 _SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ash"})
+_SHELL_SCAN_BYTES = 65_536
+
+
+def _is_shell_command(argv: tuple[str, ...]) -> bool:
+    return bool(argv) and posixpath.basename(argv[0]).lower() in _SHELLS
 
 
 def _shell_command_text(argv: tuple[str, ...]) -> str:
-    if not argv or posixpath.basename(argv[0]).lower() not in _SHELLS:
+    if not _is_shell_command(argv):
         return ""
     for index, token in enumerate(argv):
         if token == "-c" and index + 1 < len(argv):
@@ -479,13 +484,83 @@ def _shell_command_text(argv: tuple[str, ...]) -> str:
     return ""
 
 
+def _shell_script_argument(argv: tuple[str, ...]) -> str:
+    """Return the script path for ``bash helper.sh``, ignoring ``bash -c``."""
+    if not _is_shell_command(argv) or any(token == "-c" for token in argv):
+        return ""
+    for token in argv[1:]:
+        if token == "--" or token.startswith("-"):
+            continue
+        return token
+    return ""
+
+
+def _workspace_shell_text(workspace: Path, relative: str, seen: set[Path]) -> str | None:
+    """Return a workspace shell script, or None when its contents cannot be proven safe."""
+    if not relative or "$" in relative or "`" in relative or relative.startswith(("/", "\\")) or ".." in Path(relative).parts:
+        return None
+    root = workspace.resolve()
+    try:
+        candidate = (root / relative).resolve()
+    except OSError:
+        return None
+    if not candidate.is_file() or not candidate.is_relative_to(root):
+        return ""
+    if candidate in seen:
+        return ""
+    try:
+        if candidate.stat().st_size > _SHELL_SCAN_BYTES:
+            return None
+        seen.add(candidate)
+        return candidate.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
+
+
+def _forbidden_shell_target(segment: str) -> str:
+    if any(pattern.search(segment) for pattern in _FORBIDDEN_TEST_CMD_PATTERNS):
+        for fragment in _PATH_FRAGMENT.findall(segment):
+            if is_any_test_path(fragment):
+                return fragment
+        return "a preset test path"
+    try:
+        tokens = shlex.split(segment)
+    except ValueError:
+        return ""
+    if not tokens or posixpath.basename(tokens[0].lower()) not in _DESTRUCTIVE_CMDS:
+        return ""
+    for token in tokens[1:]:
+        if not token.startswith("-") and is_any_test_path(token):
+            return token
+    return ""
+
+
+def _shell_file_write_target(workspace: Path, argv: tuple[str, ...], seen: set[Path] | None, depth: int) -> str:
+    """Block a shell script file that would modify a test path."""
+    if depth > 6:
+        return "a computed execution"
+    relative = _shell_script_argument(argv)
+    if not relative:
+        return ""
+    seen = set() if seen is None else seen
+    text = _workspace_shell_text(workspace, relative, seen)
+    if text is None:
+        return "a computed execution"
+    if not text:
+        return ""
+    return _scan_shell_script(workspace, text, seen, depth + 1)
+
+
 def _scan_shell_script(workspace: Path, script: str, seen: set[Path] | None, depth: int) -> str:
-    """Block a shell -c script that launches a Python writer."""
+    """Block a shell script that launches a Python writer or edits a test path."""
     if depth > 6:
         return "a computed execution"
     for segment in (part.strip() for part in re.split(r"(?:&&|\|\||;|\n)", script)):
-        if not segment:
+        if not segment or segment.startswith("#"):
             continue
+        blocked = _forbidden_shell_target(segment)
+        if blocked:
+            return blocked
         try:
             tokens = shlex.split(segment)
         except ValueError:
@@ -504,6 +579,10 @@ def _scan_shell_script(workspace: Path, script: str, seen: set[Path] | None, dep
             found = _scan_shell_script(workspace, nested, seen, depth + 1)
             if found:
                 return found
+            continue
+        found = _shell_file_write_target(workspace, tuple(tokens), seen, depth)
+        if found:
+            return found
     return ""
 
 
@@ -529,7 +608,10 @@ def _subprocess_write_target(
             found = _workspace_python_write_target(workspace, tuple(argv), seen, depth + 1)
         else:
             shell_text = _shell_command_text(tuple(argv))
-            found = _scan_shell_script(workspace, shell_text, seen, depth + 1) if shell_text else ""
+            if shell_text:
+                found = _scan_shell_script(workspace, shell_text, seen, depth + 1)
+            else:
+                found = _shell_file_write_target(workspace, tuple(argv), seen, depth + 1)
         if found:
             return found
     return ""
@@ -872,7 +954,7 @@ class TerminalSession:
         shell_text = _shell_command_text(cmd_tokens)
         if shell_text:
             return _scan_shell_script(self.workspace, shell_text, set(), 0)
-        return ""
+        return _shell_file_write_target(self.workspace, cmd_tokens, set(), 0)
 
     def is_command_tampering(self, cmd_tokens: tuple[str, ...]) -> bool:
         return bool(self.command_tamper_target(cmd_tokens))

@@ -1214,6 +1214,63 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
         self.assertEqual(echoed.exit_code, 0)
         self.assertIn("ok", echoed.stdout)
 
+    def test_shell_script_files_are_blocked_before_they_touch_tests(self) -> None:
+        from unittest.mock import patch
+
+        helper = self.workspace / "helper.py"
+        helper.write_text(
+            "open('sentinel.txt','w').write('ran')\nopen('tests/hidden.py','w').write('x')\n",
+            encoding="utf-8",
+        )
+        script = self.workspace / "helper.sh"
+        script.write_text("python3 helper.py\n", encoding="utf-8")
+        destructive = self.workspace / "tamper.sh"
+        destructive.write_text("echo ran > sentinel.txt\nrm -f tests/test_keep.py\n", encoding="utf-8")
+        safe = self.workspace / "safe_shell.py"
+        safe.write_text("open('src/app.py','w').write('ok')\n", encoding="utf-8")
+        safe_script = self.workspace / "safe.sh"
+        safe_script.write_text("python3 safe_shell.py\n", encoding="utf-8")
+        kept = self.workspace / "tests" / "test_keep.py"
+        kept.parent.mkdir(parents=True, exist_ok=True)
+        kept.write_text("KEEP\n", encoding="utf-8")
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            by_file = TerminalSession(self.workspace, "Bash script", approval_mode="scoped_auto")
+            observed = by_file.execute_action(TerminalAction(
+                action_type="command",
+                command=("bash", "helper.sh"),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertFalse((self.workspace / "tests" / "hidden.py").exists())
+            self.assertEqual(observed.reason, "preset_test_immutable")
+            self.assertEqual(by_file.steps[-1].hexagram_code, 40)
+
+            by_rm = TerminalSession(self.workspace, "Shell rm", approval_mode="scoped_auto")
+            removed = by_rm.execute_action(TerminalAction(
+                action_type="command",
+                command=("sh", "./tamper.sh"),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertEqual(kept.read_text(encoding="utf-8"), "KEEP\n")
+            self.assertEqual(removed.reason, "preset_test_immutable")
+
+            by_subprocess = TerminalSession(self.workspace, "Subprocess script", approval_mode="scoped_auto")
+            launched = by_subprocess.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import subprocess; subprocess.run(['bash', 'helper.sh'])"),
+            ))
+            self.assertFalse((self.workspace / "sentinel.txt").exists())
+            self.assertEqual(launched.reason, "preset_test_immutable")
+
+            allowed = TerminalSession(self.workspace, "Safe shell file", approval_mode="scoped_auto")
+            wrote = allowed.execute_action(TerminalAction(
+                action_type="command",
+                command=("bash", "safe.sh"),
+            ))
+        self.assertEqual(wrote.exit_code, 0)
+        self.assertNotEqual(wrote.reason, "preset_test_immutable")
+        self.assertEqual((self.workspace / "src" / "app.py").read_text(encoding="utf-8"), "ok")
+        self.assertEqual(kept.read_text(encoding="utf-8"), "KEEP\n")
+
 
 if __name__ == "__main__":
     unittest.main()

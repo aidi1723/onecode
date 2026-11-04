@@ -125,6 +125,13 @@ def run_benchmark_task(
     if docker_image:
         from onecode.kernel.sandbox import SandboxConfig
         extras["sandbox_config"] = SandboxConfig(workspace=workspace, image=docker_image)
+    if verifier.is_file():
+        try:
+            outside = not verifier.resolve().is_relative_to(workspace.resolve())
+        except OSError:
+            outside = False
+        if outside:
+            extras["host_verifier_path"] = str(verifier.resolve())
 
     effective_timeout = timeout_seconds
     task_toml = task_dir / "task.toml"
