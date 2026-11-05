@@ -17,8 +17,8 @@ _OUTPUT_DATA_FILE = re.compile(
 )
 _DO_NOT_FILE = re.compile(
     rf"(?:do not|don't|never)\s+(?:modify|change|patch|edit|touch|rewrite)\s+{_RELATIVE_PYTHON}"
-    rf"|((?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+\.py)\s*(?:不要改|别改|不要动|别动|严禁修改|不可修改|无需修改)"
-    rf"|(?:不要改|别改|不要修改|严禁修改)\s*((?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+\.py)",
+    rf"|((?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+\.py)\s*(?:不要改|别改|不要动|别动|严禁修改|不可修改|无需修改|不修改|不能修改|禁止修改)"
+    rf"|(?:不要改|别改|不修改|不能修改|禁止修改|不要修改|严禁修改)\s*((?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+\.py)",
     re.IGNORECASE,
 )
 _ONLY_FILE = re.compile(rf"\bonly\s+{_RELATIVE_PYTHON}", re.IGNORECASE)
