@@ -38,6 +38,17 @@ def load_round_records(jsonl_path: Path | str) -> dict[str, dict[str, Any]]:
     return records
 
 
+def _safe_reward(val: Any) -> float:
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, str):
+        try:
+            return float(val)
+        except ValueError:
+            return 0.0
+    return 0.0
+
+
 def compute_pass_k_metrics(
     round_records_list: list[dict[str, dict[str, Any]]],
     k_values: list[int] | None = None,
@@ -57,7 +68,7 @@ def compute_pass_k_metrics(
 
     pass_at_1_by_round: list[dict[str, Any]] = []
     for idx, r_data in enumerate(round_records_list):
-        passed = sum(1 for t in all_tasks if float(r_data.get(t, {}).get("host_reward") or 0.0) >= 1.0 - 1e-9)
+        passed = sum(1 for t in all_tasks if _safe_reward(r_data.get(t, {}).get("host_reward")) >= 1.0 - 1e-9)
         pass_at_1_by_round.append({
             "round_index": idx + 1,
             "passed_count": passed,
@@ -76,7 +87,7 @@ def compute_pass_k_metrics(
         consecutive_pass_count = 0
         for t in all_tasks:
             all_passed = all(
-                float(r.get(t, {}).get("host_reward") or 0.0) >= 1.0 - 1e-9
+                _safe_reward(r.get(t, {}).get("host_reward")) >= 1.0 - 1e-9
                 for r in recent_rounds
             )
             if all_passed:
@@ -98,7 +109,7 @@ def compute_pass_k_metrics(
     blocked_assets: list[str] = []
 
     for t in all_tasks:
-        scores = [float(r.get(t, {}).get("host_reward") or 0.0) for r in round_records_list]
+        scores = [_safe_reward(r.get(t, {}).get("host_reward")) for r in round_records_list]
         passed_rounds = [s >= 1.0 - 1e-9 for s in scores]
         pass_count = sum(passed_rounds)
         is_all_passed = all(passed_rounds)
