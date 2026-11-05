@@ -1,0 +1,31 @@
+{
+  "id": "ts-04-generic-result",
+  "prompt": "实现泛型 Result 联合类型与其构造器",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/result.ts",
+          "content": "export type Result<T, E = Error> =\n  | { ok: true; value: T }\n  | { ok: false; error: E };\n\nexport function ok<T>(value: T): Result<T, never> {\n  return { ok: true, value };\n}\n\nexport function err<E>(error: E): Result<never, E> {\n  return { ok: false, error };\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/result.ts",
+      "text": "export type Result<T, E = Error>"
+    },
+    {
+      "type": "file_contains",
+      "path": "src/result.ts",
+      "text": "export function ok<T>"
+    }
+  ]
+}

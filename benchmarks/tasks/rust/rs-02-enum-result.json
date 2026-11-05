@@ -1,0 +1,31 @@
+{
+  "id": "rs-02-enum-result",
+  "prompt": "定义领域错误枚举并派生 Debug 与 Display",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/error.rs",
+          "content": "use std::fmt;\n\n#[derive(Debug)]\npub enum AppError {\n    NotFound(String),\n    Unauthorized,\n}\n\nimpl fmt::Display for AppError {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n        match self {\n            AppError::NotFound(res) => write!(f, \"Resource not found: {}\", res),\n            AppError::Unauthorized => write!(f, \"Unauthorized access\"),\n        }\n    }\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/error.rs",
+      "text": "pub enum AppError"
+    },
+    {
+      "type": "file_contains",
+      "path": "src/error.rs",
+      "text": "impl fmt::Display for AppError"
+    }
+  ]
+}

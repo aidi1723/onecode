@@ -1,0 +1,32 @@
+{
+  "id": "ts-06-patch-null-safety",
+  "prompt": "修复深层对象访问潜在的 TypeError 异常",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [
+      {
+        "path": "src/profile.ts",
+        "content": "export function getEmail(user: any): string {\n  return user.details.contact.email;\n}\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "patch_text",
+        "params": {
+          "path": "src/profile.ts",
+          "search_block": "  return user.details.contact.email;",
+          "replace_block": "  return user?.details?.contact?.email ?? 'anonymous@example.com';"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/profile.ts",
+      "text": "user?.details?.contact?.email ??"
+    }
+  ]
+}

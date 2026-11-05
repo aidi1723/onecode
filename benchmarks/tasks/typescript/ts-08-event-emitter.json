@@ -1,0 +1,31 @@
+{
+  "id": "ts-08-event-emitter",
+  "prompt": "实现类型安全的泛型 EventEmitter 发布订阅器",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/emitter.ts",
+          "content": "export class TypedEmitter<EventMap extends Record<string, any>> {\n  private listeners = new Map<keyof EventMap, Set<(data: any) => void>>();\n\n  on<K extends keyof EventMap>(event: K, handler: (data: EventMap[K]) => void): void {\n    if (!this.listeners.has(event)) this.listeners.set(event, new Set());\n    this.listeners.get(event)!.add(handler);\n  }\n\n  emit<K extends keyof EventMap>(event: K, data: EventMap[K]): void {\n    this.listeners.get(event)?.forEach(fn => fn(data));\n  }\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/emitter.ts",
+      "text": "class TypedEmitter<EventMap"
+    },
+    {
+      "type": "file_contains",
+      "path": "src/emitter.ts",
+      "text": "on<K extends keyof EventMap>"
+    }
+  ]
+}

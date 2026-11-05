@@ -1,0 +1,31 @@
+{
+  "id": "rs-09-from-into-trait",
+  "prompt": "为自定义标识符类型实现 From<&str> Trait",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/id.rs",
+          "content": "#[derive(Debug, PartialEq, Eq)]\npub struct TaskId(pub String);\n\nimpl From<&str> for TaskId {\n    fn from(s: &str) -> Self {\n        TaskId(s.to_string())\n    }\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/id.rs",
+      "text": "pub struct TaskId(pub String);"
+    },
+    {
+      "type": "file_contains",
+      "path": "src/id.rs",
+      "text": "impl From<&str> for TaskId"
+    }
+  ]
+}

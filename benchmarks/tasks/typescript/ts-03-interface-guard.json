@@ -1,0 +1,31 @@
+{
+  "id": "ts-03-interface-guard",
+  "prompt": "定义接口与自定义类型收窄守卫",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/guard.ts",
+          "content": "export interface UserAccount {\n  id: string;\n  role: 'admin' | 'operator' | 'viewer';\n}\n\nexport function isUserAccount(val: unknown): val is UserAccount {\n  return typeof val === 'object' && val !== null && 'id' in val && 'role' in val;\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/guard.ts",
+      "text": "val is UserAccount"
+    },
+    {
+      "type": "file_contains",
+      "path": "src/guard.ts",
+      "text": "export interface UserAccount"
+    }
+  ]
+}

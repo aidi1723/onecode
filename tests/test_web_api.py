@@ -2596,6 +2596,105 @@ class OneCodeWebApiTests(unittest.TestCase):
             self.assertIn("notes/TODO.md", aux)
             self.assertIn("Keep stable columns", aux)
 
+    def test_pending_approvals_list_and_resolve(self):
+        from onecode.web.api import handle_onecode_pending_approvals, handle_onecode_approval_resolve
+        from onecode.kernel.cycle_approvals import persist_pending_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            # Initially empty
+            payload, code = handle_onecode_pending_approvals({"workspace": str(workspace)})
+            self.assertEqual(code, 200)
+            self.assertEqual(payload["count"], 0)
+
+            # Persist a pending approval
+            rec = persist_pending_approval(workspace, "run_command", {"argv": ["git", "push"]})
+            pending_id = rec["id"]
+
+            # Query list
+            payload, code = handle_onecode_pending_approvals({"workspace": str(workspace)})
+            self.assertEqual(code, 200)
+            self.assertEqual(payload["count"], 1)
+            self.assertEqual(payload["approvals"][0]["id"], pending_id)
+
+            # Resolve approve
+            res_payload, res_code = handle_onecode_approval_resolve(
+                pending_id,
+                {"workspace": str(workspace), "decision": "approved"},
+            )
+            self.assertEqual(res_code, 200)
+            self.assertEqual(res_payload["status"], "approved")
+
+            # Resolve reject
+            res_payload, res_code = handle_onecode_approval_resolve(
+                pending_id,
+                {"workspace": str(workspace), "decision": "rejected"},
+            )
+            self.assertEqual(res_code, 200)
+            self.assertEqual(res_payload["status"], "rejected")
+
+            # Subsequent list is now empty
+            payload, code = handle_onecode_pending_approvals({"workspace": str(workspace)})
+            self.assertEqual(code, 200)
+            self.assertEqual(payload["count"], 0)
+
+    def test_http_pending_approvals_endpoints(self):
+        from onecode.web.api import OneCodeRequestHandler
+        from onecode.kernel.cycle_approvals import persist_pending_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_API_TOKEN": "test-token",
+            },
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            rec = persist_pending_approval(workspace, "bash", {"command": "echo test"})
+            pending_id = rec["id"]
+
+            with local_test_server(OneCodeRequestHandler) as (_, base_url):
+                # Unauthenticated fails 401
+                req = Request(f"{base_url}/v1/onecode/approvals/pending?workspace={tmp}")
+                with self.assertRaises(HTTPError) as ctx:
+                    urlopen(req)
+                self.assertEqual(ctx.exception.code, 401)
+
+                # Authenticated succeeds
+                req = Request(
+                    f"{base_url}/v1/onecode/approvals/pending?workspace={tmp}",
+                    headers={"Authorization": "Bearer test-token"},
+                )
+                with urlopen(req) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                self.assertEqual(data["count"], 1)
+                self.assertEqual(data["approvals"][0]["id"], pending_id)
+
+                # Resolve via POST
+                resolve_req = Request(
+                    f"{base_url}/v1/onecode/approvals/{pending_id}/resolve",
+                    data=json.dumps({"workspace": tmp, "decision": "rejected"}).encode("utf-8"),
+                    headers={
+                        "Authorization": "Bearer test-token",
+                        "Content-Type": "application/json",
+                    },
+                    method="POST",
+                )
+                with urlopen(resolve_req) as resp:
+                    resolve_data = json.loads(resp.read().decode("utf-8"))
+                self.assertEqual(resolve_data["status"], "rejected")
+
+                # Verify list is now empty
+                with urlopen(req) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                self.assertEqual(data["count"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

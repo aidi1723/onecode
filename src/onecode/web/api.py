@@ -119,6 +119,14 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
             payload, status_code = handle_onecode_model_config_get()
             self._send_json(payload, status_code=status_code)
             return
+        if path == "/v1/onecode/approvals/pending":
+            if not self._authorized():
+                self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
+                return
+            parsed = urlparse(self.path)
+            payload, status_code = handle_onecode_pending_approvals({"workspace": query_workspace_param(parsed.query)})
+            self._send_json(payload, status_code=status_code)
+            return
         if path == "/v1/onecode/gateway/adjudicate":
             if not self._authorized():
                 self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
@@ -215,6 +223,17 @@ class OneCodeRequestHandler(BaseHTTPRequestHandler):
                 return
             plan_id = path.removeprefix("/v1/onecode/plans/").removesuffix("/approval").strip("/")
             payload, status_code = handle_onecode_plan_approval(plan_id, body)
+            self._send_json(payload, status_code=status_code)
+            return
+        if path.startswith("/v1/onecode/approvals/") and path.endswith("/resolve"):
+            if not self._authorized():
+                self._send_json(error_payload("unauthorized", "invalid OneCode API token"), status_code=401)
+                return
+            body = self._read_json_or_send_error()
+            if body is None:
+                return
+            approval_id = path.removeprefix("/v1/onecode/approvals/").removesuffix("/resolve").strip("/")
+            payload, status_code = handle_onecode_approval_resolve(approval_id, body)
             self._send_json(payload, status_code=status_code)
             return
         if path == "/v1/onecode/verifier/policy":

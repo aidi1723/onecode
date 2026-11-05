@@ -139,11 +139,74 @@
         <a class="button secondary" href="/health">健康检查</a>
       </div>
       <div id="status" class="status">POST /v1/onecode/gateway/adjudicate</div>
+
+      <div style="margin-top: 24px; border-top: 1px solid var(--border); padding-top: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h2 style="margin: 0; font-size: 16px;">待审批动作 (Pending Approvals)</h2>
+          <button id="refresh-approvals" type="button" class="button secondary" style="padding: 4px 8px; font-size: 12px;">刷新列表</button>
+        </div>
+        <div id="approvals-container" class="muted" style="background: #0b0b0b; border: 1px solid var(--border); padding: 12px; min-height: 60px;">
+          暂无待审批动作 (No pending approvals)
+        </div>
+      </div>
     </section>
   </main>
   <script>
     const result = document.getElementById('result');
     const status = document.getElementById('status');
+    const approvalsContainer = document.getElementById('approvals-container');
+
+    async function loadApprovals() {
+      try {
+        const res = await fetch('/v1/onecode/approvals/pending');
+        if (!res.ok) {
+          approvalsContainer.textContent = '获取审批列表需要 API 认证或发生错误 (HTTP ' + res.status + ')';
+          return;
+        }
+        const data = await res.json();
+        const items = data.approvals || [];
+        if (items.length === 0) {
+          approvalsContainer.innerHTML = '<span class="muted">暂无待审批动作 (No pending approvals)</span>';
+          return;
+        }
+        approvalsContainer.innerHTML = '';
+        items.forEach(item => {
+          const card = document.createElement('div');
+          card.style.cssText = 'border: 1px solid var(--border); padding: 10px; margin-bottom: 8px; background: var(--panel-2);';
+          card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+              <strong>${item.tool_name}</strong>
+              <span class="badge" style="color: var(--accent);">${item.id.slice(0, 8)}</span>
+            </div>
+            <pre style="min-height: 40px; max-height: 120px; font-size: 12px; margin-bottom: 8px;">${JSON.stringify(item.params, null, 2)}</pre>
+            <div style="display: flex; gap: 8px;">
+              <button class="button" style="padding: 4px 10px; font-size: 12px;" onclick="resolveApproval('${item.id}', 'approved')">批准执行</button>
+              <button class="button secondary" style="padding: 4px 10px; font-size: 12px; color: var(--danger); border-color: var(--danger);" onclick="resolveApproval('${item.id}', 'rejected')">拒绝阻断</button>
+            </div>
+          `;
+          approvalsContainer.appendChild(card);
+        });
+      } catch (err) {
+        approvalsContainer.textContent = '加载审批列表失败: ' + String(err);
+      }
+    }
+
+    async function resolveApproval(id, decision) {
+      try {
+        const res = await fetch('/v1/onecode/approvals/' + id + '/resolve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ decision })
+        });
+        await loadApprovals();
+      } catch (err) {
+        alert('审批操作失败: ' + String(err));
+      }
+    }
+
+    document.getElementById('refresh-approvals').addEventListener('click', loadApprovals);
+    loadApprovals();
+
     document.getElementById('demo').addEventListener('click', async () => {
       status.textContent = 'running...';
       try {

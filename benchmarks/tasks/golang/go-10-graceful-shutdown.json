@@ -1,0 +1,31 @@
+{
+  "id": "go-10-graceful-shutdown",
+  "prompt": "配置系统信号监听并执行 HTTP 服务优雅退出",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "pkg/server/graceful.go",
+          "content": "package server\n\nimport (\n\t\"context\"\n\t\"net/http\"\n\t\"os\"\n\t\"os/signal\"\n\t\"syscall\"\n\t\"time\"\n)\n\nfunc ShutdownServer(srv *http.Server) error {\n\tquit := make(chan os.Signal, 1)\n\tsignal.Notify(quit, os.Interrupt, syscall.SIGTERM)\n\t<-quit\n\tctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)\n\tdefer cancel()\n\treturn srv.Shutdown(ctx)\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "pkg/server/graceful.go",
+      "text": "signal.Notify"
+    },
+    {
+      "type": "file_contains",
+      "path": "pkg/server/graceful.go",
+      "text": "srv.Shutdown(ctx)"
+    }
+  ]
+}

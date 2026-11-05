@@ -955,6 +955,49 @@ def gateway_console_html() -> str:
     return Path(__file__).with_name("gateway_console.html").read_text(encoding="utf-8")
 
 
+def handle_onecode_pending_approvals(params: dict[str, Any]) -> tuple[dict[str, Any], int]:
+    from onecode.kernel.cycle_approvals import load_pending_approvals
+
+    try:
+        workspace = _bound("workspace_from_value")(params.get("workspace"))
+    except ValueError as exc:
+        return error_payload("invalid_workspace", str(exc)), 400
+    approvals = load_pending_approvals(workspace)
+    return {
+        "status": "ok",
+        "workspace": str(workspace),
+        "count": len(approvals),
+        "approvals": approvals,
+    }, 200
+
+
+def handle_onecode_approval_resolve(approval_id: str, body: dict[str, Any]) -> tuple[dict[str, Any], int]:
+    from onecode.kernel.cycle_approvals import load_pending_approvals, resume_pending_approval
+
+    decision = body.get("decision")
+    if decision not in {"approved", "rejected"}:
+        return error_payload("invalid_decision", "decision must be 'approved' or 'rejected'"), 400
+    try:
+        workspace = _bound("workspace_from_value")(body.get("workspace"))
+    except ValueError as exc:
+        return error_payload("invalid_workspace", str(exc)), 400
+
+    match = next((item for item in load_pending_approvals(workspace) if item.get("id") == approval_id), None)
+    if match is None:
+        return error_payload("approval_not_found", f"No pending approval with id: {approval_id}"), 404
+
+    if decision == "rejected":
+        result = resume_pending_approval(workspace, approval_id, "rejected", lambda _t, _p: None)
+        return {"status": "rejected", "approval_id": approval_id, "result": result}, 200
+
+    return {
+        "status": "approved",
+        "approval_id": approval_id,
+        "tool_name": match["tool_name"],
+        "params": match["params"],
+    }, 200
+
+
 
 __all__ = [
     "handle_onecode_project_status",
@@ -995,4 +1038,6 @@ __all__ = [
     "_verifier_tail",
     "_approval_visible_text",
     "gateway_console_html",
+    "handle_onecode_pending_approvals",
+    "handle_onecode_approval_resolve",
 ]

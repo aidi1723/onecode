@@ -1,0 +1,31 @@
+{
+  "id": "ts-10-vitest-spec",
+  "prompt": "为计算器编写单元测试套件",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "tests/calc.spec.ts",
+          "content": "export function add(a: number, b: number): number { return a + b; }\n\nexport function testAddition() {\n  if (add(2, 3) !== 5) throw new Error('Assertion failed: 2 + 3 != 5');\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "tests/calc.spec.ts",
+      "text": "export function add"
+    },
+    {
+      "type": "file_contains",
+      "path": "tests/calc.spec.ts",
+      "text": "Assertion failed"
+    }
+  ]
+}
