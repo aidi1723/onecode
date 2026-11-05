@@ -314,7 +314,8 @@ def _execute_model_task(
             execution_approval=execution_approval,
             on_turn=on_turn,
         )
-    if narrowed or result["status"] == "completed" or max_repair_attempts <= 0:
+    grade_ready = sandbox_config is not None or bool(str(host_verifier_path or "").strip())
+    if narrowed or result["status"] == "completed" or max_repair_attempts <= 0 or grade_ready:
         return _finish_verified_task(result, task, workspace, sandbox_config, max_repair_attempts, active_provider, model_context, trace_path, provider_config, resolved_model, http_timeout_seconds, planning_context, run_id, resume_from_run_id, run_metadata, require_explicit_approval, execution_approval, on_turn)
 
     return _run_model_task_repair_loop(

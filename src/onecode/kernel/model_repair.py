@@ -773,6 +773,106 @@ def _restore_workspace_snapshot(workspace: Path, snapshot: dict[str, str]) -> No
             pass
 
 
+def repair_budget_after_score(
+    budget: int,
+    previous: float | None,
+    current: float | None,
+    flat_rounds: int,
+) -> tuple[int, int, bool]:
+    """Extend a rising repair budget, and stop after two rounds with no score change."""
+    if isinstance(current, bool) or not isinstance(current, (int, float)):
+        return budget, flat_rounds, False
+    if previous is None or isinstance(previous, bool) or not isinstance(previous, (int, float)):
+        return budget, 0, False
+    delta = float(current) - float(previous)
+    if delta <= 1e-9:
+        flat_rounds += 1
+        return budget, flat_rounds, flat_rounds >= 2
+    flat_rounds = 0
+    if delta >= 0.15 or (float(current) >= 0.90 and delta > 0):
+        budget = min(5, budget + 1)
+    return budget, flat_rounds, False
+
+
+def _numeric_reward(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
+
+
+def _repair_posture(score: float | None) -> str:
+    """Choose a micro patch, an ordinary patch, or a full rewrite from the current score."""
+    if score is None:
+        return "patch"
+    if score < 0.40:
+        return "macro"
+    if score >= 0.85:
+        return "micro"
+    return "patch"
+
+
+def _append_repair_turn(checked: dict[str, Any], result: dict[str, Any], reason: str) -> None:
+    hist = list(checked.get("turn_history") or [])
+    hist.append({
+        "turn_id": len(hist) + 1,
+        "branch_name": _TURN_BRANCHES[len(hist) % len(_TURN_BRANCHES)],
+        "status": "halted",
+        "reason": reason,
+        "modified_files": [],
+    })
+    checked["turn_history"] = hist
+    result["turn_history"] = hist
+
+
+def _patch_line_count(text: str) -> int:
+    return len(text.splitlines())
+
+
+def _micro_patch_too_wide(plan: ModelPlan) -> bool:
+    return any(
+        _patch_line_count(patch.search_block) > 15 or _patch_line_count(patch.replace_block) > 15
+        for patch in plan.patches
+    )
+
+
+def _apply_scored_repair(
+    workspace: Path,
+    tested: dict[str, Any],
+    best_checked: dict[str, Any],
+    best_snapshot: dict[str, str],
+    prev_reward: float | None,
+    flat_rounds: int,
+    effective_attempts: int,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, str], float | None, int, int, bool]:
+    """Keep the highest-scoring files. A lower or flat score counts as no progress."""
+    cur_rew = _numeric_reward(tested.get("host_reward"))
+    if cur_rew is None:
+        return tested, best_checked, best_snapshot, prev_reward, flat_rounds, effective_attempts, False
+    effective_attempts, flat_rounds, stop = repair_budget_after_score(
+        effective_attempts,
+        prev_reward,
+        cur_rew,
+        flat_rounds,
+    )
+    best_rew = _numeric_reward(best_checked.get("host_reward"))
+    if best_rew is None or cur_rew > best_rew:
+        return (
+            tested,
+            dict(tested),
+            _snapshot_workspace_files(workspace),
+            cur_rew,
+            flat_rounds,
+            effective_attempts,
+            stop,
+        )
+    _restore_workspace_snapshot(workspace, best_snapshot)
+    restored = dict(best_checked)
+    restored["turn_history"] = tested.get("turn_history") or best_checked.get("turn_history")
+    if tested.get("repair_attempt_count") is not None:
+        restored["repair_attempt_count"] = tested.get("repair_attempt_count")
+    return restored, best_checked, best_snapshot, best_rew, flat_rounds, effective_attempts, stop
+
+
 def _testing_only_task(task: str) -> bool:
     lowered = task.lower()
     phrases = ("只补测试", "只写测试", "仅测试", "tests only", "only write tests", "test task", "modify tests only")
@@ -823,6 +923,7 @@ def _build_repair_prompt_context(
     run_metadata: dict[str, Any],
     format_error_guidance: str | None,
     stalled_progress: bool,
+    posture: str = "patch",
 ) -> tuple[str, str, int, int]:
     from onecode.kernel.model_guidance import format_verifier_diagnostics, repair_prompt
     failed_status = current_checked.get("iching_status_code") or current_checked.get("task_status_code")
@@ -846,9 +947,10 @@ def _build_repair_prompt_context(
                 tails.append(err[-600:])
             if out:
                 tails.append(out[-600:])
+    preview_limit = 20000 if posture == "macro" else None
     prompt = repair_prompt(
         task,
-        {**current_checked, "workspace_files": _src_files_for_repair(workspace)},
+        {**current_checked, "workspace_files": _src_files_for_repair(workspace, preview_limit=preview_limit)},
         workspace=workspace,
     )
     if _testing_only_task(task):
@@ -867,7 +969,13 @@ def _build_repair_prompt_context(
         prompt += "\nVerifier output:\n" + "\n".join(tails)
     if format_error_guidance:
         prompt += f"\n\nCRITICAL FIX FROM PREVIOUS TURN FORMAT ERROR:\n{format_error_guidance}\nYou must output valid JSON with a 'patches' list only."
-    if stalled_progress:
+    if stalled_progress and posture == "micro":
+        prompt += (
+            "\n\nNOTICE - STALLED MICRO PATCH:\n"
+            "The previous repair did not raise the score. "
+            "Keep the patch inside 15 lines and inspect a different edge: 0, None, empty collections, case, or int versus str."
+        )
+    elif stalled_progress and posture != "macro":
         prompt += (
             "\n\nNOTICE - STALLED PROGRESS MUTATION DIRECTIVE:\n"
             "The previous repair attempt made NO score progress and failed the exact same checks.\n"
@@ -876,6 +984,20 @@ def _build_repair_prompt_context(
             "2. Check duplicate handling: are duplicate records being counted twice or merged incorrectly?\n"
             "3. Check default parameter values, missing edge-case returns, and error type constants.\n"
             "4. Check if a related helper function in another workspace file needs the fix instead."
+        )
+    if posture == "micro":
+        prompt += (
+            "\n\nMICRO-PATCH ONLY: the current score is at least 0.85. "
+            "Keep every search_block and replace_block within 15 lines. "
+            "Focus on edges: 0, None, empty lists, case folding, and int versus str. "
+            "Leave passing behavior in place."
+        )
+    elif posture == "macro":
+        prompt += (
+            "\n\nMACRO-REPLAN: the current score is below 0.40. "
+            "Replace the whole implementation in one patch. "
+            "search_block must be the complete current file and replace_block the rewritten file. "
+            "Keep the public function names. Do not edit tests or protected files."
         )
     prompt += (
         "\n\nCRITICAL: Return valid JSON with patches only. Do NOT include execution_plan or assets.\n"
@@ -1037,22 +1159,31 @@ def _finish_verified_task(
     current_result = dict(result)
     best_checked = dict(checked)
     best_snapshot = _snapshot_workspace_files(workspace)
+    initial_snapshot = dict(best_snapshot)
     initial_history = _seed_turn_history(checked, modified)
     current_checked["turn_history"] = initial_history
     current_result["turn_history"] = initial_history
     bureau_budget = run_metadata.get("bureau_turn_budget", max_repair_attempts)
     effective_attempts = min(max_repair_attempts, bureau_budget) if max_repair_attempts > 0 else 0
     format_error_guidance: str | None = None
-    prev_reward: float | None = checked.get("host_reward") if isinstance(checked.get("host_reward"), (int, float)) else None
+    prev_reward = _numeric_reward(checked.get("host_reward"))
+    flat_rounds = 0
+    macro_done = False
 
-    for attempt in range(1, effective_attempts + 1):
-        cur_rew = current_checked.get("host_reward")
-        stalled_progress = (
-            attempt >= 2
-            and isinstance(cur_rew, (int, float))
-            and isinstance(prev_reward, (int, float))
-            and cur_rew <= prev_reward
-        )
+    attempt = 1
+    while attempt <= effective_attempts:
+        posture = _repair_posture(_numeric_reward(current_checked.get("host_reward")))
+        if posture == "macro" and not macro_done:
+            if _snapshot_workspace_files(workspace) != initial_snapshot:
+                _restore_workspace_snapshot(workspace, initial_snapshot)
+                regraded = _apply_external_host_grade(dict(current_checked), workspace, run_metadata)
+                regraded["turn_history"] = current_checked.get("turn_history")
+                if regraded.get("reason") != "verifier_failed":
+                    return regraded
+                current_checked = regraded
+                current_result = dict(regraded)
+                posture = _repair_posture(_numeric_reward(current_checked.get("host_reward")))
+            macro_done = True
         prompt, span_id, cooldown_ms, failed_code = _build_repair_prompt_context(
             task=task,
             workspace=workspace,
@@ -1060,7 +1191,8 @@ def _finish_verified_task(
             attempt=attempt,
             run_metadata=run_metadata,
             format_error_guidance=format_error_guidance,
-            stalled_progress=stalled_progress,
+            stalled_progress=flat_rounds >= 1,
+            posture=posture,
         )
         plan, failure = traced_provider_plan_retrying(
             provider=provider,
@@ -1077,39 +1209,31 @@ def _finish_verified_task(
             failure_kind = failure.get("failure_kind")
             if attempt < effective_attempts and failure_kind in {"invalid_model_plan", "no_actionable_plan"}:
                 format_error_guidance = f"Previous turn failed with format error ({failure_kind}): {failure.get('detail') or 'Output was not a valid patch plan'}."
-                hist = list(current_checked.get("turn_history") or [])
-                hist.append({
-                    "turn_id": len(hist) + 1,
-                    "branch_name": _TURN_BRANCHES[len(hist) % len(_TURN_BRANCHES)],
-                    "status": "halted",
-                    "reason": failure_kind,
-                    "modified_files": [],
-                })
-                current_checked["turn_history"] = hist
-                current_result["turn_history"] = hist
+                _append_repair_turn(current_checked, current_result, str(failure_kind))
+                attempt += 1
                 continue
-            failed_model = failed_model_result(model_context, failure)
-            return _enrich_failed_model_with_repair_state(failed_model, current_checked, attempt)
+            failed_model = _enrich_failed_model_with_repair_state(
+                failed_model_result(model_context, failure),
+                current_checked,
+                attempt,
+            )
+            best_reward = _numeric_reward(best_checked.get("host_reward"))
+            failed_reward = _numeric_reward(failed_model.get("host_reward"))
+            if best_reward is not None and (failed_reward is None or best_reward > failed_reward):
+                return _deliver_best_repair(workspace, failed_model, best_checked, best_snapshot)
+            return failed_model
         if plan is None:
             failed_model = failed_model_result(model_context, failure or {"failure_kind": "no_actionable_plan"})
             return _enrich_failed_model_with_repair_state(failed_model, current_checked, attempt)
         plan = synthesize_single_asset_repair(plan, workspace)
         if plan.patches and plan.execution_steps:
             plan = ModelPlan(task=plan.task, patches=plan.patches, no_action_reason=plan.no_action_reason)
-        safety_err, guidance = _validate_repair_plan_safety(plan, task)
+        safety_err, guidance = _validate_repair_plan_safety(plan, task, micro_patch=posture == "micro")
         if safety_err is not None:
             if attempt < effective_attempts:
                 format_error_guidance = guidance
-                hist = list(current_checked.get("turn_history") or [])
-                hist.append({
-                    "turn_id": len(hist) + 1,
-                    "branch_name": _TURN_BRANCHES[len(hist) % len(_TURN_BRANCHES)],
-                    "status": "halted",
-                    "reason": safety_err,
-                    "modified_files": [],
-                })
-                current_checked["turn_history"] = hist
-                current_result["turn_history"] = hist
+                _append_repair_turn(current_checked, current_result, safety_err)
+                attempt += 1
                 continue
             final_err = "repair_plan_must_use_patches_only" if safety_err == "repair_plan_cannot_modify_tests" else safety_err
             rejected = repair_rejected_result(current_checked, run_id, final_err, repair_attempt_count=attempt)
@@ -1128,23 +1252,40 @@ def _finish_verified_task(
         )
         merged = merge_repair_result(current_result, repaired, repair_attempt_count=attempt)
         if repaired.get("status") != "completed":
-            current_checked = merged
-            current_result = merged
+            _restore_workspace_snapshot(workspace, best_snapshot)
+            _append_repair_turn(current_checked, current_result, str(repaired.get("reason") or "repair_execution_failed"))
+            attempt += 1
             continue
         tested = _with_sandbox_tests(merged, workspace, sandbox_config)
         tested = _apply_external_host_grade(tested, workspace, run_metadata)
         if tested.get("reason") != "verifier_failed":
             return tested
-        cur_rew = tested.get("host_reward")
-        best_rew = best_checked.get("host_reward")
-        if isinstance(cur_rew, (int, float)):
-            prev_reward = cur_rew
-            if not isinstance(best_rew, (int, float)) or cur_rew > best_rew:
-                best_checked = dict(tested)
-                best_snapshot = _snapshot_workspace_files(workspace)
-        current_checked = tested
-        current_result = tested
-    return _deliver_best_repair(workspace, current_checked, best_checked, best_snapshot)
+        (
+            current_checked,
+            best_checked,
+            best_snapshot,
+            prev_reward,
+            flat_rounds,
+            effective_attempts,
+            stop,
+        ) = _apply_scored_repair(
+            workspace,
+            tested,
+            best_checked,
+            best_snapshot,
+            prev_reward,
+            flat_rounds,
+            effective_attempts,
+        )
+        current_result = dict(current_checked)
+        if stop:
+            delivered = _deliver_best_repair(workspace, current_checked, best_checked, best_snapshot)
+            delivered["repair_attempt_count"] = attempt
+            return delivered
+        attempt += 1
+    delivered = _deliver_best_repair(workspace, current_checked, best_checked, best_snapshot)
+    delivered["repair_attempt_count"] = max(int(delivered.get("repair_attempt_count") or 0), attempt - 1)
+    return delivered
 
 
 def _resolve_host_verifier_path(workspace: Path) -> str:
@@ -1258,7 +1399,12 @@ def _enrich_bureau_and_brightness_metadata(workspace: Path, run_metadata: dict[s
             _record_kernel_fault("bureau_profile", ex)
 
 
-def _validate_repair_plan_safety(repair_plan: ModelPlan, task: str) -> tuple[str | None, str | None]:
+def _validate_repair_plan_safety(
+    repair_plan: ModelPlan,
+    task: str,
+    *,
+    micro_patch: bool = False,
+) -> tuple[str | None, str | None]:
     from onecode.kernel.model_guidance import protected_python_files, required_python_files
     if not is_patch_only_repair_plan(repair_plan):
         return (
@@ -1274,6 +1420,11 @@ def _validate_repair_plan_safety(repair_plan: ModelPlan, task: str) -> tuple[str
         or "only write tests" in task.lower()
         or any(_is_test_path(p) for p in required_python_files(task))
     )
+    if micro_patch and _micro_patch_too_wide(repair_plan):
+        return (
+            "repair_plan_exceeds_micro_patch",
+            "repair_plan_exceeds_micro_patch: the score is already high. Keep every patch within 15 lines.",
+        )
     if not is_testing_task and any(_is_test_path(p.path) for p in repair_plan.patches):
         return (
             "repair_plan_cannot_modify_tests",

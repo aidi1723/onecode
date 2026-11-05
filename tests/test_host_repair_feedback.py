@@ -166,6 +166,200 @@ class HostRepairFeedbackTests(unittest.TestCase):
         self.assertIn("formatting.py", prompt)
         self.assertNotIn("Change the implementation so the existing tests pass.", prompt)
 
+    def test_flat_scores_stop_and_rising_scores_extend_the_budget(self) -> None:
+        from onecode.kernel.model_repair import repair_budget_after_score
+
+        extended, flat, stop = repair_budget_after_score(3, 0.5385, 0.9231, 0)
+        self.assertEqual(extended, 4)
+        self.assertEqual(flat, 0)
+        self.assertFalse(stop)
+
+        near_full, _, near_stop = repair_budget_after_score(3, 0.90, 0.92, 0)
+        self.assertEqual(near_full, 4)
+        self.assertFalse(near_stop)
+
+        capped, _, _ = repair_budget_after_score(5, 0.20, 0.50, 0)
+        self.assertEqual(capped, 5)
+
+        _, once, still_going = repair_budget_after_score(3, 0.2632, 0.2632, 0)
+        self.assertEqual(once, 1)
+        self.assertFalse(still_going)
+        _, twice, stopped = repair_budget_after_score(3, 0.2632, 0.2632, 1)
+        self.assertEqual(twice, 2)
+        self.assertTrue(stopped)
+
+        dropped, drop_flat, drop_stop = repair_budget_after_score(3, 0.80, 0.20, 0)
+        self.assertEqual(dropped, 3)
+        self.assertEqual(drop_flat, 1)
+        self.assertFalse(drop_stop)
+        _, drop_twice, drop_stopped = repair_budget_after_score(3, 0.80, 0.20, 1)
+        self.assertTrue(drop_stopped)
+
+    def test_failure_summary_keeps_a_key_error_and_drops_expected_text(self) -> None:
+        from onecode.kernel.model_guidance import sanitize_host_failure_summary
+
+        detail = {
+            "tests_passed": 12,
+            "tests_total": 13,
+            "tests": [
+                {"name": "test_policy", "passed": False, "detail": "KeyError: 'effective_date'"},
+                {"name": "test_secret", "passed": False, "detail": "expected SECRET_42"},
+            ],
+        }
+        summary = sanitize_host_failure_summary(detail)
+        self.assertIn("12/13", summary)
+        self.assertIn("[FAIL] test_policy (KeyError: 'effective_date')", summary)
+        self.assertIn("[FAIL] test_secret", summary)
+        self.assertNotIn("SECRET_42", summary)
+
+    def test_assertion_error_keeps_the_class_and_drops_the_comparison(self) -> None:
+        from onecode.kernel.model_guidance import sanitize_host_failure_summary
+
+        detail = {
+            "tests_passed": 9,
+            "tests_total": 10,
+            "tests": [
+                {"name": "test_edge", "passed": False, "detail": "AssertionError: 1 != 2"},
+                {"name": "test_kind", "passed": False, "detail": "TypeError: expected str"},
+            ],
+        }
+        summary = sanitize_host_failure_summary(detail)
+        self.assertIn("[FAIL] test_edge (AssertionError)", summary)
+        self.assertIn("[FAIL] test_kind (TypeError)", summary)
+        self.assertNotIn("1 != 2", summary)
+        self.assertNotIn("expected", summary.lower())
+
+    def _run_scripted_repair(self, start: str, decision: str, plans: list[ModelPlan], budget: int = 4) -> tuple[dict, list[str], Path]:
+        from onecode.kernel.model_repair import _finish_verified_task
+
+        root = Path(tempfile.mkdtemp())
+        workspace = root / "workspace"
+        workspace.mkdir()
+        (workspace / "app.py").write_text(start, encoding="utf-8")
+        verifier = root / "verifier.py"
+        verifier.write_text(
+            "import json, os\n"
+            "from pathlib import Path\n"
+            "workspace = Path(os.environ['WORKSPACE'])\n"
+            "log_dir = Path(os.environ['LOG_DIR'])\n"
+            "text = (workspace / 'app.py').read_text(encoding='utf-8')\n"
+            f"{decision}\n"
+            "tests = []\n"
+            "for i in range(total):\n"
+            "    ok = i < passed\n"
+            "    detail = '' if ok else 'AssertionError: 1 != 2'\n"
+            "    tests.append({'name': 'case_%s' % i, 'passed': ok, 'detail': detail})\n"
+            "score = passed / total\n"
+            "report = {'overall': score, 'tests_passed': passed, 'tests_total': total, 'tests': tests}\n"
+            "(log_dir / 'reward.json').write_text(json.dumps(report))\n"
+            "(log_dir / 'reward.txt').write_text(str(score) + '\\n')\n",
+            encoding="utf-8",
+        )
+        prompts: list[str] = []
+        queued = list(plans)
+
+        def _plan(*_args, task: str, **_kwargs):
+            prompts.append(task)
+            return queued.pop(0), None
+
+        def _execute(plan, **kwargs):
+            target = kwargs["workspace"] / "app.py"
+            target.write_text(plan.patches[0].replace_block, encoding="utf-8")
+            return {"status": "completed", "reason": None, "assets": []}
+
+        with patch("onecode.kernel.model_planning.traced_provider_plan_retrying", side_effect=_plan), \
+             patch("onecode.kernel.model_planning.execute_model_plan", side_effect=_execute):
+            result = _finish_verified_task(
+                {"status": "completed", "reason": None, "run_id": "scripted"},
+                "update the implementation",
+                workspace,
+                None,
+                budget,
+                object(),
+                object(),
+                workspace / "trace.jsonl",
+                object(),
+                "test-model",
+                30.0,
+                {"safe_agent": {}},
+                "scripted",
+                None,
+                {"bureau_turn_budget": budget, "host_verifier_path": str(verifier)},
+                False,
+                None,
+                None,
+            )
+        return result, prompts, workspace
+
+    def test_a_score_drop_restores_the_best_file_and_stops(self) -> None:
+        bad = ModelPlan(
+            task="repair",
+            patches=[ModelPlanPatch(path="app.py", search_block="GOOD\n", replace_block="BAD\n")],
+        )
+        result, prompts, workspace = self._run_scripted_repair(
+            "GOOD\n",
+            "passed, total = (4, 5) if 'GOOD' in text else (1, 5)",
+            [bad, bad, bad, bad],
+        )
+        self.assertEqual(result.get("host_reward"), 0.8)
+        self.assertEqual((workspace / "app.py").read_text(encoding="utf-8"), "GOOD\n")
+        self.assertEqual(len(prompts), 2)
+        self.assertIn("GOOD", prompts[1])
+        self.assertNotIn("BAD", prompts[1])
+        self.assertNotIn("1 != 2", "\n".join(prompts))
+
+    def test_a_rising_score_does_not_claim_the_repair_stalled(self) -> None:
+        step = ModelPlan(
+            task="repair",
+            patches=[ModelPlanPatch(path="app.py", search_block="VALUE = 0\n", replace_block="STEP\n")],
+        )
+        done = ModelPlan(
+            task="repair",
+            patches=[ModelPlanPatch(path="app.py", search_block="STEP\n", replace_block="FIXED\n")],
+        )
+        result, prompts, _workspace = self._run_scripted_repair(
+            "VALUE = 0\n",
+            "passed, total = (2, 2) if 'FIXED' in text else ((7, 10) if 'STEP' in text else (1, 2))",
+            [step, done],
+            budget=3,
+        )
+        self.assertEqual(result.get("host_reward"), 1.0)
+        self.assertEqual(len(prompts), 2)
+        self.assertNotIn("STALLED PROGRESS", prompts[1])
+        self.assertNotIn("STALLED MICRO", prompts[1])
+
+    def test_low_score_asks_for_a_rewrite_and_high_score_rejects_a_wide_patch(self) -> None:
+        rewrite = ModelPlan(
+            task="repair",
+            patches=[ModelPlanPatch(path="app.py", search_block="return 0\n", replace_block="return 1\nFIXED = 1\n")],
+        )
+        low, low_prompts, _workspace = self._run_scripted_repair(
+            "def compute():\n    return 0\n",
+            "passed, total = (1, 1) if 'FIXED' in text else (1, 4)",
+            [rewrite],
+        )
+        self.assertEqual(low.get("host_reward"), 1.0)
+        self.assertIn("MACRO-REPLAN", low_prompts[0])
+        self.assertNotIn("MICRO-PATCH ONLY", low_prompts[0])
+
+        wide = ModelPlan(
+            task="repair",
+            patches=[ModelPlanPatch(path="app.py", search_block="VALUE = 0\n", replace_block="".join(f"x{i} = {i}\n" for i in range(16)))],
+        )
+        narrow = ModelPlan(
+            task="repair",
+            patches=[ModelPlanPatch(path="app.py", search_block="VALUE = 0\n", replace_block="VALUE = 0\nFIXED = 1\n")],
+        )
+        high, high_prompts, _workspace = self._run_scripted_repair(
+            "VALUE = 0\n",
+            "passed, total = (1, 1) if 'FIXED' in text else (9, 10)",
+            [wide, narrow],
+        )
+        self.assertEqual(high.get("host_reward"), 1.0)
+        self.assertIn("MICRO-PATCH ONLY", high_prompts[0])
+        self.assertIn("repair_plan_exceeds_micro_patch", high_prompts[1])
+        self.assertNotIn("1 != 2", "\n".join(high_prompts))
+
 
 if __name__ == "__main__":
     unittest.main()

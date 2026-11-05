@@ -555,6 +555,7 @@ def _scan_shell_script(workspace: Path, script: str, seen: set[Path] | None, dep
     """Block a shell script that launches a Python writer or edits a test path."""
     if depth > 6:
         return "a computed execution"
+    seen = set() if seen is None else seen
     for segment in (part.strip() for part in re.split(r"(?:&&|\|\||;|\n)", script)):
         if not segment or segment.startswith("#"):
             continue
@@ -571,6 +572,23 @@ def _scan_shell_script(workspace: Path, script: str, seen: set[Path] | None, dep
             if any("$" in token or "`" in token for token in tokens):
                 return "a computed execution"
             found = _workspace_python_write_target(workspace, tuple(tokens), seen, depth + 1)
+            if found:
+                return found
+            continue
+        head = posixpath.basename(tokens[0])
+        if head in {"eval", "source", "."}:
+            if any("$" in token or "`" in token for token in tokens[1:]):
+                return "a computed execution"
+            if head == "eval":
+                nested_text = " ".join(tokens[1:]).strip()
+                if not nested_text:
+                    return "a computed execution"
+                found = _scan_shell_script(workspace, nested_text, seen, depth + 1)
+            else:
+                script_text = _workspace_shell_text(workspace, tokens[1], seen) if len(tokens) > 1 else None
+                if script_text is None:
+                    return "a computed execution"
+                found = _scan_shell_script(workspace, script_text, seen, depth + 1) if script_text else ""
             if found:
                 return found
             continue

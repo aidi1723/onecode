@@ -278,6 +278,31 @@ def initial_asset_prompt(task: str, target: str) -> str:
     )
 
 
+_SAFE_FAILURE_LABEL = re.compile(
+    r"^(KeyError|TypeError|AttributeError|IndexError|ValueError|FileNotFoundError)"
+    r"(?::\s*'([A-Za-z_][A-Za-z0-9_]*)')?$"
+)
+_EXCEPTION_CLASS = re.compile(
+    r"^(AssertionError|KeyError|TypeError|AttributeError|IndexError|ValueError|FileNotFoundError|NameError|ZeroDivisionError)\b"
+)
+
+
+def _safe_failure_label(detail: object) -> str:
+    text = str(detail or "").strip()
+    if not text:
+        return ""
+    leaked = "expected" in text.lower() or "SECRET_" in text
+    match = _SAFE_FAILURE_LABEL.match(text)
+    if match is not None and not leaked:
+        if match.group(2):
+            return f"{match.group(1)}: '{match.group(2)}'"
+        return match.group(1)
+    named = _EXCEPTION_CLASS.match(text)
+    if named is not None:
+        return named.group(1)
+    return ""
+
+
 def sanitize_host_failure_summary(detail: dict) -> str:
     """Name the failed host checks without copying expected-answer text into the repair prompt."""
     lines: list[str] = []
@@ -291,8 +316,10 @@ def sanitize_host_failure_summary(detail: dict) -> str:
         for item in tests:
             if isinstance(item, dict) and item.get("passed") is False:
                 name = str(item.get("name") or "unknown").strip() or "unknown"
-                if name not in failed_names:
-                    failed_names.append(name)
+                label = _safe_failure_label(item.get("detail"))
+                rendered = f"{name} ({label})" if label else name
+                if rendered not in failed_names:
+                    failed_names.append(rendered)
     if failed_names:
         lines.append("Failed tests:")
         lines.extend(f"- [FAIL] {name}" for name in failed_names)

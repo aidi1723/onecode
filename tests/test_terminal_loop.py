@@ -1271,6 +1271,24 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
         self.assertEqual((self.workspace / "src" / "app.py").read_text(encoding="utf-8"), "ok")
         self.assertEqual(kept.read_text(encoding="utf-8"), "KEEP\n")
 
+    def test_eval_inside_a_shell_script_is_blocked_before_it_runs(self) -> None:
+        from unittest.mock import patch
+
+        helper = self.workspace / "helper.py"
+        helper.write_text("open('tests/hidden.py','w').write('x')\n", encoding="utf-8")
+        script = self.workspace / "helper.sh"
+        script.write_text("eval python3 helper.py\n", encoding="utf-8")
+        (self.workspace / "tests").mkdir()
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            session = TerminalSession(self.workspace, "Eval script", approval_mode="scoped_auto")
+            observed = session.execute_action(TerminalAction(
+                action_type="command",
+                command=("bash", "helper.sh"),
+            ))
+        self.assertFalse((self.workspace / "tests" / "hidden.py").exists())
+        self.assertEqual(observed.reason, "preset_test_immutable")
+        self.assertEqual(session.steps[-1].hexagram_code, 40)
+
 
 if __name__ == "__main__":
     unittest.main()

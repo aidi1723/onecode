@@ -113,6 +113,8 @@ def run_held_out(
     endpoint: str,
     max_repairs: int,
     timeout_seconds: float,
+    split: str = "held_out",
+    output: Path | None = None,
 ) -> list[dict[str, Any]]:
     import bench_workbuddy
 
@@ -133,11 +135,16 @@ def run_held_out(
             timeout_seconds=timeout_seconds,
             agent_mode="classic",
         )
-        record["split"] = "held_out"
+        record["split"] = split
         record["prompt_sha256"] = prompt_hash
         record["git_revision"] = revision
         record["guidance_applied"] = bool(data_contract_guidance(f"{task_id}\n{task_text}").strip())
         records.append(record)
+        if output is not None:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            with output.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+                handle.flush()
     return records
 
 
@@ -152,7 +159,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--key-file", type=Path, default=Path("/tmp/onecode_happycoding_key"))
     parser.add_argument("--max-repairs", type=int, default=4)
     parser.add_argument("--timeout", type=float, default=600.0)
-    parser.add_argument("--run", action="store_true", help="Execute the held-out tasks")
+    parser.add_argument("--cohort", choices=("held_out", "in_sample"), default="held_out")
+    parser.add_argument("--run", action="store_true", help="Execute the selected cohort")
     args = parser.parse_args(argv)
 
     if not args.tasks_dir.is_dir():
@@ -166,7 +174,9 @@ def main(argv: list[str] | None = None) -> int:
         "in_sample_count": len(groups["in_sample"]),
         "held_out_count": len(groups["held_out"]),
         "excluded_count": len(groups["excluded"]),
+        "cohort": args.cohort,
         "held_out_task_ids": groups["held_out"],
+        "selected_task_ids": groups[args.cohort],
     }
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
     if not args.run:
@@ -178,14 +188,18 @@ def main(argv: list[str] | None = None) -> int:
         print("API key file is missing or empty", file=sys.stderr)
         return 1
     os.environ.setdefault("ONECODE_SURVEY_MAX_TURNS", "0")
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text("", encoding="utf-8")
     records = run_held_out(
         tasks_dir=args.tasks_dir,
         runs_dir=args.runs_dir,
-        task_ids=groups["held_out"],
+        task_ids=groups[args.cohort],
         model=args.model,
         endpoint=args.endpoint,
         max_repairs=args.max_repairs,
         timeout_seconds=args.timeout,
+        split=args.cohort,
+        output=args.output,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text("".join(json.dumps(record, ensure_ascii=False) + "\n" for record in records), encoding="utf-8")
@@ -205,7 +219,7 @@ def main(argv: list[str] | None = None) -> int:
         "endpoint": args.endpoint,
     }
     args.summary.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print("HELDOUT SUMMARY")
+    print(f"{args.cohort.upper()} SUMMARY")
     print(json.dumps(summary["summary"], ensure_ascii=False, indent=2))
     return 0
 
