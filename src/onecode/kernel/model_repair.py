@@ -226,6 +226,17 @@ def is_patch_only_repair_plan(plan: ModelPlan) -> bool:
     return bool(plan.patches) and not plan.assets and not plan.execution_steps
 
 
+_TEST_ASSET_SHADOWS = {"unittest.py", "pytest.py", "conftest.py", "sitecustomize.py", "usercustomize.py"}
+
+
+def _is_new_test_asset_plan(plan: ModelPlan) -> bool:
+    if plan.patches or plan.execution_steps or len(plan.assets) != 1:
+        return False
+    path = plan.assets[0].path.replace("\\", "/")
+    name = path.rsplit("/", 1)[-1].lower()
+    return path.startswith("tests/") and path.endswith(".py") and name not in _TEST_ASSET_SHADOWS
+
+
 def _repair_diff_blocks(before: str, after: str) -> tuple[str, str] | None:
     if before == "" or before == after:
         return None
@@ -828,9 +839,16 @@ def _patch_line_count(text: str) -> int:
     return len(text.splitlines())
 
 
-def _micro_patch_too_wide(plan: ModelPlan) -> bool:
+def _micro_line_limit(score: float | None) -> int:
+    """Keep a 15-line edge fix for a near-perfect score, and allow a wider fix below that."""
+    if score is not None and score >= 0.97:
+        return 15
+    return 40
+
+
+def _micro_patch_too_wide(plan: ModelPlan, limit: int) -> bool:
     return any(
-        _patch_line_count(patch.search_block) > 15 or _patch_line_count(patch.replace_block) > 15
+        _patch_line_count(patch.search_block) > limit or _patch_line_count(patch.replace_block) > limit
         for patch in plan.patches
     )
 
@@ -874,9 +892,9 @@ def _apply_scored_repair(
 
 
 def _testing_only_task(task: str) -> bool:
-    lowered = task.lower()
-    phrases = ("只补测试", "只写测试", "仅测试", "tests only", "only write tests", "test task", "modify tests only")
-    return any(phrase in task or phrase in lowered for phrase in phrases)
+    from onecode.kernel.model_guidance import asks_for_new_tests
+
+    return asks_for_new_tests(task)
 
 
 def _deliver_best_repair(
@@ -958,6 +976,10 @@ def _build_repair_prompt_context(
             "Do not patch any path under tests/.",
             "STRICT: Do NOT touch application source code. Modify tests only.",
         )
+        prompt = prompt.replace(
+            "Return JSON with patches only. Do not return assets, execution_plan, or no_action. ",
+            "Return one new test asset, or patches to that new test file. Do not return execution_plan or no_action. ",
+        )
         from onecode.kernel.model_guidance import protected_python_files
 
         protected = protected_python_files(task)
@@ -973,7 +995,7 @@ def _build_repair_prompt_context(
         prompt += (
             "\n\nNOTICE - STALLED MICRO PATCH:\n"
             "The previous repair did not raise the score. "
-            "Keep the patch inside 15 lines and inspect a different edge: 0, None, empty collections, case, or int versus str."
+            "Stay inside the line limit and inspect a different edge: 0, None, empty collections, case, or int versus str."
         )
     elif stalled_progress and posture != "macro":
         prompt += (
@@ -986,9 +1008,10 @@ def _build_repair_prompt_context(
             "4. Check if a related helper function in another workspace file needs the fix instead."
         )
     if posture == "micro":
+        limit = _micro_line_limit(_numeric_reward(current_checked.get("host_reward")))
         prompt += (
             "\n\nMICRO-PATCH ONLY: the current score is at least 0.85. "
-            "Keep every search_block and replace_block within 15 lines. "
+            f"Keep every search_block and replace_block within {limit} lines. "
             "Focus on edges: 0, None, empty lists, case folding, and int versus str. "
             "Leave passing behavior in place."
         )
@@ -999,11 +1022,19 @@ def _build_repair_prompt_context(
             "search_block must be the complete current file and replace_block the rewritten file. "
             "Keep the public function names. Do not edit tests or protected files."
         )
-    prompt += (
-        "\n\nCRITICAL: Return valid JSON with patches only. Do NOT include execution_plan or assets.\n"
-        "If multiple modifications are needed in the same file, combine them into ONE single patch for that file to prevent patch offset conflicts.\n"
-        'Format: {"task":"repair verifier failure","patches":[{"path":"<file>","search_block":"<exact lines>","replace_block":"<fixed lines>"}]}'
-    )
+    if _testing_only_task(task):
+        prompt += (
+            "\n\nCRITICAL: Do not modify implementation files. "
+            "If the new test file does not exist, return one JSON asset under tests/. "
+            'Format: {"task":"modify tests only","assets":[{"path":"tests/<new_test>.py","content":"<complete unittest file>"}]}. '
+            "If that file already exists, return patches only for it."
+        )
+    else:
+        prompt += (
+            "\n\nCRITICAL: Return valid JSON with patches only. Do NOT include execution_plan or assets.\n"
+            "If multiple modifications are needed in the same file, combine them into ONE single patch for that file to prevent patch offset conflicts.\n"
+            'Format: {"task":"repair verifier failure","patches":[{"path":"<file>","search_block":"<exact lines>","replace_block":"<fixed lines>"}]}'
+        )
     span_id = "model-repair-after-check" if attempt == 1 else f"model-repair-after-check-{attempt}"
     return prompt, span_id, cooldown_ms, failed_code
 
@@ -1228,7 +1259,8 @@ def _finish_verified_task(
         plan = synthesize_single_asset_repair(plan, workspace)
         if plan.patches and plan.execution_steps:
             plan = ModelPlan(task=plan.task, patches=plan.patches, no_action_reason=plan.no_action_reason)
-        safety_err, guidance = _validate_repair_plan_safety(plan, task, micro_patch=posture == "micro")
+        limit = _micro_line_limit(_numeric_reward(current_checked.get("host_reward")))
+        safety_err, guidance = _validate_repair_plan_safety(plan, task, micro_patch=posture == "micro", micro_line_limit=limit)
         if safety_err is not None:
             if attempt < effective_attempts:
                 format_error_guidance = guidance
@@ -1404,26 +1436,21 @@ def _validate_repair_plan_safety(
     task: str,
     *,
     micro_patch: bool = False,
+    micro_line_limit: int = 40,
 ) -> tuple[str | None, str | None]:
-    from onecode.kernel.model_guidance import protected_python_files, required_python_files
+    from onecode.kernel.model_guidance import asks_for_new_tests, protected_python_files, required_python_files
+    is_testing_task = asks_for_new_tests(task) or any(_is_test_path(p) for p in required_python_files(task))
+    if is_testing_task and _is_new_test_asset_plan(repair_plan):
+        return None, None
     if not is_patch_only_repair_plan(repair_plan):
         return (
             "repair_plan_must_use_patches_only",
             "repair_plan_must_use_patches_only: return valid JSON containing 'patches' only (do NOT return assets or execution_plan).",
         )
-    is_testing_task = (
-        "只补测试" in task
-        or "只写测试" in task
-        or "仅测试" in task
-        or "test task" in task.lower()
-        or "tests only" in task.lower()
-        or "only write tests" in task.lower()
-        or any(_is_test_path(p) for p in required_python_files(task))
-    )
-    if micro_patch and _micro_patch_too_wide(repair_plan):
+    if micro_patch and _micro_patch_too_wide(repair_plan, micro_line_limit):
         return (
             "repair_plan_exceeds_micro_patch",
-            "repair_plan_exceeds_micro_patch: the score is already high. Keep every patch within 15 lines.",
+            f"repair_plan_exceeds_micro_patch: the score is already high. Keep every patch within {micro_line_limit} lines.",
         )
     if not is_testing_task and any(_is_test_path(p.path) for p in repair_plan.patches):
         return (

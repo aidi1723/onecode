@@ -409,7 +409,10 @@ def validate_model_plan(
         if not isinstance(path, str) or path == "":
             raise ValueError(f"patch {index} path must be a non-empty string")
         if is_preset_test_path(path):
-            raise ValueError(f"paths under tests/ are protected: {path}")
+            from onecode.kernel.model_guidance import asks_for_new_tests
+
+            if not asks_for_new_tests(task):
+                raise ValueError(f"paths under tests/ are protected: {path}")
         if not isinstance(search_block, str) or search_block == "":
             raise ValueError(f"patch {index} search_block must be a non-empty string")
         if not isinstance(replace_block, str) or replace_block == "":

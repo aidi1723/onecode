@@ -22,6 +22,14 @@ _DO_NOT_FILE = re.compile(
     re.IGNORECASE,
 )
 _ONLY_FILE = re.compile(rf"\bonly\s+{_RELATIVE_PYTHON}", re.IGNORECASE)
+_NEW_TESTS = re.compile(
+    r"只补测试|只写测试|仅测试|只添加测试|只新增测试|只补\s*tests|只在\s*tests"
+    r"|主逻辑先别动|先别动主逻辑|补一组回归测试"
+    r"|tests only|only write tests|only add tests|modify tests only|test task",
+    re.IGNORECASE,
+)
+_CALL_BEFORE_LEAK = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\(([^)\n]{1,80})\)")
+_INPUT_FIELDS = ("args", "inputs", "arguments")
 _REPAIR_SKIP = frozenset(
     {
         ".git",
@@ -53,6 +61,11 @@ def named_python_files(task: str) -> list[str]:
         if cleaned is not None and cleaned not in found:
             found.append(cleaned)
     return found
+
+
+def asks_for_new_tests(task: str) -> bool:
+    """True when the task asks for new tests and the implementation should stay put."""
+    return _NEW_TESTS.search(task) is not None
 
 
 def protected_python_files(task: str) -> list[str]:
@@ -287,6 +300,58 @@ _EXCEPTION_CLASS = re.compile(
 )
 
 
+def _render_inputs(value: object, depth: int = 0) -> str:
+    if depth > 2:
+        return ""
+    if value is None or isinstance(value, bool) or isinstance(value, int):
+        return repr(value)
+    if isinstance(value, float):
+        return repr(value) if abs(value) <= 1_000_000 else ""
+    if isinstance(value, str):
+        text = value.strip()
+        if not text or len(text) > 80 or any(token in text.lower() for token in ("expected", "secret_", "assert")):
+            return ""
+        return text
+    if isinstance(value, (list, tuple)):
+        parts = [item for item in (_render_inputs(child, depth + 1) for child in value[:6]) if item]
+        return ", ".join(parts)
+    if isinstance(value, dict):
+        fields: list[str] = []
+        for key, child in list(value.items())[:6]:
+            rendered = _render_inputs(child, depth + 1)
+            if rendered:
+                fields.append(f"{key}={rendered}")
+        return ", ".join(fields)
+    return ""
+
+
+def _inputs_before_expected_text(detail: object) -> str:
+    text = str(detail or "")
+    lowered = text.lower()
+    cut = len(text)
+    for token in ("expected", "!=", "secret_"):
+        index = lowered.find(token)
+        if index >= 0:
+            cut = min(cut, index)
+    match = _CALL_BEFORE_LEAK.search(text[:cut])
+    if match is None:
+        return ""
+    arguments = match.group(2).strip()
+    if not arguments or "secret_" in arguments.lower() or "expected" in arguments.lower():
+        return ""
+    return f"{match.group(1)}({arguments})"
+
+
+def _safe_failure_inputs(item: dict) -> str:
+    for key in _INPUT_FIELDS:
+        if key not in item:
+            continue
+        rendered = _render_inputs(item.get(key))
+        if rendered and "secret_" not in rendered.lower() and "expected" not in rendered.lower():
+            return rendered
+    return _inputs_before_expected_text(item.get("detail"))
+
+
 def _safe_failure_label(detail: object) -> str:
     text = str(detail or "").strip()
     if not text:
@@ -317,7 +382,10 @@ def sanitize_host_failure_summary(detail: dict) -> str:
             if isinstance(item, dict) and item.get("passed") is False:
                 name = str(item.get("name") or "unknown").strip() or "unknown"
                 label = _safe_failure_label(item.get("detail"))
+                inputs = _safe_failure_inputs(item)
                 rendered = f"{name} ({label})" if label else name
+                if inputs:
+                    rendered = f"{rendered} args {inputs}"
                 if rendered not in failed_names:
                     failed_names.append(rendered)
     if failed_names:

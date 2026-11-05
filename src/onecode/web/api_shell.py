@@ -571,9 +571,6 @@ def _mentioned_existing_python_files(task: str, workspace: Path) -> list[str]:
 _TASK_TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_]{2,}")
 
 
-_TESTS_ONLY = re.compile(r"只补测试|只补\s*tests|只添加测试|只新增测试|only add tests", re.IGNORECASE)
-
-
 _CN_CODE_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("配置", ("config", "settings", "conf")),
     ("加载", ("load", "loader")),
@@ -694,7 +691,9 @@ def _ranked_implementation_files(task: str, workspace: Path) -> list[str]:
 
 
 def _asks_for_new_tests(task: str) -> bool:
-    return _TESTS_ONLY.search(task) is not None
+    from onecode.kernel.model_guidance import asks_for_new_tests
+
+    return asks_for_new_tests(task)
 
 
 def _new_test_prompt(task: str) -> str:
@@ -1022,7 +1021,6 @@ __all__ = [
     "_refused_python_files",
     "_mentioned_existing_python_files",
     "_TASK_TOKEN",
-    "_TESTS_ONLY",
     "_CN_CODE_KEYWORDS",
     "_TOKEN_STOP",
     "_task_tokens",

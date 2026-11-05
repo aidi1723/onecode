@@ -966,6 +966,18 @@ class OneCodeWebApiTests(unittest.TestCase):
             prompt = _shell_write_prompt("只补测试，先别改 formatting.py。", root)
         self.assertNotIn("Target: markupsafe_like/formatting.py", prompt)
 
+    def test_a_tests_directory_request_does_not_rewrite_the_only_implementation_file(self) -> None:
+        from onecode.web.api import _shell_write_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "click_like").mkdir()
+            (root / "click_like" / "options.py").write_text("def parse():\n    return None\n", encoding="utf-8")
+            prompt = _shell_write_prompt("麻烦只在 tests 下面补一组回归测试，主逻辑先别动。", root)
+        self.assertIn("Add exactly one new unittest file under tests/", prompt)
+        self.assertIn("Do not modify implementation files.", prompt)
+        self.assertNotIn("Target: click_like/options.py", prompt)
+
     def test_surveyed_file_outranks_the_alphabetical_candidates(self):
         from onecode.web.api import _shell_write_prompt
 

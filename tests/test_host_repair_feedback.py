@@ -166,6 +166,38 @@ class HostRepairFeedbackTests(unittest.TestCase):
         self.assertIn("formatting.py", prompt)
         self.assertNotIn("Change the implementation so the existing tests pass.", prompt)
 
+    def test_tests_directory_repair_asks_for_a_new_test_asset(self) -> None:
+        from onecode.kernel.model_provider import ModelPlanAsset
+        from onecode.kernel.model_repair import _build_repair_prompt_context, _validate_repair_plan_safety
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "click_like").mkdir()
+            (workspace / "click_like" / "options.py").write_text("def parse():\n    return None\n", encoding="utf-8")
+            prompt, _span, _cooldown, _code = _build_repair_prompt_context(
+                "麻烦只在 tests 下面补一组回归测试，主逻辑先别动。",
+                workspace,
+                {"status": "halted", "reason": "verifier_failed", "verifier_results": []},
+                1,
+                {},
+                None,
+                False,
+            )
+        self.assertIn("tests/<new_test>.py", prompt)
+        self.assertNotIn("Change the implementation so the existing tests pass.", prompt)
+        self.assertNotIn("Do NOT include execution_plan or assets.", prompt)
+        asset_plan = ModelPlan(
+            task="modify tests only",
+            assets=[ModelPlanAsset(path="tests/test_options.py", content="import unittest\n")],
+        )
+        source_plan = ModelPlan(
+            task="modify tests only",
+            assets=[ModelPlanAsset(path="click_like/options.py", content="def parse():\n    return 1\n")],
+        )
+        task = "麻烦只在 tests 下面补一组回归测试，主逻辑先别动。"
+        self.assertIsNone(_validate_repair_plan_safety(asset_plan, task)[0])
+        self.assertEqual(_validate_repair_plan_safety(source_plan, task)[0], "repair_plan_must_use_patches_only")
+
     def test_flat_scores_stop_and_rising_scores_extend_the_budget(self) -> None:
         from onecode.kernel.model_repair import repair_budget_after_score
 
@@ -180,6 +212,18 @@ class HostRepairFeedbackTests(unittest.TestCase):
 
         capped, _, _ = repair_budget_after_score(5, 0.20, 0.50, 0)
         self.assertEqual(capped, 5)
+
+        from onecode.kernel.model_repair import _micro_line_limit, _validate_repair_plan_safety
+        from onecode.kernel.model_provider import ModelPlanPatch
+
+        wide = ModelPlan(
+            task="repair",
+            patches=[ModelPlanPatch(path="app.py", search_block="a\n", replace_block="".join(f"x{i} = {i}\n" for i in range(16)))],
+        )
+        allowed, _ = _validate_repair_plan_safety(wide, "update the implementation", micro_patch=True, micro_line_limit=_micro_line_limit(0.92))
+        rejected, _ = _validate_repair_plan_safety(wide, "update the implementation", micro_patch=True, micro_line_limit=_micro_line_limit(0.98))
+        self.assertIsNone(allowed)
+        self.assertEqual(rejected, "repair_plan_exceeds_micro_patch")
 
         _, once, still_going = repair_budget_after_score(3, 0.2632, 0.2632, 0)
         self.assertEqual(once, 1)
@@ -227,6 +271,32 @@ class HostRepairFeedbackTests(unittest.TestCase):
         self.assertIn("[FAIL] test_edge (AssertionError)", summary)
         self.assertIn("[FAIL] test_kind (TypeError)", summary)
         self.assertNotIn("1 != 2", summary)
+        self.assertNotIn("expected", summary.lower())
+
+    def test_failure_summary_keeps_call_arguments_and_drops_the_expected_value(self) -> None:
+        from onecode.kernel.model_guidance import sanitize_host_failure_summary
+
+        detail = {
+            "tests_passed": 11,
+            "tests_total": 12,
+            "tests": [
+                {
+                    "name": "test_header",
+                    "passed": False,
+                    "detail": "AssertionError: set('Bad:Name', 'x') expected 'reject'",
+                },
+                {
+                    "name": "test_secret",
+                    "passed": False,
+                    "args": ["SECRET_42"],
+                    "detail": "expected SECRET_42",
+                },
+            ],
+        }
+        summary = sanitize_host_failure_summary(detail)
+        self.assertIn("[FAIL] test_header (AssertionError) args set('Bad:Name', 'x')", summary)
+        self.assertNotIn("reject", summary)
+        self.assertNotIn("SECRET_42", summary)
         self.assertNotIn("expected", summary.lower())
 
     def _run_scripted_repair(self, start: str, decision: str, plans: list[ModelPlan], budget: int = 4) -> tuple[dict, list[str], Path]:
@@ -344,7 +414,7 @@ class HostRepairFeedbackTests(unittest.TestCase):
 
         wide = ModelPlan(
             task="repair",
-            patches=[ModelPlanPatch(path="app.py", search_block="VALUE = 0\n", replace_block="".join(f"x{i} = {i}\n" for i in range(16)))],
+            patches=[ModelPlanPatch(path="app.py", search_block="VALUE = 0\n", replace_block="".join(f"x{i} = {i}\n" for i in range(41)))],
         )
         narrow = ModelPlan(
             task="repair",

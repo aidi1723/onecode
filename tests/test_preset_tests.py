@@ -119,6 +119,22 @@ class PresetTestGuardTests(unittest.TestCase):
                 existing_preset_tests={"tests/test_fee.py"},
             )
 
+    def test_a_testing_repair_may_patch_a_new_test_file(self) -> None:
+        plan = validate_model_plan(
+            {
+                "task": "modify tests only",
+                "patches": [{"path": "tests/test_options.py", "search_block": "x = 1\n", "replace_block": "x = 2\n"}],
+            }
+        )
+        self.assertEqual(plan.patches[0].path, "tests/test_options.py")
+        with self.assertRaisesRegex(ValueError, "paths under tests/ are protected"):
+            validate_model_plan(
+                {
+                    "task": "repair verifier failure",
+                    "patches": [{"path": "tests/test_options.py", "search_block": "x = 1\n", "replace_block": "x = 2\n"}],
+                }
+            )
+
     def test_adding_a_test_file_does_not_count_as_rewriting_the_baseline(self):
         from onecode.kernel.preset_tests import preset_test_baseline_changed
 
