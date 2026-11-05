@@ -374,6 +374,10 @@ def build_parser() -> argparse.ArgumentParser:
     sandbox_smoke_parser.add_argument("--timeout-seconds", type=int, default=60)
     sandbox_smoke_parser.add_argument("--report", default=None)
 
+    mcp_parser = subparsers.add_parser("mcp")
+    mcp_parser.add_argument("--config", action="store_true", help="Output MCP client configuration JSON")
+    mcp_parser.add_argument("--target", default="claude", choices=["claude", "cursor", "goose"], help="Target client for config")
+
     register_training_parsers(subparsers)
     register_local_interface_commands(subparsers)
     return parser
@@ -625,6 +629,19 @@ def dispatch_service_command(args: Any, parser: argparse.ArgumentParser) -> int 
         if result["status"] == "blocked":
             return 2
         return 1
+
+    if args.subcommand == "mcp":
+        if getattr(args, "config", False):
+            from onecode.kernel.mcp_server import generate_mcp_client_config
+
+            cfg = generate_mcp_client_config(getattr(args, "target", "claude"))
+            print(json.dumps(cfg, indent=2, ensure_ascii=False))
+            return 0
+        from onecode.kernel.mcp_server import serve_stdio
+
+        serve_stdio()
+        return 0
+
     return None
 
 def dispatch_training_command(args: Any, parser: argparse.ArgumentParser) -> int | None:

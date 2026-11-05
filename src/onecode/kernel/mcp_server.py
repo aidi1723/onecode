@@ -1,13 +1,13 @@
-"""Stdio MCP server for OneCode ledger, sandbox, and verifier tools.
+"""Stdio MCP server for OneCode ledger, sandbox, verifier, diagnostics, and symbol locator tools.
 
-Launch with ``python -m onecode.kernel.mcp_server``. The process speaks
-newline-delimited JSON-RPC 2.0, the same shape the stdio client already sends.
+Launch with ``python -m onecode.kernel.mcp_server`` or ``onecode mcp``. The process speaks
+newline-delimited JSON-RPC 2.0.
 """
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
+import sys
 from typing import Any
 
 from onecode import __version__
@@ -35,6 +35,36 @@ _TOOLS = (
     {
         "name": "onecode_verify",
         "description": "Run the workspace unittest suite through the OneCode verifier.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"workspace": {"type": "string"}},
+            "required": ["workspace"],
+        },
+    },
+    {
+        "name": "onecode_doctor",
+        "description": "Run OneCode environment diagnostics, docker sandbox readiness, and deployment boundary checks.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+    {
+        "name": "onecode_locate",
+        "description": "Locate failure root-cause source symbols in a workspace from an error traceback or test output.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "workspace": {"type": "string"},
+                "traceback": {"type": "string"},
+                "max_candidates": {"type": "integer"},
+            },
+            "required": ["workspace", "traceback"],
+        },
+    },
+    {
+        "name": "onecode_audit",
+        "description": "Verify integrity of the OneCode WAL ledger, evidence chain, and run manifests.",
         "inputSchema": {
             "type": "object",
             "properties": {"workspace": {"type": "string"}},
@@ -90,16 +120,27 @@ def _call_tool(params: dict[str, Any]) -> dict[str, Any]:
     name = params.get("name")
     raw_args = params.get("arguments")
     arguments: dict[str, Any] = raw_args if isinstance(raw_args, dict) else {}
+
+    if name == "onecode_doctor":
+        return _text(_doctor())
+
     try:
         workspace = _workspace(arguments.get("workspace"))
     except ValueError as exc:
         return _text({"status": "failed", "reason": str(exc)}, is_error=True)
+
     if name == "onecode_ledger":
         return _text(_ledger(workspace))
     if name == "onecode_sandbox":
         return _text(_sandbox(workspace))
     if name == "onecode_verify":
         return _text(_verify(workspace))
+    if name == "onecode_locate":
+        tb = str(arguments.get("traceback") or "")
+        mc = int(arguments.get("max_candidates") or 5)
+        return _text(_locate(workspace, tb, max_candidates=mc))
+    if name == "onecode_audit":
+        return _text(_audit(workspace))
     return _text({"status": "failed", "reason": "unknown_tool"}, is_error=True)
 
 
@@ -154,6 +195,70 @@ def _verify(workspace: Path) -> dict[str, Any]:
         sandbox_config=SandboxConfig(workspace=workspace, timeout_seconds=60),
     )
     return {"status": checked.status, "reason": checked.reason, "workspace": str(workspace)}
+
+
+def _doctor() -> dict[str, Any]:
+    from onecode.kernel.diagnostics import run_doctor
+    return run_doctor()
+
+
+def _locate(workspace: Path, traceback_text: str, max_candidates: int = 5) -> dict[str, Any]:
+    if not traceback_text.strip():
+        return {"status": "failed", "reason": "traceback_required", "workspace": str(workspace)}
+    from onecode.kernel.symbol_locator import SymbolLocator
+    locator = SymbolLocator(workspace)
+    locations = locator.locate_fault(traceback_text, max_candidates=max_candidates)
+    return {
+        "status": "completed",
+        "workspace": str(workspace),
+        "candidate_count": len(locations),
+        "candidates": [loc.to_dict() for loc in locations],
+    }
+
+
+def _audit(workspace: Path) -> dict[str, Any]:
+    from onecode.kernel.wal import global_wal_evidence_metrics, read_validated_global_wal_entries
+    try:
+        entries = read_validated_global_wal_entries(workspace)
+        metrics = global_wal_evidence_metrics(workspace)
+        return {
+            "status": "completed",
+            "workspace": str(workspace),
+            "validated_entry_count": len(entries),
+            "tamper_detected": False,
+            "evidence_metrics": metrics,
+        }
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "reason": "wal_integrity_compromised",
+            "detail": str(exc),
+            "workspace": str(workspace),
+        }
+
+
+def generate_mcp_client_config(target: str = "claude", python_bin: str = "python3") -> dict[str, Any]:
+    """Generate configuration dict for Claude Code / Desktop, Cursor, or Goose."""
+    target_norm = target.strip().lower()
+    if target_norm in {"goose"}:
+        return {
+            "extensions": {
+                "onecode": {
+                    "cmd": python_bin,
+                    "args": ["-m", "onecode.kernel.mcp_server"],
+                    "type": "stdio",
+                }
+            }
+        }
+    # Default format for Claude Desktop, Claude Code, Cursor, and VS Code
+    return {
+        "mcpServers": {
+            "onecode": {
+                "command": python_bin,
+                "args": ["-m", "onecode.kernel.mcp_server"],
+            }
+        }
+    }
 
 
 def _text(payload: dict[str, Any], *, is_error: bool = False) -> dict[str, Any]:
