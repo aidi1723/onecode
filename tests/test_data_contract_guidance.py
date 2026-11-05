@@ -102,5 +102,50 @@ class TestDataContractGuidance(unittest.TestCase):
         self.assertIn("cross categorical features", data_contract_guidance(cross_prompt))
 
 
+class TestWorkspaceContractSnippet(unittest.TestCase):
+    def test_nested_readme_return_shape_is_injected_without_hidden_slugs(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        from onecode.kernel.model_guidance import _contract_spec_snippet
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            doc = root / "target_python"
+            doc.mkdir()
+            (doc / "README.md").write_text(
+                'get_size(path_or_bytes) -> {"type": "png", "width": 1, "height": 1}\n',
+                encoding="utf-8",
+            )
+            (root / "reference_repo").mkdir()
+            (root / "reference_repo" / "README.md").write_text("secret upstream\n", encoding="utf-8")
+            text = _contract_spec_snippet(root, task="parse image headers")
+        self.assertIn("get_size(path_or_bytes)", text)
+        self.assertIn("target_python/README.md", text)
+        self.assertNotIn("secret upstream", text)
+        self.assertIn("offending field or header name", text)
+        self.assertNotIn("too_recently_active", text)
+        self.assertNotIn("outside_window", text)
+
+    def test_decision_contract_asks_for_a_short_reason_code(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        from onecode.kernel.model_guidance import _contract_spec_snippet
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "README.md").write_text(
+                "Expected decisions.json: status, reason.\n"
+                "Error path indexes are part of validation output.\n",
+                encoding="utf-8",
+            )
+            text = _contract_spec_snippet(root, task="build refund decisions")
+        self.assertIn("short lowercase snake_case identifier", text)
+        self.assertIn("integers, not numeric strings", text)
+        self.assertNotIn("seat_limit_reached", text)
+        self.assertNotIn("no_paid_charge", text)
+
+
 if __name__ == "__main__":
     unittest.main()

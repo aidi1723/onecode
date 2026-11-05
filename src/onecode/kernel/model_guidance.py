@@ -760,20 +760,76 @@ def resolve_task_bureau(workspace: Path) -> dict[str, Any]:
     return IchingKernel.task_bureau_profile(file_count, total_loc)
 
 
-def _contract_spec_snippet(workspace: Path | None, max_chars: int = 1500) -> str:
+_DOC_SKIP_DIRS = frozenset({
+    ".git", "tests", "reference_repo", "node_modules", "venv", ".venv", "__pycache__", ".onecode", "dist", "build",
+})
+
+
+def _iter_contract_docs(workspace: Path) -> list[Path]:
+    docs: list[Path] = []
+    for name in ("README.md", "README.txt", "spec.md", "SPEC.md"):
+        path = workspace / name
+        if path.is_file():
+            docs.append(path)
+    if not workspace.is_dir():
+        return docs
+    for path in sorted(workspace.rglob("README.md")):
+        if path in docs:
+            continue
+        parts = path.relative_to(workspace).parts
+        if any(part in _DOC_SKIP_DIRS or part.startswith(".") for part in parts):
+            continue
+        if len(parts) > 3:
+            continue
+        docs.append(path)
+        if len(docs) >= 4:
+            break
+    return docs
+
+
+def _contract_shape_rules(corpus: str) -> str:
+    lowered = corpus.lower()
+    rules: list[str] = []
+    if "decisions.json" in lowered or ("decisions" in lowered and "reason" in lowered):
+        rules.append(
+            "A decision reason must be a short lowercase snake_case identifier, not a sentence or an explanation."
+        )
+    if "path" in lowered and any(token in lowered for token in ("error", "validation", "invalid")):
+        rules.append("Indexes inside an error path or location list must be integers, not numeric strings.")
+    if "header" in lowered or "valueerror" in lowered:
+        rules.append(
+            "When rejecting an invalid input, include the offending field or header name in the exception message."
+        )
+    return " ".join(rules)
+
+
+def _contract_spec_snippet(workspace: Path | None, max_chars: int = 1500, task: str = "") -> str:
     from onecode.kernel.model_loop import _record_kernel_fault
     if workspace is None or not workspace.is_dir():
-        return ""
-    for candidate in ("README.md", "README.txt", "spec.md", "SPEC.md"):
-        doc_path = workspace / candidate
-        if doc_path.is_file():
-            try:
-                text = doc_path.read_text(encoding="utf-8", errors="replace")[:max_chars].strip()
-                if text:
-                    return f"Workspace Contract Specification (文昌文曲·契约印信 - {candidate}):\n{text}\n\n"
-            except OSError as ex:
-                _record_kernel_fault("contract_spec", ex)
-    return ""
+        rules = _contract_shape_rules(task)
+        return f"Interface rules:\n{rules}\n\n" if rules else ""
+    chunks: list[str] = []
+    for path in _iter_contract_docs(workspace):
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")[:800].strip()
+        except OSError as ex:
+            _record_kernel_fault("contract_spec", ex)
+            continue
+        if text:
+            chunks.append(f"Workspace Contract Specification ({path.relative_to(workspace).as_posix()}):\n{text}")
+    rules = _contract_shape_rules(f"{task}\n" + "\n".join(chunks))
+    rule_block = f"Interface rules:\n{rules}\n\n" if rules else ""
+    budget = max(0, max_chars - len(rule_block))
+    body_parts: list[str] = []
+    used = 0
+    for chunk in chunks:
+        piece = chunk[: max(0, budget - used)]
+        if not piece:
+            break
+        body_parts.append(piece)
+        used += len(piece) + 2
+    body = rule_block + "\n\n".join(body_parts)
+    return body + "\n\n" if body else ""
 
 
 def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | None = None) -> str:
@@ -891,7 +947,7 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
             _record_kernel_fault("fault_localization", ex)
     if fault_hints:
         prompt += "\n".join(fault_hints) + "\n"
-    spec_snippet = _contract_spec_snippet(workspace)
+    spec_snippet = _contract_spec_snippet(workspace, task=task)
     if spec_snippet:
         prompt += spec_snippet
     prompt += (

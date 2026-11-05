@@ -424,6 +424,11 @@ def prepare_shell_model_call(task: str, workspace: Path, run_id: str | None = No
     preface = "\n".join(part for part in (merged_preface, notes) if part)
     extras["preface"] = preface or None
     planned = _shell_write_prompt(task, workspace, preface)
+    from onecode.kernel.model_guidance import _contract_spec_snippet
+
+    note = _contract_spec_snippet(workspace, task=task)
+    if note and note not in planned:
+        planned = planned.rstrip() + "\n\n" + note
     return {"task": planned, "extras": extras}
 
 
