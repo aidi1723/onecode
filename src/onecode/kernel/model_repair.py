@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import time
 from typing import Any, Callable
@@ -1046,6 +1047,16 @@ def _build_repair_prompt_context(
             'Format: {"task":"repair verifier failure","patches":[{"path":"<file>","search_block":"<exact lines>","replace_block":"<fixed lines>"}]}'
         )
     span_id = "model-repair-after-check" if attempt == 1 else f"model-repair-after-check-{attempt}"
+    resolved_file = workspace / ".onecode" / "resolved_approvals.json"
+    if resolved_file.is_file():
+        try:
+            resolved_data = json.loads(resolved_file.read_text(encoding="utf-8"))
+            for entry in resolved_data:
+                res_val = entry.get("resolution")
+                if res_val:
+                    prompt += f"\n\nEngineer specification resolution: {res_val}."
+        except Exception:
+            pass
     return prompt, span_id, cooldown_ms, failed_code
 
 
@@ -1168,6 +1179,212 @@ def _apply_external_host_grade(
     return graded
 
 
+def _contract_has_reason_enum(workspace: Path) -> bool:
+    """Check if visible contract documents explicitly enumerate allowed reason slugs."""
+    from onecode.kernel.model_guidance import _iter_contract_docs
+
+    docs = _iter_contract_docs(workspace)
+    if not docs:
+        return False
+    combined = "\n\n".join(doc.read_text(encoding="utf-8", errors="ignore") for doc in docs if doc.is_file())
+    if not combined:
+        return False
+    lowered = combined.lower()
+    if "reason" not in lowered and "decision" not in lowered:
+        return True
+
+    if re.search(r"(?i)(?:allowed|valid|possible|return|reject)?\s*reasons?[:\s]+(?:\n\s*[-*+]\s+[`'\"]?[a-z0-9_-]+[`'\"]?)+", combined):
+        return True
+    if re.search(r"(?i)\|\s*(?:reason|reason_code|code)\s*\|[^\n]+\|\n\|[-:\s|]+\|\n(?:\|\s*[`'\"]?[a-z0-9_-]+[`'\"]?\s*\|[^\n]+\|\n?)+", combined):
+        return True
+    if re.search(r"(?i)class\s+\w*Reason\w*\s*\(\s*(?:str,\s*)?Enum\s*\):", combined):
+        return True
+    if re.search(r"(?i)Literal\[(?:\s*['\"][a-z0-9_-]+['\"]\s*,?)+\]", combined):
+        return True
+    if re.search(r"(?i)reasons?\s+(?:are|can be|must be|include|one of)[:\s]+(?:\s*[`'\"][a-z0-9_-]+[`'\"]\s*,?)+", combined):
+        return True
+
+    return False
+
+
+def _extract_failing_checks(checked: dict[str, Any]) -> list[str]:
+    """Extract failed test names from verifier output or structured results."""
+    failures: list[str] = []
+    for key in ("failed_tests", "failing_checks", "failures"):
+        val = checked.get(key)
+        if isinstance(val, list):
+            for item in val:
+                if isinstance(item, str) and item not in failures:
+                    failures.append(item)
+
+    for res in checked.get("verifier_results") or []:
+        if not isinstance(res, dict):
+            continue
+        out = str(res.get("stdout_tail") or "")
+        err = str(res.get("stderr_tail") or "")
+        for match in re.finditer(r'\{\s*"(?:overall|tests)"', out):
+            idx = match.start()
+            try:
+                candidate, _ = json.JSONDecoder().raw_decode(out[idx:])
+                if isinstance(candidate, dict) and "tests" in candidate and isinstance(candidate["tests"], list):
+                    for t in candidate["tests"]:
+                        if isinstance(t, dict) and not t.get("passed"):
+                            name = str(t.get("name") or "")
+                            if name and name not in failures:
+                                failures.append(name)
+            except Exception:
+                pass
+        for line in out.splitlines() + err.splitlines():
+            line = line.strip()
+            fail_m = re.match(r"^-\s*\[FAIL\]\s*([a-zA-Z0-9_.:-]+)", line)
+            if fail_m:
+                name = fail_m.group(1).strip().rstrip(":")
+                if name and name not in failures:
+                    failures.append(name)
+            fail_m2 = re.match(r"^(?:FAIL|ERROR):\s*([a-zA-Z0-9_.:-]+)", line)
+            if fail_m2:
+                name = fail_m2.group(1).strip().rstrip(":")
+                if name and name not in failures:
+                    failures.append(name)
+    return failures
+
+
+def _extract_emitted_reasons(workspace: Path, tested: dict[str, Any] | None = None) -> list[str]:
+    """Extract model-emitted reason strings from decisions.json, python files, or verifier output."""
+    emitted: list[str] = []
+    decisions_candidates = [workspace / "decisions.json"]
+    for p in sorted(workspace.glob("**/decisions.json")):
+        if p not in decisions_candidates:
+            decisions_candidates.append(p)
+    for path in decisions_candidates:
+        if path.is_file():
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                items = data if isinstance(data, list) else data.get("decisions") or data.get("results") or [data]
+                if isinstance(items, list):
+                    for it in items:
+                        if isinstance(it, dict):
+                            r = it.get("reason")
+                            if isinstance(r, str) and r and r not in emitted:
+                                emitted.append(r)
+            except Exception:
+                pass
+
+    skip_dirs = {".git", ".onecode", "__pycache__", ".venv", "tests"}
+    for py_file in sorted(workspace.rglob("*.py")):
+        if any(part in skip_dirs for part in py_file.relative_to(workspace).parts):
+            continue
+        try:
+            content = py_file.read_text(encoding="utf-8", errors="ignore")
+            for m in re.finditer(r'["\']reason["\']\s*:\s*["\']([a-z0-9_]+)["\']', content):
+                val = m.group(1).strip()
+                if val and val not in {"none", "unknown", "error", "reason", "null"} and val not in emitted:
+                    emitted.append(val)
+            for m in re.finditer(r'\breason\s*=\s*["\']([a-z0-9_]+)["\']', content):
+                val = m.group(1).strip()
+                if val and val not in {"none", "unknown", "error", "reason", "null"} and val not in emitted:
+                    emitted.append(val)
+        except Exception:
+            pass
+
+    if tested:
+        for res in tested.get("verifier_results") or []:
+            if isinstance(res, dict):
+                text = str(res.get("stdout_tail") or "") + "\n" + str(res.get("stderr_tail") or "")
+                for m in re.finditer(r"AssertionError:\s*['\"]([a-z0-9_]+)['\"]\s*!=", text):
+                    val = m.group(1).strip()
+                    if val and val not in emitted:
+                        emitted.append(val)
+    return emitted
+
+
+def _maybe_open_reason_clarification_approval(
+    workspace: Path,
+    task: str,
+    tested: dict[str, Any],
+    current_checked: dict[str, Any],
+    best_checked: dict[str, Any],
+    attempt: int,
+) -> dict[str, Any] | None:
+    """When visible contract lacks reason enum and repair stagnates, open a pending approval."""
+    if _contract_has_reason_enum(workspace):
+        return None
+
+    failing_checks = _extract_failing_checks(tested) or _extract_failing_checks(current_checked)
+    emitted_reasons = _extract_emitted_reasons(workspace, tested)
+
+    lowered_task = task.lower()
+    policy_keywords = ("reason", "policy", "eligibility", "eligible", "refund", "coupon", "deny", "decision")
+    is_policy_context = (
+        any(k in lowered_task for k in policy_keywords)
+        or any(any(k in check.lower() for k in policy_keywords) for check in failing_checks)
+        or bool(emitted_reasons)
+        or (workspace / "decisions.json").is_file()
+    )
+    if not is_policy_context:
+        return None
+
+    from onecode.kernel.cycle_approvals import persist_pending_approval
+
+    best_rew = _numeric_reward(best_checked.get("host_reward"))
+    tool_name = "clarify_decision_reason"
+    params = {
+        "task": task,
+        "failing_checks": failing_checks or ["policy_decision_check"],
+        "emitted_reasons": emitted_reasons,
+        "stalled_reward": best_rew,
+        "question": "Specification does not enumerate allowed reason codes. Select or specify the expected short code before continuing.",
+    }
+    return persist_pending_approval(workspace, tool_name, params)
+
+
+def _handle_repair_budget_stop(
+    workspace: Path,
+    task: str,
+    tested: dict[str, Any],
+    current_checked: dict[str, Any],
+    best_checked: dict[str, Any],
+    best_snapshot: dict[str, str],
+    attempt: int,
+) -> dict[str, Any]:
+    delivered = _deliver_best_repair(workspace, current_checked, best_checked, best_snapshot)
+    delivered["repair_attempt_count"] = attempt
+    approval = _maybe_open_reason_clarification_approval(
+        workspace=workspace,
+        task=task,
+        tested=tested,
+        current_checked=current_checked,
+        best_checked=best_checked,
+        attempt=attempt,
+    )
+    if approval is not None:
+        delivered["status"] = "halted"
+        delivered["reason"] = "approval_required"
+        delivered["pending_approval_id"] = approval.get("id")
+        delivered["pending"] = {"tool_name": approval.get("tool_name"), "params": approval.get("params")}
+        delivered["approval_status"] = approval.get("status", "PENDING_APPROVAL")
+        _append_repair_turn(delivered, delivered, "approval_required")
+    return delivered
+
+
+def _reset_macro_posture_if_needed(
+    task: str,
+    workspace: Path,
+    current_checked: dict[str, Any],
+    initial_snapshot: dict[str, str],
+    run_metadata: dict[str, Any],
+) -> tuple[dict[str, Any], str, bool]:
+    if _snapshot_workspace_files(workspace) != initial_snapshot:
+        _restore_workspace_snapshot(workspace, initial_snapshot)
+        regraded = _apply_external_host_grade(dict(current_checked), workspace, run_metadata)
+        regraded["turn_history"] = current_checked.get("turn_history")
+        if regraded.get("reason") != "verifier_failed":
+            return regraded, "", True
+        posture = _task_repair_posture(task, _numeric_reward(regraded.get("host_reward")))
+        return regraded, posture, False
+    return current_checked, "macro", False
+
+
 def _finish_verified_task(
     result: dict[str, Any],
     task: str,
@@ -1215,15 +1432,12 @@ def _finish_verified_task(
     while attempt <= effective_attempts:
         posture = _task_repair_posture(task, _numeric_reward(current_checked.get("host_reward")))
         if posture == "macro" and not macro_done:
-            if _snapshot_workspace_files(workspace) != initial_snapshot:
-                _restore_workspace_snapshot(workspace, initial_snapshot)
-                regraded = _apply_external_host_grade(dict(current_checked), workspace, run_metadata)
-                regraded["turn_history"] = current_checked.get("turn_history")
-                if regraded.get("reason") != "verifier_failed":
-                    return regraded
-                current_checked = regraded
-                current_result = dict(regraded)
-                posture = _task_repair_posture(task, _numeric_reward(current_checked.get("host_reward")))
+            current_checked, posture, early_exit = _reset_macro_posture_if_needed(
+                task, workspace, current_checked, initial_snapshot, run_metadata
+            )
+            if early_exit:
+                return current_checked
+            current_result = dict(current_checked)
             macro_done = True
         prompt, span_id, cooldown_ms, failed_code = _build_repair_prompt_context(
             task=task,
@@ -1321,9 +1535,9 @@ def _finish_verified_task(
         )
         current_result = dict(current_checked)
         if stop:
-            delivered = _deliver_best_repair(workspace, current_checked, best_checked, best_snapshot)
-            delivered["repair_attempt_count"] = attempt
-            return delivered
+            return _handle_repair_budget_stop(
+                workspace, task, tested, current_checked, best_checked, best_snapshot, attempt
+            )
         attempt += 1
     delivered = _deliver_best_repair(workspace, current_checked, best_checked, best_snapshot)
     delivered["repair_attempt_count"] = max(int(delivered.get("repair_attempt_count") or 0), attempt - 1)

@@ -971,6 +971,25 @@ def handle_onecode_pending_approvals(params: dict[str, Any]) -> tuple[dict[str, 
     }, 200
 
 
+def _record_resolved_approval(workspace: Path, approval_id: str, tool_name: str, body: dict[str, Any]) -> None:
+    res_dir = workspace / ".onecode"
+    res_dir.mkdir(parents=True, exist_ok=True)
+    res_file = res_dir / "resolved_approvals.json"
+    records: list[dict[str, Any]] = []
+    if res_file.is_file():
+        try:
+            records = json.loads(res_file.read_text(encoding="utf-8"))
+        except Exception:
+            records = []
+    resolution = body.get("resolution") or body.get("selected_slug")
+    records.append({
+        "id": approval_id,
+        "tool_name": tool_name,
+        "resolution": resolution,
+    })
+    res_file.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def handle_onecode_approval_resolve(approval_id: str, body: dict[str, Any]) -> tuple[dict[str, Any], int]:
     from onecode.kernel.cycle_approvals import load_pending_approvals, resume_pending_approval
 
@@ -990,12 +1009,20 @@ def handle_onecode_approval_resolve(approval_id: str, body: dict[str, Any]) -> t
         result = resume_pending_approval(workspace, approval_id, "rejected", lambda _t, _p: None)
         return {"status": "rejected", "approval_id": approval_id, "result": result}, 200
 
-    return {
+    res_payload = {
         "status": "approved",
         "approval_id": approval_id,
         "tool_name": match["tool_name"],
         "params": match["params"],
-    }, 200
+    }
+    if "resolution" in body:
+        res_payload["resolution"] = body["resolution"]
+    if "selected_slug" in body:
+        res_payload["selected_slug"] = body["selected_slug"]
+    if "resolution" in body or "selected_slug" in body:
+        _record_resolved_approval(workspace, approval_id, str(match["tool_name"]), body)
+
+    return res_payload, 200
 
 
 
