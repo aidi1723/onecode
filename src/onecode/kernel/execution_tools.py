@@ -869,6 +869,9 @@ def _command_environment(workspace: Path) -> dict[str, str]:
     environment = {key: value for key, value in os.environ.items() if key in COMMAND_ENV_ALLOWLIST}
     environment.setdefault("PATH", os.defpath)
     environment["HOME"] = str(workspace.resolve())
+    ws_str = str(workspace.resolve())
+    existing = environment.get("PYTHONPATH", "")
+    environment["PYTHONPATH"] = f"{ws_str}:{existing}" if existing else ws_str
     return environment
 
 

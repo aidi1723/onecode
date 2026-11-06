@@ -205,13 +205,14 @@ def _unproven_write_target(script: str) -> str:
     return ""
 
 
-def _spliced_test_target(script: str) -> str:
+def _spliced_test_target(script: str, depth: int = 0) -> str:
     """Return a test path assembled inside an interpreter script, or an empty string."""
     if not script or not _script_mutates_files(script):
         return ""
-    computed = _unproven_write_target(script)
-    if computed:
-        return computed
+    if depth == 0:
+        computed = _unproven_write_target(script)
+        if computed:
+            return computed
     literals = _string_literals(script)
     if "chr(" in script:
         for _start, _end, text in literals:
@@ -264,14 +265,14 @@ def _source_write_target(
 ) -> str:
     """Return a test write hidden in this source or in a workspace module it imports."""
     if depth > 6:
-        return "a computed execution"
-    found = _spliced_test_target(source)
+        return "a computed execution" if (is_test_context and depth == 0) else ""
+    found = _spliced_test_target(source, depth)
     if found:
         return found
-    executed = _dynamic_execution_target(workspace, source, seen, depth)
+    executed = _dynamic_execution_target(workspace, source, seen, depth, is_test_context=is_test_context)
     if executed:
         return executed
-    if is_test_context:
+    if is_test_context and depth == 0:
         dynamic = _unproven_dynamic_import(source)
         if dynamic:
             return dynamic
@@ -383,6 +384,7 @@ def _execution_argument_target(
     argument: str,
     seen: set[Path] | None = None,
     depth: int = 0,
+    is_test_context: bool = True,
 ) -> str:
     literal = _sole_string_literal(argument)
     if literal is not None:
@@ -390,10 +392,10 @@ def _execution_argument_target(
             return _module_flag_write_target(workspace, literal)
         if call in _FILE_EXECUTION_CALLS:
             return _file_write_target(workspace, literal, seen, depth)
-        return _source_write_target(workspace, literal, set() if seen is None else seen, depth)
+        return _source_write_target(workspace, literal, set() if seen is None else seen, depth, is_test_context=is_test_context)
     paths = [text for _start, _end, text in _string_literals(argument) if text.endswith(".py")]
     if not paths:
-        return "a computed execution"
+        return "a computed execution" if is_test_context else ""
     for relative in paths:
         found = _file_write_target(workspace, relative, seen, depth)
         if found:
@@ -421,17 +423,20 @@ def _getattr_execution_target(
     script: str,
     seen: set[Path] | None = None,
     depth: int = 0,
+    is_test_context: bool = True,
 ) -> str:
     """Block a loader reached through getattr, including a name joined from pieces."""
     for match in re.finditer(r"(?<![\w])getattr\s*\(", script):
         parsed = _call_arguments(script, match.end() - 1)
         if parsed is None or len(parsed[0]) < 2:
-            return "a computed execution"
+            if is_test_context:
+                return "a computed execution"
+            continue
         arguments, end = parsed
         name = _static_literal_text(arguments[1])
         rest = script[end:].lstrip()
         if name is None:
-            if rest.startswith("("):
+            if is_test_context and rest.startswith("("):
                 return "a computed execution"
             continue
         arg_index = dict(_EXECUTION_CALLS).get(name)
@@ -440,8 +445,10 @@ def _getattr_execution_target(
         open_paren = end + (len(script[end:]) - len(rest))
         invoked = _call_arguments(script, open_paren)
         if invoked is None or arg_index >= len(invoked[0]):
-            return "a computed execution"
-        found = _execution_argument_target(workspace, name, invoked[0][arg_index], seen, depth)
+            if is_test_context:
+                return "a computed execution"
+            continue
+        found = _execution_argument_target(workspace, name, invoked[0][arg_index], seen, depth, is_test_context=is_test_context)
         if found:
             return found
     return ""
@@ -565,12 +572,57 @@ def _shell_file_write_target(workspace: Path, argv: tuple[str, ...], seen: set[P
     return _scan_shell_script(workspace, text, seen, depth + 1)
 
 
+def _split_shell_segments(script: str) -> list[str]:
+    segments: list[str] = []
+    current: list[str] = []
+    quote = ""
+    index = 0
+    while index < len(script):
+        char = script[index]
+        if quote:
+            if char == "\\" and index + 1 < len(script):
+                current.append(char)
+                current.append(script[index + 1])
+                index += 2
+                continue
+            if char == quote:
+                quote = ""
+            current.append(char)
+            index += 1
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            current.append(char)
+            index += 1
+            continue
+        if char in {";", "\n"}:
+            seg = "".join(current).strip()
+            if seg:
+                segments.append(seg)
+            current = []
+            index += 1
+            continue
+        if script.startswith(("&&", "||"), index):
+            seg = "".join(current).strip()
+            if seg:
+                segments.append(seg)
+            current = []
+            index += 2
+            continue
+        current.append(char)
+        index += 1
+    seg = "".join(current).strip()
+    if seg:
+        segments.append(seg)
+    return segments
+
+
 def _scan_shell_script(workspace: Path, script: str, seen: set[Path] | None, depth: int) -> str:
     """Block a shell script that launches a Python writer or edits a test path."""
     if depth > 6:
         return "a computed execution"
     seen = set() if seen is None else seen
-    for segment in (part.strip() for part in re.split(r"(?:&&|\|\||;|\n)", script)):
+    for segment in _split_shell_segments(script):
         if not segment or segment.startswith("#"):
             continue
         blocked = _forbidden_shell_target(segment)
@@ -623,17 +675,22 @@ def _subprocess_write_target(
     script: str,
     seen: set[Path] | None,
     depth: int,
+    is_test_context: bool = True,
 ) -> str:
     """Block an interpreter launched through subprocess or os.system."""
     if depth > 6:
-        return "a computed execution"
+        return "a computed execution" if (is_test_context and depth == 0) else ""
     for match in _PROCESS_CALL.finditer(script):
         parsed = _call_arguments(script, match.end() - 1)
         if parsed is None or not parsed[0] or not parsed[0][0].strip():
-            return "a computed execution"
+            if depth == 0 and is_test_context:
+                return "a computed execution"
+            continue
         argv = _command_tokens(parsed[0][0])
         if argv is None:
-            return "a computed execution"
+            if depth == 0 and is_test_context:
+                return "a computed execution"
+            continue
         if not argv:
             continue
         if _is_python_command(tuple(argv)):
@@ -654,6 +711,7 @@ def _dynamic_execution_target(
     script: str,
     seen: set[Path] | None = None,
     depth: int = 0,
+    is_test_context: bool = True,
 ) -> str:
     """Block exec, runpy, and file loaders whose target can write a test file."""
     for name, arg_index in _EXECUTION_CALLS:
@@ -661,14 +719,16 @@ def _dynamic_execution_target(
         for match in re.finditer(pattern, script):
             parsed = _call_arguments(script, match.end() - 1)
             if parsed is None or arg_index >= len(parsed[0]):
-                return "a computed execution"
-            found = _execution_argument_target(workspace, name, parsed[0][arg_index], seen, depth)
+                if is_test_context:
+                    return "a computed execution"
+                continue
+            found = _execution_argument_target(workspace, name, parsed[0][arg_index], seen, depth, is_test_context=is_test_context)
             if found:
                 return found
-    launched = _subprocess_write_target(workspace, script, seen, depth)
+    launched = _subprocess_write_target(workspace, script, seen, depth, is_test_context=is_test_context)
     if launched:
         return launched
-    return _getattr_execution_target(workspace, script, seen, depth)
+    return _getattr_execution_target(workspace, script, seen, depth, is_test_context=is_test_context)
 
 
 def _is_python_command(cmd_tokens: tuple[str, ...]) -> bool:

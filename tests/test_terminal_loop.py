@@ -1115,6 +1115,30 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
         self.assertEqual(obs.exit_code, 0)
         self.assertNotEqual(obs.reason, "preset_test_immutable")
 
+    def test_framework_module_flag_with_dynamic_getattr_is_not_blocked(self) -> None:
+        from unittest.mock import patch
+
+        pkg = self.workspace / "dyn_framework"
+        pkg.mkdir(exist_ok=True)
+        (pkg / "__init__.py").write_text("", encoding="utf-8")
+        (pkg / "__main__.py").write_text(
+            "class Runner:\n"
+            "    def run(self, fn):\n"
+            "        return getattr(self, fn)()\n"
+            "    def ping(self):\n"
+            "        return 'pong'\n"
+            "print(Runner().run('ping'))\n",
+            encoding="utf-8",
+        )
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            session = TerminalSession(self.workspace, "Framework module flag", approval_mode="scoped_auto")
+            obs = session.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-m", "dyn_framework"),
+            ))
+        self.assertEqual(obs.exit_code, 0)
+        self.assertNotEqual(obs.reason, "preset_test_immutable")
+
     def test_subprocess_interpreter_writes_are_blocked_before_execution(self) -> None:
         from unittest.mock import patch
 
