@@ -359,10 +359,17 @@ def run_swebench_instance(
 
     previous_image = os.environ.get("ONECODE_SANDBOX_IMAGE")
     sandbox_image = (previous_image or "").strip()
-    if not sandbox_image and str(instance.get("repo") or "") == "django/django":
-        sandbox_image = SWEBENCH_SANDBOX_IMAGE
+    repo = str(instance.get("repo") or "")
+    if repo == "django/django":
+        if not sandbox_image:
+            sandbox_image = SWEBENCH_SANDBOX_IMAGE
+    elif sandbox_image == SWEBENCH_SANDBOX_IMAGE:
+        # The django py312 image must not be used for non-django repositories
+        sandbox_image = ""
     if sandbox_image:
         os.environ["ONECODE_SANDBOX_IMAGE"] = sandbox_image
+    else:
+        os.environ.pop("ONECODE_SANDBOX_IMAGE", None)
     try:
         result = run_model_task(
             prompt,
