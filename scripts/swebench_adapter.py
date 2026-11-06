@@ -358,7 +358,11 @@ def run_swebench_instance(
         return record
 
     previous_image = os.environ.get("ONECODE_SANDBOX_IMAGE")
-    os.environ["ONECODE_SANDBOX_IMAGE"] = (previous_image or "").strip() or SWEBENCH_SANDBOX_IMAGE
+    sandbox_image = (previous_image or "").strip()
+    if not sandbox_image and str(instance.get("repo") or "") == "django/django":
+        sandbox_image = SWEBENCH_SANDBOX_IMAGE
+    if sandbox_image:
+        os.environ["ONECODE_SANDBOX_IMAGE"] = sandbox_image
     try:
         result = run_model_task(
             prompt,

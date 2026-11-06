@@ -12,6 +12,7 @@ from scripts.swebench_adapter import (
     extract_git_patch,
     format_swebench_prompt,
     load_swebench_instances,
+    official_test_patch,
     run_swebench_instance,
     setup_swebench_workspace,
     validate_unified_diff,
@@ -126,6 +127,7 @@ class TestSWEBenchAdapter(unittest.TestCase):
         import os
 
         inst = {"instance_id": "mock__image-1", "repo": "mock/repo", "problem_statement": "image"}
+        django = {"instance_id": "django__django-11099", "repo": "django/django", "problem_statement": "image"}
         seen: list[str | None] = []
 
         def capture(*_args, **_kwargs):
@@ -140,8 +142,25 @@ class TestSWEBenchAdapter(unittest.TestCase):
         ):
             os.environ.pop("ONECODE_SANDBOX_IMAGE", None)
             run_swebench_instance(inst, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
-        self.assertEqual(seen, ["onecode-swebench:py312"])
+            run_swebench_instance(django, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+        self.assertEqual(seen, [None, "onecode-swebench:py312"])
         self.assertNotIn("ONECODE_SANDBOX_IMAGE", os.environ)
+
+    def test_official_test_patches_stay_out_of_prompts(self) -> None:
+        dataset = Path(__file__).resolve().parents[1] / "benchmarks" / "swebench-lite" / "subset.jsonl"
+        sentinels = {
+            "sympy__sympy-20590": "b1.x = 1",
+            "pytest-dev__pytest-5692": "node.assert_attr(hostname=platform.node())",
+            "astropy__astropy-12907": "cm_4d_expected",
+            "sphinx-doc__sphinx-10325": "class MyList(list):",
+        }
+        instances = {item["instance_id"]: item for item in load_swebench_instances(dataset)}
+        for instance_id, sentinel in sentinels.items():
+            raw = instances[instance_id]
+            merged = official_test_patch(dataset, raw)
+            self.assertIn(sentinel, merged["test_patch"])
+            self.assertNotIn("diff --git", format_swebench_prompt(raw))
+            self.assertNotIn(sentinel, format_swebench_prompt(merged))
 
     def test_run_swebench_instance_dry_run(self) -> None:
         inst = {
