@@ -470,6 +470,11 @@ def _extract_targeted_assertions(error_parts: list[str]) -> list[str]:
         alerts.append(
             f"- Precision assertion target (水生木·精准断言): Failing test check '{first}'. Focus surgical edit directly on satisfying this test condition."
         )
+        if any(term in first.lower() for term in ("blocked", "denied", "allowed", "approved", "reason", "status")):
+            alerts.append(
+                f"- Precision reason target: Failing check '{first}' evaluates a policy decision. "
+                "Ensure the decision 'reason' and 'status' correspond precisely to the specific condition phrase in the check name (distinguishing qualifiers like recent activity thresholds, zero payment/charges, and seat availability)."
+            )
 
     if len(failing_checks) > 1:
         items_str = ", ".join(f"'{c}'" for c in failing_checks[:8])
@@ -799,6 +804,10 @@ def _contract_shape_rules(corpus: str) -> str:
     if "header" in lowered or "valueerror" in lowered:
         rules.append(
             "When rejecting an invalid input, include the offending field or header name in the exception message."
+        )
+    if "--json" in lowered or ("json" in lowered and any(token in lowered for token in ("cli", "main.py", "image", "args.json"))):
+        rules.append(
+            "When a CLI outputs JSON objects for processed files, identify each file using both 'path' and 'file' keys (e.g. {'path': str(filepath), 'file': str(filepath), ...})."
         )
     return " ".join(rules)
 

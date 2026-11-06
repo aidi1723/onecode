@@ -146,6 +146,33 @@ class TestWorkspaceContractSnippet(unittest.TestCase):
         self.assertNotIn("seat_limit_reached", text)
         self.assertNotIn("no_paid_charge", text)
 
+    def test_cli_json_contract_asks_for_path_and_file_keys(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        from onecode.kernel.model_guidance import _contract_spec_snippet
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "README.md").write_text(
+                "Usage: python main.py image1.png --json\n",
+                encoding="utf-8",
+            )
+            text = _contract_spec_snippet(root, task="read image headers via cli")
+        self.assertIn("both 'path' and 'file' keys", text)
+
+    def test_targeted_assertion_extracts_policy_reason_guidance(self) -> None:
+        from onecode.kernel.model_guidance import _extract_targeted_assertions
+
+        error_parts = [
+            "- [FAIL] recently active churned user blocked\n- [PASS] active user blocked"
+        ]
+        alerts = _extract_targeted_assertions(error_parts)
+        text = "\n".join(alerts)
+        self.assertIn("Precision reason target", text)
+        self.assertIn("recently active churned user blocked", text)
+        self.assertNotIn("too_recently_active", text)
+
 
 if __name__ == "__main__":
     unittest.main()
