@@ -475,18 +475,22 @@ def _is_shell_command(argv: tuple[str, ...]) -> bool:
     return bool(argv) and posixpath.basename(argv[0]).lower() in _SHELLS
 
 
+def _is_shell_c_flag(token: str) -> bool:
+    return token.startswith("-") and not token.startswith("--") and "c" in token
+
+
 def _shell_command_text(argv: tuple[str, ...]) -> str:
     if not _is_shell_command(argv):
         return ""
     for index, token in enumerate(argv):
-        if token == "-c" and index + 1 < len(argv):
+        if _is_shell_c_flag(token) and index + 1 < len(argv):
             return argv[index + 1]
     return ""
 
 
 def _shell_script_argument(argv: tuple[str, ...]) -> str:
     """Return the script path for ``bash helper.sh``, ignoring ``bash -c``."""
-    if not _is_shell_command(argv) or any(token == "-c" for token in argv):
+    if not _is_shell_command(argv) or any(_is_shell_c_flag(token) for token in argv):
         return ""
     for token in argv[1:]:
         if token == "--" or token.startswith("-"):

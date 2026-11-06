@@ -106,7 +106,15 @@ def setup_swebench_workspace(
             )
         if (cached_repo / ".git").is_dir():
             subprocess.run(
-                ["git", "clone", str(cached_repo), str(workspace_dir)],
+                [
+                    "git",
+                    "clone",
+                    "--filter=blob:none",
+                    f"https://github.com/{repo}.git",
+                    "--reference",
+                    str(cached_repo),
+                    str(workspace_dir),
+                ],
                 capture_output=True,
                 check=False,
             )
