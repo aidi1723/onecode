@@ -24,6 +24,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT / "src"))
 
+from onecode.benchmark import evaluate_model_patch, swebench_test_command
 from onecode.kernel.model_loop import run_model_task
 
 
@@ -304,6 +305,16 @@ def format_swebench_prompt(instance: dict[str, Any]) -> str:
         ] + [f"- {tc}" for tc in target_checks])
     prompt_parts.extend([
         "",
+        "## How to verify",
+        "Run the repository tests with this command:",
+        swebench_test_command(instance),
+        "A zero exit code on tests already present at the base revision only shows those checks still pass. "
+        "The issue may describe behavior those checks do not cover. Reproduce that behavior with a Python command "
+        "that prints a result and does not create or edit any file.",
+        "When the repository command exits 0 and your reproduction shows the issue is fixed, the next action must be "
+        '{"action_type":"finish","explanation":"Verification passed."}. '
+        "Do not spend the last turn only reading a file.",
+        "",
         "Please investigate the codebase, identify root causes, apply minimal surgical patches, "
         "verify via command execution, and finish once verified."
     ])
@@ -320,6 +331,7 @@ def run_swebench_instance(
     repo_cache_dir: Path | None = None,
     timeout_seconds: float = 600.0,
     dry_run: bool = False,
+    max_turns: int = 15,
 ) -> dict[str, Any]:
     """Runs a single SWE-bench instance and returns prediction record."""
     instance_id = str(instance.get("instance_id") or "unknown")
@@ -354,6 +366,7 @@ def run_swebench_instance(
         execution_approval=lambda _s: True,
         require_explicit_approval=True,
         http_timeout_seconds=timeout_seconds,
+        max_turns=max_turns,
     )
 
     duration_s = round(time.monotonic() - started_at, 2)
@@ -371,6 +384,72 @@ def run_swebench_instance(
         "duration_s": duration_s,
     }
     return record
+
+
+def official_test_patch(dataset_path: Path, instance: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy that includes the official test patch when a sidecar has one."""
+    merged = dict(instance)
+    current = merged.get("test_patch")
+    if isinstance(current, str) and current.strip():
+        return merged
+    instance_id = str(merged.get("instance_id") or "")
+    sidecar = dataset_path.parent / "official" / f"{instance_id}.json"
+    if not sidecar.is_file():
+        return merged
+    try:
+        extra = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return merged
+    patch = extra.get("test_patch") if isinstance(extra, dict) else None
+    if isinstance(patch, str) and patch.strip():
+        merged["test_patch"] = patch
+    return merged
+
+
+def score_saved_predictions(
+    predictions_path: Path,
+    dataset_path: Path,
+    work_dir: Path,
+    *,
+    python: str,
+    timeout_seconds: int = 180,
+    reference: Path | None = None,
+    install: bool = False,
+) -> list[dict[str, Any]]:
+    """Score saved model diffs with the official test patch. Does not call a model."""
+    instances = {str(item.get("instance_id") or ""): item for item in load_swebench_instances(dataset_path)}
+    scored: list[dict[str, Any]] = []
+    for index, line in enumerate(predictions_path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        record = json.loads(line)
+        instance_id = str(record.get("instance_id") or "")
+        source = instances.get(instance_id)
+        if source is None:
+            scored.append({
+                "instance_id": instance_id,
+                "prediction_row": index,
+                "status": "blocked",
+                "reason": "instance_not_in_dataset",
+                "claims_mainstream_parity": False,
+            })
+            continue
+        instance = official_test_patch(dataset_path, source)
+        row_dir = work_dir / f"{index}-{instance_id}"
+        outcome = evaluate_model_patch(
+            instance,
+            str(record.get("model_patch") or ""),
+            row_dir,
+            python=python,
+            install=install,
+            timeout_seconds=timeout_seconds,
+            reference=reference,
+        )
+        outcome["prediction_row"] = index
+        outcome["model_status"] = record.get("status")
+        outcome["model_reason"] = record.get("reason")
+        scored.append(outcome)
+    return scored
 
 
 def main() -> int:
@@ -407,7 +486,39 @@ def main() -> int:
         default=None,
         help="Path to predictions.jsonl to audit and verify against dataset without running model",
     )
+    parser.add_argument(
+        "--score-predictions",
+        type=Path,
+        default=None,
+        help="Score a predictions.jsonl with the official test patch. Does not call a model.",
+    )
+    parser.add_argument("--score-work-dir", type=Path, default=Path("/tmp/onecode_swebench_score"))
+    parser.add_argument("--python", type=str, default=sys.executable)
+    parser.add_argument("--score-timeout", type=int, default=180)
+    parser.add_argument("--reference", type=Path, default=None, help="Local git clone used as a clone reference")
+    parser.add_argument("--max-turns", type=int, default=15)
     args = parser.parse_args()
+
+    if args.score_predictions:
+        scored = score_saved_predictions(
+            args.score_predictions,
+            args.dataset,
+            args.score_work_dir,
+            python=args.python,
+            timeout_seconds=args.score_timeout,
+            reference=args.reference,
+            install=False,
+        )
+        for item in scored:
+            print(
+                f"row {item.get('prediction_row')} {item.get('instance_id')} "
+                f"status={item.get('status')} reason={item.get('reason')} "
+                f"before={item.get('before_returncode')} after={item.get('after_returncode')}"
+            )
+        resolved = sum(1 for item in scored if item.get("status") == "resolved")
+        print(f"Scored {len(scored)} prediction row(s); resolved {resolved}")
+        print("claims_mainstream_parity false")
+        return 0 if scored and all(item.get("status") != "blocked" for item in scored) else 1
 
     if args.verify_predictions:
         report = verify_predictions_dataset(args.verify_predictions, args.dataset)
@@ -446,6 +557,7 @@ def main() -> int:
             repo_cache_dir=args.repo_cache_dir,
             timeout_seconds=args.timeout,
             dry_run=args.dry_run,
+            max_turns=args.max_turns,
         )
         results.append(rec)
         patch_len = len(rec.get("model_patch", ""))

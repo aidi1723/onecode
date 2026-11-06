@@ -6,6 +6,8 @@ import subprocess
 import tempfile
 import unittest
 
+from unittest.mock import patch
+
 from scripts.swebench_adapter import (
     extract_git_patch,
     format_swebench_prompt,
@@ -83,6 +85,42 @@ class TestSWEBenchAdapter(unittest.TestCase):
         self.assertIn("Expected Verification Targets:", prompt_with_checks)
         self.assertIn("- test_ascii_validator", prompt_with_checks)
         self.assertIn("- test_unicode_validator", prompt_with_checks)
+        self.assertIn("tests/runtests.py", prompt_with_checks)
+        self.assertIn('--settings=test_sqlite', prompt_with_checks)
+        self.assertIn("--parallel=1", prompt_with_checks)
+        self.assertIn('"action_type":"finish"', prompt_with_checks)
+        self.assertNotIn("trailingnewline", prompt_with_checks)
+
+    def test_prompt_omits_official_test_patch_body(self) -> None:
+        leaked = "trailingnewline\\u000A"
+        inst = {
+            "instance_id": "django__django-11099",
+            "repo": "django/django",
+            "problem_statement": "UsernameValidator allows trailing newline",
+            "FAIL_TO_PASS": '["test_ascii_validator (auth_tests.test_validators.UsernameValidatorsTests)"]',
+            "test_patch": "diff --git a/tests/auth_tests/test_validators.py\n+" + leaked + "\n",
+        }
+        prompt = format_swebench_prompt(inst)
+        self.assertNotIn("trailingnewline", prompt)
+        self.assertNotIn("test_patch", prompt)
+        self.assertIn("auth_tests.test_validators.UsernameValidatorsTests.test_ascii_validator", prompt)
+
+    def test_run_passes_fifteen_turn_budget(self) -> None:
+        inst = {"instance_id": "mock__turns-1", "repo": "mock/repo", "problem_statement": "budget"}
+        with (
+            patch("scripts.swebench_adapter.setup_swebench_workspace", return_value=self.root),
+            patch("scripts.swebench_adapter.extract_git_patch", return_value=""),
+            patch("scripts.swebench_adapter.run_model_task", return_value={"status": "halted", "reason": "turn_limit_exhausted"}) as run,
+        ):
+            record = run_swebench_instance(
+                inst,
+                self.root,
+                model="deepseek-v4.1-flash",
+                endpoint="http://mock",
+                agent_mode="terminal",
+            )
+        self.assertEqual(run.call_args.kwargs["max_turns"], 15)
+        self.assertEqual(record["reason"], "turn_limit_exhausted")
 
     def test_run_swebench_instance_dry_run(self) -> None:
         inst = {

@@ -156,6 +156,7 @@ def run_model_task(
     approval_mode: str = "strict",
     agent_mode: str = "classic",
     host_verifier_path: str | None = None,
+    max_turns: int | None = None,
 ) -> dict[str, Any]:
     from onecode.kernel.model_provider import begin_model_usage, finish_model_usage
 
@@ -186,6 +187,7 @@ def run_model_task(
             approval_mode=approval_mode,
             agent_mode=agent_mode,
             host_verifier_path=host_verifier_path,
+            max_turns=max_turns,
         )
     finally:
         usage = finish_model_usage(usage_token)
@@ -218,6 +220,7 @@ def _execute_model_task(
     approval_mode: str = "strict",
     agent_mode: str = "classic",
     host_verifier_path: str | None = None,
+    max_turns: int | None = None,
 ) -> dict[str, Any]:
     task = with_preface(task, preface)
     validate_model_task_limits(http_timeout_seconds, max_repair_attempts)
@@ -250,6 +253,7 @@ def _execute_model_task(
             require_explicit_approval=require_explicit_approval,
             execution_approval=execution_approval,
             plan_approval=plan_approval,
+            max_turns=max_turns,
         )
     plan, failure, narrowed = _initial_model_plan(
         task=task,

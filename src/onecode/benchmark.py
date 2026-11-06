@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -559,12 +560,90 @@ def evaluate_swebench_instance(
     return result
 
 
-def _clone_commit(repo: str, commit: str, dest: Path) -> str | None:
+def evaluate_model_patch(
+    instance: dict[str, Any],
+    model_patch: str,
+    workspace: Path,
+    *,
+    python: str,
+    install: bool = True,
+    timeout_seconds: int = 120,
+    reference: Path | None = None,
+) -> dict[str, Any]:
+    """Score one model diff against the official test patch.
+
+    Applies test_patch, requires a failing run, then applies the model diff.
+    The published gold patch is not applied. A resolved row is a local git-apply
+    result, not a SWE-bench Docker score.
+    """
+    result: dict[str, Any] = {
+        "instance_id": str(instance.get("instance_id") or ""),
+        "status": "blocked",
+        "reason": None,
+        "before_returncode": None,
+        "after_returncode": None,
+        "runner": "model_patch_local",
+        "claims_mainstream_parity": False,
+    }
+    repo = instance.get("repo")
+    commit = instance.get("base_commit")
+    test_patch = instance.get("test_patch")
+    if not all(isinstance(item, str) and item for item in (repo, commit, test_patch)):
+        result["reason"] = "instance_missing_patch"
+        return result
+    if not isinstance(model_patch, str) or not model_patch.strip():
+        result["status"] = "unresolved"
+        result["reason"] = "empty_model_patch"
+        return result
+    workspace.mkdir(parents=True, exist_ok=True)
+    checkout = workspace / "repo"
+    clone_reason = _clone_commit(repo, commit, checkout, reference=reference)  # type: ignore
+    if clone_reason is not None:
+        result["reason"] = clone_reason
+        return result
+    if not _apply_text_patch(checkout, test_patch):  # type: ignore
+        result["reason"] = "test_patch_failed"
+        return result
+    python_bin = python
+    if install:
+        python_bin, install_reason = _install_checkout(checkout, str(repo), python, timeout_seconds)
+        if install_reason is not None:
+            result["reason"] = install_reason
+            return result
+    before = _run_argv(_instance_test_argv(instance, python_bin), checkout, timeout_seconds)
+    result["before_returncode"] = before
+    if before == 0:
+        result["reason"] = "tests_already_passing"
+        return result
+    if not _apply_text_patch(checkout, model_patch):
+        result["status"] = "unresolved"
+        result["reason"] = "model_patch_failed"
+        return result
+    after = _run_argv(_instance_test_argv(instance, python_bin), checkout, timeout_seconds)
+    result["after_returncode"] = after
+    if after == 0:
+        result["status"] = "resolved"
+        result["reason"] = None
+        return result
+    result["status"] = "unresolved"
+    result["reason"] = "tests_still_failing"
+    return result
+
+
+def swebench_test_command(instance: dict[str, Any]) -> str:
+    """Shell command the agent can run against the base checkout."""
+    return " ".join(shlex.quote(item) for item in _instance_test_argv(instance, "python"))
+
+
+def _clone_commit(repo: str, commit: str, dest: Path, reference: Path | None = None) -> str | None:
     if dest.exists():
         return "checkout_exists"
     url = repo if repo.startswith("/") or repo.startswith("file:") else f"https://github.com/{repo}.git"
+    clone_cmd = ["git", "clone", "--no-checkout", url, str(dest)]
+    if reference is not None and reference.exists():
+        clone_cmd = ["git", "clone", "--filter=blob:none", "--no-checkout", "--reference", str(reference), url, str(dest)]
     cloned = subprocess.run(
-        ["git", "clone", "--no-checkout", url, str(dest)],
+        clone_cmd,
         capture_output=True,
         text=True,
         timeout=600,
@@ -658,7 +737,7 @@ def _instance_test_argv(instance: dict[str, Any], python_bin: str) -> list[str]:
     tests = _fail_to_pass_tests(instance)
     repo = instance.get("repo") if isinstance(instance.get("repo"), str) else ""
     if repo == "django/django":
-        return [python_bin, "tests/runtests.py", "--verbosity", "1", "--settings=test_sqlite", *[_django_label(item) for item in tests]]
+        return [python_bin, "tests/runtests.py", "--verbosity", "1", "--settings=test_sqlite", "--parallel=1", *[_django_label(item) for item in tests]]
     if repo == "sympy/sympy":
         files = [path for path in _patched_paths(str(instance.get("test_patch") or "")) if path.startswith("sympy/") and "/tests/" in path]
         if files:
@@ -703,6 +782,9 @@ def _run_argv(argv: list[str], cwd: Path, timeout_seconds: int) -> int:
             child.unlink()
     environment = os.environ.copy()
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    root = str(cwd.resolve())
+    existing = environment.get("PYTHONPATH", "")
+    environment["PYTHONPATH"] = f"{root}{os.pathsep}{existing}" if existing else root
     try:
         completed = subprocess.run(
             argv,

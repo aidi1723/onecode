@@ -23,12 +23,14 @@ def _run_terminal_model_task(
     require_explicit_approval: bool = True,
     execution_approval: Callable[[Any], bool] | None = None,
     plan_approval: Callable[[Any], bool] | None = None,
+    max_turns: int | None = None,
 ) -> dict[str, Any]:
     from onecode.kernel.model_loop import _record_kernel_fault
     from onecode.kernel.model_repair import _with_sandbox_tests, ledger_fields_for_iching
     from onecode.kernel.terminal_loop import TerminalAction, TerminalStep, run_terminal_session
 
-    max_turns = max(10, max_repair_attempts * 3)
+    if max_turns is None or max_turns < 1:
+        max_turns = max(10, max_repair_attempts * 3)
     auto_approved_for_eval = (approval_mode == "scoped_auto") or (not require_explicit_approval and execution_approval is None)
     term_approval_callback: Callable[[TerminalAction], bool] | None = None
     if execution_approval is not None:

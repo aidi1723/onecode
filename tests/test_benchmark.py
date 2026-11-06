@@ -635,3 +635,106 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(summary["pass_rate"], 1.0)
         self.assertEqual(summary["eval_status"], "executed")
         self.assertFalse(summary["claims_mainstream_parity"])
+
+    def test_model_patch_harness_requires_fail_then_pass_without_gold(self) -> None:
+        import subprocess
+        import sys
+
+        from onecode.benchmark import evaluate_model_patch
+
+        with tempfile.TemporaryDirectory() as tmp:
+            origin = Path(tmp) / "origin"
+            origin.mkdir()
+            subprocess.run(["git", "init"], cwd=origin, check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.email", "onecode@local.test"], cwd=origin, check=True)
+            subprocess.run(["git", "config", "user.name", "OneCode"], cwd=origin, check=True)
+            (origin / "sample.py").write_text("value = 0\n", encoding="utf-8")
+            subprocess.run(["git", "add", "sample.py"], cwd=origin, check=True)
+            subprocess.run(["git", "commit", "-m", "base"], cwd=origin, check=True, capture_output=True)
+            base = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=origin, text=True).strip()
+            (origin / "test_sample.py").write_text(
+                "import sample\nraise SystemExit(0 if sample.value == 1 else 1)\n",
+                encoding="utf-8",
+            )
+            subprocess.run(["git", "add", "-N", "test_sample.py"], cwd=origin, check=True)
+            test_patch = subprocess.check_output(["git", "diff", "--no-ext-diff"], cwd=origin, text=True)
+            (origin / "test_sample.py").unlink()
+            subprocess.run(["git", "reset"], cwd=origin, check=True, capture_output=True)
+            (origin / "sample.py").write_text("value = 1\n", encoding="utf-8")
+            model_patch = subprocess.check_output(["git", "diff", "--no-ext-diff"], cwd=origin, text=True)
+            subprocess.run(["git", "checkout", "--", "sample.py"], cwd=origin, check=True)
+            (origin / "sample.py").write_text("value = 2\n", encoding="utf-8")
+            wrong_patch = subprocess.check_output(["git", "diff", "--no-ext-diff"], cwd=origin, text=True)
+            instance = {
+                "instance_id": "local__sample-2",
+                "repo": str(origin),
+                "base_commit": base,
+                "test_patch": test_patch,
+                "test_argv": ["{python}", "test_sample.py"],
+            }
+
+            missing = evaluate_model_patch(
+                {"instance_id": "local__sample-2", "repo": str(origin), "base_commit": base},
+                model_patch,
+                Path(tmp) / "missing",
+                python=sys.executable,
+                install=False,
+            )
+            resolved = evaluate_model_patch(instance, model_patch, Path(tmp) / "good", python=sys.executable, install=False)
+            unresolved = evaluate_model_patch(instance, wrong_patch, Path(tmp) / "bad", python=sys.executable, install=False)
+
+        self.assertEqual(missing["status"], "blocked")
+        self.assertEqual(missing["reason"], "instance_missing_patch")
+        self.assertFalse(missing["claims_mainstream_parity"])
+        self.assertNotEqual(resolved["before_returncode"], 0)
+        self.assertEqual(resolved["after_returncode"], 0)
+        self.assertEqual(resolved["status"], "resolved")
+        self.assertFalse(resolved["claims_mainstream_parity"])
+        self.assertEqual(unresolved["status"], "unresolved")
+        self.assertEqual(unresolved["reason"], "tests_still_failing")
+        self.assertNotEqual(unresolved["after_returncode"], 0)
+
+    def test_model_patch_runner_imports_repository_root(self) -> None:
+        import subprocess
+        import sys
+
+        from onecode.benchmark import evaluate_model_patch
+
+        with tempfile.TemporaryDirectory() as tmp:
+            origin = Path(tmp) / "origin"
+            origin.mkdir()
+            subprocess.run(["git", "init"], cwd=origin, check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.email", "onecode@local.test"], cwd=origin, check=True)
+            subprocess.run(["git", "config", "user.name", "OneCode"], cwd=origin, check=True)
+            (origin / "sample.py").write_text("value = 0\n", encoding="utf-8")
+            subprocess.run(["git", "add", "sample.py"], cwd=origin, check=True)
+            subprocess.run(["git", "commit", "-m", "base"], cwd=origin, check=True, capture_output=True)
+            base = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=origin, text=True).strip()
+            tests = origin / "tests"
+            tests.mkdir()
+            (tests / "check.py").write_text(
+                "import sample\nraise SystemExit(0 if sample.value == 1 else 1)\n",
+                encoding="utf-8",
+            )
+            subprocess.run(["git", "add", "-N", "tests/check.py"], cwd=origin, check=True)
+            test_patch = subprocess.check_output(["git", "diff", "--no-ext-diff"], cwd=origin, text=True)
+            (tests / "check.py").unlink()
+            subprocess.run(["git", "reset"], cwd=origin, check=True, capture_output=True)
+            (origin / "sample.py").write_text("value = 1\n", encoding="utf-8")
+            model_patch = subprocess.check_output(["git", "diff", "--no-ext-diff"], cwd=origin, text=True)
+            result = evaluate_model_patch(
+                {
+                    "instance_id": "local__nested-1",
+                    "repo": str(origin),
+                    "base_commit": base,
+                    "test_patch": test_patch,
+                    "test_argv": ["{python}", "tests/check.py"],
+                },
+                model_patch,
+                Path(tmp) / "work",
+                python=sys.executable,
+                install=False,
+            )
+
+        self.assertEqual(result["status"], "resolved")
+        self.assertEqual(result["after_returncode"], 0)
