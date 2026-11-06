@@ -534,6 +534,11 @@ def evaluate_swebench_instance(
     if not _apply_text_patch(checkout, test_patch):  # type: ignore
         result["reason"] = "test_patch_failed"
         return result
+    if repo == "pytest-dev/pytest":
+        version_file = checkout / "src" / "_pytest" / "_version.py"
+        if not version_file.is_file():
+            version_file.parent.mkdir(parents=True, exist_ok=True)
+            version_file.write_text("version = '5.0.0'\n", encoding="utf-8")
     python_bin = python
     if install:
         python_bin, install_reason = _install_checkout(checkout, str(repo), python, timeout_seconds)
@@ -606,6 +611,11 @@ def evaluate_model_patch(
     if not _apply_text_patch(checkout, test_patch):  # type: ignore
         result["reason"] = "test_patch_failed"
         return result
+    if repo == "pytest-dev/pytest":
+        version_file = checkout / "src" / "_pytest" / "_version.py"
+        if not version_file.is_file():
+            version_file.parent.mkdir(parents=True, exist_ok=True)
+            version_file.write_text("version = '5.0.0'\n", encoding="utf-8")
     python_bin = python
     if install:
         python_bin, install_reason = _install_checkout(checkout, str(repo), python, timeout_seconds)

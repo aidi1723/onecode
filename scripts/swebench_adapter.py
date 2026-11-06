@@ -29,6 +29,14 @@ from onecode.kernel.model_loop import run_model_task
 
 SWEBENCH_SANDBOX_IMAGE = "onecode-swebench:py312"
 SWEBENCH_SYMPY_IMAGE = "onecode-swebench:sympy"
+SWEBENCH_PYTEST_IMAGE = "onecode-swebench:pytest"
+
+SWEBENCH_REPO_IMAGES = {
+    "django/django": SWEBENCH_SANDBOX_IMAGE,
+    "sympy/sympy": SWEBENCH_SYMPY_IMAGE,
+    "pytest-dev/pytest": SWEBENCH_PYTEST_IMAGE,
+}
+SWEBENCH_DEDICATED_IMAGES = set(SWEBENCH_REPO_IMAGES.values())
 
 
 def load_api_key(key_file: Path | None) -> str | None:
@@ -71,6 +79,14 @@ def load_swebench_instances(
     return instances
 
 
+def _prepare_repo_prerequisites(repo: str, root: Path) -> None:
+    if repo == "pytest-dev/pytest":
+        version_file = root / "src" / "_pytest" / "_version.py"
+        if not version_file.is_file():
+            version_file.parent.mkdir(parents=True, exist_ok=True)
+            version_file.write_text("version = '5.0.0'\n", encoding="utf-8")
+
+
 def setup_swebench_workspace(
     instance: dict[str, Any],
     workspace_dir: Path,
@@ -88,6 +104,7 @@ def setup_swebench_workspace(
         subprocess.run(["git", "clean", "-fdx"], cwd=workspace_dir, capture_output=True, check=False)
         if base_commit:
             subprocess.run(["git", "checkout", base_commit], cwd=workspace_dir, capture_output=True, check=False)
+        _prepare_repo_prerequisites(repo, workspace_dir)
         return workspace_dir
 
     # Check if a cached clone exists or initialize via blobless clone
@@ -124,6 +141,7 @@ def setup_swebench_workspace(
             )
             if base_commit:
                 subprocess.run(["git", "checkout", base_commit], cwd=workspace_dir, capture_output=True, check=False)
+            _prepare_repo_prerequisites(repo, workspace_dir)
             return workspace_dir
 
     # Fallback to local git init if not cloned
@@ -135,6 +153,7 @@ def setup_swebench_workspace(
         gitignore.write_text(".onecode/\n__pycache__/\n", encoding="utf-8")
         subprocess.run(["git", "add", ".gitignore"], cwd=workspace_dir, capture_output=True, check=False)
         subprocess.run(["git", "commit", "-m", "init"], cwd=workspace_dir, capture_output=True, check=False)
+    _prepare_repo_prerequisites(repo, workspace_dir)
     return workspace_dir
 
 
@@ -361,13 +380,11 @@ def run_swebench_instance(
     previous_image = os.environ.get("ONECODE_SANDBOX_IMAGE")
     sandbox_image = (previous_image or "").strip()
     repo = str(instance.get("repo") or "")
-    if repo == "django/django":
-        if not sandbox_image or sandbox_image == SWEBENCH_SYMPY_IMAGE:
-            sandbox_image = SWEBENCH_SANDBOX_IMAGE
-    elif repo == "sympy/sympy":
-        if not sandbox_image or sandbox_image == SWEBENCH_SANDBOX_IMAGE:
-            sandbox_image = SWEBENCH_SYMPY_IMAGE
-    elif sandbox_image in {SWEBENCH_SANDBOX_IMAGE, SWEBENCH_SYMPY_IMAGE}:
+    if repo in SWEBENCH_REPO_IMAGES:
+        expected_image = SWEBENCH_REPO_IMAGES[repo]
+        if not sandbox_image or sandbox_image in SWEBENCH_DEDICATED_IMAGES:
+            sandbox_image = expected_image
+    elif sandbox_image in SWEBENCH_DEDICATED_IMAGES:
         sandbox_image = ""
     if sandbox_image:
         os.environ["ONECODE_SANDBOX_IMAGE"] = sandbox_image
@@ -461,11 +478,7 @@ def score_saved_predictions(
         instance = official_test_patch(dataset_path, source)
         row_dir = work_dir / f"{index}-{instance_id}"
         repo = str(instance.get("repo") or "")
-        sandbox_image = None
-        if repo == "django/django":
-            sandbox_image = SWEBENCH_SANDBOX_IMAGE
-        elif repo == "sympy/sympy":
-            sandbox_image = SWEBENCH_SYMPY_IMAGE
+        sandbox_image = SWEBENCH_REPO_IMAGES.get(repo)
         outcome = evaluate_model_patch(
             instance,
             str(record.get("model_patch") or ""),
