@@ -334,6 +334,20 @@ class RepairApprovalGateTests(unittest.TestCase):
             except OSError:
                 pass
 
+    def test_select_target_slugs_to_replace_picks_failing_slug(self) -> None:
+        from onecode.kernel.model_repair import _select_target_slugs_to_replace
+
+        emitted = ["eligible", "not_churned", "unsupported_country", "suppressed", "recent_coupon", "recently_active"]
+        failing_checks = ["recently active churned user blocked"]
+        selected = "too_recently_active"
+
+        targets = _select_target_slugs_to_replace(emitted, selected, failing_checks=failing_checks)
+        self.assertEqual(targets, ["recently_active"])
+
+        # Explicit target override
+        explicit = _select_target_slugs_to_replace(emitted, selected, explicit_target="not_churned")
+        self.assertEqual(explicit, ["not_churned"])
+
     def test_zero_hidden_slugs_in_kernel_source(self) -> None:
         """Verify strict constraint: verifier slugs must not be hardcoded in the kernel."""
         forbidden_slugs = [

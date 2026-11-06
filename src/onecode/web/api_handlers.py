@@ -1038,7 +1038,12 @@ def handle_onecode_approval_resolve(approval_id: str, body: dict[str, Any]) -> t
             from onecode.kernel.cycle_approvals import consume_pending_approval
             from onecode.kernel.model_repair import apply_approved_slug_repair
 
-            regraded = apply_approved_slug_repair(workspace, match["params"], selected_slug)
+            params = dict(match.get("params") or {})
+            if "target_slug" in body:
+                params["target_slug"] = body["target_slug"]
+            elif "replace_slug" in body:
+                params["replace_slug"] = body["replace_slug"]
+            regraded = apply_approved_slug_repair(workspace, params, selected_slug)
             consume_pending_approval(workspace, str(match["tool_name"]), match["params"])
             res_payload["regraded"] = regraded
             res_payload["host_reward"] = regraded.get("host_reward")

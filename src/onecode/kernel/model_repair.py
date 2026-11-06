@@ -1374,6 +1374,43 @@ def _handle_repair_budget_stop(
     return delivered
 
 
+def _select_target_slugs_to_replace(
+    emitted_reasons: list[str],
+    selected_slug: str,
+    failing_checks: list[str] | None = None,
+    explicit_target: str | None = None,
+) -> list[str]:
+    """Select the specific candidate reason slug(s) to replace rather than replacing all."""
+    if explicit_target and explicit_target in emitted_reasons:
+        return [explicit_target]
+    if explicit_target:
+        return [explicit_target]
+    if not emitted_reasons:
+        return []
+    if len(emitted_reasons) == 1:
+        return list(emitted_reasons)
+
+    def _tokens(s: str) -> set[str]:
+        return {w.lower() for w in re.findall(r"[a-zA-Z0-9]+", s)}
+
+    slug_tokens = _tokens(selected_slug)
+    check_tokens: set[str] = set()
+    for c in (failing_checks or []):
+        check_tokens.update(_tokens(c))
+
+    scored: list[tuple[int, str]] = []
+    for cand in emitted_reasons:
+        cand_tokens = _tokens(cand)
+        score = len(cand_tokens & slug_tokens) * 3 + len(cand_tokens & check_tokens) * 2
+        scored.append((score, cand))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    best_score, best_cand = scored[0]
+    if best_score > 0:
+        return [best_cand]
+    return list(emitted_reasons)
+
+
 def apply_approved_slug_repair(
     workspace: Path,
     approval_params: dict[str, Any],
@@ -1388,6 +1425,14 @@ def apply_approved_slug_repair(
         _restore_workspace_snapshot(workspace, best_snapshot)
 
     emitted_reasons = approval_params.get("emitted_reasons") or _extract_emitted_reasons(workspace)
+    explicit_target = approval_params.get("target_slug") or approval_params.get("replace_slug")
+    failing_checks = approval_params.get("failing_checks") or []
+    targets_to_replace = _select_target_slugs_to_replace(
+        emitted_reasons,
+        selected_slug,
+        failing_checks=failing_checks,
+        explicit_target=explicit_target,
+    )
     skip_dirs = {".git", ".onecode", "__pycache__", ".venv", "tests"}
     modified_paths: list[str] = []
 
@@ -1397,7 +1442,7 @@ def apply_approved_slug_repair(
         try:
             content = py_file.read_text(encoding="utf-8")
             orig = content
-            for old_reason in emitted_reasons:
+            for old_reason in targets_to_replace:
                 if old_reason and old_reason in content:
                     content = re.sub(
                         r"([\'\"])" + re.escape(old_reason) + r"\1",
@@ -1414,7 +1459,7 @@ def apply_approved_slug_repair(
         try:
             content = json_file.read_text(encoding="utf-8")
             orig = content
-            for old_reason in emitted_reasons:
+            for old_reason in targets_to_replace:
                 if old_reason and old_reason in content:
                     content = re.sub(
                         r"([\'\"])" + re.escape(old_reason) + r"\1",
@@ -1429,9 +1474,9 @@ def apply_approved_slug_repair(
 
     run_metadata = dict(approval_params.get("run_metadata") or {})
     if not run_metadata.get("host_verifier_path"):
-        raw_verifier = _resolve_host_verifier_path(workspace)
+        raw_verifier = run_metadata.get("host_verifier") or _resolve_host_verifier_path(workspace)
         if raw_verifier:
-            run_metadata["host_verifier_path"] = raw_verifier
+            run_metadata["host_verifier_path"] = str(raw_verifier)
 
     base_result: dict[str, Any] = {
         "status": "completed",
