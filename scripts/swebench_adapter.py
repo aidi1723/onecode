@@ -284,21 +284,22 @@ def run_swebench_instance(
     workspace = work_dir / instance_id / "workspace"
     started_at = time.monotonic()
 
+    setup_swebench_workspace(instance, workspace, repo_cache_dir=repo_cache_dir)
+    prompt = format_swebench_prompt(instance)
+
     if dry_run:
-        workspace.mkdir(parents=True, exist_ok=True)
+        model_patch = extract_git_patch(workspace)
         record = {
             "instance_id": instance_id,
-            "model_patch": "",
+            "model_patch": model_patch,
             "model_name_or_path": model,
             "agent_mode": agent_mode,
             "status": "dry_run",
             "duration_s": round(time.monotonic() - started_at, 2),
             "workspace": str(workspace),
+            "prompt_chars": len(prompt),
         }
         return record
-
-    setup_swebench_workspace(instance, workspace, repo_cache_dir=repo_cache_dir)
-    prompt = format_swebench_prompt(instance)
 
     result = run_model_task(
         prompt,
@@ -374,7 +375,8 @@ def main() -> int:
             return 1
         return 0
 
-    load_api_key(args.key_file)
+    if not args.dry_run:
+        load_api_key(args.key_file)
     selected_instances = {item.strip() for item in args.instances.split(",") if item.strip()} if args.instances else None
     instances = load_swebench_instances(args.dataset, selected_instances)
 
