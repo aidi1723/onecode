@@ -6,6 +6,20 @@ from pathlib import Path
 from unittest.mock import patch
 
 
+def _exec_container_name(argv: list[str]) -> str:
+    index = 2
+    while index < len(argv):
+        token = argv[index]
+        if token in {"-w", "-e", "-u", "--user", "--workdir", "--env"}:
+            index += 2
+            continue
+        if token.startswith("-"):
+            index += 1
+            continue
+        return token
+    raise AssertionError(argv)
+
+
 class SandboxTests(unittest.TestCase):
     def test_build_docker_command_mounts_workspace_at_fixed_path(self):
         from onecode.kernel.sandbox import SandboxConfig, build_docker_command
@@ -52,6 +66,8 @@ class SandboxTests(unittest.TestCase):
         self.assertIn("/tmp:rw,noexec,nosuid,size=64m", command)
         self.assertIn("--security-opt", command)
         self.assertIn("no-new-privileges", command)
+        self.assertIn("PYTHONDONTWRITEBYTECODE=1", command)
+        self.assertIn("PYTHONPATH=/workspace:/workspace/tests", command)
         self.assertIn("--user", command)
         self.assertIn(f"{os.getuid()}:{os.getgid()}", command)
         self.assertTrue(any(item.startswith("type=bind,src=") and item.endswith(",dst=/workspace") for item in command))
@@ -80,9 +96,11 @@ class SandboxTests(unittest.TestCase):
 
         self.assertEqual(created[:3], ["docker", "create", "--name"])
         self.assertEqual(created[-2:], ["sleep", "infinity"])
-        self.assertEqual(first[4], second[4])
-        self.assertEqual(first[4], created[3])
-        self.assertTrue(first[4].startswith("onecode-"))
+        self.assertEqual(_exec_container_name(first), _exec_container_name(second))
+        self.assertEqual(_exec_container_name(first), created[3])
+        self.assertTrue(_exec_container_name(first).startswith("onecode-"))
+        self.assertIn("PYTHONDONTWRITEBYTECODE=1", first)
+        self.assertIn("PYTHONDONTWRITEBYTECODE=1", created)
 
     def test_container_argv_uses_the_image_python(self):
         from onecode.kernel.sandbox import container_argv
@@ -170,6 +188,9 @@ class SandboxTests(unittest.TestCase):
                 exists = any(item[:2] == ["docker", "create"] for item in calls)
                 return CompletedProcess(argv, 0 if exists else 1, "", "")
             if argv[:3] == ["docker", "inspect", "-f"]:
+                if "{{.Config.Image}}" in argv:
+                    from onecode.kernel.sandbox import default_sandbox_image
+                    return CompletedProcess(argv, 0, default_sandbox_image() + "\n", "")
                 return CompletedProcess(argv, 0, "true\n", "")
             return CompletedProcess(argv, 0, "ok\n", "")
 
@@ -183,7 +204,30 @@ class SandboxTests(unittest.TestCase):
         self.assertEqual(sum(item[:2] == ["docker", "create"] for item in calls), 1)
         execs = [item for item in calls if item[:2] == ["docker", "exec"]]
         self.assertEqual(len(execs), 2)
-        self.assertEqual(execs[0][4], execs[1][4])
+        self.assertEqual(_exec_container_name(execs[0]), _exec_container_name(execs[1]))
+
+    def test_reused_sandbox_replaces_container_when_image_changes(self) -> None:
+        from subprocess import CompletedProcess
+
+        from onecode.kernel.sandbox import SandboxConfig, run_in_reused_sandbox
+
+        calls: list[list[str]] = []
+
+        def fake_run(argv, **kwargs):
+            calls.append(list(argv))
+            if argv[:2] == ["docker", "inspect"] and len(argv) == 3:
+                return CompletedProcess(argv, 0, "exists\n", "")
+            if argv[:3] == ["docker", "inspect", "-f"] and "{{.Config.Image}}" in argv:
+                return CompletedProcess(argv, 0, "old:image\n", "")
+            if argv[:3] == ["docker", "inspect", "-f"]:
+                return CompletedProcess(argv, 0, "true\n", "")
+            return CompletedProcess(argv, 0, "", "")
+
+        with tempfile.TemporaryDirectory() as tmp, patch("onecode.kernel.sandbox.subprocess.run", side_effect=fake_run):
+            run_in_reused_sandbox(SandboxConfig(workspace=Path(tmp), image="onecode-swebench:py312"), ["python3", "-V"])
+
+        self.assertEqual(sum(item[:3] == ["docker", "rm", "-f"] for item in calls), 1)
+        self.assertEqual(sum(item[:2] == ["docker", "create"] for item in calls), 1)
 
     def test_parallel_reused_sandbox_creates_the_container_once(self):
         import threading
@@ -212,6 +256,9 @@ class SandboxTests(unittest.TestCase):
             with gate:
                 calls.append(list(argv))
             if argv[:3] == ["docker", "inspect", "-f"]:
+                if "{{.Config.Image}}" in argv:
+                    from onecode.kernel.sandbox import default_sandbox_image
+                    return CompletedProcess(argv, 0, default_sandbox_image() + "\n", "")
                 return CompletedProcess(argv, 0, "true\n", "")
             return CompletedProcess(argv, 0, "ok\n", "")
 

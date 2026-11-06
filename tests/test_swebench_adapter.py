@@ -122,6 +122,27 @@ class TestSWEBenchAdapter(unittest.TestCase):
         self.assertEqual(run.call_args.kwargs["max_turns"], 15)
         self.assertEqual(record["reason"], "turn_limit_exhausted")
 
+    def test_run_selects_the_swebench_sandbox_image(self) -> None:
+        import os
+
+        inst = {"instance_id": "mock__image-1", "repo": "mock/repo", "problem_statement": "image"}
+        seen: list[str | None] = []
+
+        def capture(*_args, **_kwargs):
+            seen.append(os.environ.get("ONECODE_SANDBOX_IMAGE"))
+            return {"status": "halted", "reason": "turn_limit_exhausted"}
+
+        with (
+            patch.dict(os.environ, {}, clear=False),
+            patch("scripts.swebench_adapter.setup_swebench_workspace", return_value=self.root),
+            patch("scripts.swebench_adapter.extract_git_patch", return_value=""),
+            patch("scripts.swebench_adapter.run_model_task", side_effect=capture),
+        ):
+            os.environ.pop("ONECODE_SANDBOX_IMAGE", None)
+            run_swebench_instance(inst, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+        self.assertEqual(seen, ["onecode-swebench:py312"])
+        self.assertNotIn("ONECODE_SANDBOX_IMAGE", os.environ)
+
     def test_run_swebench_instance_dry_run(self) -> None:
         inst = {
             "instance_id": "mock__repo-100",

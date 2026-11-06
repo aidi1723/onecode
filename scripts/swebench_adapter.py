@@ -27,6 +27,8 @@ if str(_REPO_ROOT / "src") not in sys.path:
 from onecode.benchmark import evaluate_model_patch, swebench_test_command
 from onecode.kernel.model_loop import run_model_task
 
+SWEBENCH_SANDBOX_IMAGE = "onecode-swebench:py312"
+
 
 def load_api_key(key_file: Path | None) -> str | None:
     if key_file and key_file.is_file():
@@ -355,19 +357,27 @@ def run_swebench_instance(
         }
         return record
 
-    result = run_model_task(
-        prompt,
-        workspace=workspace,
-        run_id=f"swe-{instance_id}",
-        model=model,
-        agent_mode=agent_mode,
-        provider_kind="chat",
-        endpoint=endpoint,
-        execution_approval=lambda _s: True,
-        require_explicit_approval=True,
-        http_timeout_seconds=timeout_seconds,
-        max_turns=max_turns,
-    )
+    previous_image = os.environ.get("ONECODE_SANDBOX_IMAGE")
+    os.environ["ONECODE_SANDBOX_IMAGE"] = (previous_image or "").strip() or SWEBENCH_SANDBOX_IMAGE
+    try:
+        result = run_model_task(
+            prompt,
+            workspace=workspace,
+            run_id=f"swe-{instance_id}",
+            model=model,
+            agent_mode=agent_mode,
+            provider_kind="chat",
+            endpoint=endpoint,
+            execution_approval=lambda _s: True,
+            require_explicit_approval=True,
+            http_timeout_seconds=timeout_seconds,
+            max_turns=max_turns,
+        )
+    finally:
+        if previous_image is None:
+            os.environ.pop("ONECODE_SANDBOX_IMAGE", None)
+        else:
+            os.environ["ONECODE_SANDBOX_IMAGE"] = previous_image
 
     duration_s = round(time.monotonic() - started_at, 2)
     model_patch = extract_git_patch(workspace)

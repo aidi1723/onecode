@@ -66,6 +66,10 @@ def build_docker_command(config: SandboxConfig, command: Sequence[str], name: st
         config.tmpfs,
         "--env",
         "PYTHONSAFEPATH=1",
+        "--env",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "--env",
+        "PYTHONPATH=/workspace:/workspace/tests",
     ])
     if ":" in config.workspace.as_posix():
         raise ValueError("sandbox workspace path must not contain ':'")
@@ -219,7 +223,20 @@ def build_container_create(config: SandboxConfig) -> list[str]:
 def build_container_exec(config: SandboxConfig, command: Sequence[str]) -> list[str]:
     if not command:
         raise ValueError("sandbox command must not be empty")
-    return ["docker", "exec", "-w", "/workspace", workspace_container_name(config.workspace), *command]
+    return [
+        "docker",
+        "exec",
+        "-w",
+        "/workspace",
+        "-e",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "-e",
+        "PYTHONSAFEPATH=1",
+        "-e",
+        "PYTHONPATH=/workspace:/workspace/tests",
+        workspace_container_name(config.workspace),
+        *command,
+    ]
 
 
 _CONTAINER_LOCKS: dict[str, threading.Lock] = {}
@@ -242,33 +259,60 @@ def run_in_reused_sandbox(config: SandboxConfig, command: Sequence[str]) -> subp
         return _run_in_reused_sandbox(config, command, name)
 
 
-def _run_in_reused_sandbox(
-    config: SandboxConfig,
-    command: Sequence[str],
-    name: str,
-) -> subprocess.CompletedProcess[str]:
-    inspected = subprocess.run(["docker", "inspect", name], capture_output=True, text=True, timeout=10, check=False)
+def _container_image_differs(name: str, image: str) -> bool:
+    inspected = subprocess.run(
+        ["docker", "inspect", "-f", "{{.Config.Image}}", name],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
     if inspected.returncode != 0:
-        if "cannot connect to the docker daemon" in inspected.stderr.lower():
-            return inspected
+        return False
+    return inspected.stdout.strip() != image
+
+
+def _ensure_reused_container(config: SandboxConfig, name: str) -> subprocess.CompletedProcess[str] | None:
+    """Start the workspace container, replacing it when the image changed."""
+    inspected = subprocess.run(["docker", "inspect", name], capture_output=True, text=True, timeout=10, check=False)
+    if inspected.returncode != 0 and "cannot connect to the docker daemon" in inspected.stderr.lower():
+        return inspected
+    needs_create = inspected.returncode != 0
+    if inspected.returncode == 0 and _container_image_differs(name, config.image):
+        removed = subprocess.run(["docker", "rm", "-f", name], capture_output=True, text=True, timeout=30, check=False)
+        if removed.returncode != 0:
+            return removed
+        needs_create = True
+    if needs_create:
         created = subprocess.run(build_container_create(config), capture_output=True, text=True, timeout=30, check=False)
         if created.returncode != 0:
             return created
         started = subprocess.run(["docker", "start", name], capture_output=True, text=True, timeout=30, check=False)
         if started.returncode != 0:
             return started
-    else:
-        state = subprocess.run(
-            ["docker", "inspect", "-f", "{{.State.Running}}", name],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            check=False,
-        )
-        if state.returncode != 0 or state.stdout.strip() != "true":
-            started = subprocess.run(["docker", "start", name], capture_output=True, text=True, timeout=30, check=False)
-            if started.returncode != 0:
-                return started
+        return None
+    state = subprocess.run(
+        ["docker", "inspect", "-f", "{{.State.Running}}", name],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    if state.returncode != 0 or state.stdout.strip() != "true":
+        started = subprocess.run(["docker", "start", name], capture_output=True, text=True, timeout=30, check=False)
+        if started.returncode != 0:
+            return started
+    return None
+
+
+def _run_in_reused_sandbox(
+    config: SandboxConfig,
+    command: Sequence[str],
+    name: str,
+) -> subprocess.CompletedProcess[str]:
+    ready = _ensure_reused_container(config, name)
+    if ready is not None:
+        return ready
     try:
         res = subprocess.run(
             build_container_exec(config, command),
