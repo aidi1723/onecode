@@ -86,13 +86,27 @@ def setup_swebench_workspace(
             subprocess.run(["git", "checkout", base_commit], cwd=workspace_dir, capture_output=True, check=False)
         return workspace_dir
 
-    # Check if a cached clone exists
+    # Check if a cached clone exists or initialize via blobless clone
     if repo_cache_dir and repo:
         repo_name = repo.split("/")[-1]
         cached_repo = repo_cache_dir / repo_name
+        if not (cached_repo / ".git").is_dir():
+            cached_repo.parent.mkdir(parents=True, exist_ok=True)
+            subprocess.run(
+                [
+                    "git",
+                    "clone",
+                    "--filter=blob:none",
+                    "--no-checkout",
+                    f"https://github.com/{repo}.git",
+                    str(cached_repo),
+                ],
+                capture_output=True,
+                check=False,
+            )
         if (cached_repo / ".git").is_dir():
             subprocess.run(
-                ["git", "clone", "--no-checkout", str(cached_repo), str(workspace_dir)],
+                ["git", "clone", str(cached_repo), str(workspace_dir)],
                 capture_output=True,
                 check=False,
             )
@@ -342,7 +356,12 @@ def main() -> int:
     parser.add_argument("--instances", type=str, default="", help="Comma-separated instance IDs to run")
     parser.add_argument("--work-dir", type=Path, default=Path("/tmp/onecode_swebench_eval"))
     parser.add_argument("--output", type=Path, default=Path("predictions.jsonl"))
-    parser.add_argument("--repo-cache-dir", type=Path, default=None, help="Directory containing git clones")
+    parser.add_argument(
+        "--repo-cache-dir",
+        type=Path,
+        default=Path.home() / ".onecode" / "swebench_repo_cache",
+        help="Directory containing cached git clones",
+    )
     parser.add_argument("--model", type=str, default="deepseek-v4.1-flash")
     parser.add_argument("--endpoint", type=str, default="https://happycoding.xyz/v1")
     parser.add_argument("--key-file", type=Path, default=Path("/tmp/onecode_happycoding_key"))
