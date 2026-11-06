@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import shlex
+import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -23,7 +24,7 @@ from onecode.kernel.iching_encoding import ACTIVE_RULE_SCHEMA
 from onecode.kernel.path_guard import PathGuard, PathGuardError
 from onecode.kernel.patching import PatchIntent, commit_patch
 from onecode.kernel.runner import run_task
-from onecode.kernel.sandbox import SandboxConfig, build_docker_command
+from onecode.kernel.sandbox import SandboxConfig, build_docker_command, container_argv
 from onecode.kernel.shell_projection import attach_shell_projection
 from onecode.kernel.trace import TraceEvent, write_trace_event
 
@@ -569,6 +570,7 @@ def evaluate_model_patch(
     install: bool = True,
     timeout_seconds: int = 120,
     reference: Path | None = None,
+    sandbox_image: str | None = None,
 ) -> dict[str, Any]:
     """Score one model diff against the official test patch.
 
@@ -610,7 +612,8 @@ def evaluate_model_patch(
         if install_reason is not None:
             result["reason"] = install_reason
             return result
-    before = _run_argv(_instance_test_argv(instance, python_bin), checkout, timeout_seconds)
+    effective_image = sandbox_image or os.environ.get("ONECODE_SANDBOX_IMAGE", "").strip() or None
+    before = _run_argv(_instance_test_argv(instance, python_bin), checkout, timeout_seconds, sandbox_image=effective_image)
     result["before_returncode"] = before
     if before == 0:
         result["reason"] = "tests_already_passing"
@@ -619,7 +622,7 @@ def evaluate_model_patch(
         result["status"] = "unresolved"
         result["reason"] = "model_patch_failed"
         return result
-    after = _run_argv(_instance_test_argv(instance, python_bin), checkout, timeout_seconds)
+    after = _run_argv(_instance_test_argv(instance, python_bin), checkout, timeout_seconds, sandbox_image=effective_image)
     result["after_returncode"] = after
     if after == 0:
         result["status"] = "resolved"
@@ -775,11 +778,42 @@ def _django_label(label: str) -> str:
     return label
 
 
-def _run_argv(argv: list[str], cwd: Path, timeout_seconds: int) -> int:
+def _run_argv(
+    argv: list[str],
+    cwd: Path,
+    timeout_seconds: int,
+    sandbox_image: str | None = None,
+) -> int:
     cache = cwd / "__pycache__"
     if cache.is_dir():
         for child in cache.glob("*.pyc"):
             child.unlink()
+    if sandbox_image and shutil.which("docker") is not None:
+        cmd = [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            f"{cwd.resolve().as_posix()}:/workspace",
+            "-w",
+            "/workspace",
+            "-e",
+            "PYTHONDONTWRITEBYTECODE=1",
+            sandbox_image,
+            *container_argv(argv),
+        ]
+        try:
+            completed = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return -1
+        return completed.returncode
+
     environment = os.environ.copy()
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
     root = str(cwd.resolve())

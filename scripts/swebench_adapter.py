@@ -460,6 +460,12 @@ def score_saved_predictions(
             continue
         instance = official_test_patch(dataset_path, source)
         row_dir = work_dir / f"{index}-{instance_id}"
+        repo = str(instance.get("repo") or "")
+        sandbox_image = None
+        if repo == "django/django":
+            sandbox_image = SWEBENCH_SANDBOX_IMAGE
+        elif repo == "sympy/sympy":
+            sandbox_image = SWEBENCH_SYMPY_IMAGE
         outcome = evaluate_model_patch(
             instance,
             str(record.get("model_patch") or ""),
@@ -468,6 +474,7 @@ def score_saved_predictions(
             install=install,
             timeout_seconds=timeout_seconds,
             reference=reference,
+            sandbox_image=sandbox_image,
         )
         outcome["prediction_row"] = index
         outcome["model_status"] = record.get("status")
