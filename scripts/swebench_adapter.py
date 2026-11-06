@@ -362,7 +362,7 @@ def run_swebench_instance(
     sandbox_image = (previous_image or "").strip()
     repo = str(instance.get("repo") or "")
     if repo == "django/django":
-        if not sandbox_image:
+        if not sandbox_image or sandbox_image == SWEBENCH_SYMPY_IMAGE:
             sandbox_image = SWEBENCH_SANDBOX_IMAGE
     elif repo == "sympy/sympy":
         if not sandbox_image or sandbox_image == SWEBENCH_SANDBOX_IMAGE:

@@ -148,7 +148,9 @@ class TestSWEBenchAdapter(unittest.TestCase):
             os.environ["ONECODE_SANDBOX_IMAGE"] = "onecode-swebench:py312"
             run_swebench_instance(inst, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
             run_swebench_instance(sympy, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
-        self.assertEqual(seen, [None, "onecode-swebench:py312", "onecode-swebench:sympy", None, "onecode-swebench:sympy"])
+            os.environ["ONECODE_SANDBOX_IMAGE"] = "onecode-swebench:sympy"
+            run_swebench_instance(django, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+        self.assertEqual(seen, [None, "onecode-swebench:py312", "onecode-swebench:sympy", None, "onecode-swebench:sympy", "onecode-swebench:py312"])
         self.assertNotIn("ONECODE_SANDBOX_IMAGE", os.environ)
 
     def test_official_test_patches_stay_out_of_prompts(self) -> None:
