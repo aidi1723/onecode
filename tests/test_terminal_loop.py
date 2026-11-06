@@ -1328,6 +1328,21 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
         self.assertEqual(observed.reason, "preset_test_immutable")
         self.assertEqual(session.steps[-1].hexagram_code, 40)
 
+    def test_pycache_pyc_files_do_not_trigger_test_tamper(self) -> None:
+        from unittest.mock import patch
+
+        framework_test = self.workspace / "django" / "test"
+        framework_test.mkdir(parents=True, exist_ok=True)
+        pycache = framework_test / "__pycache__"
+        pycache.mkdir(parents=True, exist_ok=True)
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            session = TerminalSession(self.workspace, "Pycache check", approval_mode="scoped_auto")
+            # Simulate a bytecode file generated during import
+            (pycache / "html.cpython-312.pyc").write_bytes(b"\x00\x01\x02")
+            intact, reason = session.verify_test_files_integrity()
+        self.assertTrue(intact)
+        self.assertEqual(reason, "")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -58,9 +58,11 @@ def is_any_test_path(path: str) -> bool:
     """Identifies test files across Python, Go, TypeScript/JavaScript, Rust, Ruby, etc."""
     if not isinstance(path, str) or not path.strip():
         return False
+    norm = path.replace("\\", "/").casefold()
+    if norm.endswith((".pyc", ".pyo", ".pyd")) or "/__pycache__/" in norm or norm.startswith("__pycache__/"):
+        return False
     if is_preset_test_path(path):
         return True
-    norm = path.replace("\\", "/").casefold()
     if "/tests/" in norm or norm.startswith("tests/") or norm == "tests":
         return True
     if "/test/" in norm or norm.startswith("test/") or norm == "test":
