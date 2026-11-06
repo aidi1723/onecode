@@ -184,6 +184,7 @@ class HostRepairFeedbackTests(unittest.TestCase):
                 False,
             )
         self.assertIn("tests/<new_test>.py", prompt)
+        self.assertIn("fix the test", prompt)
         self.assertNotIn("Change the implementation so the existing tests pass.", prompt)
         self.assertNotIn("Do NOT include execution_plan or assets.", prompt)
         asset_plan = ModelPlan(
@@ -197,6 +198,24 @@ class HostRepairFeedbackTests(unittest.TestCase):
         task = "麻烦只在 tests 下面补一组回归测试，主逻辑先别动。"
         self.assertIsNone(_validate_repair_plan_safety(asset_plan, task)[0])
         self.assertEqual(_validate_repair_plan_safety(source_plan, task)[0], "repair_plan_must_use_patches_only")
+
+    def test_a_low_score_on_a_test_only_task_does_not_rewrite_the_implementation(self) -> None:
+        from onecode.kernel.model_repair import _build_repair_prompt_context, _task_repair_posture
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            prompt, _span, _cooldown, _code = _build_repair_prompt_context(
+                "麻烦只在 tests 下面补一组回归测试，主逻辑先别动。",
+                workspace,
+                {"status": "halted", "reason": "verifier_failed", "host_reward": 0.18, "verifier_results": []},
+                1,
+                {},
+                None,
+                False,
+            )
+        self.assertNotIn("MACRO-REPLAN", prompt)
+        self.assertIn("fix the test", prompt)
+        self.assertEqual(_task_repair_posture("implement the parser", 0.18), "macro")
 
     def test_flat_scores_stop_and_rising_scores_extend_the_budget(self) -> None:
         from onecode.kernel.model_repair import repair_budget_after_score

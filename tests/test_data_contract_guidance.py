@@ -146,6 +146,47 @@ class TestWorkspaceContractSnippet(unittest.TestCase):
         self.assertNotIn("seat_limit_reached", text)
         self.assertNotIn("no_paid_charge", text)
 
+    def test_package_imports_use_the_workspace_package_path(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        from onecode.kernel.model_guidance import _contract_spec_snippet
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "httpx_like"
+            package.mkdir()
+            (package / "__init__.py").write_text("", encoding="utf-8")
+            (package / "request_model.py").write_text("class RequestBuilder:\n    pass\n", encoding="utf-8")
+            (root / "tests").mkdir()
+            (root / "tests" / "__init__.py").write_text("", encoding="utf-8")
+            text = _contract_spec_snippet(root, task="add a request builder")
+        self.assertIn("httpx_like.module", text)
+        self.assertNotIn("tests.module", text)
+        self.assertNotIn("too_recently_active", text)
+
+    def test_docs_design_note_triggers_integer_path_indexes(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        from onecode.kernel.model_guidance import _contract_spec_snippet
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "README.md").write_text("# config validation\n", encoding="utf-8")
+            docs = root / "docs"
+            docs.mkdir()
+            (docs / "design.md").write_text(
+                "validate_config returns (cfg, errors). errors use a path list and a message string.\n",
+                encoding="utf-8",
+            )
+            (root / "reference_repo").mkdir()
+            (root / "reference_repo" / "README.md").write_text("upstream secret\n", encoding="utf-8")
+            text = _contract_spec_snippet(root, task="split config validation")
+        self.assertIn("docs/design.md", text)
+        self.assertIn("integers, not numeric strings", text)
+        self.assertNotIn("upstream secret", text)
+
     def test_cli_json_contract_asks_for_path_and_file_keys(self) -> None:
         import tempfile
         from pathlib import Path

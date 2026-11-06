@@ -789,6 +789,14 @@ def _iter_contract_docs(workspace: Path) -> list[Path]:
         docs.append(path)
         if len(docs) >= 4:
             break
+    docs_dir = workspace / "docs"
+    if docs_dir.is_dir():
+        for path in sorted(docs_dir.glob("*.md")):
+            if path in docs:
+                continue
+            docs.append(path)
+            if len(docs) >= 6:
+                break
     return docs
 
 
@@ -812,6 +820,27 @@ def _contract_shape_rules(corpus: str) -> str:
     return " ".join(rules)
 
 
+def _package_import_rule(workspace: Path | None) -> str:
+    if workspace is None or not workspace.is_dir():
+        return ""
+    packages: list[str] = []
+    for path in sorted(workspace.rglob("__init__.py")):
+        parts = path.relative_to(workspace).parts
+        if any(part in _DOC_SKIP_DIRS or part.startswith(".") for part in parts):
+            continue
+        if len(parts) > 3:
+            continue
+        package = path.parent.relative_to(workspace).as_posix()
+        if package and package not in packages:
+            packages.append(package)
+        if len(packages) >= 6:
+            break
+    if not packages:
+        return ""
+    listed = ", ".join(packages)
+    return f"Import modules inside these packages by package path ({listed}.module), not by a bare module name."
+
+
 def _contract_spec_snippet(workspace: Path | None, max_chars: int = 1500, task: str = "") -> str:
     from onecode.kernel.model_loop import _record_kernel_fault
     if workspace is None or not workspace.is_dir():
@@ -827,6 +856,9 @@ def _contract_spec_snippet(workspace: Path | None, max_chars: int = 1500, task: 
         if text:
             chunks.append(f"Workspace Contract Specification ({path.relative_to(workspace).as_posix()}):\n{text}")
     rules = _contract_shape_rules(f"{task}\n" + "\n".join(chunks))
+    package_rule = _package_import_rule(workspace)
+    if package_rule:
+        rules = f"{rules} {package_rule}".strip()
     rule_block = f"Interface rules:\n{rules}\n\n" if rules else ""
     budget = max(0, max_chars - len(rule_block))
     body_parts: list[str] = []

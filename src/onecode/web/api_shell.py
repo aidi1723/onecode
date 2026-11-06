@@ -706,6 +706,8 @@ def _new_test_prompt(task: str) -> str:
         "Add exactly one new unittest file under tests/.\n"
         "Do not modify any file that already exists under tests/.\n"
         "Do not modify implementation files.\n"
+        "Every new assertion must pass against the current implementation. "
+        "If an environment value, flag, and default disagree, assert the value the existing code already returns.\n"
         "Return one complete JSON asset. Do not return patches, execution_plan, or run_command.\n"
         f"Task: {task}"
     )

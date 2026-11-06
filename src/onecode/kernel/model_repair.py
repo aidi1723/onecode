@@ -822,6 +822,14 @@ def _repair_posture(score: float | None) -> str:
     return "patch"
 
 
+def _task_repair_posture(task: str, score: float | None) -> str:
+    """Keep test-only repairs on the tests. A low score must not rewrite the implementation."""
+    posture = _repair_posture(score)
+    if posture == "macro" and _testing_only_task(task):
+        return "patch"
+    return posture
+
+
 def _append_repair_turn(checked: dict[str, Any], result: dict[str, Any], reason: str) -> None:
     hist = list(checked.get("turn_history") or [])
     hist.append({
@@ -1025,6 +1033,8 @@ def _build_repair_prompt_context(
     if _testing_only_task(task):
         prompt += (
             "\n\nCRITICAL: Do not modify implementation files. "
+            "Every new assertion must pass against the current implementation. "
+            "If the new test fails on unchanged code, fix the test.\n"
             "If the new test file does not exist, return one JSON asset under tests/. "
             'Format: {"task":"modify tests only","assets":[{"path":"tests/<new_test>.py","content":"<complete unittest file>"}]}. '
             "If that file already exists, return patches only for it."
@@ -1203,7 +1213,7 @@ def _finish_verified_task(
 
     attempt = 1
     while attempt <= effective_attempts:
-        posture = _repair_posture(_numeric_reward(current_checked.get("host_reward")))
+        posture = _task_repair_posture(task, _numeric_reward(current_checked.get("host_reward")))
         if posture == "macro" and not macro_done:
             if _snapshot_workspace_files(workspace) != initial_snapshot:
                 _restore_workspace_snapshot(workspace, initial_snapshot)
@@ -1213,7 +1223,7 @@ def _finish_verified_task(
                     return regraded
                 current_checked = regraded
                 current_result = dict(regraded)
-                posture = _repair_posture(_numeric_reward(current_checked.get("host_reward")))
+                posture = _task_repair_posture(task, _numeric_reward(current_checked.get("host_reward")))
             macro_done = True
         prompt, span_id, cooldown_ms, failed_code = _build_repair_prompt_context(
             task=task,

@@ -975,6 +975,7 @@ class OneCodeWebApiTests(unittest.TestCase):
             (root / "click_like" / "options.py").write_text("def parse():\n    return None\n", encoding="utf-8")
             prompt = _shell_write_prompt("麻烦只在 tests 下面补一组回归测试，主逻辑先别动。", root)
         self.assertIn("Add exactly one new unittest file under tests/", prompt)
+        self.assertIn("current implementation", prompt)
         self.assertIn("Do not modify implementation files.", prompt)
         self.assertNotIn("Target: click_like/options.py", prompt)
 
