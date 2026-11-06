@@ -128,6 +128,7 @@ class TestSWEBenchAdapter(unittest.TestCase):
 
         inst = {"instance_id": "mock__image-1", "repo": "mock/repo", "problem_statement": "image"}
         django = {"instance_id": "django__django-11099", "repo": "django/django", "problem_statement": "image"}
+        sympy = {"instance_id": "sympy__sympy-20590", "repo": "sympy/sympy", "problem_statement": "image"}
         seen: list[str | None] = []
 
         def capture(*_args, **_kwargs):
@@ -143,9 +144,11 @@ class TestSWEBenchAdapter(unittest.TestCase):
             os.environ.pop("ONECODE_SANDBOX_IMAGE", None)
             run_swebench_instance(inst, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
             run_swebench_instance(django, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(sympy, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
             os.environ["ONECODE_SANDBOX_IMAGE"] = "onecode-swebench:py312"
             run_swebench_instance(inst, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
-        self.assertEqual(seen, [None, "onecode-swebench:py312", None])
+            run_swebench_instance(sympy, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+        self.assertEqual(seen, [None, "onecode-swebench:py312", "onecode-swebench:sympy", None, "onecode-swebench:sympy"])
         self.assertNotIn("ONECODE_SANDBOX_IMAGE", os.environ)
 
     def test_official_test_patches_stay_out_of_prompts(self) -> None:

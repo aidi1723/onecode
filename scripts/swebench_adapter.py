@@ -28,6 +28,7 @@ from onecode.benchmark import evaluate_model_patch, swebench_test_command
 from onecode.kernel.model_loop import run_model_task
 
 SWEBENCH_SANDBOX_IMAGE = "onecode-swebench:py312"
+SWEBENCH_SYMPY_IMAGE = "onecode-swebench:sympy"
 
 
 def load_api_key(key_file: Path | None) -> str | None:
@@ -363,8 +364,10 @@ def run_swebench_instance(
     if repo == "django/django":
         if not sandbox_image:
             sandbox_image = SWEBENCH_SANDBOX_IMAGE
-    elif sandbox_image == SWEBENCH_SANDBOX_IMAGE:
-        # The django py312 image must not be used for non-django repositories
+    elif repo == "sympy/sympy":
+        if not sandbox_image or sandbox_image == SWEBENCH_SANDBOX_IMAGE:
+            sandbox_image = SWEBENCH_SYMPY_IMAGE
+    elif sandbox_image in {SWEBENCH_SANDBOX_IMAGE, SWEBENCH_SYMPY_IMAGE}:
         sandbox_image = ""
     if sandbox_image:
         os.environ["ONECODE_SANDBOX_IMAGE"] = sandbox_image
