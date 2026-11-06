@@ -971,6 +971,20 @@ def handle_onecode_pending_approvals(params: dict[str, Any]) -> tuple[dict[str, 
     }, 200
 
 
+def _extract_resolved_slug(body: dict[str, Any]) -> str:
+    if "selected_slug" in body and isinstance(body["selected_slug"], str) and body["selected_slug"].strip():
+        return body["selected_slug"].strip()
+    resolution = body.get("resolution")
+    if isinstance(resolution, str) and resolution.strip():
+        return resolution.strip()
+    if isinstance(resolution, dict):
+        for key in ("short_code", "reason", "selected_slug", "slug", "code"):
+            val = resolution.get(key)
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+    return ""
+
+
 def _record_resolved_approval(workspace: Path, approval_id: str, tool_name: str, body: dict[str, Any]) -> None:
     res_dir = workspace / ".onecode"
     res_dir.mkdir(parents=True, exist_ok=True)
@@ -1015,10 +1029,23 @@ def handle_onecode_approval_resolve(approval_id: str, body: dict[str, Any]) -> t
         "tool_name": match["tool_name"],
         "params": match["params"],
     }
-    if "resolution" in body:
-        res_payload["resolution"] = body["resolution"]
-    if "selected_slug" in body:
-        res_payload["selected_slug"] = body["selected_slug"]
+    selected_slug = _extract_resolved_slug(body)
+    if selected_slug:
+        res_payload["selected_slug"] = selected_slug
+        res_payload["resolution"] = body.get("resolution") or {"short_code": selected_slug}
+        _record_resolved_approval(workspace, approval_id, str(match["tool_name"]), body)
+        if match["tool_name"] == "clarify_decision_reason":
+            from onecode.kernel.cycle_approvals import consume_pending_approval
+            from onecode.kernel.model_repair import apply_approved_slug_repair
+
+            regraded = apply_approved_slug_repair(workspace, match["params"], selected_slug)
+            consume_pending_approval(workspace, str(match["tool_name"]), match["params"])
+            res_payload["regraded"] = regraded
+            res_payload["host_reward"] = regraded.get("host_reward")
+            res_payload["repair_applied"] = True
+            res_payload["repair_status"] = regraded.get("status")
+            return res_payload, 200
+
     if "resolution" in body or "selected_slug" in body:
         _record_resolved_approval(workspace, approval_id, str(match["tool_name"]), body)
 

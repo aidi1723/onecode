@@ -754,7 +754,7 @@ def _compute_repair_cooldown(
 def _snapshot_workspace_files(workspace: Path) -> dict[str, str]:
     snapshot: dict[str, str] = {}
     for p in workspace.rglob("*"):
-        if p.is_file() and not any(part in {".git", "__pycache__", ".venv"} for part in p.parts):
+        if p.is_file() and not any(part in {".git", "__pycache__", ".venv", ".onecode"} for part in p.parts):
             try:
                 rel = p.relative_to(workspace).as_posix()
                 snapshot[rel] = p.read_text(encoding="utf-8")
@@ -766,7 +766,7 @@ def _snapshot_workspace_files(workspace: Path) -> dict[str, str]:
 def _restore_workspace_snapshot(workspace: Path, snapshot: dict[str, str]) -> None:
     current_files: set[str] = set()
     for p in workspace.rglob("*"):
-        if p.is_file() and not any(part in {".git", "__pycache__", ".venv"} for part in p.parts):
+        if p.is_file() and not any(part in {".git", "__pycache__", ".venv", ".onecode"} for part in p.parts):
             try:
                 current_files.add(p.relative_to(workspace).as_posix())
             except ValueError:
@@ -1304,7 +1304,9 @@ def _maybe_open_reason_clarification_approval(
     tested: dict[str, Any],
     current_checked: dict[str, Any],
     best_checked: dict[str, Any],
-    attempt: int,
+    attempt: int = 1,
+    best_snapshot: dict[str, str] | None = None,
+    run_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """When visible contract lacks reason enum and repair stagnates, open a pending approval."""
     if _contract_has_reason_enum(workspace):
@@ -1333,6 +1335,8 @@ def _maybe_open_reason_clarification_approval(
         "failing_checks": failing_checks or ["policy_decision_check"],
         "emitted_reasons": emitted_reasons,
         "stalled_reward": best_rew,
+        "best_snapshot": best_snapshot or _snapshot_workspace_files(workspace),
+        "run_metadata": run_metadata or {},
         "question": "Specification does not enumerate allowed reason codes. Select or specify the expected short code before continuing.",
     }
     return persist_pending_approval(workspace, tool_name, params)
@@ -1346,6 +1350,7 @@ def _handle_repair_budget_stop(
     best_checked: dict[str, Any],
     best_snapshot: dict[str, str],
     attempt: int,
+    run_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     delivered = _deliver_best_repair(workspace, current_checked, best_checked, best_snapshot)
     delivered["repair_attempt_count"] = attempt
@@ -1356,6 +1361,8 @@ def _handle_repair_budget_stop(
         current_checked=current_checked,
         best_checked=best_checked,
         attempt=attempt,
+        best_snapshot=best_snapshot,
+        run_metadata=run_metadata,
     )
     if approval is not None:
         delivered["status"] = "halted"
@@ -1365,6 +1372,86 @@ def _handle_repair_budget_stop(
         delivered["approval_status"] = approval.get("status", "PENDING_APPROVAL")
         _append_repair_turn(delivered, delivered, "approval_required")
     return delivered
+
+
+def apply_approved_slug_repair(
+    workspace: Path,
+    approval_params: dict[str, Any],
+    selected_slug: str,
+) -> dict[str, Any]:
+    """Resume from highest-scoring snapshot, apply engineer-provided reason short code, and re-grade."""
+    if not selected_slug:
+        return {"status": "unchanged", "reason": "no_slug_provided"}
+
+    best_snapshot = approval_params.get("best_snapshot")
+    if isinstance(best_snapshot, dict) and best_snapshot:
+        _restore_workspace_snapshot(workspace, best_snapshot)
+
+    emitted_reasons = approval_params.get("emitted_reasons") or _extract_emitted_reasons(workspace)
+    skip_dirs = {".git", ".onecode", "__pycache__", ".venv", "tests"}
+    modified_paths: list[str] = []
+
+    for py_file in sorted(workspace.rglob("*.py")):
+        if any(part in skip_dirs for part in py_file.relative_to(workspace).parts):
+            continue
+        try:
+            content = py_file.read_text(encoding="utf-8")
+            orig = content
+            for old_reason in emitted_reasons:
+                if old_reason and old_reason in content:
+                    content = re.sub(
+                        r"([\'\"])" + re.escape(old_reason) + r"\1",
+                        r"\g<1>" + selected_slug + r"\g<1>",
+                        content,
+                    )
+            if content != orig:
+                py_file.write_text(content, encoding="utf-8")
+                modified_paths.append(py_file.relative_to(workspace).as_posix())
+        except (OSError, UnicodeDecodeError):
+            pass
+
+    for json_file in sorted(workspace.glob("**/decisions.json")):
+        try:
+            content = json_file.read_text(encoding="utf-8")
+            orig = content
+            for old_reason in emitted_reasons:
+                if old_reason and old_reason in content:
+                    content = re.sub(
+                        r"([\'\"])" + re.escape(old_reason) + r"\1",
+                        r"\g<1>" + selected_slug + r"\g<1>",
+                        content,
+                    )
+            if content != orig:
+                json_file.write_text(content, encoding="utf-8")
+                modified_paths.append(json_file.relative_to(workspace).as_posix())
+        except (OSError, UnicodeDecodeError):
+            pass
+
+    run_metadata = dict(approval_params.get("run_metadata") or {})
+    if not run_metadata.get("host_verifier_path"):
+        raw_verifier = _resolve_host_verifier_path(workspace)
+        if raw_verifier:
+            run_metadata["host_verifier_path"] = raw_verifier
+
+    base_result: dict[str, Any] = {
+        "status": "completed",
+        "reason": None,
+        "host_reward": approval_params.get("stalled_reward", 0.0),
+        "modified_paths": modified_paths,
+    }
+    regraded = _with_sandbox_tests(base_result, workspace, run_metadata.get("sandbox_config"))
+    regraded = _apply_external_host_grade(regraded, workspace, run_metadata)
+    new_reward = _numeric_reward(regraded.get("host_reward"))
+    if new_reward is not None and new_reward >= 1.0 - 1e-9:
+        regraded["status"] = "completed"
+        regraded["reason"] = None
+        regraded["partial"] = False
+    elif new_reward is not None:
+        regraded["status"] = "completed"
+        regraded["partial"] = True
+        regraded["reason"] = "verifier_failed" if new_reward < 1.0 else None
+
+    return regraded
 
 
 def _reset_macro_posture_if_needed(
@@ -1536,7 +1623,7 @@ def _finish_verified_task(
         current_result = dict(current_checked)
         if stop:
             return _handle_repair_budget_stop(
-                workspace, task, tested, current_checked, best_checked, best_snapshot, attempt
+                workspace, task, tested, current_checked, best_checked, best_snapshot, attempt, run_metadata
             )
         attempt += 1
     delivered = _deliver_best_repair(workspace, current_checked, best_checked, best_snapshot)

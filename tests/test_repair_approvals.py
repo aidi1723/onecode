@@ -237,6 +237,102 @@ class RepairApprovalGateTests(unittest.TestCase):
             resolved_data = json.loads(resolved_file.read_text(encoding="utf-8"))
             self.assertEqual(len(resolved_data), 1)
             self.assertEqual(resolved_data[0]["resolution"], {"short_code": "engineer_selected_slug"})
+            self.assertTrue(res_payload.get("repair_applied"))
+            # Pending approval was consumed
+            self.assertEqual(len(load_pending_approvals(root)), 0)
+
+    def test_breakpoint_resume_single_turn_applies_slug_and_regrades_to_full_score(self) -> None:
+        from unittest.mock import patch
+        from onecode.kernel.model_repair import _handle_repair_budget_stop
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            root = Path(tmp)
+            (root / "README.md").write_text("# Coupon Policy\nOutput status and reason.\n", encoding="utf-8")
+            policy_py = root / "coupon.py"
+            policy_py.write_text(
+                'def evaluate():\n    return {"eligible": False, "reason": "recent_activity"}\n',
+                encoding="utf-8",
+            )
+
+            # Create an external verifier script in a sibling directory outside workspace
+            verifier_dir = Path(tmp).parent / "test_verifier"
+            verifier_dir.mkdir(parents=True, exist_ok=True)
+            verifier_script = verifier_dir / "verify_coupon.py"
+            verifier_script.write_text(
+                "import json, sys, os\n"
+                "from pathlib import Path\n"
+                "ws = Path(os.environ.get('WORKSPACE', '.'))\n"
+                "log_dir = Path(os.environ.get('LOG_DIR', '.'))\n"
+                "content = (ws / 'coupon.py').read_text(encoding='utf-8')\n"
+                "if 'approved_by_engineer' in content:\n"
+                "    (log_dir / 'reward.txt').write_text('1.0')\n"
+                "    tests = [{'name': f't{i}', 'passed': True} for i in range(13)]\n"
+                "    (log_dir / 'reward.json').write_text(json.dumps({'tests_passed': 13, 'tests_total': 13, 'tests': tests}))\n"
+                "    sys.exit(0)\n"
+                "else:\n"
+                "    (log_dir / 'reward.txt').write_text('0.9231')\n"
+                "    tests = [{'name': f't{i}', 'passed': i != 0} for i in range(13)]\n"
+                "    (log_dir / 'reward.json').write_text(json.dumps({'tests_passed': 12, 'tests_total': 13, 'tests': tests}))\n"
+                "    sys.exit(1)\n",
+                encoding="utf-8",
+            )
+
+            run_metadata = {"host_verifier_path": str(verifier_script)}
+            tested = {
+                "status": "completed",
+                "reason": "verifier_failed",
+                "host_reward": 0.9231,
+                "verifier_results": [{"stdout_tail": "- [FAIL] test_coupon_reason\n"}],
+            }
+            best_snapshot = {"coupon.py": policy_py.read_text(encoding="utf-8")}
+
+            delivered = _handle_repair_budget_stop(
+                workspace=root,
+                task="implement coupon policy",
+                tested=tested,
+                current_checked=tested,
+                best_checked=tested,
+                best_snapshot=best_snapshot,
+                attempt=3,
+                run_metadata=run_metadata,
+            )
+
+            self.assertEqual(delivered["status"], "halted")
+            self.assertEqual(delivered["reason"], "approval_required")
+            pending_id = delivered["pending_approval_id"]
+
+            # Engineer resolves approval with the selected slug
+            resolve_body = {
+                "workspace": str(root),
+                "decision": "approved",
+                "selected_slug": "approved_by_engineer",
+            }
+            res_payload, code = handle_onecode_approval_resolve(pending_id, resolve_body)
+
+            self.assertEqual(code, 200)
+            self.assertEqual(res_payload["status"], "approved")
+            self.assertTrue(res_payload["repair_applied"])
+            self.assertEqual(res_payload["host_reward"], 1.0)
+            self.assertEqual(res_payload["repair_status"], "completed")
+
+            # Check that coupon.py was modified with the engineer-supplied slug
+            updated_content = policy_py.read_text(encoding="utf-8")
+            self.assertIn('"approved_by_engineer"', updated_content)
+            self.assertNotIn('"recent_activity"', updated_content)
+
+            # Check approval was consumed
+            self.assertEqual(len(load_pending_approvals(root)), 0)
+
+            # Cleanup verifier dir
+            try:
+                verifier_script.unlink(missing_ok=True)
+                verifier_dir.rmdir()
+            except OSError:
+                pass
 
     def test_zero_hidden_slugs_in_kernel_source(self) -> None:
         """Verify strict constraint: verifier slugs must not be hardcoded in the kernel."""
