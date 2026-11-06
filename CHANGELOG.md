@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-06 - SWE-bench subset closeout
+
+Version stays 1.1.0. No new hexagram was added. `classify_outcome` was not edited. `claims_mainstream_parity` stays false. The record is `docs/closure/ONECODE_SWEBENCH_SUBSET_CLOSEOUT_2026-11-06.md`. Measured code is `834abbb`. Two local instances, `django__django-11099` and `sympy__sympy-20590`, finished with `finish`. That record is not a SWE-bench Docker score.
+
 ## 2026-10-29 - Robust injected test runner and defensive contract guidance
 
 Version stays 1.0.0. No new hexagram was added. `classify_outcome` was not edited. `claims_mainstream_parity` stays false.
