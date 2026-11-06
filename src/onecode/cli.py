@@ -17,6 +17,10 @@ from onecode.cli_commands.configuration import (
     dispatch_configuration_command,
     register_configuration_commands,
 )
+from onecode.cli_commands.approvals import (
+    dispatch_approvals_command,
+    register_approvals_commands,
+)
 from onecode.cli_commands.release import dispatch_release_command, register_release_commands
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.model_config import read_bounded_response
@@ -354,6 +358,7 @@ def build_parser() -> argparse.ArgumentParser:
     register_read_only_commands(subparsers)
 
     register_configuration_commands(subparsers)
+    register_approvals_commands(subparsers)
     register_release_commands(subparsers)
 
     subparsers.add_parser("audit-self")
@@ -1042,6 +1047,10 @@ def main(argv: list[str] | None = None) -> int:
     configuration_exit_code = dispatch_configuration_command(args, parser)
     if configuration_exit_code is not None:
         return configuration_exit_code
+
+    approvals_exit_code = dispatch_approvals_command(args)
+    if approvals_exit_code is not None:
+        return approvals_exit_code
 
     release_exit_code = dispatch_release_command(args, parser)
     if release_exit_code is not None:

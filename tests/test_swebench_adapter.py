@@ -12,6 +12,8 @@ from scripts.swebench_adapter import (
     load_swebench_instances,
     run_swebench_instance,
     setup_swebench_workspace,
+    validate_unified_diff,
+    verify_predictions_dataset,
 )
 
 
@@ -89,6 +91,73 @@ class TestSWEBenchAdapter(unittest.TestCase):
         self.assertEqual(res["instance_id"], "mock__repo-100")
         self.assertEqual(res["agent_mode"], "terminal")
         self.assertTrue(Path(res["workspace"]).is_dir())
+
+    def test_validate_unified_diff(self) -> None:
+        empty_res = validate_unified_diff("")
+        self.assertTrue(empty_res["valid"])
+        self.assertTrue(empty_res["empty"])
+        self.assertEqual(empty_res["files"], [])
+
+        valid_patch = (
+            "diff --git a/pkg/mod.py b/pkg/mod.py\n"
+            "index 111..222 100644\n"
+            "--- a/pkg/mod.py\n"
+            "+++ b/pkg/mod.py\n"
+            "@@ -1,2 +1,3 @@\n"
+            "-old_line\n"
+            "+new_line_1\n"
+            "+new_line_2\n"
+        )
+        res = validate_unified_diff(valid_patch)
+        self.assertTrue(res["valid"])
+        self.assertFalse(res["empty"])
+        self.assertEqual(res["files"], ["pkg/mod.py"])
+        self.assertEqual(res["additions"], 2)
+        self.assertEqual(res["deletions"], 1)
+
+        unsafe_patch = (
+            "diff --git a/.git/config b/.git/config\n"
+            "--- a/.git/config\n"
+            "+++ b/.git/config\n"
+            "@@ -1 +1 @@\n"
+            "+evil=true\n"
+        )
+        unsafe_res = validate_unified_diff(unsafe_patch)
+        self.assertFalse(unsafe_res["valid"])
+        self.assertFalse(unsafe_res["is_safe"])
+
+    def test_verify_predictions_dataset(self) -> None:
+        missing = verify_predictions_dataset(self.root / "none.jsonl", self.root / "d.jsonl")
+        self.assertEqual(missing["status"], "error")
+
+        ds_path = self.root / "dataset.jsonl"
+        ds_path.write_text(
+            json.dumps({"instance_id": "inst-1", "repo": "repo/a", "problem_statement": "p1"}) + "\n",
+            encoding="utf-8",
+        )
+
+        pred_path = self.root / "predictions.jsonl"
+        pred_lines = [
+            json.dumps({
+                "instance_id": "inst-1",
+                "model_patch": "diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -1 +1 @@\n+fixed\n",
+                "status": "completed",
+            }),
+            json.dumps({
+                "instance_id": "inst-2",
+                "model_patch": "",
+                "status": "failed",
+            }),
+        ]
+        pred_path.write_text("\n".join(pred_lines) + "\n", encoding="utf-8")
+
+        audit = verify_predictions_dataset(pred_path, ds_path)
+        self.assertEqual(audit["status"], "verified")
+        self.assertEqual(audit["dataset_total"], 1)
+        self.assertEqual(audit["predictions_count"], 2)
+        self.assertEqual(audit["matched_count"], 1)
+        self.assertEqual(audit["valid_patch_count"], 1)
+        self.assertEqual(audit["empty_patch_count"], 1)
 
 
 if __name__ == "__main__":

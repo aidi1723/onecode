@@ -136,6 +136,115 @@ def extract_git_patch(workspace_dir: Path) -> str:
     return "".join(filtered_lines)
 
 
+def validate_unified_diff(patch: str) -> dict[str, Any]:
+    """Validate unified diff format and extract affected files and stats."""
+    if not patch or not patch.strip():
+        return {
+            "valid": True,
+            "empty": True,
+            "is_safe": True,
+            "files": [],
+            "additions": 0,
+            "deletions": 0,
+            "line_count": 0,
+        }
+
+    lines = patch.splitlines()
+    files: list[str] = []
+    additions = 0
+    deletions = 0
+    has_diff_header = False
+
+    for line in lines:
+        if line.startswith("diff --git "):
+            has_diff_header = True
+            parts = line.strip().split()
+            if len(parts) >= 4:
+                file_path = parts[3].removeprefix("b/")
+                if file_path not in files:
+                    files.append(file_path)
+        elif line.startswith("+") and not line.startswith("+++"):
+            additions += 1
+        elif line.startswith("-") and not line.startswith("---"):
+            deletions += 1
+
+    is_safe = not any(
+        f.startswith(".git/") or f.startswith(".onecode/") or ".." in f.split("/")
+        for f in files
+    )
+
+    return {
+        "valid": has_diff_header and is_safe,
+        "empty": False,
+        "is_safe": is_safe,
+        "files": files,
+        "additions": additions,
+        "deletions": deletions,
+        "line_count": len(lines),
+    }
+
+
+def verify_predictions_dataset(
+    predictions_path: Path,
+    dataset_path: Path,
+) -> dict[str, Any]:
+    """Verify predictions file against a SWE-bench dataset."""
+    if not dataset_path.is_file():
+        return {
+            "status": "error",
+            "reason": f"Dataset file not found: {dataset_path}",
+            "predictions_count": 0,
+        }
+    if not predictions_path.is_file():
+        return {
+            "status": "error",
+            "reason": f"Predictions file not found: {predictions_path}",
+            "predictions_count": 0,
+        }
+    instances = {inst["instance_id"]: inst for inst in load_swebench_instances(dataset_path)}
+
+    records: list[dict[str, Any]] = []
+    matched_count = 0
+    valid_patch_count = 0
+    empty_patch_count = 0
+
+    for line in predictions_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        iid = str(rec.get("instance_id") or "")
+        patch_str = str(rec.get("model_patch") or "")
+        audit = validate_unified_diff(patch_str)
+        matched = iid in instances
+        if matched:
+            matched_count += 1
+        if audit.get("empty"):
+            empty_patch_count += 1
+        elif audit.get("valid"):
+            valid_patch_count += 1
+
+        records.append({
+            "instance_id": iid,
+            "matched_dataset": matched,
+            "patch_audit": audit,
+            "status": rec.get("status"),
+            "duration_s": rec.get("duration_s"),
+        })
+
+    return {
+        "status": "verified",
+        "dataset_total": len(instances),
+        "predictions_count": len(records),
+        "matched_count": matched_count,
+        "valid_patch_count": valid_patch_count,
+        "empty_patch_count": empty_patch_count,
+        "records": records,
+    }
+
+
 def format_swebench_prompt(instance: dict[str, Any]) -> str:
     """Formats issue problem statement and hints for the agent."""
     instance_id = instance.get("instance_id", "unknown_instance")
@@ -244,7 +353,26 @@ def main() -> int:
     )
     parser.add_argument("--timeout", type=float, default=600.0)
     parser.add_argument("--dry-run", action="store_true", help="Prepare workspace and print plan without model execution")
+    parser.add_argument(
+        "--verify-predictions",
+        type=Path,
+        default=None,
+        help="Path to predictions.jsonl to audit and verify against dataset without running model",
+    )
     args = parser.parse_args()
+
+    if args.verify_predictions:
+        report = verify_predictions_dataset(args.verify_predictions, args.dataset)
+        print(f"Predictions Audit Status: {report.get('status')}")
+        print(f"Dataset Total: {report.get('dataset_total')}")
+        print(f"Predictions Count: {report.get('predictions_count')}")
+        print(f"Matched Instances: {report.get('matched_count')}")
+        print(f"Valid Patches: {report.get('valid_patch_count')}")
+        print(f"Empty Patches: {report.get('empty_patch_count')}")
+        if report.get("status") != "verified":
+            print(f"Error: {report.get('reason')}")
+            return 1
+        return 0
 
     load_api_key(args.key_file)
     selected_instances = {item.strip() for item in args.instances.split(",") if item.strip()} if args.instances else None
