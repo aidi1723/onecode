@@ -73,6 +73,17 @@ class TestSWEBenchAdapter(unittest.TestCase):
         self.assertIn("UsernameValidator allows trailing newline", prompt)
         self.assertIn("Check contrib.auth.validators", prompt)
 
+        inst_with_checks = {
+            "instance_id": "django__django-11099",
+            "repo": "django/django",
+            "problem_statement": "UsernameValidator allows trailing newline",
+            "FAIL_TO_PASS": '["test_ascii_validator", "test_unicode_validator"]',
+        }
+        prompt_with_checks = format_swebench_prompt(inst_with_checks)
+        self.assertIn("Expected Verification Targets:", prompt_with_checks)
+        self.assertIn("- test_ascii_validator", prompt_with_checks)
+        self.assertIn("- test_unicode_validator", prompt_with_checks)
+
     def test_run_swebench_instance_dry_run(self) -> None:
         inst = {
             "instance_id": "mock__repo-100",

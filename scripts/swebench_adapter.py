@@ -268,11 +268,23 @@ def verify_predictions_dataset(
 
 
 def format_swebench_prompt(instance: dict[str, Any]) -> str:
-    """Formats issue problem statement and hints for the agent."""
+    """Formats issue problem statement, hints, and target verification checks for the agent."""
     instance_id = instance.get("instance_id", "unknown_instance")
     repo = instance.get("repo", "unknown_repo")
     problem = instance.get("problem_statement", "").strip()
     hints = instance.get("hints_text", "").strip()
+    fail_to_pass_raw = instance.get("FAIL_TO_PASS")
+
+    target_checks: list[str] = []
+    if isinstance(fail_to_pass_raw, str) and fail_to_pass_raw.strip():
+        try:
+            parsed = json.loads(fail_to_pass_raw)
+            if isinstance(parsed, list):
+                target_checks = [str(x) for x in parsed if x]
+        except json.JSONDecodeError:
+            target_checks = [fail_to_pass_raw.strip()]
+    elif isinstance(fail_to_pass_raw, list):
+        target_checks = [str(x) for x in fail_to_pass_raw if x]
 
     prompt_parts = [
         f"You are an expert autonomous software engineer solving SWE-bench issue '{instance_id}' for repo '{repo}'.",
@@ -282,6 +294,14 @@ def format_swebench_prompt(instance: dict[str, Any]) -> str:
     ]
     if hints:
         prompt_parts.extend(["", "## Additional Hints:", hints])
+    if target_checks:
+        prompt_parts.extend([
+            "",
+            "## Expected Verification Targets:",
+            "Your solution must resolve all of the following expected verification targets. "
+            "Please ensure that all relevant locations, classes, and components mentioned across these checks are addressed "
+            "(do not stop after fixing only the first target):",
+        ] + [f"- {tc}" for tc in target_checks])
     prompt_parts.extend([
         "",
         "Please investigate the codebase, identify root causes, apply minimal surgical patches, "

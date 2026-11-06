@@ -1100,6 +1100,21 @@ class TestTerminalModelLoopIntegration(unittest.TestCase):
         self.assertNotEqual(wrote.reason, "preset_test_immutable")
         self.assertEqual((self.workspace / "src" / "app.py").read_text(encoding="utf-8"), "ok")
 
+    def test_imported_framework_module_with_dynamic_import_is_not_blocked(self) -> None:
+        from unittest.mock import patch
+
+        pkg = self.workspace / "framework"
+        pkg.mkdir(exist_ok=True)
+        (pkg / "__init__.py").write_text("import importlib\ndef load(x):\n    return importlib.import_module(x)\n", encoding="utf-8")
+        with patch.dict("os.environ", {"ONECODE_RUN_COMMAND_SANDBOX": "host"}):
+            session = TerminalSession(self.workspace, "Framework import", approval_mode="scoped_auto")
+            obs = session.execute_action(TerminalAction(
+                action_type="command",
+                command=("python3", "-c", "import framework; print('loaded')"),
+            ))
+        self.assertEqual(obs.exit_code, 0)
+        self.assertNotEqual(obs.reason, "preset_test_immutable")
+
     def test_subprocess_interpreter_writes_are_blocked_before_execution(self) -> None:
         from unittest.mock import patch
 

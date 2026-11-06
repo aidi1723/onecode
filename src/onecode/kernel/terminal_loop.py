@@ -255,7 +255,13 @@ def _local_module_file(workspace: Path, module: str) -> Path | None:
     return None
 
 
-def _source_write_target(workspace: Path, source: str, seen: set[Path], depth: int = 0) -> str:
+def _source_write_target(
+    workspace: Path,
+    source: str,
+    seen: set[Path],
+    depth: int = 0,
+    is_test_context: bool = True,
+) -> str:
     """Return a test write hidden in this source or in a workspace module it imports."""
     if depth > 6:
         return "a computed execution"
@@ -265,9 +271,10 @@ def _source_write_target(workspace: Path, source: str, seen: set[Path], depth: i
     executed = _dynamic_execution_target(workspace, source, seen, depth)
     if executed:
         return executed
-    dynamic = _unproven_dynamic_import(source)
-    if dynamic:
-        return dynamic
+    if is_test_context:
+        dynamic = _unproven_dynamic_import(source)
+        if dynamic:
+            return dynamic
     for module in _module_names(source):
         path = _local_module_file(workspace, module)
         if path is None or path in seen:
@@ -277,7 +284,9 @@ def _source_write_target(workspace: Path, source: str, seen: set[Path], depth: i
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeError):
             return path.name
-        nested = _source_write_target(workspace, text, seen, depth)
+        rel_path = str(path.relative_to(workspace)) if path.is_relative_to(workspace) else str(path)
+        in_test = is_any_test_path(rel_path)
+        nested = _source_write_target(workspace, text, seen, depth + 1, is_test_context=in_test)
         if nested:
             return nested
     return ""
@@ -307,7 +316,8 @@ def _module_flag_write_target(workspace: Path, module: str) -> str:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError):
         return module
-    return _source_write_target(workspace, text, {path})
+    rel_path = str(path.relative_to(workspace)) if path.is_relative_to(workspace) else str(path)
+    return _source_write_target(workspace, text, {path}, depth=1, is_test_context=is_any_test_path(rel_path))
 
 
 _EXECUTION_CALLS = (
@@ -364,7 +374,7 @@ def _file_write_target(workspace: Path, relative: str, seen: set[Path] | None = 
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError):
         return relative
-    return _source_write_target(workspace, text, seen, depth)
+    return _source_write_target(workspace, text, seen, depth=depth + 1, is_test_context=is_any_test_path(relative))
 
 
 def _execution_argument_target(
@@ -703,7 +713,8 @@ def _workspace_python_write_target(
         text = candidate.read_text(encoding="utf-8")
     except (OSError, UnicodeError, ValueError):
         return cmd_tokens[1]
-    return _source_write_target(workspace, text, seen, depth)
+    rel_path = str(candidate.relative_to(root)) if candidate.is_relative_to(root) else str(candidate)
+    return _source_write_target(workspace, text, seen, depth=depth + 1, is_test_context=is_any_test_path(rel_path))
 
 
 def _eval_script_text(cmd_tokens: tuple[str, ...]) -> str:
