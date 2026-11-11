@@ -125,6 +125,7 @@ OneCode uses a deterministic cybernetic finite-state automaton (64-state Boolean
 ### Training & Benchmarking
 - [Training Data Generation](superpowers/specs/2026-07-10-onecode-training-benchmark-rule-schema-design.md)
 - [Evidence Chain Performance](superpowers/specs/2026-06-02-onecode-evidence-chain-performance-balance-design.md)
+- **[scripts/token_projection_benchmark.py](../scripts/token_projection_benchmark.py)** - Reproducible zero-API benchmark verifying `90.32%` `shell_projection` compression, `98.74%` checkpoint telemetry decoupling reduction (`ONECODE_SYMBOLIC_TELEMETRY=0` vs `1`), and bundled archive manifest counts (`tests/test_token_benchmark.py`)
 - List benchmarks: `onecode benchmark`
 - Run benchmarks: `onecode benchmark --run --workspace-root /tmp/bench`
 

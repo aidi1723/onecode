@@ -8,6 +8,15 @@ from typing import Any
 
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.preset_tests import is_preset_test_path
+from onecode.kernel.symbolic_telemetry import (
+    compute_systemic_intervention,
+    resolve_state_governance_mode,
+    symbolic_telemetry_enabled,
+)
+
+
+def _label_tag(base: str, symbolic_tag: str, symbolic: bool) -> str:
+    return f"{base} ({symbolic_tag})" if symbolic else base
 
 _RELATIVE_PYTHON = r"((?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]+\.py)"
 _NAMED_PYTHON_FILE = re.compile(rf"(?<![\w./-]){_RELATIVE_PYTHON}\b")
@@ -136,16 +145,22 @@ def narrow_plan_prompt(task: str, failure: dict[str, Any], written: list[str] | 
     )
 
 
-def data_contract_guidance(task: str) -> str:
+def data_contract_guidance(task: str, *, symbolic: bool | None = None) -> str:
     task_lower = task.lower()
+    use_symbolic = symbolic_telemetry_enabled() if symbolic is None else symbolic
     rules: list[str] = []
 
     def match(phrase_pat: str) -> bool:
         return bool(re.search(rf"(?:^|[\s\-_])(?:{phrase_pat})(?:$|[\s\-_])", task_lower))
 
     if match(r"invoices?|billing|credit[_\s-]+notes?") or any(k in task for k in ("账单", "发票")):
+        hdr = _label_tag(
+            "For invoice line and tabular exports",
+            "Tianfu-Tianxiang Stamp & Command Contract 府相朝垣·印令昭明",
+            use_symbolic,
+        )
         rules.append(
-            "For invoice line and tabular exports (Tianfu-Tianxiang Stamp & Command Contract 府相朝垣·印令昭明): "
+            f"{hdr}: "
             "write pure UTF-8 encoding (never use utf-8-sig or write UTF-8 BOM bytes); "
             "properly quote string values with commas so they round trip in single CSV cells; "
             "ensure numeric calculations (quantity * unit price, taxes, credits, and line totals) are mathematically consistent; "
@@ -179,8 +194,13 @@ def data_contract_guidance(task: str) -> str:
             "generate accurate summary statistics of filled and clipped counts per numeric column."
         )
     if match(r"schema[_\s-]+drift|drift[_\s-]+detection") or any(k in task for k in ("模式漂移", "架构漂移")):
+        hdr = _label_tag(
+            "For schema drift audit",
+            "Tianxiang Yintie · Audit Schema Contract 天相印绶·规范审计",
+            use_symbolic,
+        )
         rules.append(
-            "For schema drift audit (Tianxiang Yintie · Audit Schema Contract 天相印绶·规范审计): "
+            f"{hdr}: "
             "validate each record systematically against declared schema definitions; "
             "check missing required fields, type mismatches, enum violations, and unexpected properties in a single atomic pass; "
             "treat valid integer inputs as acceptable for numeric float constraints; "
@@ -188,15 +208,25 @@ def data_contract_guidance(task: str) -> str:
             "preserve stable input row ordering in output."
         )
     if match(r"time[_\s-]+leakage|temporal[_\s-]+leakage|feature[_\s-]+leakage") or any(k in task for k in ("时间泄漏", "时序穿越")):
+        hdr = _label_tag(
+            "For time leakage audit",
+            "Tianliang Canopy Audit 荫星照微·截止容限",
+            use_symbolic,
+        )
         rules.append(
-            "For time leakage audit (Tianliang Canopy Audit 荫星照微·截止容限): "
+            f"{hdr}: "
             "verify that feature timestamps do not exceed configured cutoff times plus declared tolerance windows; "
             "partition clean training samples from time-leaking samples into designated clean and rejected outputs; "
             "preserve input ordering for clean records and record detailed leakage diagnostics."
         )
     if match(r"support[_\s-]+sla|service[_\s-]+level[_\s-]+agreement") or (match(r"sla") and match(r"tickets?|support|customer[_\s-]+service")) or "工单履约" in task:
+        hdr = _label_tag(
+            "For support SLA metrics",
+            "Tianxiang Inspection 督考巡历·工单履约",
+            use_symbolic,
+        )
         rules.append(
-            "For support SLA metrics (Tianxiang Inspection 督考巡历·工单履约): "
+            f"{hdr}: "
             "compute response and resolution times accurately against declared service level agreements (SLA thresholds); "
             "identify SLA misses consistently for overdue or missing responses; "
             "aggregate team-level performance metrics and round numerical averages appropriately."
@@ -440,14 +470,15 @@ def format_verifier_diagnostics(stdout: str, stderr: str) -> str:
     return "\n".join(diagnostics)
 
 
-def _extract_targeted_assertions(error_parts: list[str]) -> list[str]:
+def _extract_targeted_assertions(error_parts: list[str], *, symbolic: bool = False) -> list[str]:
     alerts: list[str] = []
     matched_assertion = False
+    target_hdr = _label_tag("- Precision assertion target", "水生木·精准断言", symbolic)
     for ep in error_parts:
         m = re.search(r"(AssertionError: [^\n]+)", ep)
         if m:
             alerts.append(
-                f"- Precision assertion target (水生木·精准断言): {m.group(1).strip()}. Focus surgical edit directly on resolving this discrepancy; do not repeat previous values."
+                f"{target_hdr}: {m.group(1).strip()}. Focus surgical edit directly on resolving this discrepancy; do not repeat previous values."
             )
             matched_assertion = True
             break
@@ -468,7 +499,7 @@ def _extract_targeted_assertions(error_parts: list[str]) -> list[str]:
     if not matched_assertion and failing_checks:
         first = failing_checks[0]
         alerts.append(
-            f"- Precision assertion target (水生木·精准断言): Failing test check '{first}'. Focus surgical edit directly on satisfying this test condition."
+            f"{target_hdr}: Failing test check '{first}'. Focus surgical edit directly on satisfying this test condition."
         )
         if any(term in first.lower() for term in ("blocked", "denied", "allowed", "approved", "reason", "status")):
             alerts.append(
@@ -478,8 +509,9 @@ def _extract_targeted_assertions(error_parts: list[str]) -> list[str]:
 
     if len(failing_checks) > 1:
         items_str = ", ".join(f"'{c}'" for c in failing_checks[:8])
+        array_hdr = _label_tag("- Precision assertion array", "三方四正·全量断言照会", symbolic)
         alerts.append(
-            f"- Precision assertion array (三方四正·全量断言照会): Multiple failing checks detected: [{items_str}]. Satisfy all test assertions simultaneously."
+            f"{array_hdr}: Multiple failing checks detected: [{items_str}]. Satisfy all test assertions simultaneously."
         )
 
     passing_checks: list[str] = []
@@ -490,24 +522,28 @@ def _extract_targeted_assertions(error_parts: list[str]) -> list[str]:
                 passing_checks.append(pname)
     if passing_checks:
         pass_str = ", ".join(f"'{c}'" for c in passing_checks[:6])
+        base_hdr = _label_tag("- Preserved baseline tests", "三台八座·既得吉果不可毁", symbolic)
+        suffix = " (吉处藏凶·防范冲破)" if symbolic else ""
         alerts.append(
-            f"- Preserved baseline tests (三台八座·既得吉果不可毁): Previous run PASSED: [{pass_str}]. "
-            "Your patch MUST preserve all passing tests and strictly avoid regression (吉处藏凶·防范冲破)."
+            f"{base_hdr}: Previous run PASSED: [{pass_str}]. "
+            f"Your patch MUST preserve all passing tests and strictly avoid regression{suffix}."
         )
 
     for ep in error_parts:
         m_exc = re.search(r"((?:KeyError|FileNotFoundError|UnicodeError|UnicodeDecodeError|ValueError|AttributeError|ZeroDivisionError|IndexError): [^\n]+)", ep)
         if m_exc:
+            exc_hdr = _label_tag("- Hidden runtime anomaly", "铃星隐煞·天相印信昭明", symbolic)
             alerts.append(
-                f"- Hidden runtime anomaly (铃星隐煞·天相印信昭明): {m_exc.group(1).strip()}. "
+                f"{exc_hdr}: {m_exc.group(1).strip()}. "
                 "Check file existence, pure UTF-8 encoding (no BOM bytes), and exact key/header matching."
             )
             break
 
     for ep in error_parts:
         if any(token in ep.lower() for token in ("empty", "zerodivision", "keyerror", "iterable argument is empty")):
+            bound_hdr = _label_tag("- Boundary opposition guard", "错卦互补·空集与极值防线", symbolic)
             alerts.append(
-                "- Boundary opposition guard (错卦互补·空集与极值防线): Defend against empty inputs/token lists, "
+                f"{bound_hdr}: Defend against empty inputs/token lists, "
                 "missing dictionary keys, and boundary conditions. Never call max()/min()/next() on empty collections; supply safe fallbacks."
             )
             break
@@ -515,95 +551,49 @@ def _extract_targeted_assertions(error_parts: list[str]) -> list[str]:
     for fc in failing_checks:
         fc_low = fc.lower()
         if "credit" in fc_low or "line_total" in fc_low:
+            acct_hdr = _label_tag("- Accounting adjustment rule", "府相朝垣·库印分明", symbolic)
             alerts.append(
-                "- Accounting adjustment rule (府相朝垣·库印分明): For credit, discount, or deduction entries, "
+                f"{acct_hdr}: For credit, discount, or deduction entries, "
                 "ensure positive voucher amounts are recorded distinctly from negative net balance reductions, "
                 "maintaining mathematical ledger consistency."
             )
             break
         if "score" in fc_low or "clipped" in fc_low or "format" in fc_low:
+            fmt_hdr = _label_tag("- Canonical number formatting", "文昌化科·整型规范", symbolic)
             alerts.append(
-                "- Canonical number formatting (文昌化科·整型规范): In CSV outputs, "
+                f"{fmt_hdr}: In CSV outputs, "
                 "format whole numbers without trailing '.0' (e.g. write '1' not '1.0', '0' not '0.0')."
             )
             break
     return alerts
 
 
-def _tuo_luo_stagnation_alert(turn_history: list[dict[str, Any]]) -> list[str]:
+def _tuo_luo_stagnation_alert(turn_history: list[dict[str, Any]], *, symbolic: bool = False) -> list[str]:
     alerts: list[str] = []
     if len(turn_history) >= 2:
         last = turn_history[-1]
         if last.get("reason") in {"verifier_failed", "command_failed", "repair_plan_must_use_patches_only"}:
+            hdr = _label_tag("- Stagnation warning", "陀罗暗滞·化权破滞", symbolic)
             alerts.append(
-                "- Stagnation warning (陀罗暗滞·化权破滞): Previous repair attempt did not resolve the failure. "
+                f"{hdr}: Previous repair attempt did not resolve the failure. "
                 "Pivot decisively: check README.md contract specifications, exact field and column naming, "
                 "edge cases (empty collections, zero values), and adjust implementation strategy rather than minor tweaks."
             )
     return alerts
 
 
-def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details: list[str]) -> list[str]:
-    """Derive targeted Ziwei diagnostic guidance for the repair prompt."""
-    guidance: list[str] = []
-    trace = failed_result.get("execution_trace", {})
-
-    # 1. Causal Root Trace (来因宫溯源)
-    error_parts: list[str] = []
-    for v in failed_result.get("verifier_results", []):
-        if isinstance(v, dict):
-            stderr = v.get("stderr_tail")
-            stdout = v.get("stdout_tail")
-            reason = v.get("reason")
-            if stderr:
-                error_parts.append(str(stderr))
-            if stdout:
-                error_parts.append(str(stdout))
-            if reason:
-                error_parts.append(str(reason))
-    if isinstance(trace, dict):
-        for rr in trace.get("runner_results", []):
-            if isinstance(rr, dict):
-                reason = rr.get("reason")
-                payload = rr.get("payload")
-                if reason:
-                    error_parts.append(str(reason))
-                if payload:
-                    error_parts.append(str(payload))
-
-    turn_history = failed_result.get("turn_history", [])
-    if error_parts and turn_history:
-        combined_errors = "\n".join(error_parts)
-        cause = IchingKernel.causal_origin_profile(combined_errors, turn_history)
-        if cause:
-            guidance.append(
-                f"- Causal root trace (来因宫 {cause['incoming_branch']}): Error originates from modifications in {cause['culprit_file']} (Turn {cause['incoming_turn_id']}). Focus patches on resolving this file."
-            )
-
-    # Water Nourishing Wood & Tuo Luo/Ling Xing Diagnostics
-    guidance.extend(_extract_targeted_assertions(error_parts))
-    guidance.extend(_tuo_luo_stagnation_alert(turn_history))
-
-    # 2. Comprehensive Ziwei Pattern Matrix Guidance (格局矩阵诊断)
-    str_result = str(failed_result).lower()
-    combined_details = " ".join(failure_details).lower()
-    has_truncation = "truncated" in str_result or "truncated" in combined_details
-    has_verifier_fail = failed_result.get("status") in {"halted", "failed"} or "verifier" in combined_details
-    syntax_error_count = sum(1 for d in failure_details if any(k in d.lower() for k in ("syntaxerror", "patch_mismatch", "invalid_model_plan")))
-    undefined_symbols_count = sum(1 for d in failure_details if any(k in d.lower() for k in ("nameerror", "importerror", "has no attribute", "modulenotfounderror")))
-
-    raw_status = failed_result.get("task_status_code")
-    if raw_status is None:
-        raw_status = failed_result.get("iching_status_code")
-    try:
-        resolved_status = int(raw_status) if raw_status is not None else 32
-    except (ValueError, TypeError):
-        resolved_status = 32
-
-    consecutive_repair_stalls = sum(
-        1 for t in turn_history[1:] if t.get("reason") in {"verifier_failed", "command_failed", "repair_plan_must_use_patches_only"}
-    ) if len(turn_history) >= 2 else 0
-
+def _append_symbolic_diagnostic_alerts(
+    guidance: list[str],
+    *,
+    resolved_status: int,
+    turn_history: list[dict[str, Any]],
+    has_truncation: bool,
+    has_verifier_fail: bool,
+    syntax_error_count: int,
+    undefined_symbols_count: int,
+    consecutive_repair_stalls: int,
+    str_result: str,
+) -> None:
     pattern_profile = IchingKernel.ziwei_pattern_matrix_profile(
         turn_number=len(turn_history) + 1,
         current_status=resolved_status,
@@ -636,7 +626,6 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
             "- Verifier failure (化忌入官禄): Test suite assertion failed. Focus surgical edits directly on the failing assertion requirements."
         )
 
-    # 3. Execution Anchorage & Fallback Shelter (身宫寄托)
     anchorage = IchingKernel.shen_gong_anchorage_profile(
         turn_number=len(turn_history) + 1,
         current_status=resolved_status,
@@ -649,14 +638,12 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
             f"- Execution shelter (身宫寄托·{anchorage['palace_name']}): {anchorage['shelter_guidance']}"
         )
 
-    # 4. Star Brightness & Degraded Protection (星曜庙旺落陷)
     brightness = IchingKernel.star_brightness_profile(resolved_status, pattern_level=pattern_profile.get("level"))
     if brightness.get("governance_mode") == "degraded":
         guidance.append(
             f"- Degraded protection mode (星曜落陷·{brightness['brightness_label']}): Energy unstable. Disallow full-file rewrite; limit actions to surgical diff or traceback inspection."
         )
 
-    # 5. Flying Sihua Cascade & Dynamic Clash Defense (跨宫飞星与级联四化防御)
     cascade = IchingKernel.flying_sihua_cascade_profile(
         turn_number=len(turn_history) + 1,
         status_code=resolved_status,
@@ -670,13 +657,142 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
             "- Opposite clash alert (化忌冲破): Opposite palace clash detected. Do not modify peripheral files; isolate changes to the culprit module."
         )
 
-    # 6. Structural & Coupling Alerts (破格/把宫当星/全参数联动)
     guidance.extend(_ziwei_structural_alerts(resolved_status))
-
-    # 7. Jie Shen Relief & Sui Po Defense (解神化煞与岁破防御)
     guidance.extend(_recovery_defense_alerts(has_verifier_fail, turn_history, resolved_status))
 
+
+def _append_engineering_diagnostic_alerts(
+    guidance: list[str],
+    *,
+    resolved_status: int,
+    has_truncation: bool,
+    has_verifier_fail: bool,
+    syntax_error_count: int,
+    undefined_symbols_count: int,
+    consecutive_repair_stalls: int,
+) -> None:
+    if has_verifier_fail and has_truncation:
+        guidance.append(
+            "- Deadlock alert: Verifier failed while context/file was truncated. Do NOT attempt to rewrite the entire file. Emit surgical search_block/replace_block patches targeting only changed lines."
+        )
+    elif consecutive_repair_stalls >= 2 and not any("Stagnation warning" in g for g in guidance):
+        guidance.append(
+            "- Stagnation warning: Repair attempt yielded identical failures. The previous repair hypothesis failed. Pivot away from previous logic and revise core calculations."
+        )
+    elif syntax_error_count > 0:
+        guidance.append(
+            "- Frantic retry warning: Repeated syntax or patch mismatch errors. Take a step back and examine the file outline carefully before submitting another patch."
+        )
+    elif undefined_symbols_count > 0:
+        guidance.append(
+            "- Hallucination alert: Undefined symbols or missing modules detected. Only reference imports and symbols that exist in the workspace or Python standard library."
+        )
+    elif has_verifier_fail:
+        guidance.append(
+            "- Verifier failure: Test suite assertion failed. Focus surgical edits directly on the failing assertion requirements."
+        )
+
+    if resolve_state_governance_mode(resolved_status) == "degraded":
+        guidance.append(
+            "- Degraded protection mode: Energy unstable. Disallow full-file rewrite; limit actions to surgical diff or traceback inspection."
+        )
+    interv = compute_systemic_intervention(resolved_status)
+    if interv.get("turn_budget_damping_factor", 1.0) < 1.0:
+        guidance.append("- Overload cooldown alert: System entropy too high. Enforce cooldown and surgical micro-patches.")
+    elif interv.get("force_wal_checkpoint_sync"):
+        guidance.append("- Preservation alert: System inertia high. Enforce state preservation and incremental commit.")
+
+
+def format_repair_diagnostics(
+    failed_result: dict[str, Any],
+    failure_details: list[str],
+    *,
+    symbolic: bool | None = None,
+) -> list[str]:
+    """Derive targeted engineering diagnostics (and opt-in symbolic telemetry) for repair prompts."""
+    use_symbolic = symbolic_telemetry_enabled() if symbolic is None else symbolic
+    guidance: list[str] = []
+    trace = failed_result.get("execution_trace", {})
+
+    error_parts: list[str] = []
+    for v in failed_result.get("verifier_results", []):
+        if isinstance(v, dict):
+            for key in ("stderr_tail", "stdout_tail", "reason"):
+                val = v.get(key)
+                if val:
+                    error_parts.append(str(val))
+    if isinstance(trace, dict):
+        for rr in trace.get("runner_results", []):
+            if isinstance(rr, dict):
+                for key in ("reason", "payload"):
+                    val = rr.get(key)
+                    if val:
+                        error_parts.append(str(val))
+
+    turn_history = failed_result.get("turn_history", [])
+    if error_parts and turn_history:
+        cause = IchingKernel.causal_origin_profile("\n".join(error_parts), turn_history)
+        if cause:
+            root_hdr = (
+                f"- Causal root trace (来因宫 {cause['incoming_branch']})"
+                if use_symbolic
+                else "- Causal root trace"
+            )
+            guidance.append(
+                f"{root_hdr}: Error originates from modifications in {cause['culprit_file']} (Turn {cause['incoming_turn_id']}). Focus patches on resolving this file."
+            )
+
+    guidance.extend(_extract_targeted_assertions(error_parts, symbolic=use_symbolic))
+    guidance.extend(_tuo_luo_stagnation_alert(turn_history, symbolic=use_symbolic))
+
+    str_result = str(failed_result).lower()
+    combined_details = " ".join(failure_details).lower()
+    has_truncation = "truncated" in str_result or "truncated" in combined_details
+    has_verifier_fail = failed_result.get("status") in {"halted", "failed"} or "verifier" in combined_details
+    syntax_error_count = sum(1 for d in failure_details if any(k in d.lower() for k in ("syntaxerror", "patch_mismatch", "invalid_model_plan")))
+    undefined_symbols_count = sum(1 for d in failure_details if any(k in d.lower() for k in ("nameerror", "importerror", "has no attribute", "modulenotfounderror")))
+
+    raw_status = failed_result.get("task_status_code")
+    if raw_status is None:
+        raw_status = failed_result.get("iching_status_code")
+    try:
+        resolved_status = int(raw_status) if raw_status is not None else 32
+    except (ValueError, TypeError):
+        resolved_status = 32
+
+    consecutive_repair_stalls = sum(
+        1 for t in turn_history[1:] if t.get("reason") in {"verifier_failed", "command_failed", "repair_plan_must_use_patches_only"}
+    ) if len(turn_history) >= 2 else 0
+
+    if use_symbolic:
+        _append_symbolic_diagnostic_alerts(
+            guidance,
+            resolved_status=resolved_status,
+            turn_history=turn_history,
+            has_truncation=has_truncation,
+            has_verifier_fail=has_verifier_fail,
+            syntax_error_count=syntax_error_count,
+            undefined_symbols_count=undefined_symbols_count,
+            consecutive_repair_stalls=consecutive_repair_stalls,
+            str_result=str_result,
+        )
+    else:
+        _append_engineering_diagnostic_alerts(
+            guidance,
+            resolved_status=resolved_status,
+            has_truncation=has_truncation,
+            has_verifier_fail=has_verifier_fail,
+            syntax_error_count=syntax_error_count,
+            undefined_symbols_count=undefined_symbols_count,
+            consecutive_repair_stalls=consecutive_repair_stalls,
+        )
+
     return guidance
+
+
+def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details: list[str]) -> list[str]:
+    """Backward-compatible wrapper returning repair diagnostics with symbolic tags enabled."""
+    return format_repair_diagnostics(failed_result, failure_details, symbolic=True)
 
 
 def _ziwei_structural_alerts(resolved_status: int) -> list[str]:
@@ -956,9 +1072,9 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
     )
     if closest_hints:
         prompt += "Patch context hints:\n" + "\n\n".join(closest_hints) + "\n"
-    ziwei_hints = _format_ziwei_repair_guidance(failed_result, failure_details)
-    if ziwei_hints:
-        prompt += "Diagnostic guidance:\n" + "\n".join(ziwei_hints) + "\n"
+    diag_hints = format_repair_diagnostics(failed_result, failure_details)
+    if diag_hints:
+        prompt += "Diagnostic guidance:\n" + "\n".join(diag_hints) + "\n"
     fault_hints: list[str] = []
     if workspace is not None and workspace.is_dir():
         try:
@@ -969,7 +1085,8 @@ def repair_prompt(task: str, failed_result: dict[str, Any], workspace: Path | No
             locations = locator.locate_fault(corpus)
             target_locations = [loc for loc in locations if not loc.is_test_file][:3]
             if target_locations:
-                fault_hints.append("Fault localization (天相印绶·符号溯源定位):")
+                fault_hdr = _label_tag("Fault localization", "天相印绶·符号溯源定位", symbolic_telemetry_enabled())
+                fault_hints.append(f"{fault_hdr}:")
                 ws_files = failed_result.setdefault("workspace_files", {})
                 for loc in target_locations:
                     fault_hints.append(

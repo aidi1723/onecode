@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -2717,10 +2718,21 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
             (p / "app.py").write_text("print('test')\n")
             _enrich_bureau_and_brightness_metadata(p, meta)
 
-        self.assertIn("pattern_breaking", meta)
-        self.assertIn("tri_level_time_flow", meta)
-        self.assertIn("palace_star_duality", meta)
-        self.assertIn("governance_mode", meta)
+        self.assertNotIn("pattern_breaking", meta)
+        self.assertNotIn("tri_level_time_flow", meta)
+        self.assertNotIn("palace_star_duality", meta)
+        self.assertEqual(meta["governance_mode"], "degraded")
+
+        sym_meta = {"iching_status_code": 39}
+        with tempfile.TemporaryDirectory() as td, patch.dict(os.environ, {"ONECODE_SYMBOLIC_TELEMETRY": "1"}):
+            p = Path(td)
+            (p / "app.py").write_text("print('test')\n")
+            _enrich_bureau_and_brightness_metadata(p, sym_meta)
+
+        self.assertIn("pattern_breaking", sym_meta)
+        self.assertIn("tri_level_time_flow", sym_meta)
+        self.assertIn("palace_star_duality", sym_meta)
+        self.assertIn("governance_mode", sym_meta)
 
     def test_format_ziwei_repair_guidance_includes_breaking_and_palace_star(self):
         from onecode.kernel.model_loop import _format_ziwei_repair_guidance
@@ -2875,12 +2887,13 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
     def test_recovery_defense_alerts_with_resolved_status(self):
         from onecode.kernel.model_loop import _recovery_defense_alerts
 
-        alerts = _recovery_defense_alerts(
-            has_verifier_fail=True,
-            turn_history=[{"turn_id": 1}],
-            resolved_status=40,
-        )
-        self.assertTrue(any("Jie Shen relief active" in a for a in alerts))
+        with patch.dict(os.environ, {"ONECODE_SYMBOLIC_TELEMETRY": "1"}):
+            alerts = _recovery_defense_alerts(
+                has_verifier_fail=True,
+                turn_history=[{"turn_id": 1}],
+                resolved_status=40,
+            )
+            self.assertTrue(any("Jie Shen relief active" in a for a in alerts))
 
 
     def test_repair_prompt_includes_verifier_stdout_and_stderr(self):
@@ -3062,8 +3075,12 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
         from onecode.kernel.model_loop import data_contract_guidance
 
         guidance = data_contract_guidance("导出账单明细 CSV 表格")
-        self.assertIn("府相朝垣·印令昭明", guidance)
+        self.assertIn("For invoice line and tabular exports:", guidance)
+        self.assertNotIn("府相朝垣·印令昭明", guidance)
         self.assertIn("never use utf-8-sig", guidance)
+        with patch.dict(os.environ, {"ONECODE_SYMBOLIC_TELEMETRY": "1"}):
+            sym_guidance = data_contract_guidance("导出账单明细 CSV 表格")
+            self.assertIn("府相朝垣·印令昭明", sym_guidance)
 
     def test_format_ziwei_repair_guidance_tuo_luo_and_hidden_runtime_anomaly(self):
         from onecode.kernel.model_loop import _format_ziwei_repair_guidance

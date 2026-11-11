@@ -38,6 +38,8 @@ OneCode 是一个**自托管、受控工程预览级（Bounded Preview）**自�
 ### 2. Token Reduction & Compact Context Projection / 颠覆性 Token 节省与紧凑投影
 - **Structured Shell State Projection (`shell_projection`)**: Instead of appending raw file dumps and full terminal logs every turn, OneCode projects minimal structured deltas and failure evidence across turns.  
   **紧凑状态差分投影（`shell_projection`）**：用结构化差分与最小必要失败证据替代逐轮拼接海量全文，避免多轮对话上下文雪球式爆炸。
+  - **Reproducible Zero-API Offline Compression Benchmark (`scripts/token_projection_benchmark.py`)**: Running `PYTHONPATH=src python3 scripts/token_projection_benchmark.py --json` locally verifies **`90.32%`** serialized UTF-8 byte reduction across 4 synthetic multi-turn workloads via `project_run_to_shell` (`56,929 B` raw -> `5,511 B` projected), and **`98.74%`** checkpoint telemetry byte reduction across 8 turns when optional symbolic telemetry is decoupled (`155,736 B` -> `1,959 B`). *(Note: uses `chars/4` heuristic token estimates over synthetic reference payloads with zero API calls; external Trilogy comparator logs remain unbundled.)*  
+    **零 API 离线可复现压缩基准（`scripts/token_projection_benchmark.py`）**：本地零密钥复现脚本对 4 组多轮工业合成轨迹执行真实 `project_run_to_shell` 投影，实测将原始运行负载从 `56,929 B` 压缩至 `5,511 B`（**`-90.32%`**），同时剥离可选符号遥测后检查点体积从 `155,736 B` 降至 `1,959 B`（**`-98.74%`**）。
 - **Industrial Trilogy Benchmark (OneCode vs Claude Code v2.1.150, Intel N100 4C4T, DeepSeek-V4.1-Flash, 78 tests)**:  
   **工业生产三部曲实测对比（同硬件与同一 DeepSeek-V4.1-Flash 底座，共 78 项测试）**：
   - **Discrete Manufacturing (Option A — PackML / OEE)**: Claude `899k` vs **OneCode `133k` Tokens (`-85.2%`)**  
@@ -182,6 +184,8 @@ $$\text{Delivery}(R) \iff \text{AssetsComplete}(R) \land \big(\text{ExitCode}(\t
   **规则闭合原则**：外部工程事实仅作为物证输入（`external facts are evidence, not law`），必须收敛映射至统一的 `6-bit status_code`、双极阻尼压力与五相传递矩阵代数状态面，严禁引入平行的经验打分控制变量。
 - **Rule Discovery Protocol**: `Bug reports are rule-gap probes`. When a task encounters an unmapped runtime failure or stalled state, the fix path adds a failing regression test, collapses the physical evidence into a `6-bit status_code` / balanced five-element feedback transition, or emits a deterministic `discover` boundary transition, verified via manifest, ledger, and checkpoint evidence.  
   **规则发现协议**：缺陷报告视为规则缺口探针；新增回归测试后将物证塌缩至确定性状态转移或 `discover` 边界，并由 manifest、账本与检查点共同校验闭环。
+- **Decoupled Symbolic Telemetry (`ONECODE_SYMBOLIC_TELEMETRY`)**: Default execution paths (tool gating in `execution_engine`, checkpoint snapshots in `checkpoint`, `recovery_status` backoff, and `model_guidance` repair prompts) use pure deterministic `6-bit` state logic and plain engineering terminology (`ONECODE_SYMBOLIC_TELEMETRY` unset/`0`). Extended symbolic/observability payloads and `onecode math-audit` certificates are strictly opt-in (`ONECODE_SYMBOLIC_TELEMETRY=1`) and never alter deterministic state transitions.  
+  **符号遥测解耦设计（`ONECODE_SYMBOLIC_TELEMETRY`）**：热路径工具门禁、检查点落盘、恢复退避与修复提示词默认仅输出纯工程确定性指标与状态码；扩展符号遥测字段默认关闭（按需设置 `ONECODE_SYMBOLIC_TELEMETRY=1` 开启），做到遥测皮肤与确定性内核零耦合、且不改变任何状态转移裁决。
 
 ---
 
@@ -210,6 +214,10 @@ bash scripts/verify.sh
 
 # Local v0.7 verification workflow demo / 本地门禁演示工作流
 bash scripts/demo_v07.sh
+
+# Reproducible zero-API adversarial security & token compression benchmarks / 零密钥安全拦截与投影压缩基准
+PYTHONPATH=src python3 scripts/security_benchmark.py
+PYTHONPATH=src python3 scripts/token_projection_benchmark.py --json
 
 # Environment diagnostics & automaton math audit / 环境自检与状态机公理审计
 PYTHONPATH=src python3 -m onecode doctor

@@ -18,6 +18,12 @@ from onecode.kernel.checkpoint import write_ledger
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.path_guard import PathGuard, PathGuardError
 from onecode.kernel.preset_tests import is_preset_test_path
+from onecode.kernel.symbolic_telemetry import (
+    compute_cycle_gain_multiplier,
+    compute_systemic_intervention,
+    resolve_state_governance_mode,
+    symbolic_telemetry_enabled,
+)
 
 
 def _same_step_retry(failure: dict[str, Any] | None) -> bool:
@@ -409,13 +415,7 @@ def _resolve_governance_mode(run_metadata: dict[str, Any]) -> str:
     if raw_status is not None:
         try:
             status_int = int(raw_status)
-            brightness_mode = str(IchingKernel.star_brightness_profile(status_int).get("governance_mode", "autonomous"))
-            if brightness_mode == "degraded":
-                return "degraded"
-            breaking = IchingKernel.pattern_breaking_profile(status_int)
-            if breaking.get("execution_posture") in ("partially_broken_degraded", "severely_broken_quarantine"):
-                return "degraded"
-            return brightness_mode
+            return resolve_state_governance_mode(status_int)
         except (TypeError, ValueError, KeyError) as ex:
             _record_kernel_fault("governance_mode", ex)
     if os.environ.get("ONECODE_GOVERNANCE_MODE"):
@@ -739,9 +739,13 @@ def _compute_repair_cooldown(
             attempt_count=max(0, attempt - 1),
             status_code=failed_code,
         )
-        jie = rec.get("jie_shen_relief", {})
-        if jie.get("relief_effective"):
-            damping = float(jie.get("damping_factor", 0.75))
+        damping_raw = rec.get("lyapunov_damping_factor")
+        if damping_raw is None:
+            jie = rec.get("jie_shen_relief", {})
+            if jie.get("relief_effective"):
+                damping_raw = jie.get("damping_factor", 0.75)
+        if damping_raw is not None:
+            damping = float(damping_raw)
             if damping > 0:
                 base_ms = cooldown_ms if cooldown_ms > 0 else (50 if attempt >= 2 else 0)
                 if base_ms > 0:
@@ -1060,36 +1064,49 @@ def _build_repair_prompt_context(
     return prompt, span_id, cooldown_ms, failed_code
 
 
+def _apply_repair_state_interventions(
+    run_metadata: dict[str, Any],
+    failed_code: int,
+    attempt: int,
+    cooldown_ms: int,
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    from onecode.kernel.model_loop import _record_kernel_fault
+
+    state_gov_mode = resolve_state_governance_mode(failed_code)
+    repair_gov_mode = (
+        "degraded"
+        if attempt >= 2 or run_metadata.get("governance_mode") == "degraded"
+        else state_gov_mode
+    )
+    metadata: dict[str, Any] = {
+        **run_metadata,
+        "governance_mode": repair_gov_mode,
+        "cooldown_pause_ms": cooldown_ms,
+    }
+    if extra:
+        metadata.update(extra)
+    try:
+        interv = compute_systemic_intervention(failed_code)
+        if interv.get("force_wal_checkpoint_sync"):
+            metadata["force_wal_checkpoint_sync"] = True
+        if interv.get("adaptive_cooldown_ms", 0) > 0:
+            metadata["cooldown_pause_ms"] = interv["adaptive_cooldown_ms"]
+        if symbolic_telemetry_enabled():
+            metadata["star_brightness"] = IchingKernel.star_brightness_profile(failed_code)
+            metadata["systemic_coupling"] = IchingKernel.systemic_coupling_profile(hexagram_state=failed_code)
+    except (TypeError, ValueError, KeyError, ImportError) as ex:
+        _record_kernel_fault("repair_coupling", ex)
+    return metadata
+
+
 def _build_repair_metadata(
     run_metadata: dict[str, Any],
     failed_code: int,
     attempt: int,
     cooldown_ms: int,
 ) -> dict[str, Any]:
-    from onecode.kernel.model_loop import _record_kernel_fault
-    repair_brightness = IchingKernel.star_brightness_profile(failed_code)
-    repair_gov_mode = (
-        "degraded"
-        if attempt >= 2 or run_metadata.get("governance_mode") == "degraded"
-        else repair_brightness.get("governance_mode", "autonomous")
-    )
-    metadata = {
-        **run_metadata,
-        "governance_mode": repair_gov_mode,
-        "star_brightness": repair_brightness,
-        "cooldown_pause_ms": cooldown_ms,
-    }
-    try:
-        coupling = IchingKernel.systemic_coupling_profile(hexagram_state=failed_code)
-        metadata["systemic_coupling"] = coupling
-        interv = coupling.get("physical_intervention", {})
-        if interv.get("force_wal_checkpoint_sync"):
-            metadata["force_wal_checkpoint_sync"] = True
-        if interv.get("adaptive_cooldown_ms", 0) > 0:
-            metadata["cooldown_pause_ms"] = interv["adaptive_cooldown_ms"]
-    except (TypeError, ValueError, KeyError, ImportError) as ex:
-        _record_kernel_fault("repair_coupling", ex)
-    return metadata
+    return _apply_repair_state_interventions(run_metadata, failed_code, attempt, cooldown_ms)
 
 
 _TURN_BRANCHES = ("子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥")
@@ -1746,43 +1763,48 @@ def _enrich_bureau_and_brightness_metadata(workspace: Path, run_metadata: dict[s
     if status_code is not None:
         try:
             code_int = int(status_code)
-            brightness = IchingKernel.star_brightness_profile(code_int)
-            breaking = IchingKernel.pattern_breaking_profile(code_int)
-            time_flow = IchingKernel.tri_level_time_flow_profile(
-                bureau=bureau.get("bureau", 2),
-                ming_branch=(code_int & 0b111) % 12,
-                year_branch=((code_int >> 3) & 0b111) % 12,
+            bureau_id = bureau.get("bureau", 2)
+            ming_branch = (code_int & 0b111) % 12
+            year_branch = ((code_int >> 3) & 0b111) % 12
+            gain_multiplier = compute_cycle_gain_multiplier(
+                bureau=bureau_id,
+                ming_branch=ming_branch,
+                year_branch=year_branch,
             )
-            palace_star = IchingKernel.palace_star_duality_profile(active_palace=code_int % 12)
-            coupling = IchingKernel.systemic_coupling_profile(hexagram_state=code_int)
+            intervention = compute_systemic_intervention(code_int)
 
-            run_metadata["star_brightness"] = brightness
-            run_metadata["pattern_breaking"] = breaking
-            run_metadata["tri_level_time_flow"] = time_flow
-            run_metadata["palace_star_duality"] = palace_star
-            run_metadata["systemic_coupling"] = coupling
-
-            if time_flow.get("gain_multiplier", 1.0) > 1.0:
+            if gain_multiplier > 1.0:
                 base_budget = run_metadata["bureau_turn_budget"]
-                run_metadata["bureau_turn_budget"] = int(base_budget * time_flow["gain_multiplier"])
+                run_metadata["bureau_turn_budget"] = int(base_budget * gain_multiplier)
 
-            intervention = coupling.get("physical_intervention", {})
             damping_factor = intervention.get("turn_budget_damping_factor", 1.0)
             if damping_factor < 1.0:
                 curr_budget = run_metadata["bureau_turn_budget"]
                 run_metadata["bureau_turn_budget"] = max(1, int(curr_budget * damping_factor))
 
-            gov_mode = brightness.get("governance_mode", "autonomous")
-            if (
-                breaking.get("execution_posture") in ("partially_broken_degraded", "severely_broken_quarantine")
-                or intervention.get("execution_mode") == "degraded"
-            ):
+            gov_mode = resolve_state_governance_mode(code_int)
+            if intervention.get("execution_mode") == "degraded":
                 gov_mode = "degraded"
             if intervention.get("force_wal_checkpoint_sync"):
                 run_metadata["force_wal_checkpoint_sync"] = True
             if intervention.get("adaptive_cooldown_ms", 0) > 0:
                 run_metadata["cooldown_pause_ms"] = intervention["adaptive_cooldown_ms"]
             run_metadata.setdefault("governance_mode", gov_mode)
+
+            if symbolic_telemetry_enabled():
+                run_metadata["star_brightness"] = IchingKernel.star_brightness_profile(code_int)
+                run_metadata["pattern_breaking"] = IchingKernel.pattern_breaking_profile(code_int)
+                run_metadata["tri_level_time_flow"] = IchingKernel.tri_level_time_flow_profile(
+                    bureau=bureau_id,
+                    ming_branch=ming_branch,
+                    year_branch=year_branch,
+                )
+                run_metadata["palace_star_duality"] = IchingKernel.palace_star_duality_profile(
+                    active_palace=code_int % 12,
+                )
+                run_metadata["systemic_coupling"] = IchingKernel.systemic_coupling_profile(
+                    hexagram_state=code_int,
+                )
         except (TypeError, ValueError, KeyError, ImportError) as ex:
             _record_kernel_fault("bureau_profile", ex)
 
@@ -1846,7 +1868,6 @@ def _run_model_task_repair_loop(
     sandbox_config: Any | None,
 ) -> dict[str, Any]:
     from onecode.kernel.model_guidance import repair_prompt
-    from onecode.kernel.model_loop import _record_kernel_fault
     from onecode.kernel.model_planning import execute_model_plan, failed_model_result, traced_provider_plan
     failed_result = dict(result)
     failed_result["turn_history"] = _seed_turn_history(failed_result)
@@ -1920,33 +1941,19 @@ def _run_model_task_repair_loop(
                 safety_err,
                 repair_attempt_count=attempt,
             )
-        repair_brightness = IchingKernel.star_brightness_profile(failed_code)
-        repair_gov_mode = (
-            "degraded"
-            if attempt >= 2 or run_metadata.get("governance_mode") == "degraded"
-            else repair_brightness.get("governance_mode", "autonomous")
+        repair_metadata = _apply_repair_state_interventions(
+            run_metadata,
+            failed_code,
+            attempt,
+            cooldown_ms,
+            extra={
+                "model_plan_task": repair_plan.task,
+                "model_plan_asset_count": len(repair_plan.assets),
+                "model_plan_patch_count": len(repair_plan.patches),
+                "model_plan_execution_step_count": len(repair_plan.execution_steps),
+                "repair_of_run_id": run_id,
+            },
         )
-        repair_metadata = {
-            **run_metadata,
-            "governance_mode": repair_gov_mode,
-            "star_brightness": repair_brightness,
-            "cooldown_pause_ms": cooldown_ms,
-            "model_plan_task": repair_plan.task,
-            "model_plan_asset_count": len(repair_plan.assets),
-            "model_plan_patch_count": len(repair_plan.patches),
-            "model_plan_execution_step_count": len(repair_plan.execution_steps),
-            "repair_of_run_id": run_id,
-        }
-        try:
-            coupling = IchingKernel.systemic_coupling_profile(hexagram_state=failed_code)
-            repair_metadata["systemic_coupling"] = coupling
-            interv = coupling.get("physical_intervention", {})
-            if interv.get("force_wal_checkpoint_sync"):
-                repair_metadata["force_wal_checkpoint_sync"] = True
-            if interv.get("adaptive_cooldown_ms", 0) > 0:
-                repair_metadata["cooldown_pause_ms"] = interv["adaptive_cooldown_ms"]
-        except (TypeError, ValueError, KeyError, ImportError) as ex:
-            _record_kernel_fault("repair_metadata_coupling", ex)
         repair_result = execute_model_plan(
             repair_plan,
             workspace=workspace,

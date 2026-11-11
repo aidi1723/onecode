@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from onecode.kernel.symbol_locator import (
     FaultLocation,
@@ -286,11 +288,15 @@ ValueError: invalid order
 
             prompt = repair_prompt("fix discount engine", failed_result, workspace=tmp_path)
 
-            self.assertIn("Fault localization (天相印绶·符号溯源定位):", prompt)
+            self.assertIn("Fault localization:", prompt)
+            self.assertNotIn("天相印绶", prompt)
             self.assertIn("src/engine/calculator.py", prompt)
             self.assertIn("DiscountEngine.compute_discount", prompt)
             self.assertIn("## src/engine/calculator.py", prompt)
             self.assertIn("compute_discount", failed_result["workspace_files"]["src/engine/calculator.py"])
+            with patch.dict(os.environ, {"ONECODE_SYMBOLIC_TELEMETRY": "1"}):
+                sym_prompt = repair_prompt("fix discount engine", failed_result, workspace=tmp_path)
+                self.assertIn("Fault localization (天相印绶·符号溯源定位):", sym_prompt)
 
     def test_pytest_stack_frame_parsing_and_reexport_resolution(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

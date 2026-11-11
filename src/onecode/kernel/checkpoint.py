@@ -756,6 +756,140 @@ def compact_checkpoint_telemetry(telemetry: dict[str, Any] | None) -> dict[str, 
     return {k: telemetry[k] for k in CHECKPOINT_TELEMETRY_KEYS if k in telemetry}
 
 
+def _build_symbolic_telemetry(turn_number: int, iching_status_code: int) -> dict[str, Any]:
+    from onecode.kernel.hexagram import IchingKernel
+
+    triad = IchingKernel.triad_consensus_profile(
+        turn_number=turn_number,
+        current_status=iching_status_code,
+    )
+    return {
+        "triad_consensus": triad,
+        "ziwei_pattern": IchingKernel.ziwei_pattern_matrix_profile(
+            turn_number=turn_number,
+            current_status=iching_status_code,
+        ),
+        "temporal_superposition": IchingKernel.temporal_superposition_profile(
+            macro_stage="delivery" if turn_number >= 5 else "implementation",
+            turn_status=iching_status_code,
+        ),
+        "shen_gong_anchorage": IchingKernel.shen_gong_anchorage_profile(
+            turn_number=turn_number,
+            current_status=iching_status_code,
+        ),
+        "star_brightness": IchingKernel.star_brightness_profile(
+            status_code=iching_status_code,
+        ),
+        "star_dynamic_energy": IchingKernel.star_dynamic_energy_profile(
+            triad_consensus_score=triad.get("consensus_score", 1.0),
+            ast_valid=True,
+            environment_ok=True,
+        ),
+        "jie_shen_relief": IchingKernel.jie_shen_relief_profile(
+            turn_number=turn_number,
+            status_code=iching_status_code,
+        ),
+        "twelve_deities": IchingKernel.twelve_deities_profile(
+            turn_number=turn_number,
+            status_code=iching_status_code,
+        ),
+        "flying_sihua": IchingKernel.flying_sihua_cascade_profile(
+            turn_number=turn_number,
+            status_code=iching_status_code,
+        ),
+        "triadic_synthesis": IchingKernel.triadic_synthesis_profile(
+            status_code=iching_status_code,
+        ),
+        "ming_shen_zhu": IchingKernel.ming_shen_zhu_profile(
+            turn_number=turn_number,
+            status_code=iching_status_code,
+        ),
+        "ziwei_tianfu": IchingKernel.ziwei_tianfu_duality_profile(
+            status_code=iching_status_code,
+        ),
+        "yang_tuo_clamping": IchingKernel.yang_tuo_clamping_profile(
+            turn_number=turn_number,
+            status_code=iching_status_code,
+        ),
+        "clock_drift_adaptation": IchingKernel.clock_drift_adaptation_profile(
+            clock_drift_seconds=0.0,
+        ),
+        "school_consensus": IchingKernel.school_consensus_profile(
+            stem_index=turn_number - 1,
+        ),
+        "classical_patterns": IchingKernel.classical_patterns_profile(
+            turn_number=turn_number,
+            status_code=iching_status_code,
+        ),
+        "auxiliary_polarity": IchingKernel.auxiliary_stars_polarity_profile(
+            year_stem=turn_number - 1,
+            year_branch=turn_number - 1,
+        ),
+        "nested_yunxian": IchingKernel.nested_yunxian_temporal_profile(
+            view="liunian",
+            turn_number=turn_number,
+            status_code=iching_status_code,
+        ),
+        "noble_horse_stars": IchingKernel.noble_horse_stars_profile(
+            year_stem=turn_number - 1,
+            year_branch=turn_number - 1,
+            active_palace=(turn_number - 1) % 12,
+        ),
+        "multi_agent_synastry": IchingKernel.multi_agent_synastry_profile(
+            agent_a={"stem": (turn_number - 1) % 10, "ming_branch": (turn_number - 1) % 12},
+            agent_b={"stem": turn_number % 10, "ming_branch": (turn_number + 4) % 12},
+        ),
+        "full_sihua_graph": IchingKernel.full_sihua_graph_profile(
+            year_stem=turn_number - 1,
+            status_code=iching_status_code,
+        ),
+        "system_pathology": IchingKernel.system_pathology_profile(
+            status_code=iching_status_code,
+        ),
+        "six_channel_healing": IchingKernel.six_channel_healing_profile(
+            status_code=iching_status_code,
+        ),
+        "doujun_chronology": IchingKernel.doujun_chronology_profile(
+            year_branch=(turn_number - 1) % 12,
+            birth_month=1,
+            birth_hour=0,
+            flowing_month=1,
+            flowing_day=max(1, turn_number),
+            flowing_hour=(iching_status_code % 12),
+            ming_branch=(turn_number - 1) % 12,
+        ),
+        "auxiliary_stars_pairs": IchingKernel.auxiliary_stars_pairs_profile(
+            birth_month=1,
+            birth_day=max(1, turn_number),
+            ming_branch=(turn_number - 1) % 12,
+            birth_hour=(iching_status_code % 12),
+        ),
+        "changsheng_lifecycle": IchingKernel.changsheng_lifecycle_profile(
+            bureau_number=2,
+            gender="male",
+            year_stem=(turn_number - 1) % 10,
+            current_palace_branch=(iching_status_code % 12),
+        ),
+        "guchen_guasu_huagai": IchingKernel.guchen_guasu_huagai_profile(
+            year_branch=(turn_number - 1) % 12,
+        ),
+        "ziwu_liuzhu": IchingKernel.ziwu_liuzhu_chronobiology_profile(
+            current_hour_branch=(iching_status_code % 12),
+        ),
+        "five_elements_shengke": IchingKernel.five_elements_shengke_profile(
+            element_a=(turn_number - 1) % 5,
+            element_b=(iching_status_code % 5),
+        ),
+        "dipper_axis_invariants": IchingKernel.dipper_axis_invariants_profile(
+            hexagram_state=iching_status_code,
+        ),
+        "sha_po_lang_triad": IchingKernel.sha_po_lang_triad_profile(
+            hexagram_state=iching_status_code,
+            ming_branch=(turn_number - 1) % 12,
+        ),
+    }
+
+
 def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number: int, iching_status_code: int | None) -> dict[str, Any]:
     base_status = None
     if existing_checkpoints:
@@ -772,15 +906,14 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
             except (OSError, json.JSONDecodeError, UnicodeError, TypeError, KeyError, AttributeError):
                 pass
 
-    telemetry = {}
+    telemetry: dict[str, Any] = {}
     if iching_status_code is not None:
         from onecode.kernel.hexagram import IchingKernel
+        from onecode.kernel.symbolic_telemetry import symbolic_telemetry_enabled
+
         before_status = base_status if isinstance(base_status, int) else None
         sihua = IchingKernel.diagnostic_sihua_profile(iching_status_code, before_status=before_status)
-        triad = IchingKernel.triad_consensus_profile(
-            turn_number=turn_number,
-            current_status=iching_status_code,
-        )
+        pattern = IchingKernel.pattern_diagnostic_profile(iching_status_code)
         telemetry = {
             "moving_lines": IchingKernel.moving_lines(base_status, iching_status_code),
             "micro_relations": IchingKernel.micro_relations(iching_status_code),
@@ -788,132 +921,11 @@ def _build_telemetry(context: Any, existing_checkpoints: list[dict], turn_number
             "sihua": sihua["sihua"],
             "changed_bands": sihua["changed_bands"],
             "foundation_broken": IchingKernel.nuclear_profile(iching_status_code)["foundation_broken"],
-            "pattern_state": IchingKernel.pattern_diagnostic_profile(iching_status_code)["pattern_state"],
-            "pattern_name": IchingKernel.pattern_diagnostic_profile(iching_status_code)["pattern_name"],
-            "triad_consensus": triad,
-            "ziwei_pattern": IchingKernel.ziwei_pattern_matrix_profile(
-                turn_number=turn_number,
-                current_status=iching_status_code,
-            ),
-            "temporal_superposition": IchingKernel.temporal_superposition_profile(
-                macro_stage="delivery" if turn_number >= 5 else "implementation",
-                turn_status=iching_status_code,
-            ),
-            "shen_gong_anchorage": IchingKernel.shen_gong_anchorage_profile(
-                turn_number=turn_number,
-                current_status=iching_status_code,
-            ),
-            "star_brightness": IchingKernel.star_brightness_profile(
-                status_code=iching_status_code,
-            ),
-            "star_dynamic_energy": IchingKernel.star_dynamic_energy_profile(
-                triad_consensus_score=triad.get("consensus_score", 1.0),
-                ast_valid=True,
-                environment_ok=True,
-            ),
-            "jie_shen_relief": IchingKernel.jie_shen_relief_profile(
-                turn_number=turn_number,
-                status_code=iching_status_code,
-            ),
-            "twelve_deities": IchingKernel.twelve_deities_profile(
-                turn_number=turn_number,
-                status_code=iching_status_code,
-            ),
-            "flying_sihua": IchingKernel.flying_sihua_cascade_profile(
-                turn_number=turn_number,
-                status_code=iching_status_code,
-            ),
-            "triadic_synthesis": IchingKernel.triadic_synthesis_profile(
-                status_code=iching_status_code,
-            ),
-            "ming_shen_zhu": IchingKernel.ming_shen_zhu_profile(
-                turn_number=turn_number,
-                status_code=iching_status_code,
-            ),
-            "ziwei_tianfu": IchingKernel.ziwei_tianfu_duality_profile(
-                status_code=iching_status_code,
-            ),
-            "yang_tuo_clamping": IchingKernel.yang_tuo_clamping_profile(
-                turn_number=turn_number,
-                status_code=iching_status_code,
-            ),
-            "clock_drift_adaptation": IchingKernel.clock_drift_adaptation_profile(
-                clock_drift_seconds=0.0,
-            ),
-            "school_consensus": IchingKernel.school_consensus_profile(
-                stem_index=turn_number - 1,
-            ),
-            "classical_patterns": IchingKernel.classical_patterns_profile(
-                turn_number=turn_number,
-                status_code=iching_status_code,
-            ),
-            "auxiliary_polarity": IchingKernel.auxiliary_stars_polarity_profile(
-                year_stem=turn_number - 1,
-                year_branch=turn_number - 1,
-            ),
-            "nested_yunxian": IchingKernel.nested_yunxian_temporal_profile(
-                view="liunian",
-                turn_number=turn_number,
-                status_code=iching_status_code,
-            ),
-            "noble_horse_stars": IchingKernel.noble_horse_stars_profile(
-                year_stem=turn_number - 1,
-                year_branch=turn_number - 1,
-                active_palace=(turn_number - 1) % 12,
-            ),
-            "multi_agent_synastry": IchingKernel.multi_agent_synastry_profile(
-                agent_a={"stem": (turn_number - 1) % 10, "ming_branch": (turn_number - 1) % 12},
-                agent_b={"stem": turn_number % 10, "ming_branch": (turn_number + 4) % 12},
-            ),
-            "full_sihua_graph": IchingKernel.full_sihua_graph_profile(
-                year_stem=turn_number - 1,
-                status_code=iching_status_code,
-            ),
-            "system_pathology": IchingKernel.system_pathology_profile(
-                status_code=iching_status_code,
-            ),
-            "six_channel_healing": IchingKernel.six_channel_healing_profile(
-                status_code=iching_status_code,
-            ),
-            "doujun_chronology": IchingKernel.doujun_chronology_profile(
-                year_branch=(turn_number - 1) % 12,
-                birth_month=1,
-                birth_hour=0,
-                flowing_month=1,
-                flowing_day=max(1, turn_number),
-                flowing_hour=(iching_status_code % 12),
-                ming_branch=(turn_number - 1) % 12,
-            ),
-            "auxiliary_stars_pairs": IchingKernel.auxiliary_stars_pairs_profile(
-                birth_month=1,
-                birth_day=max(1, turn_number),
-                ming_branch=(turn_number - 1) % 12,
-                birth_hour=(iching_status_code % 12),
-            ),
-            "changsheng_lifecycle": IchingKernel.changsheng_lifecycle_profile(
-                bureau_number=2,
-                gender="male",
-                year_stem=(turn_number - 1) % 10,
-                current_palace_branch=(iching_status_code % 12),
-            ),
-            "guchen_guasu_huagai": IchingKernel.guchen_guasu_huagai_profile(
-                year_branch=(turn_number - 1) % 12,
-            ),
-            "ziwu_liuzhu": IchingKernel.ziwu_liuzhu_chronobiology_profile(
-                current_hour_branch=(iching_status_code % 12),
-            ),
-            "five_elements_shengke": IchingKernel.five_elements_shengke_profile(
-                element_a=(turn_number - 1) % 5,
-                element_b=(iching_status_code % 5),
-            ),
-            "dipper_axis_invariants": IchingKernel.dipper_axis_invariants_profile(
-                hexagram_state=iching_status_code,
-            ),
-            "sha_po_lang_triad": IchingKernel.sha_po_lang_triad_profile(
-                hexagram_state=iching_status_code,
-                ming_branch=(turn_number - 1) % 12,
-            ),
+            "pattern_state": pattern["pattern_state"],
+            "pattern_name": pattern["pattern_name"],
         }
+        if symbolic_telemetry_enabled():
+            telemetry.update(_build_symbolic_telemetry(turn_number, iching_status_code))
     return telemetry
 
 def write_checkpoint(

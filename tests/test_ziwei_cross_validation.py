@@ -1,7 +1,9 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from onecode.kernel.checkpoint import write_checkpoint
 from onecode.kernel.context import create_context
@@ -189,40 +191,54 @@ class ZiweiCrossValidationTests(unittest.TestCase):
         self.assertEqual(gw_failure["recommended_remedy"], "retry_with_system_embedding_and_backoff")
 
     def test_checkpoint_telemetry_includes_triad_consensus(self):
-        """Test that write_checkpoint telemetry contains triad_consensus seamlessly."""
+        """Test that write_checkpoint omits Ziwei keys by default and emits triad_consensus when opted in."""
         with tempfile.TemporaryDirectory() as tmp:
             context = create_context(Path(tmp), run_id="ziwei-checkpoint-test")
-            checkpoint_path = write_checkpoint(
+            default_path = write_checkpoint(
                 context=context,
-                payload={"task": "ziwei consensus check", "status": "checkpoint"},
+                payload={"task": "clean telemetry check", "status": "checkpoint"},
                 next_state="000001",
                 status="checkpoint",
                 partial=False,
                 reason=None,
                 iching_status_code=1,
             )
-            checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
-            telemetry = checkpoint["telemetry"]
+            default_tel = json.loads(default_path.read_text(encoding="utf-8"))["telemetry"]
+            self.assertNotIn("triad_consensus", default_tel)
+            self.assertNotIn("temporal_superposition", default_tel)
 
-            # Standard keys preserved
-            self.assertEqual(telemetry["cycle_phase"], "复")
-            self.assertEqual(telemetry["pattern_name"], "成格")
-            self.assertIn("sihua", telemetry)
+            with patch.dict(os.environ, {"ONECODE_SYMBOLIC_TELEMETRY": "1"}):
+                checkpoint_path = write_checkpoint(
+                    context=context,
+                    payload={"task": "ziwei consensus check", "status": "checkpoint"},
+                    next_state="000001",
+                    status="checkpoint",
+                    partial=False,
+                    reason=None,
+                    iching_status_code=1,
+                )
+                checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+                telemetry = checkpoint["telemetry"]
 
-            # New triad_consensus present
-            self.assertIn("triad_consensus", telemetry)
-            consensus = telemetry["triad_consensus"]
-            self.assertEqual(consensus["turn_number"], 1)
-            self.assertEqual(consensus["branch"], "子")
-            self.assertEqual(consensus["pattern"], "三奇加会")
-            self.assertEqual(consensus["pattern_level"], "excellent")
+                # Standard keys preserved
+                self.assertEqual(telemetry["cycle_phase"], "临")
+                self.assertEqual(telemetry["pattern_name"], "成格")
+                self.assertIn("sihua", telemetry)
 
-            # New temporal_superposition present
-            self.assertIn("temporal_superposition", telemetry)
-            superposition = telemetry["temporal_superposition"]
-            self.assertEqual(superposition["macro_stage"], "implementation")
-            self.assertEqual(superposition["superposition_state"], "harmonious_progression")
-            self.assertEqual(superposition["risk_level"], "low")
+                # Opt-in triad_consensus present
+                self.assertIn("triad_consensus", telemetry)
+                consensus = telemetry["triad_consensus"]
+                self.assertEqual(consensus["turn_number"], 2)
+                self.assertEqual(consensus["branch"], "丑")
+                self.assertEqual(consensus["pattern"], "三奇加会")
+                self.assertEqual(consensus["pattern_level"], "excellent")
+
+                # Opt-in temporal_superposition present
+                self.assertIn("temporal_superposition", telemetry)
+                superposition = telemetry["temporal_superposition"]
+                self.assertEqual(superposition["macro_stage"], "implementation")
+                self.assertEqual(superposition["superposition_state"], "harmonious_progression")
+                self.assertEqual(superposition["risk_level"], "low")
 
     def test_resolve_task_bureau_for_workspace(self):
         """Test resolve_task_bureau computes bureau from workspace files."""
@@ -280,15 +296,20 @@ class ZiweiCrossValidationTests(unittest.TestCase):
             ],
         }
 
-        # Deadlock prompt check
-        deadlock_prompt = repair_prompt("fix calculation", failed_with_deadlock)
-        self.assertIn("Deadlock alert (羊陀夹忌)", deadlock_prompt)
-        self.assertIn("surgical search_block/replace_block patches", deadlock_prompt)
+        # Default mode omits Ziwei jargon while keeping clean engineering diagnostics
+        clean_deadlock = repair_prompt("fix calculation", failed_with_deadlock)
+        self.assertIn("Deadlock alert:", clean_deadlock)
+        self.assertNotIn("羊陀夹忌", clean_deadlock)
 
-        # Causal root trace prompt check
-        causal_prompt = repair_prompt("fix calculation", failed_with_causal_root)
-        self.assertIn("Causal root trace (来因宫 丑)", causal_prompt)
-        self.assertIn("src/calculator.py", causal_prompt)
+        # Opt-in symbolic telemetry attaches Ziwei causal trace and deadlock labels
+        with patch.dict(os.environ, {"ONECODE_SYMBOLIC_TELEMETRY": "1"}):
+            deadlock_prompt = repair_prompt("fix calculation", failed_with_deadlock)
+            self.assertIn("Deadlock alert (羊陀夹忌)", deadlock_prompt)
+            self.assertIn("surgical search_block/replace_block patches", deadlock_prompt)
+
+            causal_prompt = repair_prompt("fix calculation", failed_with_causal_root)
+            self.assertIn("Causal root trace (来因宫 丑)", causal_prompt)
+            self.assertIn("src/calculator.py", causal_prompt)
 
     def test_ziwei_mathematical_audit_certificates(self):
         """Test the formal mathematical audit certificates for Ziwei isomorphism and coupling."""
@@ -563,11 +584,11 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertEqual(audit["shen_gong_anchorage"]["status"], "verified")
 
     def test_checkpoint_includes_shen_gong_telemetry(self):
-        """Verify checkpoint telemetry records shen_gong_anchorage."""
+        """Verify checkpoint telemetry omits extended Ziwei dicts by default and includes them when opted in."""
         with tempfile.TemporaryDirectory() as tmp:
             evidence_root = Path(tmp)
             context = create_context(evidence_root, run_id="test-run-sg")
-            chk_path = write_checkpoint(
+            default_chk = write_checkpoint(
                 context=context,
                 payload={"op": "write_text", "path": "app.py"},
                 next_state=15,
@@ -576,23 +597,36 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
                 reason=None,
                 iching_status_code=15,
             )
-            data = json.loads(chk_path.read_text(encoding="utf-8"))
-            telemetry = data["telemetry"]
-            self.assertIn("shen_gong_anchorage", telemetry)
-            self.assertIn("full_sihua_graph", telemetry)
-            self.assertIn("system_pathology", telemetry)
-            self.assertIn("six_channel_healing", telemetry)
-            self.assertIn("doujun_chronology", telemetry)
-            self.assertIn("auxiliary_stars_pairs", telemetry)
-            self.assertIn("changsheng_lifecycle", telemetry)
-            self.assertIn("guchen_guasu_huagai", telemetry)
-            self.assertIn("ziwu_liuzhu", telemetry)
-            self.assertIn("five_elements_shengke", telemetry)
-            self.assertIn("dipper_axis_invariants", telemetry)
-            self.assertIn("sha_po_lang_triad", telemetry)
-            sg = telemetry["shen_gong_anchorage"]
-            self.assertIn("active_index", sg)
-            self.assertIn("palace_name", sg)
+            default_telemetry = json.loads(default_chk.read_text(encoding="utf-8"))["telemetry"]
+            self.assertNotIn("shen_gong_anchorage", default_telemetry)
+
+            with patch.dict(os.environ, {"ONECODE_SYMBOLIC_TELEMETRY": "1"}):
+                chk_path = write_checkpoint(
+                    context=context,
+                    payload={"op": "write_text", "path": "app.py"},
+                    next_state=15,
+                    status="completed",
+                    partial=False,
+                    reason=None,
+                    iching_status_code=15,
+                )
+                data = json.loads(chk_path.read_text(encoding="utf-8"))
+                telemetry = data["telemetry"]
+                self.assertIn("shen_gong_anchorage", telemetry)
+                self.assertIn("full_sihua_graph", telemetry)
+                self.assertIn("system_pathology", telemetry)
+                self.assertIn("six_channel_healing", telemetry)
+                self.assertIn("doujun_chronology", telemetry)
+                self.assertIn("auxiliary_stars_pairs", telemetry)
+                self.assertIn("changsheng_lifecycle", telemetry)
+                self.assertIn("guchen_guasu_huagai", telemetry)
+                self.assertIn("ziwu_liuzhu", telemetry)
+                self.assertIn("five_elements_shengke", telemetry)
+                self.assertIn("dipper_axis_invariants", telemetry)
+                self.assertIn("sha_po_lang_triad", telemetry)
+                sg = telemetry["shen_gong_anchorage"]
+                self.assertIn("active_index", sg)
+                self.assertIn("palace_name", sg)
             self.assertEqual(sg["subgroup_parity"], "even_subgroup_2z12")
 
     def test_repair_guidance_injects_shen_gong_shelter(self):
@@ -789,11 +823,15 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertEqual(relief_tuoluo["recommended_action"], "force_micro_patch")
         self.assertIn(relief_tuoluo["jieshen_branch"], [0, 2, 4, 6, 8, 10])
 
-        # 2. Recovery policy status payload includes Jie Shen relief
-        status = recovery_status("verifier_failure", attempt_count=1)
-        self.assertIn("jie_shen_relief", status)
-        self.assertTrue(status["jie_shen_relief"]["relief_effective"])
-        self.assertEqual(status["jie_shen_relief"]["recommended_action"], "cooldown_and_retry")
+        # 2. Recovery policy status payload includes Jie Shen relief when symbolic telemetry enabled
+        default_status = recovery_status("verifier_failure", attempt_count=1)
+        self.assertNotIn("jie_shen_relief", default_status)
+        self.assertEqual(default_status["lyapunov_damping_factor"], 0.75)
+        with patch.dict(os.environ, {"ONECODE_SYMBOLIC_TELEMETRY": "1"}):
+            status = recovery_status("verifier_failure", attempt_count=1)
+            self.assertIn("jie_shen_relief", status)
+            self.assertTrue(status["jie_shen_relief"]["relief_effective"])
+            self.assertEqual(status["jie_shen_relief"]["recommended_action"], "cooldown_and_retry")
 
     def test_jie_shen_even_subgroup_theorem_and_certificate(self):
         """Verify Jie Shen Even Subgroup Theorem (Image in 2Z_12 ~= Z_6)."""
@@ -843,11 +881,12 @@ class ZiweiAnchorageAndAuditTests(unittest.TestCase):
         self.assertTrue(res_jiang["momentum_accelerated"])
         self.assertEqual(res_jiang["jiang_qian_shen"], "将星")
 
-        # 5. Recovery policy includes twelve_deities telemetry
-        status = recovery_status("provider_failure", attempt_count=0)
-        self.assertIn("twelve_deities", status)
-        self.assertIn("sui_qian_shen", status["twelve_deities"])
-        self.assertIn("jiang_qian_shen", status["twelve_deities"])
+        # 5. Recovery policy includes twelve_deities telemetry when symbolic telemetry enabled
+        with patch.dict(os.environ, {"ONECODE_SYMBOLIC_TELEMETRY": "1"}):
+            status = recovery_status("provider_failure", attempt_count=0)
+            self.assertIn("twelve_deities", status)
+            self.assertIn("sui_qian_shen", status["twelve_deities"])
+            self.assertIn("jiang_qian_shen", status["twelve_deities"])
 
     def test_flying_sihua_cascade_profile_modes(self):
         """Verify Flying Sihua Cascade (跨宫飞星与四化多层叠象) collision detection."""

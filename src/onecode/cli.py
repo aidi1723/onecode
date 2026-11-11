@@ -419,8 +419,11 @@ def build_run_plan_repair_prompt(
         tail = str(verifier.get("stderr_tail") or "")
         m = re.search(r"(AssertionError: [^\n]+)", tail)
         if m and not precision_targets:
+            from onecode.kernel.symbolic_telemetry import symbolic_telemetry_enabled
+
+            label = "Precision assertion target (水生木·精准断言)" if symbolic_telemetry_enabled() else "Precision assertion target"
             precision_targets.append(
-                f"- Precision assertion target (水生木·精准断言): {m.group(1).strip()}. Focus surgical edit directly on resolving this discrepancy; do not repeat previous values."
+                f"- {label}: {m.group(1).strip()}. Focus surgical edit directly on resolving this discrepancy; do not repeat previous values."
             )
         verifier_lines.append(
             "\n".join(
@@ -498,9 +501,13 @@ def apply_run_plan_repair(
                     attempt_count=attempt - 1,
                     status_code=47,
                 )
-                jie = rec.get("jie_shen_relief", {})
-                if jie.get("relief_effective"):
-                    damping = float(jie.get("damping_factor", 0.75))
+                damping_raw = rec.get("lyapunov_damping_factor")
+                if damping_raw is None:
+                    jie = rec.get("jie_shen_relief", {})
+                    if jie.get("relief_effective"):
+                        damping_raw = jie.get("damping_factor")
+                if damping_raw is not None:
+                    damping = float(damping_raw)
                     if damping > 0:
                         cooldown_s = round(0.05 / damping, 4)
             except (TypeError, ValueError, KeyError, AttributeError):

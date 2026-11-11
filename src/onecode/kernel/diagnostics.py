@@ -157,7 +157,7 @@ def run_doctor(*, require_production: bool = False) -> dict:
             if k not in {"jie_shen_relief", "twelve_deities"}
         }
         relief = recovery.get("jie_shen_relief")
-        if isinstance(relief, dict):
+        if "lyapunov_damping_factor" not in doctor_recovery and isinstance(relief, dict):
             doctor_recovery["lyapunov_damping_factor"] = relief.get("damping_factor")
         deities = recovery.get("twelve_deities")
         if isinstance(deities, dict):
