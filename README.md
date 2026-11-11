@@ -238,6 +238,13 @@ Full options & environment variables: [docs/CLI_REFERENCE.md](docs/CLI_REFERENCE
 
 ---
 
+## Community / 社区认可与交流
+
+- Shared with and supported by the **[LINUX DO](https://linux.do)** open-source community (`https://linux.do`). Feedback, issues, and contributions are welcome.  
+  本项目保持完整开源，特别感谢并认可 **[LINUX DO](https://linux.do)** 社区在开源技术交流与社区孵化中的支持，欢迎各位佬友试用、讨论与提交共建 PR。
+
+---
+
 ## License / 开源协议
 
 OneCode is licensed under the **GNU General Public License, Version 3 only (`GPL-3.0-only`)**.  
