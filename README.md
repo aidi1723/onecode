@@ -67,6 +67,35 @@ Unlike agents that rely on an LLM's self-reported completion, OneCode constrains
 
 ---
 
+## Application Scenarios & Roadmap / 适用场景与后续演进
+
+OneCode is positioned as a **high-assurance engineering and controlled-delivery agent kernel for industrial & production environments** (generating, patching, verifying, and auditing code/configs under deterministic gates), rather than replacing on-line hardware controllers for millisecond-level hard real-time execution.  
+OneCode 定位于**工业与生产环境下的高安全工程开发与受控交付内核**（在确定性门禁下完成代码/配置生成、修复、沙箱验证与审计留痕），而非直接替代现场 PLC/DCS 硬件承担毫秒级硬实时在线控制。
+
+### Ready for Controlled Production Workflows / 当前已可直接胜任的场景
+- **Module-Level Industrial & IIoT Engineering (`--verifier` gated) / 工业与物联网模块级研发与修复**：  
+  Well-scoped discrete-manufacturing logic (PackML / OEE), continuous process & safety simulation modules (TEP / ISA PID / SIL-2 logic), and edge gateway protocol/codec modules (Modbus TCP, deadband, SDT), delivering strict test-backed acceptance (`exit_code == 0`) with 78%–85% token savings.  
+  边界清晰的离散制造逻辑（PackML / OEE）、流程安全算法仿真（TEP / ISA PID / SIL-2 逻辑）以及边缘网关编解码/死区压缩模块，在配齐测试门禁后可强制验证通过才准予交付，同时实现 78%–85% Token 节流。
+- **High-Audit, Tamper-Resistant Engineering & DevOps / 高审计、防篡改的受控研发与变更运维**：  
+  FinTech risk components, distributed middleware, and infrastructure scripts running inside Docker isolation (`--network none`, `--cap-drop ALL`, `--pids-limit`, `resource_budget_exceeded`), producing immutable SHA-256 `evidence-chain.jsonl`, `manifest.json`, and `ledger.json` with `--rollback-on-failure` and `--resume-from`.  
+  适用于金融风控、分布式中间件及关键运维变更脚本；配合 Docker 隔离沙箱、写盘与耗时预算拦截及防篡改哈希链，实现每次变更可审计、失败可回滚、中断可续传。
+- **Low-Resource Edge Nodes & Unstable Gateways / 低算力边缘节点与弱网/网关代理环境**：  
+  Zero third-party kernel dependencies suit compact edge servers (e.g., Intel N100 class), while native SSE chunked streaming (`ONECODE_STREAM_CHAT=1`) and full-jitter exponential backoff mitigate gateway 524 timeouts and transient link jitter.  
+  纯 Python 核心零第三方运行时依赖，适应轻量工控节点；原生 SSE 流式引擎与全抖动指数退避有效抵御跨网关 524 超时与链路抖动。
+- **Internal Workbench & Web Shell Backend / 企业内部平台与前端工作台执行后端**：  
+  Embeddable via `onecode serve` (OpenAI-compatible bridge with constant-time token auth for LibreChat / Open-WebUI) or `onecode tui`.  
+  可通过 `onecode serve`（恒定时间 Token 鉴权的 OpenAI 兼容网关）或 `onecode tui` 接入企业现有研发门户与自动化流水线。
+
+### Under Active Development (Roadmap) / 后续陆续完善与演进方向
+- **Unassisted Single-Shot Refactoring Across Large Multi-Module Systems / 超大型跨模块系统的无提示端到端自主通关**：  
+  As shown in clean `Task 4` (`ModbusEdgeTelemetryGateway`) re-verification, tightly coupled multi-file synthesis without external task decomposition remains constrained by compact-model cross-turn working memory. Ongoing development targets structured multi-file symbol anchoring, stronger staged planning, and higher single-shot convergence across complex architectures (currently recommended: decompose via `run-plan` + per-module verifier policies + `approvals`).  
+  正如洁净 `Task 4`（`ModbusEdgeTelemetryGateway`）复测所展现的边界，强耦合多文件在无拆解提示下的单次端到端生成仍受限于轻量模型跨轮工作记忆；后续将持续完善跨模块符号锚点记忆、多阶段自动规划拆解与复杂系统收敛能力（当前生产建议采用 `run-plan` 分模块规划 + `approvals` 审批）。
+- **Broader Production Sandbox Hardening & Industrial Commissioning Integrations / 更深层的生产环境加固与现场投产闭环集成**：  
+  Deterministic hard real-time PLC/DCS execution remains outside the LLM agent runtime scope; OneCode generates and verifies engineering artifacts offline before human sign-off and bench commissioning, while broader `deployment_boundary` hardening, additional industrial protocol presets, and enterprise governance integrations continue to roll out in subsequent releases.  
+  现场产线毫秒级硬实时闭环仍属于专业实时控制系统职责，OneCode 负责上线前的开发、离线回归验证与审计签发；更完善的 `deployment_boundary` 生产加固工具链、更多工业协议校验预设与企业治理集成正在后续版本中陆续完善开发中。
+
+---
+
 ## Cybernetic State Machine & Formal Rules / 底层运行规则与数学模型
 
 OneCode formalizes execution governance as a **Deterministic Finite-State Automaton**, avoiding unexplainable heuristic black boxes.  
