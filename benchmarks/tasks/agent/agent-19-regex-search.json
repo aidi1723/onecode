@@ -1,0 +1,38 @@
+{
+  "id": "agent-19-regex-search",
+  "prompt": "用正则找到用户编号再读回",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [
+      {
+        "path": "src/ids.py",
+        "content": "user_id = 7\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "search_text",
+        "params": {
+          "query": "user_id = \\d",
+          "path": "src",
+          "regex": true
+        }
+      },
+      {
+        "tool_name": "read_text",
+        "params": {
+          "path": "src/ids.py"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/ids.py",
+      "text": "user_id"
+    }
+  ]
+}

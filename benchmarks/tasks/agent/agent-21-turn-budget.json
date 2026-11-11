@@ -1,0 +1,36 @@
+{
+  "id": "agent-21-turn-budget",
+  "prompt": "只允许一个回合",
+  "expected_status": "halted",
+  "mode": "agent",
+  "input": {
+    "max_turns": 1,
+    "files": [
+      {
+        "path": "src/loop.py",
+        "content": "x = 1\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "read_text",
+        "params": {
+          "path": "src/loop.py"
+        }
+      },
+      {
+        "tool_name": "read_text",
+        "params": {
+          "path": "src/loop.py"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/loop.py",
+      "text": "x = 1"
+    }
+  ]
+}

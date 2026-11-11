@@ -1,0 +1,31 @@
+{
+  "id": "go-09-middleware-chain",
+  "prompt": "实现标准 HTTP 日志与中间件包装器",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "pkg/middleware/chain.go",
+          "content": "package middleware\n\nimport (\n\t\"log\"\n\t\"net/http\"\n)\n\nfunc LoggingMiddleware(next http.Handler) http.Handler {\n\treturn http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n\t\tlog.Printf(\"%s %s\", r.Method, r.URL.Path)\n\t\tnext.ServeHTTP(w, r)\n\t})\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "pkg/middleware/chain.go",
+      "text": "func LoggingMiddleware"
+    },
+    {
+      "type": "file_contains",
+      "path": "pkg/middleware/chain.go",
+      "text": "next.ServeHTTP"
+    }
+  ]
+}

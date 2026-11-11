@@ -1,0 +1,8 @@
+{
+  "id": "inspect-completed-run",
+  "prompt": "检查已完成 run 的 manifest 和 ledger",
+  "expected_status": "completed",
+  "mode": "rule",
+  "input": {},
+  "assertions": []
+}

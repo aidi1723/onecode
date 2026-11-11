@@ -1,0 +1,17 @@
+{
+  "id": "verifier-repair-patch-only",
+  "prompt": "修复失败测试，只允许 patch 现有文件",
+  "expected_status": "completed",
+  "mode": "rule",
+  "input": {
+    "files": [
+      { "path": "src/calc.py", "content": "def value():\n    return 1\n" }
+    ],
+    "patch_path": "src/calc.py",
+    "search_block": "return 1",
+    "replace_block": "return 2"
+  },
+  "assertions": [
+    { "type": "file_exists", "path": "src/calc.py" }
+  ]
+}

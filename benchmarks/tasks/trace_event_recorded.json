@@ -1,0 +1,10 @@
+{
+  "id": "trace-event-recorded",
+  "prompt": "记录一次 trace event",
+  "expected_status": "completed",
+  "mode": "trace",
+  "input": {},
+  "assertions": [
+    { "type": "file_exists", "path": ".onecode/trace.jsonl" }
+  ]
+}

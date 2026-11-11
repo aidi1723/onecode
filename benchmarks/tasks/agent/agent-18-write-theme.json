@@ -1,0 +1,26 @@
+{
+  "id": "agent-18-write-theme",
+  "prompt": "写主题",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "assets/theme.txt",
+          "content": "color=blue\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "assets/theme.txt",
+      "text": "color=blue"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "id": "agent-12-write-doc",
+  "prompt": "写说明",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "docs/guide.md",
+          "content": "# Guide\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "docs/guide.md",
+      "text": "# Guide"
+    }
+  ]
+}

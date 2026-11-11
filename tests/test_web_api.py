@@ -1,0 +1,2770 @@
+import json
+import os
+import socket
+import tempfile
+import threading
+import unittest
+from contextlib import contextmanager
+from pathlib import Path
+from http.server import ThreadingHTTPServer
+from unittest.mock import patch
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+
+from onecode.contracts import load_shell_projection_v4_schema
+
+
+@contextmanager
+def local_test_server(handler_cls):
+    try:
+        server = ThreadingHTTPServer(("127.0.0.1", 0), handler_cls)
+    except PermissionError as exc:
+        raise unittest.SkipTest(f"local socket bind unavailable: {exc}") from exc
+    except OSError as exc:
+        if exc.errno in {getattr(socket, "EACCES", 13), getattr(socket, "EPERM", 1)}:
+            raise unittest.SkipTest(f"local socket bind unavailable: {exc}") from exc
+        raise
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield server, f"http://127.0.0.1:{server.server_address[1]}"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+class OneCodeWebApiTests(unittest.TestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self._read_survey = patch("onecode.web.api.complete_read_survey", return_value='{"tools":[]}')
+        self._read_survey.start()
+        self.addCleanup(self._read_survey.stop)
+    def test_models_payload_exposes_onecode_agent(self):
+        from onecode.web.api import build_models_payload
+
+        payload = build_models_payload()
+
+        self.assertEqual(payload["object"], "list")
+        self.assertEqual(payload["data"][0]["id"], "onecode-agent")
+
+    def test_onecode_shell_schema_endpoint_returns_projection_contract(self):
+        from onecode.web.api import handle_onecode_shell_schema
+
+        payload, status = handle_onecode_shell_schema()
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload, load_shell_projection_v4_schema())
+
+    def test_bearer_auth_rejects_missing_token_when_configured(self):
+        from onecode.web.api import request_authorized
+
+        self.assertFalse(request_authorized({}, "secret-token"))
+
+    def test_bearer_auth_rejects_missing_token_by_default(self):
+        from onecode.web.api import request_authorized
+
+        self.assertFalse(request_authorized({}, None))
+
+    def test_bearer_auth_allows_explicit_unauthenticated_loopback(self):
+        from onecode.web.api import request_authorized
+
+        self.assertTrue(request_authorized({}, None, allow_unauthenticated=True, host="127.0.0.1"))
+
+    def test_auth_module_allows_loopback_without_token_when_explicit(self):
+        from onecode.web.auth import request_authorized
+
+        self.assertTrue(request_authorized({}, None, allow_unauthenticated=True, host="::1"))
+        self.assertFalse(request_authorized({}, None, allow_unauthenticated=True, host="0.0.0.0"))
+
+    def test_bearer_auth_rejects_explicit_unauthenticated_non_loopback(self):
+        from onecode.web.api import request_authorized
+
+        self.assertFalse(request_authorized({}, None, allow_unauthenticated=True, host="0.0.0.0"))
+
+    def test_bearer_auth_accepts_matching_token(self):
+        from onecode.web.api import request_authorized
+
+        self.assertTrue(request_authorized({"authorization": "Bearer secret-token"}, "secret-token"))
+
+    def test_bearer_auth_uses_constant_time_compare(self):
+        from onecode.web.api import request_authorized
+
+        with patch("onecode.web.auth.secrets.compare_digest", return_value=True) as compare_digest:
+            authorized = request_authorized({"authorization": "Bearer secret-token"}, "secret-token")
+
+        self.assertTrue(authorized)
+        compare_digest.assert_called_once_with(b"Bearer secret-token", b"Bearer secret-token")
+
+    def test_read_json_rejects_oversized_request_body(self):
+        from io import BytesIO
+        from onecode.web.api import OneCodeRequestHandler
+
+        class FakeRequest(OneCodeRequestHandler):
+            def __init__(self):
+                self.headers = {"content-length": "2"}
+                self.rfile = BytesIO(b"{}")
+
+        with patch.dict("os.environ", {"ONECODE_MAX_REQUEST_BYTES": "1"}, clear=True):
+            self.assertIsNone(FakeRequest()._read_json())
+
+    def test_read_json_result_reports_oversized_request_body(self):
+        from io import BytesIO
+        from onecode.web.api import read_json_request_body
+
+        with patch.dict("os.environ", {"ONECODE_MAX_REQUEST_BYTES": "1"}, clear=True):
+            result = read_json_request_body({"content-length": "2"}, BytesIO(b"{}"))
+
+        self.assertIsNone(result.payload)
+        self.assertEqual(result.status_code, 413)
+        self.assertEqual(result.error_type, "request_too_large")
+        self.assertIn("exceeds", result.error_message)
+
+    def test_read_json_result_reports_invalid_content_length(self):
+        from io import BytesIO
+        from onecode.web.api import read_json_request_body
+
+        result = read_json_request_body({"content-length": "not-a-number"}, BytesIO(b"{}"))
+
+        self.assertIsNone(result.payload)
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.error_type, "invalid_request_body")
+        self.assertIn("content-length", result.error_message)
+
+    def test_request_body_module_reports_invalid_content_length(self):
+        from io import BytesIO
+        from onecode.web.request_body import read_json_request_body
+
+        result = read_json_request_body({"content-length": "not-a-number"}, BytesIO(b"{}"))
+
+        self.assertIsNone(result.payload)
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.error_type, "invalid_request_body")
+        self.assertIn("content-length", result.error_message)
+
+    def test_request_body_rejects_a_null_byte(self):
+        from io import BytesIO
+
+        from onecode.web.request_body import read_json_request_body
+
+        raw = b'{"task": "hello\\u0000"}'
+        result = read_json_request_body(
+            {"content-length": str(len(raw)), "content-type": "application/json"},
+            BytesIO(raw),
+        )
+
+        self.assertIsNone(result.payload)
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.error_type, "invalid_request_body")
+
+    def test_read_json_rejects_non_json_content_type(self):
+        from io import BytesIO
+        from onecode.web.request_body import read_json_request_body
+
+        result = read_json_request_body(
+            {"content-length": "2", "content-type": "text/plain"},
+            BytesIO(b"{}"),
+        )
+
+        self.assertIsNone(result.payload)
+        self.assertEqual(result.status_code, 415)
+        self.assertEqual(result.error_type, "unsupported_media_type")
+
+    def test_local_request_allows_loopback_and_rejects_foreign_origin(self):
+        from onecode.web.auth import local_request_allowed
+
+        self.assertTrue(local_request_allowed({"Host": "127.0.0.1:19080"}, bound_port=19080))
+        self.assertFalse(local_request_allowed({"Host": "evil.example:19080"}, bound_port=19080))
+        self.assertFalse(
+            local_request_allowed(
+                {"Host": "127.0.0.1:19080", "Origin": "https://evil.example"},
+                bound_port=19080,
+            )
+        )
+        self.assertTrue(
+            local_request_allowed(
+                {"Host": "127.0.0.1:19080", "Origin": "http://127.0.0.1:19080"},
+                bound_port=19080,
+            )
+        )
+
+    def test_latest_user_message_extracts_last_user_content(self):
+        from onecode.web.api import latest_user_message
+
+        self.assertEqual(
+            latest_user_message(
+                [
+                    {"role": "user", "content": "first"},
+                    {"role": "assistant", "content": "reply"},
+                    {"role": "user", "content": [{"type": "text", "text": "second"}]},
+                ]
+            ),
+            "second",
+        )
+
+    def test_math_capability_question_is_classified_as_chat(self):
+        from onecode.web.api import should_run_onecode_task
+
+        self.assertFalse(should_run_onecode_task("你会执行数学任务吗？能够用数学公式把八卦的规则写出来吗"))
+
+    def test_natural_language_project_check_is_classified_as_task(self):
+        from onecode.web.api import should_run_onecode_task
+
+        self.assertTrue(should_run_onecode_task("检查当前项目是否已经集成 safe-agent-skills"))
+
+    def test_query_numeric_parsers_reject_boolean_values(self):
+        from onecode.web.api import parse_limit, parse_window_seconds
+
+        self.assertEqual(parse_limit(True), 20)
+        self.assertEqual(parse_window_seconds(True), 60)
+
+    def test_task_without_model_key_returns_visible_configuration_failure(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+            },
+            clear=True,
+        ):
+            payload, status_code = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "查：看看项目"}],
+                }
+            )
+            evidence_exists = (Path(tmp) / ".onecode").exists()
+
+        self.assertEqual(status_code, 503)
+        self.assertEqual(payload["error"]["type"], "model_configuration_missing")
+        self.assertIn("OPENAI_API_KEY", payload["error"]["message"])
+        self.assertFalse(evidence_exists)
+
+    def test_error_payload_uses_openai_style_error(self):
+        from onecode.web.api import error_payload
+
+        payload = error_payload("invalid_request", "bad request")
+
+        self.assertEqual(payload["error"]["type"], "invalid_request")
+        self.assertEqual(payload["error"]["message"], "bad request")
+
+    def test_responses_module_encodes_json_payload(self):
+        from onecode.web.responses import encode_json_payload, error_payload
+
+        payload = error_payload("invalid_request", "bad request")
+        encoded = encode_json_payload(payload)
+
+        self.assertEqual(payload, {"error": {"type": "invalid_request", "message": "bad request"}})
+        self.assertEqual(encoded, b'{"error": {"type": "invalid_request", "message": "bad request"}}')
+
+    def test_chat_completion_rejects_missing_user_message(self):
+        from onecode.web.api import handle_chat_completion
+
+        payload, status_code = handle_chat_completion({"model": "onecode-agent", "messages": []})
+
+        self.assertEqual(status_code, 400)
+        self.assertEqual(payload["error"]["type"], "invalid_request")
+
+    def test_chat_completion_rejects_invalid_metadata_run_id(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+            },
+            clear=True,
+        ):
+            payload, status_code = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "查：看看项目"}],
+                    "metadata": {"run_id": "../outside"},
+                }
+            )
+
+        self.assertEqual(status_code, 400)
+        self.assertEqual(payload["error"]["type"], "invalid_run_id")
+
+    def test_chat_completion_returns_json_error_when_model_provider_fails(self):
+        from onecode.kernel.model_provider import ModelProviderError
+        from onecode.web.api import handle_chat_completion
+
+        with patch("onecode.web.api.run_model_task", side_effect=ModelProviderError("model request failed: Unauthorized")):
+            payload, status_code = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "造：demo"}],
+                }
+            )
+
+        self.assertEqual(status_code, 502)
+        self.assertEqual(payload["error"]["type"], "model_provider_error")
+        self.assertIn("Unauthorized", payload["error"]["message"])
+
+    def test_chat_completion_returns_504_for_timeout_result(self):
+        from onecode.web.api import handle_chat_completion
+
+        timeout_result = {
+            "run_id": "timeout-run",
+            "status": "halted",
+            "reason": "model_provider_timeout",
+            "trace_path": "/tmp/trace.jsonl",
+            "ledger_path": "/tmp/ledger.json",
+            "manifest_path": "/tmp/manifest.json",
+        }
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ", {"ONECODE_HOME": str(Path(tmp) / "home")}, clear=True
+        ), patch("onecode.web.api.run_model_task", return_value=timeout_result):
+            payload, status_code = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "检查项目"}],
+                }
+            )
+
+        self.assertEqual(status_code, 504)
+        self.assertEqual(payload["error"]["type"], "model_provider_timeout")
+        self.assertEqual(payload["onecode"]["result"]["run_id"], "timeout-run")
+
+    def test_chat_completion_returns_502_for_provider_failure_result(self):
+        from onecode.web.api import handle_chat_completion
+
+        provider_result = {
+            "run_id": "failed-run",
+            "status": "halted",
+            "reason": "model_provider_error",
+        }
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ", {"ONECODE_HOME": str(Path(tmp) / "home")}, clear=True
+        ), patch("onecode.web.api.run_model_task", return_value=provider_result):
+            payload, status_code = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "检查项目"}],
+                }
+            )
+
+        self.assertEqual(
+            (status_code, payload["error"]["type"]),
+            (502, "model_provider_error"),
+        )
+
+    def test_chat_completion_passes_configured_model_timeout(self):
+        from onecode.web.api import handle_chat_completion
+
+        completed = {"run_id": "run", "status": "completed", "reason": "completed"}
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+                "ONECODE_MODEL_TIMEOUT_SECONDS": "0.25",
+            },
+            clear=True,
+        ), patch(
+            "onecode.web.api.run_model_task", return_value=completed
+        ) as run_model:
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "检查项目"}],
+                }
+            )
+
+        self.assertEqual(run_model.call_args.kwargs["http_timeout_seconds"], 0.25)
+
+    def test_invalid_timeout_setting_is_rejected_without_a_model_call(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+                "ONECODE_MODEL_TIMEOUT_SECONDS": "0",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task") as run_model:
+            payload, status_code = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "检查项目"}],
+                }
+            )
+
+        self.assertEqual(
+            (status_code, payload["error"]["type"]),
+            (503, "invalid_model_timeout"),
+        )
+        run_model.assert_not_called()
+
+    def test_chat_completion_handles_empty_model_plan_as_visible_reply(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task", side_effect=ValueError("plan must include at least one asset")):
+            payload, status_code = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "检查当前项目"}],
+                }
+            )
+
+        self.assertEqual(status_code, 200)
+        self.assertEqual(payload["onecode"]["mode"], "no_action")
+        self.assertEqual(payload["onecode"]["result"]["status"], "halted")
+        self.assertEqual(payload["onecode"]["result"]["reason"], "no_actionable_plan")
+        self.assertNotIn("completed", payload["choices"][0]["message"]["content"])
+
+    def test_change_task_enables_router_and_explicit_approval(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+            },
+            clear=True,
+        ), patch(
+            "onecode.web.api.read_model_config",
+            return_value={"provider": "chat", "model": "m", "endpoint": "http://model/v1", "api_key": "key"},
+        ), patch(
+            "onecode.web.api.run_model_task",
+            return_value={
+                "run_id": "pending-run",
+                "status": "halted",
+                "reason": "approval_required",
+                "partial": False,
+                "requested_count": 1,
+                "completed_count": 0,
+                "skipped_count": 0,
+                "failed_count": 0,
+                "assets": [],
+                "plan_id": "abc123",
+            },
+        ) as run_model:
+            payload, status = handle_chat_completion(
+                {"model": "onecode-agent", "messages": [{"role": "user", "content": "修改 docs/result.md"}]}
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["onecode"]["result"]["reason"], "approval_required")
+        self.assertEqual(run_model.call_args.kwargs["task_mode"], "change_task")
+        self.assertTrue(run_model.call_args.kwargs["require_explicit_approval"])
+
+    def test_approval_handler_executes_revalidated_plan(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelExecutionStep, ModelPlan, ModelToolCall
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(
+                    task="write result",
+                    execution_steps=[
+                        ModelExecutionStep(
+                            id="write",
+                            description="write result",
+                            tool_calls=[
+                                ModelToolCall(
+                                    tool_name="write_text",
+                                    params={"path": "docs/result.md", "content": "done\n"},
+                                )
+                            ],
+                        )
+                    ],
+                ),
+                model_metadata={"model": "m", "model_provider": "openai", "safe_agent": {}},
+            )
+
+            payload, status = handle_onecode_plan_approval(
+                stored.plan_id,
+                {"workspace": tmp, "approved": True},
+            )
+
+            self.assertEqual(status, 200)
+            self.assertEqual(payload["status"], "completed")
+            self.assertEqual((workspace / "docs" / "result.md").read_text(encoding="utf-8"), "done\n")
+            self.assertFalse(stored.path.exists())
+
+    def test_approval_handler_rejects_terminal_plan_replay(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(task="write result", assets=[ModelPlanAsset(path="docs/result.md", content="done\n")]),
+                model_metadata={"model": "m"},
+            )
+
+            first_payload, first_status = handle_onecode_plan_approval(
+                stored.plan_id,
+                {"workspace": tmp, "approved": True},
+            )
+            replay_payload, replay_status = handle_onecode_plan_approval(
+                stored.plan_id,
+                {"workspace": tmp, "approved": True},
+            )
+
+        self.assertEqual((first_status, first_payload["status"]), (200, "completed"))
+        self.assertEqual(replay_status, 409)
+        self.assertEqual(replay_payload["error"]["message"], "approval_plan_already_resolved")
+
+    def test_approval_handler_records_rejection_without_execution(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(task="write result", assets=[ModelPlanAsset(path="docs/result.md", content="done\n")]),
+                model_metadata={"model": "m"},
+            )
+
+            payload, status = handle_onecode_plan_approval(
+                stored.plan_id,
+                {"workspace": tmp, "approved": False},
+            )
+
+            self.assertEqual(status, 200)
+            self.assertEqual(payload["reason"], "approval_rejected")
+            self.assertFalse((workspace / "docs" / "result.md").exists())
+
+    def test_approval_handler_rejects_when_ledger_mismatches_workspace(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(task="write result", assets=[ModelPlanAsset(path="src/result.py", content="done = 1\n")]),
+                model_metadata={"model": "m"},
+            )
+
+            with patch("onecode.web.api.ledger_matches_workspace", return_value="preset_test_hash_mismatch"):
+                payload, status = handle_onecode_plan_approval(
+                    stored.plan_id,
+                    {"workspace": tmp, "approved": True},
+                )
+
+            self.assertEqual(status, 400)
+            self.assertEqual(payload["status"], "halted")
+            self.assertEqual(payload["reason"], "preset_test_hash_mismatch")
+            self.assertFalse((workspace / "src" / "result.py").exists())
+
+    def test_chat_can_approve_pending_plan_without_model_call(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(task="write result", assets=[ModelPlanAsset(path="docs/result.md", content="done\n")]),
+                model_metadata={"model": "m"},
+            )
+            with patch("onecode.web.api.run_model_task") as run_model, patch("onecode.web.api.direct_chat_completion") as chat:
+                payload, status = handle_chat_completion(
+                    {
+                        "model": "onecode-agent",
+                        "messages": [{"role": "user", "content": f"批准计划 {stored.plan_id}"}],
+                        "metadata": {"workspace": tmp},
+                    }
+                )
+
+            self.assertEqual(status, 200)
+            self.assertEqual(payload["onecode"]["mode"], "approval")
+            self.assertEqual(payload["onecode"]["result"]["status"], "completed")
+            self.assertEqual((workspace / "docs" / "result.md").read_text(encoding="utf-8"), "done\n")
+            run_model.assert_not_called()
+            chat.assert_not_called()
+
+    def test_shell_change_task_passes_preface_sandbox_and_one_repair(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task", return_value={"status": "completed", "reason": None}) as run_model:
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "src" / "fares.py").write_text("def fare_cents():\n    return 0\n", encoding="utf-8")
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Fix src/fares.py"}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        kwargs = run_model.call_args.kwargs
+        self.assertEqual(kwargs["max_repair_attempts"], 1)
+        self.assertEqual(kwargs["sandbox_config"].network, "none")
+        self.assertIn("def fare_cents", kwargs["preface"])
+        self.assertIn("Do not return patches", run_model.call_args.args[0])
+        self.assertIn("src/fares.py", run_model.call_args.args[0])
+
+    def test_shell_survey_preface_includes_the_matching_test(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task", return_value={"status": "completed", "reason": None}) as run_model:
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "tests").mkdir()
+            (workspace / "src" / "fares.py").write_text("def fare_cents():\n    return 0\n", encoding="utf-8")
+            (workspace / "tests" / "test_fares.py").write_text(
+                "import unittest\n\nclass FareTests(unittest.TestCase):\n    def test_zero(self):\n        self.assertEqual(1, 0)\n",
+                encoding="utf-8",
+            )
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Fix src/fares.py"}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        preface = run_model.call_args.kwargs["preface"]
+        self.assertIn("def fare_cents", preface)
+        self.assertNotIn("assertEqual", preface)
+
+    def test_shell_asks_for_one_file_when_several_are_missing(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task", return_value={"status": "completed", "reason": None}) as run_model:
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Write src/one.py and src/two.py."}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        self.assertIn("exactly one new Python file", run_model.call_args.args[0])
+        self.assertIn("Do not return patches", run_model.call_args.args[0])
+        self.assertIn("src/one.py", run_model.call_args.args[0])
+        self.assertIn("src/two.py", run_model.call_args.args[0])
+
+    def test_shell_asks_for_one_complete_asset_for_a_new_file(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task", return_value={"status": "completed", "reason": None}) as run_model:
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Write src/toll.py so fee_cents(2) is 100."}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        prompt = run_model.call_args.args[0]
+        self.assertIn("src/toll.py", prompt)
+        self.assertIn("complete", prompt)
+        self.assertIn("Do not return patches", prompt)
+        self.assertIn("Do not install packages", prompt)
+
+    def test_shell_stops_before_the_write_when_the_survey_halts(self):
+        from onecode.kernel.hexagram import IchingKernel
+        from onecode.web.api import handle_chat_completion
+
+        halted = {
+            "status": "halted",
+            "reason": "sovereignty_breach",
+            "status_code": IchingKernel.classify_outcome("halted", "sovereignty_breach"),
+            "preface": "",
+            "turns": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.shell_read_survey", return_value=halted), patch(
+            "onecode.web.api.run_model_task"
+        ) as run_model:
+            payload, status = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Fix src/fares.py"}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["onecode"]["result"]["reason"], "sovereignty_breach")
+        self.assertEqual(payload["onecode"]["result"]["cycle"]["cycle"], "stop")
+        run_model.assert_not_called()
+
+    def test_shell_write_continues_when_the_survey_tool_fails(self):
+        from onecode.web.api import handle_chat_completion
+
+        halted = {
+            "status": "halted",
+            "reason": "action_exception",
+            "status_code": 32,
+            "preface": "",
+            "turns": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.shell_read_survey", return_value=halted), patch(
+            "onecode.web.api.run_model_task", return_value={"status": "completed", "reason": None}
+        ) as run_model:
+            payload, status = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Write src/tide.py and src/berth.py."}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["onecode"]["mode"], "model")
+        run_model.assert_called()
+        self.assertIn("src/tide.py", run_model.call_args.args[0])
+
+    def test_shell_write_continues_when_the_survey_repeats_a_read(self):
+        from onecode.web.api import handle_chat_completion
+
+        halted = {
+            "status": "halted",
+            "reason": "repeated_action",
+            "status_code": 40,
+            "preface": "read src/app.py",
+            "turns": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.shell_read_survey", return_value=halted), patch(
+            "onecode.web.api.run_model_task", return_value={"status": "halted", "reason": "approval_required"}
+        ) as run_model:
+            payload, status = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Fix the coupon list."}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        self.assertEqual(status, 200)
+        run_model.assert_called()
+
+    def test_unnamed_task_asks_for_one_existing_python_file(self):
+        from onecode.web.api import _shell_write_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "app").mkdir()
+            (root / "app" / "policy.py").write_text("def allow():\n    return False\n", encoding="utf-8")
+            (root / "tests").mkdir()
+            (root / "tests" / "test_policy.py").write_text("import unittest\n", encoding="utf-8")
+            prompt = _shell_write_prompt("Fix the coupon list.", root)
+        self.assertIn("app/policy.py", prompt)
+        self.assertIn("JSON asset", prompt)
+        self.assertNotIn("tests/test_policy.py", prompt)
+
+    def test_sole_flat_package_file_is_copied_into_the_preface(self):
+        from onecode.web.api import _shell_write_prompt, shell_model_task_extras
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "archive_like"
+            package.mkdir()
+            (package / "extract.py").write_text("def extract_members():\n    return []\n", encoding="utf-8")
+            task = "归档解压要拦住 symlink，别写出逃逸路径。"
+            prompt = _shell_write_prompt(task, root)
+            extras = shell_model_task_extras(task, root)
+            from onecode.web.api import _rewrite_target
+
+            rewrite = _rewrite_target(task, root)
+        self.assertIn("Target: archive_like/extract.py", prompt)
+        self.assertIn("def extract_members", extras["preface"])
+        self.assertEqual(rewrite, "archive_like/extract.py")
+
+    def test_small_flat_package_preface_includes_every_module(self):
+        from onecode.web.api import shell_model_task_extras
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "archive_like"
+            package.mkdir()
+            (package / "extract.py").write_text("def extract_members():\n    return []\n", encoding="utf-8")
+            (package / "path.py").write_text("def target_path(base, name):\n    return name\n", encoding="utf-8")
+            extras = shell_model_task_extras("归档解压要拦住 symlink，别写出逃逸路径。", root)
+        self.assertIn("def extract_members", extras["preface"])
+        self.assertIn("def target_path", extras["preface"])
+
+    def test_single_target_preface_keeps_source_past_four_thousand_characters(self):
+        from onecode.web.api import shell_model_task_extras
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "pathspec"
+            package.mkdir()
+            body = ("# pad\n" * 900) + "def match_files(paths):\n    return paths\n"
+            (package / "util.py").write_text(body, encoding="utf-8")
+            extras = shell_model_task_extras("让 match_files() 返回完整匹配。", root)
+        self.assertIn("def match_files", extras["preface"])
+        self.assertGreater(extras["preface"].index("def match_files"), 4000)
+
+    def test_single_target_preface_keeps_a_ten_thousand_character_tail(self):
+        from onecode.web.api import shell_model_task_extras
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "src" / "marshmallow"
+            package.mkdir(parents=True)
+            body = ("# line\n" * 1500) + "def tail_definition():\n    return 1\n"
+            self.assertGreater(len(body), 4000)
+            self.assertLess(len(body), 24000)
+            (package / "schema.py").write_text(body, encoding="utf-8")
+            extras = shell_model_task_extras("修正 schema.py 的尾部定义。", root)
+        self.assertIn("def tail_definition", extras["preface"])
+        self.assertGreater(extras["preface"].index("def tail_definition"), 4000)
+
+    def test_oversized_target_asks_for_one_patch_around_the_token(self):
+        from onecode.web.api import _rewrite_target, _shell_write_prompt, shell_model_task_extras
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            package = root / "src" / "marshmallow"
+            package.mkdir(parents=True)
+            body = ("x = 1\n" * 5000) + "def show():\n    return 'data_key'\n" + ("y = 2\n" * 5000)
+            (package / "schema.py").write_text(body, encoding="utf-8")
+            task = "错误 key 要用对外的 data_key。"
+            prompt = _shell_write_prompt(task, root)
+            extras = shell_model_task_extras(task, root)
+            rewrite = _rewrite_target(task, root)
+        self.assertIn("patch", prompt.casefold())
+        self.assertIn("search_block", prompt)
+        self.assertNotIn("complete non-empty file", prompt)
+        self.assertIn("def show", extras["preface"])
+        self.assertIn("data_key", extras["preface"])
+        self.assertLess(len(extras["preface"]), len(body))
+        self.assertEqual(rewrite, "src/marshmallow/schema.py")
+
+    def test_named_workspace_file_is_the_write_target_and_preface(self):
+        from onecode.web.api import _shell_write_prompt, shell_model_task_extras
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "click_like").mkdir()
+            (root / "click_like" / "formatter.py").write_text("WIDTH = 80\n", encoding="utf-8")
+            (root / "click_like" / "other.py").write_text("X = 1\n", encoding="utf-8")
+            for index in range(10):
+                (root / f"z{index}.py").write_text("Y = 1\n", encoding="utf-8")
+            prompt = _shell_write_prompt("请修改 click_like/formatter.py 的宽度。", root)
+            extras = shell_model_task_extras("请修改 click_like/formatter.py 的宽度。", root)
+        self.assertIn("Target: click_like/formatter.py", prompt)
+        self.assertNotIn("z0.py", prompt)
+        self.assertIn("WIDTH = 80", extras["preface"])
+        self.assertNotIn("X = 1", extras["preface"])
+
+    def test_a_refused_python_file_is_not_forced_as_the_write_target(self):
+        from onecode.web.api import _shell_write_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "markupsafe_like").mkdir()
+            (root / "markupsafe_like" / "formatting.py").write_text("def render():\n    return ''\n", encoding="utf-8")
+            (root / "markupsafe_like" / "other.py").write_text("X = 1\n", encoding="utf-8")
+            prompt = _shell_write_prompt("只补测试，先别改 formatting.py。", root)
+        self.assertNotIn("Target: markupsafe_like/formatting.py", prompt)
+
+    def test_a_tests_directory_request_does_not_rewrite_the_only_implementation_file(self) -> None:
+        from onecode.web.api import _shell_write_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "click_like").mkdir()
+            (root / "click_like" / "options.py").write_text("def parse():\n    return None\n", encoding="utf-8")
+            prompt = _shell_write_prompt("麻烦只在 tests 下面补一组回归测试，主逻辑先别动。", root)
+        self.assertIn("Add exactly one new unittest file under tests/", prompt)
+        self.assertIn("current implementation", prompt)
+        self.assertIn("Do not modify implementation files.", prompt)
+        self.assertNotIn("Target: click_like/options.py", prompt)
+
+    def test_surveyed_file_outranks_the_alphabetical_candidates(self):
+        from onecode.web.api import _shell_write_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ("a.py", "b.py", "c.py", "d.py", "e.py", "f.py", "g.py", "h.py"):
+                (root / name).write_text("A = 1\n", encoding="utf-8")
+            (root / "pkg").mkdir()
+            (root / "pkg" / "real.py").write_text("VALUE = 9\n", encoding="utf-8")
+            prompt = _shell_write_prompt("把匹配做对。", root, "## pkg / real.py\nVALUE = 9\n")
+        self.assertIn("Target: pkg/real.py", prompt)
+        self.assertNotIn("a.py", prompt)
+
+    def test_json_only_task_targets_the_named_json_file(self):
+        from onecode.web.api import _shell_write_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "app.py").write_text("VALUE = 1\n", encoding="utf-8")
+            prompt = _shell_write_prompt("请在仓库根目录生成一个 analysis.json，不要改业务代码。", root)
+        self.assertIn("Target: analysis.json", prompt)
+        self.assertNotIn("app.py", prompt)
+
+    def test_task_tokens_select_the_implementation_file(self):
+        from onecode.web.api import _shell_write_prompt, shell_model_task_extras
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ("a.py", "b.py", "c.py", "d.py", "e.py", "f.py", "g.py", "h.py"):
+                (root / name).write_text("A = 1\n", encoding="utf-8")
+            (root / "pkg").mkdir()
+            (root / "pkg" / "query_utils.py").write_text("class FilteredRelation:\n    pass\n", encoding="utf-8")
+            task = "把 FilteredRelation 放进查询后会抛 AttributeError。"
+            prompt = _shell_write_prompt(task, root)
+            extras = shell_model_task_extras(task, root)
+        self.assertIn("Target: pkg/query_utils.py", prompt)
+        self.assertNotIn("a.py", prompt)
+        self.assertIn("FilteredRelation", extras["preface"])
+
+    def test_tests_only_task_asks_for_one_new_unittest_file(self):
+        from onecode.web.api import _shell_write_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "markupsafe_like").mkdir()
+            (root / "markupsafe_like" / "formatting.py").write_text("def render():\n    return ''\n", encoding="utf-8")
+            prompt = _shell_write_prompt("麻烦只补测试，先别改 formatting.py。", root)
+        self.assertIn("tests/", prompt)
+        self.assertIn("unittest", prompt)
+        self.assertNotIn("Target: markupsafe_like/formatting.py", prompt)
+
+    def test_failed_patch_opens_a_new_complete_file_approval(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanPatch
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "src" / "fares.py").write_text("def fare_cents():\n    return 0\n", encoding="utf-8")
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(
+                    task="fix src/fares.py",
+                    patches=[ModelPlanPatch(path="src/fares.py", search_block="return 0\n", replace_block="return 1\n")],
+                ),
+                model_metadata={"model": "m", "user_task": "Fix src/fares.py"},
+            )
+            with patch(
+                "onecode.web.api.execute_model_plan",
+                return_value={"status": "halted", "reason": "patch_search_not_found", "assets": []},
+            ), patch(
+                "onecode.web.api.run_model_task",
+                return_value={"status": "halted", "reason": "approval_required"},
+            ) as run_model:
+                payload, status = handle_onecode_plan_approval(stored.plan_id, {"workspace": tmp, "approved": True})
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["reason"], "approval_required")
+        self.assertEqual(run_model.call_args.kwargs["max_repair_attempts"], 0)
+        self.assertIn("Do not return patches", run_model.call_args.args[0])
+        self.assertNotIn("patches only", run_model.call_args.args[0])
+
+    def test_a_second_missed_patch_does_not_open_another_rewrite(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanPatch
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "src" / "fares.py").write_text("def fare_cents():\n    return 0\n", encoding="utf-8")
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(
+                    task="rewrite",
+                    patches=[ModelPlanPatch(path="src/fares.py", search_block="return 0\n", replace_block="return 1\n")],
+                ),
+                model_metadata={
+                    "model": "m",
+                    "user_task": "Write exactly one complete Python file as a JSON asset.\nTarget: src/fares.py",
+                },
+            )
+            with patch(
+                "onecode.web.api.execute_model_plan",
+                return_value={"status": "halted", "reason": "patch_search_not_found", "assets": []},
+            ), patch("onecode.web.api.run_model_task") as run_model:
+                payload, status = handle_onecode_plan_approval(stored.plan_id, {"workspace": tmp, "approved": True})
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["reason"], "patch_search_not_found")
+        run_model.assert_not_called()
+
+    def test_shell_preface_includes_confirmed_memory_and_mcp_names(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task", return_value={"status": "completed", "reason": None}) as run_model:
+            workspace = Path(tmp)
+            memory = workspace / ".onecode"
+            memory.mkdir()
+            (memory / "memory.jsonl").write_text('{"text": "fare uses cents"}\n', encoding="utf-8")
+            (memory / "mcp_servers.json").write_text(
+                '{"mcpServers": {"planted": {"command": "echo"}}}',
+                encoding="utf-8",
+            )
+            home = Path(tmp) / "home"
+            home.mkdir()
+            (home / "mcp_servers.json").write_text(
+                '{"mcpServers": {"docs": {"command": "echo"}}}',
+                encoding="utf-8",
+            )
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Write src/toll.py"}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        prompt = run_model.call_args.args[0] + "\n" + str(run_model.call_args.kwargs.get("preface") or "")
+        self.assertIn("fare uses cents", prompt)
+        self.assertIn("docs", prompt)
+        self.assertNotIn("planted", prompt)
+
+    def test_staging_an_existing_preset_test_is_rejected(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            (Path(tmp) / "home").mkdir()
+            test_file = workspace / "tests" / "test_fee.py"
+            test_file.parent.mkdir()
+            test_file.write_text("ORIGINAL = 1\n", encoding="utf-8")
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(
+                    task="stage a test",
+                    assets=[ModelPlanAsset(path="src/fee.py", content="RATE = 1\n")],
+                ),
+                model_metadata={"model": "m", "user_task": "write src/fee.py"},
+            )
+            payload, status = handle_onecode_plan_approval(
+                stored.plan_id,
+                {
+                    "workspace": tmp,
+                    "approved": True,
+                    "stage": {"path": "tests/test_fee.py", "content": "TAMPERED = 1\n"},
+                },
+            )
+            self.assertEqual(status, 400)
+            self.assertEqual(test_file.read_text(encoding="utf-8"), "ORIGINAL = 1\n")
+            self.assertEqual(payload["error"]["type"], "invalid_stage")
+
+    def test_confirmed_completion_is_remembered_and_a_halt_is_not(self):
+        from onecode.kernel.agent_memory import load_agent_memory
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task", return_value={"status": "halted", "reason": "verifier_failed"}):
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Write src/toll.py"}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task", "confirm_memory": True},
+                }
+            )
+            self.assertEqual(load_agent_memory(Path(tmp)), [])
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task", return_value={"status": "completed", "reason": None}):
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "Write src/toll.py"}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task", "confirm_memory": True},
+                }
+            )
+            remembered = load_agent_memory(Path(tmp))
+        self.assertEqual(len(remembered), 1)
+        self.assertIn("toll", json.dumps(remembered))
+
+    def test_shell_survey_reads_the_file_the_model_names(self):
+        from onecode.web.api import handle_chat_completion
+
+        def complete(prompt: str) -> str:
+            if "FARE = 9" in prompt:
+                return '{"tools":[]}'
+            return '{"tools":[{"tool_name":"read_text","params":{"path":"src/rates.py"}}]}'
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.complete_read_survey", side_effect=complete), patch(
+            "onecode.web.api.run_model_task", return_value={"status": "completed", "reason": None}
+        ) as run_model:
+            workspace = Path(tmp)
+            (workspace / "src").mkdir()
+            (workspace / "src" / "rates.py").write_text("FARE = 9\n", encoding="utf-8")
+            handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "where is the fare constant"}],
+                    "metadata": {"workspace": tmp, "onecode_mode": "change_task"},
+                }
+            )
+
+        self.assertIn("FARE = 9", run_model.call_args.kwargs["preface"])
+        self.assertFalse((workspace / "src" / "hack.py").exists())
+
+    def test_approved_write_checks_sandbox_and_offers_one_repair(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.kernel.verifier import VerifierResult
+        from onecode.web.api import handle_onecode_plan_approval
+
+        failed = VerifierResult(
+            id="python-unittest", status="failed", reason="verifier_failed", failure_kind="command_failed",
+            exit_code=1, duration_ms=1, stdout_tail="", stderr_tail="AssertionError",
+            stdout_sha256="0" * 64, stderr_sha256="0" * 64, cwd=".", command=["python3", "-m", "unittest"],
+        )
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            (workspace / "tests").mkdir()
+            (workspace / "tests" / "test_fares.py").write_text("import unittest\n", encoding="utf-8")
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(task="fix src/fares.py", assets=[ModelPlanAsset(path="src/fares.py", content="VALUE = 1\n")]),
+                model_metadata={"model": "m"},
+            )
+            with patch("onecode.kernel.verifier.run_verifier", return_value=failed), patch(
+                "onecode.web.api.run_model_task", return_value={"status": "halted", "reason": "approval_required"}
+            ) as run_model:
+                payload, status = handle_onecode_plan_approval(stored.plan_id, {"workspace": tmp, "approved": True})
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["reason"], "approval_required")
+        self.assertEqual(run_model.call_args.kwargs["max_repair_attempts"], 0)
+        self.assertIn("patches only", run_model.call_args.args[0])
+        self.assertIn("VALUE = 1", run_model.call_args.args[0])
+        self.assertIn("AssertionError", payload["verifier_tail"])
+
+    def test_approval_message_shows_the_diff_patch_and_verifier_tail(self):
+        from onecode.web.api import format_run_result
+
+        text = format_run_result(
+            {
+                "reason": "approval_required",
+                "plan_id": "a" * 32,
+                "verifier_tail": "AssertionError: 0 != 1",
+                "plan_summary": {
+                    "actions": [
+                        {
+                            "tool": "patch_text",
+                            "path": "src/fares.py",
+                            "diff": "--- a/src/fares.py\n+++ b/src/fares.py\n@@\n-return 0\n+return 1\n",
+                            "search_preview": "return 0\n",
+                            "replace_preview": "return 1\n",
+                        }
+                    ]
+                },
+            },
+            "approval_required",
+        )
+        self.assertIn("测试失败：\n```\nAssertionError: 0 != 1\n```", text)
+        self.assertIn("```diff\n--- a/src/fares.py\n+++ b/src/fares.py\n", text)
+        self.assertIn("查找：\n```\nreturn 0\n```", text)
+        self.assertIn("替换：\n```\nreturn 1\n```", text)
+
+    def test_approved_write_continues_the_next_named_file(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(task="write one", assets=[ModelPlanAsset(path="src/one.py", content="VALUE = 1\n")]),
+                model_metadata={"model": "m", "user_task": "Write src/one.py and src/two.py."},
+            )
+            with patch(
+                "onecode.web.api.run_model_task",
+                return_value={"status": "halted", "reason": "approval_required"},
+            ) as run_model:
+                payload, status = handle_onecode_plan_approval(stored.plan_id, {"workspace": tmp, "approved": True})
+
+            self.assertEqual(status, 200)
+            self.assertEqual(payload["reason"], "approval_required")
+            self.assertEqual((workspace / "src" / "one.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+            self.assertFalse((workspace / "src" / "two.py").exists())
+            self.assertIn("src/two.py", run_model.call_args.args[0])
+            self.assertIn("src/one.py", run_model.call_args.args[0])
+
+    def test_approved_plan_stages_host_bytes_and_a_rejection_does_not(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            rejected = persist_approval_plan(
+                workspace,
+                ModelPlan(task="write", assets=[ModelPlanAsset(path="docs/result.md", content="done\n")]),
+                model_metadata={"model": "m"},
+            )
+            _, status = handle_onecode_plan_approval(
+                rejected.plan_id,
+                {"workspace": tmp, "approved": False, "stage": {"path": "vendor/pkg.py", "content": "VALUE = 1\n"}},
+            )
+            self.assertEqual(status, 200)
+            self.assertFalse((workspace / "vendor" / "pkg.py").exists())
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(task="write", assets=[ModelPlanAsset(path="docs/result.md", content="done\n")]),
+                model_metadata={"model": "m"},
+            )
+            payload, status = handle_onecode_plan_approval(
+                stored.plan_id,
+                {"workspace": tmp, "approved": True, "stage": {"path": "vendor/pkg.py", "content": "VALUE = 1\n"}},
+            )
+            self.assertEqual(status, 200)
+            self.assertEqual(payload["status"], "completed")
+            self.assertEqual((workspace / "vendor" / "pkg.py").read_text(encoding="utf-8"), "VALUE = 1\n")
+            self.assertEqual((workspace / "docs" / "result.md").read_text(encoding="utf-8"), "done\n")
+
+    def test_general_math_question_uses_direct_chat_answer_not_run_summary(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task") as run_model, patch(
+            "onecode.web.api.direct_chat_completion",
+            return_value="可以。八卦可用三位二进制向量表示，例如乾=(1,1,1)，坤=(0,0,0)。",
+        ) as direct_chat:
+            run_model.return_value = {
+                "run_id": "model-run",
+                "status": "completed",
+                "ledger_path": str(Path(tmp) / "ledger.json"),
+            }
+            payload, status_code = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "你会执行数学任务吗？能够用数学公式把八卦的规则写出来吗"}],
+                }
+            )
+
+        self.assertEqual(status_code, 200)
+        self.assertEqual(payload["onecode"]["mode"], "chat")
+        self.assertEqual(payload["choices"][0]["message"]["content"], "可以。八卦可用三位二进制向量表示，例如乾=(1,1,1)，坤=(0,0,0)。")
+        self.assertEqual(direct_chat.call_count, 1)
+        self.assertEqual(run_model.call_count, 0)
+
+    def test_onecode_agent_alias_uses_configured_openai_model(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "ONECODE_MODEL": "gpt-5.5",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task") as run_model:
+            run_model.return_value = {
+                "run_id": "model-run",
+                "status": "completed",
+                "ledger_path": str(Path(tmp) / "ledger.json"),
+            }
+            payload, status_code = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "造：demo"}],
+                }
+            )
+
+        self.assertEqual(status_code, 200)
+        self.assertEqual(payload["onecode"]["mode"], "model")
+        self.assertEqual(run_model.call_args.kwargs["model"], "gpt-5.5")
+
+    def test_chat_completion_uses_metadata_workspace_for_onecode_runs(self):
+        from onecode.web.api import handle_chat_completion
+
+        with tempfile.TemporaryDirectory() as default_tmp, tempfile.TemporaryDirectory() as selected_tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": default_tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": os.pathsep.join([default_tmp, selected_tmp]),
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "test-key",
+            },
+            clear=True,
+        ), patch("onecode.web.api.run_model_task") as run_model:
+            run_model.return_value = {
+                "run_id": "selected-workspace-run",
+                "status": "completed",
+                "ledger_path": str(Path(selected_tmp) / ".onecode" / "runs" / "selected-workspace-run" / "ledger.json"),
+            }
+            payload, status_code = handle_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "查：看看项目"}],
+                    "metadata": {"workspace": selected_tmp},
+                }
+            )
+
+        self.assertEqual(status_code, 200)
+        self.assertEqual(payload["onecode"]["mode"], "model")
+        self.assertEqual(run_model.call_args.kwargs["workspace"], Path(selected_tmp).resolve())
+
+    def test_workspace_from_request_rejects_workspace_outside_allowed_roots(self):
+        from onecode.web.api import workspace_from_request
+
+        with tempfile.TemporaryDirectory() as allowed, tempfile.TemporaryDirectory() as outside, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": allowed,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": allowed,
+            },
+            clear=True,
+        ):
+            with self.assertRaises(ValueError) as raised:
+                workspace_from_request({"metadata": {"workspace": outside}})
+
+        self.assertIn("outside allowed workspace roots", str(raised.exception))
+
+    def test_workspace_module_rejects_path_outside_allowed_roots(self):
+        from onecode.web.workspace import workspace_from_request
+
+        with tempfile.TemporaryDirectory() as allowed, tempfile.TemporaryDirectory() as outside, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": allowed,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": allowed,
+            },
+            clear=True,
+        ):
+            with self.assertRaises(ValueError) as raised:
+                workspace_from_request({"metadata": {"workspace": outside}})
+
+        self.assertIn("outside allowed workspace roots", str(raised.exception))
+
+    def test_workspace_from_request_accepts_workspace_inside_allowed_root(self):
+        from onecode.web.api import workspace_from_request
+
+        with tempfile.TemporaryDirectory() as allowed:
+            child = Path(allowed) / "child"
+            child.mkdir()
+            with patch.dict(
+                "os.environ",
+                {
+                    "ONECODE_WORKSPACE_ROOT": allowed,
+                    "ONECODE_ALLOWED_WORKSPACE_ROOTS": allowed,
+                },
+                clear=True,
+            ):
+                workspace = workspace_from_request({"metadata": {"workspace": str(child)}})
+
+        self.assertEqual(workspace, child.resolve())
+
+    def test_project_status_reports_git_and_verifier_policy(self):
+        from onecode.web.api import handle_onecode_project_status
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            (workspace / ".git").mkdir()
+            (workspace / ".onecode").mkdir()
+            (workspace / ".onecode" / "verifier-policy.json").write_text(
+                json.dumps({"verifiers": []}),
+                encoding="utf-8",
+            )
+
+            payload, status = handle_onecode_project_status({"workspace": tmp})
+
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["allowed"])
+        self.assertTrue(payload["exists"])
+        self.assertTrue(payload["git"]["present"])
+        self.assertTrue(payload["verifier_policy"]["present"])
+
+    def test_project_status_includes_context_and_config_summaries_without_raw_rule_content(self):
+        from onecode.web.api import project_status_payload
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            (workspace / "AGENTS.md").write_text("private instruction body\n", encoding="utf-8")
+            skill_dir = workspace / ".onecode" / "skills"
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "code-test-regression.json").write_text(
+                json.dumps(
+                    {
+                        "name": "code-test-regression",
+                        "version": "1",
+                        "description": "private skill body",
+                        "capabilities": ["test", "verification"],
+                        "risk": "low",
+                        "mode": "method_only",
+                        "allowed_tools": ["pytest"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            payload = project_status_payload(workspace)
+
+        self.assertIn("project_context", payload)
+        self.assertIn("runtime_config", payload)
+        self.assertIn("skill_context", payload)
+        self.assertEqual(payload["project_context"]["summary"]["element"], "wood")
+        self.assertEqual(payload["runtime_config"]["summary"]["element"], "earth")
+        self.assertEqual(payload["skill_context"]["summary"]["element"], "water")
+        self.assertEqual(payload["skill_context"]["summary"]["skill_count"], 1)
+        self.assertNotIn("private instruction body", json.dumps(payload["project_context"]))
+        self.assertNotIn("private skill body", json.dumps(payload["skill_context"]))
+        self.assertNotIn("allowed_tools", json.dumps(payload["skill_context"]))
+        self.assertNotIn("pytest", json.dumps(payload["skill_context"]))
+        self.assertNotIn("skills", payload["skill_context"])
+        self.assertNotIn("invalid_skills", payload["skill_context"])
+        self.assertIn("content_sha256", payload["project_context"]["memory_files"][0])
+
+    def test_project_status_exposes_effective_model_sources_without_secret(self):
+        from onecode.web.api import project_status_payload
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "OPENAI_API_KEY": "environment-secret",
+            },
+            clear=True,
+        ), patch(
+            "onecode.web.api.read_model_config",
+            return_value={
+                "provider": "openai-compatible",
+                "endpoint": "http://stored.example/v1",
+                "model": "stored-model",
+                "api_key": "stored-secret",
+            },
+        ):
+            payload = project_status_payload(Path(tmp))
+
+        config = payload["effective_model_config"]
+        self.assertEqual(config["provider"], "chat")
+        self.assertEqual(config["provider_source"], "environment")
+        self.assertEqual(config["endpoint_source"], "stored")
+        self.assertTrue(config["api_key_configured"])
+        self.assertNotIn("environment-secret", json.dumps(payload))
+        self.assertNotIn("stored-secret", json.dumps(payload))
+
+    def test_project_status_projects_latest_run_for_shell_consumers(self):
+        from onecode.kernel.runner import run_task
+        from onecode.web.api import handle_onecode_project_status
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            run_task("seed", workspace=Path(tmp), run_id="status-latest", write_path="seed.txt", write_content="ok\n")
+            payload, status = handle_onecode_project_status({"workspace": tmp})
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["latest_run"]["run_id"], "status-latest")
+        self.assertEqual(payload["latest_run"]["shell_projection"]["run_id"], "status-latest")
+        self.assertEqual(payload["latest_run"]["shell_projection"]["severity"], "ok")
+
+    def test_project_init_creates_git_and_default_verifier_policy(self):
+        from onecode.web.api import handle_onecode_project_init
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp) / "demo"
+            workspace.mkdir()
+
+            payload, status = handle_onecode_project_init(
+                {"workspace": str(workspace), "git": True, "verifierPolicy": True}
+            )
+            git_exists = (workspace / ".git").exists()
+            verifier_policy_exists = (workspace / ".onecode" / "verifier-policy.json").exists()
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["workspace"], str(workspace.resolve()))
+        self.assertTrue(git_exists)
+        self.assertTrue(verifier_policy_exists)
+        self.assertTrue(payload["git"]["present"])
+        self.assertTrue(payload["verifier_policy"]["present"])
+
+    def test_onecode_runs_endpoint_lists_existing_run_summaries(self):
+        from onecode.kernel.runner import run_task
+        from onecode.web.api import handle_onecode_runs_list
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            run_task("seed", workspace=Path(tmp), run_id="api-run", write_path="seed.txt", write_content="ok\n")
+            payload, status = handle_onecode_runs_list({"workspace": tmp, "limit": "10"})
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["runs"][0]["run_id"], "api-run")
+        self.assertIn("ledger_path", payload["runs"][0])
+        self.assertEqual(payload["runs"][0]["shell_projection"]["severity"], "ok")
+        self.assertEqual(payload["runs"][0]["shell_projection"]["evidence_ref"]["mode"], "full")
+
+    def test_onecode_inspect_endpoint_returns_cli_inspect_summary_with_shell_projection(self):
+        from onecode.kernel.runner import run_task
+        from onecode.web.api import handle_onecode_run_inspect
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            run_task("seed", workspace=Path(tmp), run_id="inspect-api", write_path="seed.txt", write_content="ok\n")
+            payload, status = handle_onecode_run_inspect("inspect-api", {"workspace": tmp})
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["run_id"], "inspect-api")
+        self.assertEqual(payload["status"], "completed")
+        self.assertEqual(payload["delivery_status"], "deliverable")
+        self.assertEqual(payload["shell_projection"]["run_id"], "inspect-api")
+        self.assertEqual(payload["shell_projection"]["delivery_state"]["status"], "deliverable")
+        self.assertEqual(payload["shell_projection"]["rule_state"]["status_code"], payload["iching_status_code"])
+
+    def test_onecode_inspect_endpoint_projects_trace_gap_repair_gate_for_shell(self):
+        from onecode.kernel.runner import run_task
+        from onecode.web.api import handle_onecode_run_inspect
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            run_task("gap api", workspace=workspace, run_id="inspect-gap-api", write_path="gap.txt", write_content="ok\n")
+            trace_path = workspace / ".onecode" / "runs" / "inspect-gap-api" / "trace.jsonl"
+            events = [json.loads(line) for line in trace_path.read_text(encoding="utf-8").splitlines()]
+            aggregate = next(event for event in events if event.get("capture_mode") == "aggregate")
+            later = dict(aggregate)
+            aggregate["payload"] = {
+                **aggregate["payload"],
+                "first_timestamp": "2026-06-03T00:00:00+00:00",
+                "last_timestamp": "2026-06-03T00:00:01+00:00",
+            }
+            later["span_id"] = "progress_tick-aggregate-api-2"
+            later["payload"] = {
+                **later["payload"],
+                "first_timestamp": "2026-06-03T00:15:00+00:00",
+                "last_timestamp": "2026-06-03T00:15:01+00:00",
+            }
+            events.insert(events.index(aggregate) + 1, later)
+            trace_path.write_text(
+                "\n".join(json.dumps(event, ensure_ascii=False, sort_keys=True) for event in events) + "\n",
+                encoding="utf-8",
+            )
+            payload, status = handle_onecode_run_inspect("inspect-gap-api", {"workspace": tmp})
+
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["repair_required"])
+        self.assertEqual(payload["next_action"], "repair")
+        self.assertEqual(payload["shell_projection"]["next_action"], "repair")
+        self.assertEqual(payload["shell_projection"]["delivery_state"]["status"], "blocked")
+
+    def test_onecode_resume_endpoint_runs_model_with_resume_from_run_id(self):
+        from onecode.web.api import handle_onecode_run_resume
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ), patch("onecode.web.api.run_model_task") as run_model:
+            run_model.return_value = {"run_id": "resumed-api", "status": "completed"}
+            payload, status = handle_onecode_run_resume(
+                "source-api",
+                {"workspace": tmp, "message": "继续完成"},
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["run_id"], "resumed-api")
+        self.assertEqual(run_model.call_args.kwargs["resume_from_run_id"], "source-api")
+        self.assertEqual(run_model.call_args.kwargs["workspace"], Path(tmp).resolve())
+        self.assertTrue(run_model.call_args.kwargs["require_explicit_approval"])
+
+    def test_onecode_resume_without_model_key_returns_configuration_failure(self):
+        from onecode.web.api import handle_onecode_run_resume
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+            },
+            clear=True,
+        ):
+            payload, status = handle_onecode_run_resume(
+                "source-api",
+                {"workspace": tmp, "message": "继续完成"},
+            )
+            evidence_exists = (Path(tmp) / ".onecode").exists()
+
+        self.assertEqual(status, 503)
+        self.assertEqual(payload["error"]["type"], "model_configuration_missing")
+        self.assertFalse(evidence_exists)
+
+    def test_claimed_plan_execution_failure_is_archived_and_not_replayable(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelExecutionStep, ModelPlan, ModelToolCall
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(
+                    task="missing command",
+                    execution_steps=[
+                        ModelExecutionStep(
+                            id="missing",
+                            description="run missing command",
+                            tool_calls=[
+                                ModelToolCall(
+                                    tool_name="run_command",
+                                    params={"argv": ["onecode-command-that-does-not-exist"]},
+                                )
+                            ],
+                        )
+                    ],
+                ),
+                model_metadata={"model": "m"},
+            )
+
+            failed_payload, failed_status = handle_onecode_plan_approval(
+                stored.plan_id,
+                {"workspace": tmp, "approved": True},
+            )
+            replay_payload, replay_status = handle_onecode_plan_approval(
+                stored.plan_id,
+                {"workspace": tmp, "approved": True},
+            )
+
+            executing = workspace / ".onecode" / "executing-plans" / f"{stored.plan_id}.json"
+            archived = workspace / ".onecode" / "approval-plans" / f"{stored.plan_id}.json"
+            self.assertFalse(executing.exists())
+            self.assertTrue(archived.exists())
+
+        self.assertEqual((failed_status, failed_payload["status"]), (200, "halted"))
+        self.assertEqual(replay_status, 409)
+        self.assertEqual(replay_payload["error"]["message"], "approval_plan_already_resolved")
+
+    def test_nonzero_command_result_halts_the_approved_plan(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+        from onecode.kernel.model_provider import ModelExecutionStep, ModelPlan, ModelToolCall
+        from onecode.web.api import handle_onecode_plan_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ), patch("onecode.kernel.execution_tools._run_command", return_value=(127, "", "not found")):
+            workspace = Path(tmp)
+            stored = persist_approval_plan(
+                workspace,
+                ModelPlan(
+                    task="missing command",
+                    execution_steps=[
+                        ModelExecutionStep(
+                            id="missing",
+                            description="run missing command",
+                            tool_calls=[
+                                ModelToolCall(
+                                    tool_name="run_command",
+                                    params={"argv": ["onecode-command-that-does-not-exist"]},
+                                )
+                            ],
+                        )
+                    ],
+                ),
+                model_metadata={"model": "m"},
+            )
+            payload, status = handle_onecode_plan_approval(stored.plan_id, {"workspace": tmp, "approved": True})
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["status"], "halted")
+
+    def test_onecode_resume_endpoint_rejects_run_id_path_traversal(self):
+        from onecode.web.api import handle_onecode_run_resume
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            payload, status = handle_onecode_run_resume(
+                "../../../outside/source",
+                {"workspace": tmp, "message": "继续完成"},
+            )
+
+        self.assertEqual(status, 400)
+        self.assertEqual(payload["error"]["type"], "invalid_run_id")
+
+    def test_onecode_resume_endpoint_projects_result_for_shell_consumers(self):
+        from onecode.web.api import handle_onecode_run_resume
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ), patch("onecode.web.api.run_model_task") as run_model:
+            run_model.return_value = {
+                "run_id": "resumed-api",
+                "status": "completed",
+                "iching_status_code": 63,
+                "iching_transition_action": "complete",
+            }
+            payload, status = handle_onecode_run_resume(
+                "source-api",
+                {"workspace": tmp, "message": "继续完成"},
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["shell_projection"]["run_id"], "resumed-api")
+        self.assertEqual(payload["shell_projection"]["severity"], "ok")
+        self.assertEqual(payload["shell_projection"]["rule_state"]["status_code"], 63)
+
+    def test_onecode_verifier_presets_endpoint_returns_presets(self):
+        from onecode.web.api import handle_onecode_verifier_presets
+
+        payload, status = handle_onecode_verifier_presets()
+
+        self.assertEqual(status, 200)
+        self.assertIn("presets", payload)
+        self.assertGreaterEqual(len(payload["presets"]), 1)
+
+    def test_onecode_verifier_policy_reports_missing_policy(self):
+        from onecode.web.api import handle_onecode_verifier_policy_get
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            payload, status = handle_onecode_verifier_policy_get({"workspace": tmp})
+
+        self.assertEqual(status, 200)
+        self.assertFalse(payload["exists"])
+        self.assertFalse(payload["valid"])
+
+    def test_onecode_verifier_policy_writes_and_reads_policy(self):
+        from onecode.web.api import handle_onecode_verifier_policy_get, handle_onecode_verifier_policy_write
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            write_payload, write_status = handle_onecode_verifier_policy_write(
+                {"workspace": tmp, "presetIds": ["python-unittest"], "force": False}
+            )
+            read_payload, read_status = handle_onecode_verifier_policy_get({"workspace": tmp})
+
+        self.assertEqual(write_status, 200)
+        self.assertEqual(read_status, 200)
+        self.assertTrue(write_payload["exists"])
+        self.assertTrue(read_payload["valid"])
+        self.assertEqual(read_payload["policy"]["verifiers"][0]["id"], "python-unittest")
+
+    def test_onecode_verifier_policy_rejects_overwrite_without_force(self):
+        from onecode.web.api import handle_onecode_verifier_policy_write
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            handle_onecode_verifier_policy_write({"workspace": tmp, "presetIds": ["python-unittest"]})
+            payload, status = handle_onecode_verifier_policy_write(
+                {"workspace": tmp, "presetIds": ["python-unittest"], "force": False}
+            )
+
+        self.assertEqual(status, 400)
+        self.assertEqual(payload["error"]["type"], "invalid_verifier_policy")
+
+    def test_onecode_model_config_write_and_get_masks_api_key(self):
+        from onecode.web.api import handle_onecode_model_config_get, handle_onecode_model_config_write
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"ONECODE_HOME": tmp}, clear=True):
+            write_payload, write_status = handle_onecode_model_config_write(
+                {
+                    "endpoint": "http://127.0.0.1:6780/v1",
+                    "apiKey": "sk-test-secret",
+                    "model": "gpt-5.5",
+                }
+            )
+            read_payload, read_status = handle_onecode_model_config_get()
+
+        self.assertEqual(write_status, 200)
+        self.assertEqual(read_status, 200)
+        self.assertTrue(write_payload["configured"])
+        self.assertEqual(read_payload["endpoint"], "http://127.0.0.1:6780/v1")
+        self.assertEqual(read_payload["model"], "gpt-5.5")
+        self.assertTrue(read_payload["api_key_configured"])
+        self.assertNotIn("api_key", read_payload)
+
+    def test_onecode_model_discover_returns_models_and_can_save_config(self):
+        from onecode.web.api import handle_onecode_models_discover
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"ONECODE_HOME": tmp}, clear=True), patch(
+            "onecode.web.api.discover_models",
+            return_value={"source": "remote", "models": ["gpt-5.5", "gpt-4.1"]},
+        ):
+            payload, status = handle_onecode_models_discover(
+                {
+                    "endpoint": "http://127.0.0.1:6780/v1",
+                    "apiKey": "sk-test-secret",
+                    "model": "gpt-4.1",
+                    "save": True,
+                }
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["models"], ["gpt-5.5", "gpt-4.1"])
+        self.assertEqual(payload["selected_model"], "gpt-4.1")
+        self.assertTrue(payload["config"]["configured"])
+
+    def test_onecode_model_config_write_can_preserve_existing_secret(self):
+        from onecode.web.api import handle_onecode_model_config_write
+        from onecode.kernel.model_config import read_model_config
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"ONECODE_HOME": tmp}, clear=True):
+            handle_onecode_model_config_write(
+                {
+                    "endpoint": "http://127.0.0.1:6780/v1",
+                    "apiKey": "sk-test-secret",
+                    "model": "gpt-5.5",
+                }
+            )
+            payload, status = handle_onecode_model_config_write(
+                {
+                    "endpoint": "http://127.0.0.1:6780/v1/chat/completions",
+                    "apiKey": "",
+                    "model": "gpt-4.1",
+                }
+            )
+            read_back = read_model_config(include_secret=True)
+
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["configured"])
+        self.assertEqual(read_back["api_key"], "sk-test-secret")
+        self.assertEqual(read_back["model"], "gpt-4.1")
+
+    def test_model_config_write_rejects_host_change_without_api_key(self):
+        from onecode.kernel.model_config import read_model_config
+        from onecode.web.api import handle_onecode_model_config_write
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"ONECODE_HOME": tmp}, clear=True):
+            handle_onecode_model_config_write(
+                {
+                    "endpoint": "http://127.0.0.1:6780/v1",
+                    "apiKey": "sk-test-secret",
+                    "model": "gpt-5.5",
+                }
+            )
+            payload, status = handle_onecode_model_config_write(
+                {
+                    "endpoint": "https://evil.example/v1",
+                    "apiKey": "",
+                    "model": "gpt-4.1",
+                }
+            )
+            read_back = read_model_config(include_secret=True)
+
+        self.assertEqual(status, 400)
+        self.assertEqual(payload["error"]["type"], "invalid_model_config")
+        self.assertEqual(read_back["api_key"], "sk-test-secret")
+        self.assertEqual(read_back["endpoint"], "http://127.0.0.1:6780/v1")
+
+    def test_onecode_doctor_endpoint_returns_doctor_result(self):
+        from onecode.web.api import handle_onecode_doctor
+
+        with patch("onecode.web.api.run_doctor", return_value={"status": "ok", "checks": []}) as doctor:
+            payload, status = handle_onecode_doctor()
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["status"], "ok")
+        self.assertEqual(doctor.call_count, 1)
+
+    def test_onecode_audit_self_endpoint_returns_audit_result(self):
+        from onecode.web.api import handle_onecode_audit_self
+
+        with patch("onecode.web.api.audit_self", return_value={"status": "ok", "checks": []}) as audit:
+            payload, status = handle_onecode_audit_self()
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["status"], "ok")
+        self.assertEqual(audit.call_count, 1)
+
+    def test_onecode_run_evidence_returns_raw_ledger_manifest_and_checkpoints(self):
+        from onecode.kernel.runner import run_task
+        from onecode.web.api import handle_onecode_run_evidence
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            run_task("seed", workspace=Path(tmp), run_id="evidence-api", write_path="seed.txt", write_content="ok\n")
+            payload, status = handle_onecode_run_evidence("evidence-api", {"workspace": tmp})
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["summary"]["run_id"], "evidence-api")
+        self.assertEqual(payload["summary"]["shell_projection"]["run_id"], "evidence-api")
+        self.assertEqual(payload["summary"]["shell_projection"]["evidence_ref"]["mode"], "full")
+        self.assertEqual(payload["ledger"]["run_id"], "evidence-api")
+        self.assertEqual(payload["manifest"]["run_id"], "evidence-api")
+        self.assertEqual(len(payload["checkpoints"]), 1)
+        self.assertIn("document", payload["checkpoints"][0])
+
+    def test_onecode_run_evidence_returns_wal_summary_for_wal_only_run(self):
+        from onecode.kernel.runner import run_task
+        from onecode.web.api import handle_onecode_run_evidence
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            run_task(
+                "wal evidence",
+                workspace=Path(tmp),
+                run_id="evidence-wal-api",
+                completed_evidence_mode="wal",
+                evidence_durability="relaxed",
+            )
+            payload, status = handle_onecode_run_evidence("evidence-wal-api", {"workspace": tmp})
+            wal_exists = Path(payload["wal_path"]).exists()
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["summary"]["run_id"], "evidence-wal-api")
+        self.assertEqual(payload["summary"]["evidence_mode"], "wal")
+        self.assertEqual(payload["summary"]["shell_projection"]["evidence_ref"]["mode"], "wal")
+        self.assertIsNone(payload["ledger"])
+        self.assertEqual(payload["ledger_error"], "wal_only")
+        self.assertIsNone(payload["manifest"])
+        self.assertEqual(payload["manifest_error"], "wal_only")
+        self.assertEqual(payload["checkpoints"], [])
+        self.assertTrue(wal_exists)
+
+    def test_onecode_run_evidence_returns_rotated_wal_segment_path(self):
+        from onecode.kernel.runner import run_task
+        from onecode.web.api import handle_onecode_run_evidence
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_WAL_ROTATE_BYTES": "1",
+            },
+            clear=True,
+        ):
+            run_task(
+                "old wal evidence",
+                workspace=Path(tmp),
+                run_id="evidence-wal-old-api",
+                completed_evidence_mode="wal",
+                evidence_durability="relaxed",
+            )
+            run_task(
+                "new wal evidence",
+                workspace=Path(tmp),
+                run_id="evidence-wal-new-api",
+                completed_evidence_mode="wal",
+                evidence_durability="relaxed",
+            )
+            payload, status = handle_onecode_run_evidence("evidence-wal-old-api", {"workspace": tmp})
+            archive_path = Path(tmp) / ".onecode" / "global-ledger.1.jsonl"
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["summary"]["run_id"], "evidence-wal-old-api")
+        self.assertEqual(payload["wal_path"], str(archive_path.resolve()))
+
+    def test_onecode_metrics_endpoint_returns_control_plane_wal_summary_without_raw_entries(self):
+        from onecode.kernel.runner import run_task
+        from onecode.web.api import handle_onecode_metrics
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            run_task(
+                "wal metrics",
+                workspace=Path(tmp),
+                run_id="metrics-wal-api",
+                completed_evidence_mode="wal",
+                evidence_durability="relaxed",
+            )
+            payload, status = handle_onecode_metrics({"workspace": tmp, "window_seconds": "30"})
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["workspace"], str(Path(tmp).resolve()))
+        self.assertEqual(payload["control_plane"]["scope"], "summary")
+        self.assertFalse(payload["control_plane"]["raw_entries_included"])
+        self.assertEqual(payload["global_wal_summary"]["window_seconds"], 30)
+        self.assertGreaterEqual(payload["global_wal_summary"]["entry_count"], 1)
+        self.assertGreaterEqual(len(payload["global_wal_summary"]["windows"]), 1)
+        self.assertNotIn("entries", payload["global_wal_summary"])
+        self.assertNotIn("raw_entries", payload["global_wal_summary"])
+
+    def test_http_server_serves_onecode_metrics_endpoint(self):
+        from onecode.kernel.runner import run_task
+        from onecode.web.api import OneCodeRequestHandler
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_API_TOKEN": "test-token",
+            },
+            clear=True,
+        ):
+            run_task(
+                "wal metrics route",
+                workspace=Path(tmp),
+                run_id="metrics-route-api",
+                completed_evidence_mode="wal",
+                evidence_durability="relaxed",
+            )
+            with local_test_server(OneCodeRequestHandler) as (_server, base_url):
+                request = Request(
+                    f"{base_url}/v1/onecode/metrics?workspace={tmp}&window_seconds=45",
+                    headers={"Authorization": "Bearer test-token"},
+                )
+                with urlopen(request, timeout=5) as response:
+                    status = response.status
+                    payload = json.loads(response.read().decode("utf-8"))
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["global_wal_summary"]["window_seconds"], 45)
+        self.assertFalse(payload["control_plane"]["raw_entries_included"])
+
+    def test_chat_completion_payload_is_json_serializable(self):
+        from onecode.web.api import chat_completion_payload
+
+        payload = chat_completion_payload(
+            content="hello",
+            model="onecode-agent",
+            run_result={"status": "completed"},
+            mode="rule_fallback",
+        )
+
+        json.dumps(payload)
+        self.assertEqual(payload["choices"][0]["finish_reason"], "stop")
+        self.assertIn("summary", payload["onecode"])
+
+    def test_streaming_chat_completion_returns_sse_chunks(self):
+        from onecode.web.api import OneCodeRequestHandler
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "ONECODE_API_TOKEN": "test-token",
+                "OPENAI_API_KEY": "test-key",
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+            },
+            clear=True,
+        ), patch(
+            "onecode.web.api.run_model_task",
+            return_value={
+                "run_id": "stream-smoke",
+                "status": "completed",
+                "reason": None,
+                "requested_count": 1,
+                "completed_count": 1,
+                "skipped_count": 0,
+                "failed_count": 0,
+                "assets": [],
+            },
+        ):
+            with local_test_server(OneCodeRequestHandler) as (_server, base_url):
+                chat_body = json.dumps(
+                    {
+                        "model": "onecode-agent",
+                        "messages": [{"role": "user", "content": "查：stream smoke"}],
+                        "stream": True,
+                    }
+                ).encode("utf-8")
+                chat_request = Request(
+                    f"{base_url}/v1/chat/completions",
+                    data=chat_body,
+                    headers={
+                        "Authorization": "Bearer test-token",
+                        "Content-Type": "application/json",
+                    },
+                    method="POST",
+                )
+                with urlopen(chat_request, timeout=5) as response:
+                    content_type = response.headers.get("content-type")
+                    text = response.read().decode("utf-8")
+
+        self.assertEqual(content_type, "text/event-stream; charset=utf-8")
+        self.assertIn("data: ", text)
+        self.assertIn('"delta"', text)
+        self.assertTrue(text.rstrip().endswith("data: [DONE]"))
+
+    def test_streaming_chat_emits_each_tool_turn_before_the_run_returns(self):
+        from onecode.web.api import stream_chat_completion
+
+        chunks: list[bytes] = []
+
+        def write(data: bytes) -> None:
+            chunks.append(data)
+
+        def fake_run(*args, **kwargs):
+            on_turn = kwargs["on_turn"]
+            on_turn({"step_id": "read", "status": "completed", "reason": None, "tool_names": ["read_text"]})
+            self.assertEqual(len(chunks), 1)
+            self.assertIn("read_text", chunks[0].decode())
+            on_turn({"step_id": "search", "status": "completed", "reason": "search_miss", "tool_names": ["search_text"]})
+            self.assertEqual(len(chunks), 2)
+            return {
+                "run_id": "stream-turns",
+                "status": "completed",
+                "reason": None,
+                "requested_count": 2,
+                "completed_count": 2,
+                "skipped_count": 0,
+                "failed_count": 0,
+                "assets": [],
+            }
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+            },
+            clear=True,
+        ), patch(
+            "onecode.web.api.read_model_config",
+            return_value={"provider": "chat", "model": "m", "endpoint": "http://model/v1", "api_key": "key"},
+        ), patch("onecode.web.api.run_model_task", side_effect=fake_run):
+            payload, status = stream_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "查：stream turns"}],
+                    "stream": True,
+                },
+                write,
+            )
+
+        text = b"".join(chunks).decode()
+        self.assertEqual(status, 200)
+        self.assertEqual(text.count('"tool_turn"'), 2)
+        self.assertIn("search_text", text)
+        self.assertTrue(text.rstrip().endswith("data: [DONE]"))
+        self.assertEqual(payload["onecode"]["result"]["run_id"], "stream-turns")
+
+    def test_streaming_chat_emits_terminal_step_events(self):
+        from onecode.web.api import stream_chat_completion
+
+        chunks: list[bytes] = []
+
+        def write(data: bytes) -> None:
+            chunks.append(data)
+
+        def fake_run(*args, **kwargs):
+            on_turn = kwargs["on_turn"]
+            on_turn({
+                "turn": 1,
+                "action": {"action_type": "read_file", "path": "src/main.py"},
+                "observation": {"status": "ok", "reason": None},
+                "hexagram_code": 63,
+            })
+            self.assertEqual(len(chunks), 1)
+            raw = chunks[0].decode()
+            self.assertIn("Turn 1: read_file", raw)
+            self.assertIn("卦象 63", raw)
+            self.assertIn("terminal_step", raw)
+            return {
+                "run_id": "stream-terminal",
+                "status": "completed",
+                "reason": "agent_finished",
+                "agent_mode": "terminal",
+                "requested_count": 1,
+                "completed_count": 1,
+                "skipped_count": 0,
+                "failed_count": 0,
+                "assets": [],
+            }
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+            },
+            clear=True,
+        ), patch(
+            "onecode.web.api.read_model_config",
+            return_value={"provider": "chat", "model": "m", "endpoint": "http://model/v1", "api_key": "key"},
+        ), patch("onecode.web.api.run_model_task", side_effect=fake_run):
+            payload, status = stream_chat_completion(
+                {
+                    "model": "onecode-agent",
+                    "messages": [{"role": "user", "content": "改：Fix bug in terminal"}],
+                    "stream": True,
+                },
+                write,
+            )
+            self.assertEqual(status, 200)
+            self.assertTrue(len(chunks) >= 3)
+
+    def test_http_server_serves_models_and_chat_completion(self):
+        from onecode.web.api import OneCodeRequestHandler
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_MODEL_PROVIDER": "chat",
+                "ONECODE_API_TOKEN": "test-token",
+                "ONECODE_HOME": str(Path(tmp) / "home"),
+            },
+            clear=True,
+        ):
+            with local_test_server(OneCodeRequestHandler) as (_server, base_url):
+                models_request = Request(
+                    f"{base_url}/v1/models",
+                    headers={"Authorization": "Bearer test-token"},
+                )
+                with urlopen(models_request, timeout=5) as response:
+                    models_payload = json.loads(response.read().decode("utf-8"))
+
+                chat_body = json.dumps(
+                    {
+                        "model": "onecode-agent",
+                        "messages": [{"role": "user", "content": "查：HTTP smoke"}],
+                    }
+                ).encode("utf-8")
+                chat_request = Request(
+                    f"{base_url}/v1/chat/completions",
+                    data=chat_body,
+                    headers={
+                        "Authorization": "Bearer test-token",
+                        "Content-Type": "application/json",
+                    },
+                    method="POST",
+                )
+                with self.assertRaises(HTTPError) as raised:
+                    urlopen(chat_request, timeout=5)
+                chat_status = raised.exception.code
+                chat_payload = json.loads(raised.exception.read().decode("utf-8"))
+
+        self.assertEqual(models_payload["data"][0]["id"], "onecode-agent")
+        self.assertEqual(chat_status, 503)
+        self.assertEqual(chat_payload["error"]["type"], "model_configuration_missing")
+
+    def test_http_server_serves_shell_schema(self):
+        from onecode.web.api import OneCodeRequestHandler
+
+        with patch.dict("os.environ", {"ONECODE_API_TOKEN": "test-token"}, clear=True):
+            with local_test_server(OneCodeRequestHandler) as (_server, base_url):
+                request = Request(
+                    f"{base_url}/v1/onecode/shell/schema",
+                    headers={"Authorization": "Bearer test-token"},
+                )
+                with urlopen(request, timeout=5) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+
+        self.assertEqual(payload, load_shell_projection_v4_schema())
+
+    def test_http_server_serves_browser_gateway_console(self):
+        from onecode.web.api import OneCodeRequestHandler
+
+        with patch.dict("os.environ", {"ONECODE_API_TOKEN": "test-token"}, clear=True):
+            with local_test_server(OneCodeRequestHandler) as (_server, base_url):
+                request = Request(
+                    f"{base_url}/",
+                    headers={
+                        "Authorization": "Bearer test-token",
+                        "Accept": "text/html",
+                    },
+                )
+                with urlopen(request, timeout=5) as response:
+                    content_type = response.headers.get("content-type")
+                    html = response.read().decode("utf-8")
+
+        self.assertEqual(content_type, "text/html; charset=utf-8")
+        self.assertIn("一字诀 OneCode Gateway", html)
+        self.assertIn("运行演示裁决", html)
+        self.assertIn("/v1/onecode/gateway/adjudicate?demo=1", html)
+
+    def test_http_server_adjudicates_gateway_candidate(self):
+        from onecode.kernel.gateway_engine import assistant_payload
+        from onecode.web.api import OneCodeRequestHandler
+
+        prediction = assistant_payload(
+            facts={
+                "intent_type": "patch_text",
+                "path_scope": "workspace_relative",
+                "sandbox_state": "not_required",
+                "evidence_state": "required",
+            },
+            yizijue_state="111111",
+            action="ALLOW_PATCH_WITH_SHA",
+            reason="safe_workspace_patch",
+        )
+
+        with patch.dict("os.environ", {"ONECODE_API_TOKEN": "test-token"}, clear=True):
+            with local_test_server(OneCodeRequestHandler) as (_server, base_url):
+                body = json.dumps(
+                    {
+                        "user": "随便处理一下这个项目",
+                        "prediction": prediction,
+                    }
+                ).encode("utf-8")
+                request = Request(
+                    f"{base_url}/v1/onecode/gateway/adjudicate",
+                    data=body,
+                    headers={
+                        "Authorization": "Bearer test-token",
+                        "Content-Type": "application/json",
+                    },
+                    method="POST",
+                )
+                with urlopen(request, timeout=5) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+
+        self.assertEqual(payload["status"], "ok")
+        self.assertEqual(payload["raw_prediction"]["action"], "ALLOW_PATCH_WITH_SHA")
+        self.assertEqual(payload["adjudicated_prediction"]["action"], "DENY_AND_LEDGER")
+        self.assertTrue(payload["changed"])
+
+    def test_http_server_describes_gateway_adjudicate_on_get(self):
+        from onecode.web.api import OneCodeRequestHandler
+
+        with patch.dict("os.environ", {"ONECODE_API_TOKEN": "test-token"}, clear=True):
+            with local_test_server(OneCodeRequestHandler) as (_server, base_url):
+                request = Request(
+                    f"{base_url}/v1/onecode/gateway/adjudicate",
+                    headers={"Authorization": "Bearer test-token"},
+                )
+                with urlopen(request, timeout=5) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+
+        self.assertEqual(payload["status"], "ok")
+        self.assertEqual(payload["method"], "POST")
+        self.assertIn("user", payload["required_fields"])
+        self.assertIn("prediction", payload["required_fields"])
+
+    def test_http_server_can_demo_gateway_adjudicate_on_get(self):
+        from onecode.web.api import OneCodeRequestHandler
+
+        with patch.dict("os.environ", {"ONECODE_API_TOKEN": "test-token"}, clear=True):
+            with local_test_server(OneCodeRequestHandler) as (_server, base_url):
+                request = Request(
+                    f"{base_url}/v1/onecode/gateway/adjudicate?demo=1",
+                    headers={"Authorization": "Bearer test-token"},
+                )
+                with urlopen(request, timeout=5) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+
+        self.assertEqual(payload["status"], "ok")
+        self.assertEqual(payload["adjudicated_prediction"]["action"], "DENY_AND_LEDGER")
+        self.assertTrue(payload["changed"])
+
+    def test_http_server_rejects_unauthorized_models_request(self):
+        from onecode.web.api import OneCodeRequestHandler
+
+        with patch.dict("os.environ", {"ONECODE_API_TOKEN": "test-token"}, clear=True):
+            with local_test_server(OneCodeRequestHandler) as (_server, base_url):
+                with self.assertRaises(HTTPError) as raised:
+                    urlopen(f"{base_url}/v1/models", timeout=5)
+                raised.exception.close()
+
+        self.assertEqual(raised.exception.code, 401)
+
+    def test_asset_or_patch_and_listed_prompt_include_data_contract_guidance(self):
+        from onecode.web.api import _asset_or_patch_prompt, _listed_file_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            target = workspace / "schema.py"
+            target.write_text("x = 1\n" * 5000, encoding="utf-8")
+            task = "In schema.py, fix schema_drift to prune unexpected fields"
+            patch_prompt = _asset_or_patch_prompt(task, workspace, "schema.py")
+            self.assertIn("schema drift", patch_prompt)
+
+            listed_prompt = _listed_file_prompt(task, ["schema.py", "other.py"])
+            self.assertIn("schema drift", listed_prompt)
+
+    def test_patch_threshold_and_prefer_patch_environment_flags(self):
+        from onecode.web.api import _asset_or_patch_prompt, _file_exceeds_preface, _listed_file_prompt
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            target = workspace / "module.py"
+            target.write_text("a = 1\n" * 1000, encoding="utf-8") # 6000 chars
+
+            # By default with explicit threshold = 4000, exceeds
+            try:
+                os.environ["ONECODE_PATCH_THRESHOLD_CHARS"] = "4000"
+                self.assertTrue(_file_exceeds_preface(workspace, "module.py"))
+
+                # Prompt asks for patch
+                p = _asset_or_patch_prompt("fix bug", workspace, "module.py")
+                self.assertIn("patch", p.lower())
+
+                # ONECODE_PREFER_PATCH forces listed file prompt into patch mode
+                os.environ["ONECODE_PREFER_PATCH"] = "1"
+                lp = _listed_file_prompt("fix bug", ["module.py"])
+                self.assertIn("patches only", lp)
+            finally:
+                os.environ.pop("ONECODE_PATCH_THRESHOLD_CHARS", None)
+                os.environ.pop("ONECODE_PREFER_PATCH", None)
+
+    def test_merge_prefaces_dedup_and_excludes_tests(self):
+        from onecode.web.api import _merge_prefaces
+
+        primary = "## src/app.py\ndef main(): pass\n"
+        secondary = (
+            "## src / app.py\ndef main(): pass\n"
+            "## data / config.json\n{\"k\": 1}\n"
+            "## tests / test_app.py\ndef test(): pass\n"
+        )
+        merged = _merge_prefaces(primary, secondary)
+        self.assertIn("## src/app.py", merged)
+        self.assertIn("## data / config.json", merged)
+        self.assertNotIn("test_app.py", merged)
+        # Verify src/app.py appears only once
+        self.assertEqual(merged.count("def main(): pass"), 1)
+
+    def test_workspace_auxiliary_configs_collects_json_yaml(self):
+        from onecode.web.api import _workspace_auxiliary_configs
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "data").mkdir()
+            (workspace / "data" / "clean_config.json").write_text('{"fill": 35}', encoding="utf-8")
+            (workspace / "config").mkdir()
+            (workspace / "config" / "settings.yaml").write_text('debug: false', encoding="utf-8")
+            aux = _workspace_auxiliary_configs(workspace)
+            self.assertIn("data/clean_config.json", aux)
+            self.assertIn('{"fill": 35}', aux)
+            self.assertIn("config/settings.yaml", aux)
+
+    def test_workspace_auxiliary_configs_collects_data_csv_and_notes(self):
+        from onecode.web.api import _workspace_auxiliary_configs
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            (workspace / "data").mkdir()
+            (workspace / "data" / "invoices.csv").write_text("invoice_id,customer\ninv1,Acme", encoding="utf-8")
+            (workspace / "notes").mkdir()
+            (workspace / "notes" / "TODO.md").write_text("# Requirements\n- Keep stable columns", encoding="utf-8")
+            aux = _workspace_auxiliary_configs(workspace)
+            self.assertIn("data/invoices.csv", aux)
+            self.assertIn("invoice_id,customer", aux)
+            self.assertIn("notes/TODO.md", aux)
+            self.assertIn("Keep stable columns", aux)
+
+    def test_pending_approvals_list_and_resolve(self):
+        from onecode.web.api import handle_onecode_pending_approvals, handle_onecode_approval_resolve
+        from onecode.kernel.cycle_approvals import persist_pending_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"ONECODE_WORKSPACE_ROOT": tmp, "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp},
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            # Initially empty
+            payload, code = handle_onecode_pending_approvals({"workspace": str(workspace)})
+            self.assertEqual(code, 200)
+            self.assertEqual(payload["count"], 0)
+
+            # Persist a pending approval
+            rec = persist_pending_approval(workspace, "run_command", {"argv": ["git", "push"]})
+            pending_id = rec["id"]
+
+            # Query list
+            payload, code = handle_onecode_pending_approvals({"workspace": str(workspace)})
+            self.assertEqual(code, 200)
+            self.assertEqual(payload["count"], 1)
+            self.assertEqual(payload["approvals"][0]["id"], pending_id)
+
+            # Resolve approve
+            res_payload, res_code = handle_onecode_approval_resolve(
+                pending_id,
+                {"workspace": str(workspace), "decision": "approved"},
+            )
+            self.assertEqual(res_code, 200)
+            self.assertEqual(res_payload["status"], "approved")
+
+            # Resolve reject
+            res_payload, res_code = handle_onecode_approval_resolve(
+                pending_id,
+                {"workspace": str(workspace), "decision": "rejected"},
+            )
+            self.assertEqual(res_code, 200)
+            self.assertEqual(res_payload["status"], "rejected")
+
+            # Subsequent list is now empty
+            payload, code = handle_onecode_pending_approvals({"workspace": str(workspace)})
+            self.assertEqual(code, 200)
+            self.assertEqual(payload["count"], 0)
+
+    def test_http_pending_approvals_endpoints(self):
+        from onecode.web.api import OneCodeRequestHandler
+        from onecode.kernel.cycle_approvals import persist_pending_approval
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {
+                "ONECODE_WORKSPACE_ROOT": tmp,
+                "ONECODE_ALLOWED_WORKSPACE_ROOTS": tmp,
+                "ONECODE_API_TOKEN": "test-token",
+            },
+            clear=True,
+        ):
+            workspace = Path(tmp)
+            rec = persist_pending_approval(workspace, "bash", {"command": "echo test"})
+            pending_id = rec["id"]
+
+            with local_test_server(OneCodeRequestHandler) as (_, base_url):
+                # Unauthenticated fails 401
+                req = Request(f"{base_url}/v1/onecode/approvals/pending?workspace={tmp}")
+                with self.assertRaises(HTTPError) as ctx:
+                    urlopen(req)
+                self.assertEqual(ctx.exception.code, 401)
+
+                # Authenticated succeeds
+                req = Request(
+                    f"{base_url}/v1/onecode/approvals/pending?workspace={tmp}",
+                    headers={"Authorization": "Bearer test-token"},
+                )
+                with urlopen(req) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                self.assertEqual(data["count"], 1)
+                self.assertEqual(data["approvals"][0]["id"], pending_id)
+
+                # Resolve via POST
+                resolve_req = Request(
+                    f"{base_url}/v1/onecode/approvals/{pending_id}/resolve",
+                    data=json.dumps({"workspace": tmp, "decision": "rejected"}).encode("utf-8"),
+                    headers={
+                        "Authorization": "Bearer test-token",
+                        "Content-Type": "application/json",
+                    },
+                    method="POST",
+                )
+                with urlopen(resolve_req) as resp:
+                    resolve_data = json.loads(resp.read().decode("utf-8"))
+                self.assertEqual(resolve_data["status"], "rejected")
+
+                # Verify list is now empty
+                with urlopen(req) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                self.assertEqual(data["count"], 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

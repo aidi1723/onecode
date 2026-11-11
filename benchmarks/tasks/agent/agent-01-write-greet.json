@@ -1,0 +1,26 @@
+{
+  "id": "agent-01-write-greet",
+  "prompt": "创建 greet 函数",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/greet.py",
+          "content": "def greet():\n    return 'hello'\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/greet.py",
+      "text": "def greet"
+    }
+  ]
+}

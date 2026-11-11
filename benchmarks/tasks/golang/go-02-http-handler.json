@@ -1,0 +1,31 @@
+{
+  "id": "go-02-http-handler",
+  "prompt": "编写 net/http 基础健康检查处理器",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "cmd/server/main.go",
+          "content": "package main\n\nimport (\n\t\"fmt\"\n\t\"net/http\"\n)\n\nfunc healthHandler(w http.ResponseWriter, r *http.Request) {\n\tw.WriteHeader(http.StatusOK)\n\tfmt.Fprintln(w, `{\"status\":\"ok\"}`)\n}\n\nfunc main() {\n\thttp.HandleFunc(\"/health\", healthHandler)\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "cmd/server/main.go",
+      "text": "http.HandleFunc(\"/health\""
+    },
+    {
+      "type": "file_contains",
+      "path": "cmd/server/main.go",
+      "text": "{\"status\":\"ok\"}"
+    }
+  ]
+}

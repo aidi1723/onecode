@@ -1,0 +1,31 @@
+{
+  "id": "ts-05-async-retry",
+  "prompt": "编写带有指数退避的异步重试工具函数",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/retry.ts",
+          "content": "export async function retry<T>(\n  operation: () => Promise<T>,\n  maxAttempts: number = 3,\n  baseDelayMs: number = 100\n): Promise<T> {\n  for (let attempt = 1; attempt <= maxAttempts; attempt++) {\n    try {\n      return await operation();\n    } catch (err) {\n      if (attempt === maxAttempts) throw err;\n      await new Promise(r => setTimeout(r, baseDelayMs * Math.pow(2, attempt - 1)));\n    }\n  }\n  throw new Error('unreachable');\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/retry.ts",
+      "text": "export async function retry<T>"
+    },
+    {
+      "type": "file_contains",
+      "path": "src/retry.ts",
+      "text": "baseDelayMs * Math.pow(2"
+    }
+  ]
+}

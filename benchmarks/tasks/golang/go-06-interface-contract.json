@@ -1,0 +1,31 @@
+{
+  "id": "go-06-interface-contract",
+  "prompt": "声明 Store 存储接口及其内存实现",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "pkg/store/store.go",
+          "content": "package store\n\ntype Store interface {\n\tGet(key string) (string, error)\n\tPut(key, val string) error\n}\n\ntype MemoryStore struct {\n\tdata map[string]string\n}\n\nfunc NewMemoryStore() *MemoryStore {\n\treturn &MemoryStore{data: make(map[string]string)}\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "pkg/store/store.go",
+      "text": "type Store interface"
+    },
+    {
+      "type": "file_contains",
+      "path": "pkg/store/store.go",
+      "text": "func NewMemoryStore()"
+    }
+  ]
+}

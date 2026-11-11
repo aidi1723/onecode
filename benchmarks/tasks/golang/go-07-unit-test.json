@@ -1,0 +1,36 @@
+{
+  "id": "go-07-unit-test",
+  "prompt": "编写计算模块的标准测试用例",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [
+      {
+        "path": "pkg/calc/calc.go",
+        "content": "package calc\n\nfunc Add(a, b int) int {\n\treturn a + b\n}\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "pkg/calc/calc_test.go",
+          "content": "package calc\n\nimport \"testing\"\n\nfunc TestAdd(t *testing.T) {\n\tif got := Add(2, 3); got != 5 {\n\t\tt.Errorf(\"expected 5, got %d\", got)\n\t}\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "pkg/calc/calc_test.go",
+      "text": "func TestAdd(t *testing.T)"
+    },
+    {
+      "type": "file_contains",
+      "path": "pkg/calc/calc_test.go",
+      "text": "t.Errorf"
+    }
+  ]
+}

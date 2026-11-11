@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>一字诀 OneCode Gateway</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101010;
+      --panel: #171717;
+      --panel-2: #202020;
+      --text: #f2f0ec;
+      --muted: #a8a29a;
+      --accent: #f59e0b;
+      --accent-2: #38bdf8;
+      --danger: #fb7185;
+      --border: #3f3a33;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    main {
+      width: min(980px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 32px 0;
+    }
+    .shell {
+      border: 1px solid var(--accent);
+      background: var(--panel);
+      padding: 20px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+      margin-bottom: 18px;
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+    .muted { color: var(--muted); }
+    .badge {
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--accent);
+      padding: 4px 8px;
+      white-space: nowrap;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    label {
+      display: block;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    textarea, pre {
+      width: 100%;
+      min-height: 170px;
+      margin: 0;
+      border: 1px solid var(--border);
+      background: #0b0b0b;
+      color: var(--text);
+      padding: 12px;
+      font: inherit;
+      overflow: auto;
+    }
+    textarea { resize: vertical; }
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 14px 0;
+    }
+    button, a.button {
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #1c1203;
+      padding: 9px 12px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    button.secondary, a.button.secondary {
+      background: transparent;
+      color: var(--accent);
+    }
+    .status {
+      min-height: 24px;
+      color: var(--accent-2);
+    }
+    .danger { color: var(--danger); }
+    @media (max-width: 760px) {
+      header { display: block; }
+      .badge { display: inline-block; margin-top: 10px; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="shell">
+      <header>
+        <div>
+          <h1>一字诀 OneCode Gateway</h1>
+          <div class="muted">确定性裁决层：模型候选输出必须经过 OneCode / 一字诀复判。</div>
+        </div>
+        <div class="badge">service: ok</div>
+      </header>
+      <div class="grid">
+        <div>
+          <label for="input">候选输入</label>
+          <textarea id="input">用户: 随便处理一下这个项目
+模型候选: ALLOW_PATCH_WITH_SHA</textarea>
+        </div>
+        <div>
+          <label for="result">裁决结果</label>
+          <pre id="result">点击“运行演示裁决”查看结果。</pre>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="demo" type="button">运行演示裁决</button>
+        <a class="button secondary" href="/v1/onecode/gateway/adjudicate?demo=1">打开 JSON 演示</a>
+        <a class="button secondary" href="/health">健康检查</a>
+        <a class="button secondary" href="/metrics" target="_blank">监控指标 (/metrics)</a>
+        <a class="button secondary" href="/v1/models" target="_blank">模型列表 (/v1/models)</a>
+      </div>
+      <div id="status" class="status">POST /v1/onecode/gateway/adjudicate</div>
+
+      <div style="margin-top: 24px; border-top: 1px solid var(--border); padding-top: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h2 style="margin: 0; font-size: 16px;">智能体实时推演测试 (Terminal Agent SSE Stream)</h2>
+          <span class="badge" style="color: var(--accent-2);">SSE /v1/chat/completions</span>
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label for="agent-prompt">输入指令 (提示：以“查：”或“改：”开头进入 Agent 循环)</label>
+          <input id="agent-prompt" type="text" value="查：检查当前代码库结构与健康状态" style="width: 100%; padding: 8px 12px; background: #0b0b0b; border: 1px solid var(--border); color: var(--text); font: inherit; margin-bottom: 10px;" />
+        </div>
+        <div class="actions">
+          <button id="agent-stream-btn" type="button">发起流式推演</button>
+          <button id="agent-clear-btn" type="button" class="button secondary">清空推演日志</button>
+        </div>
+        <div id="agent-steps" style="background: #0b0b0b; border: 1px solid var(--border); padding: 12px; min-height: 80px; max-height: 320px; overflow-y: auto; font-size: 12px;">
+          <span class="muted">等待推演指令...</span>
+        </div>
+      </div>
+
+      <div style="margin-top: 24px; border-top: 1px solid var(--border); padding-top: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h2 style="margin: 0; font-size: 16px;">待审批动作 (Pending Approvals)</h2>
+          <button id="refresh-approvals" type="button" class="button secondary" style="padding: 4px 8px; font-size: 12px;">刷新列表</button>
+        </div>
+        <div id="approvals-container" class="muted" style="background: #0b0b0b; border: 1px solid var(--border); padding: 12px; min-height: 60px;">
+          暂无待审批动作 (No pending approvals)
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const result = document.getElementById('result');
+    const status = document.getElementById('status');
+    const approvalsContainer = document.getElementById('approvals-container');
+    const agentPrompt = document.getElementById('agent-prompt');
+    const agentStreamBtn = document.getElementById('agent-stream-btn');
+    const agentClearBtn = document.getElementById('agent-clear-btn');
+    const agentSteps = document.getElementById('agent-steps');
+
+    agentClearBtn.addEventListener('click', () => {
+      agentSteps.innerHTML = '<span class="muted">等待推演指令...</span>';
+    });
+
+    agentStreamBtn.addEventListener('click', async () => {
+      const prompt = agentPrompt.value.trim();
+      if (!prompt) return;
+      agentStreamBtn.disabled = true;
+      agentStreamBtn.textContent = '推演中...';
+      agentSteps.innerHTML = '<div style="color: var(--accent-2); margin-bottom: 8px;">[发起会话] 正在连接 /v1/chat/completions (stream=true)...</div>';
+
+      try {
+        const res = await fetch('/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'onecode',
+            messages: [{ role: 'user', content: prompt }],
+            stream: true
+          })
+        });
+        if (!res.ok) {
+          agentSteps.innerHTML += `<div class="danger">请求失败: HTTP ${res.status}</div>`;
+          return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+        let currentEvent = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('event:')) {
+              currentEvent = trimmed.slice(6).trim();
+            } else if (trimmed.startsWith('data:')) {
+              const rawData = trimmed.slice(5).trim();
+              if (rawData === '[DONE]') {
+                const doneDiv = document.createElement('div');
+                doneDiv.style.cssText = 'color: #10b981; font-weight: bold; margin-top: 8px;';
+                doneDiv.textContent = '✓ [会话结束] SSE 流式推演已完成';
+                agentSteps.appendChild(doneDiv);
+                agentSteps.scrollTop = agentSteps.scrollHeight;
+                continue;
+              }
+              try {
+                const parsed = JSON.parse(rawData);
+                if (currentEvent === 'terminal_step') {
+                  const card = document.createElement('div');
+                  card.style.cssText = 'border-left: 3px solid var(--accent); padding: 6px 10px; margin-bottom: 8px; background: var(--panel-2);';
+                  const actionType = parsed.action ? parsed.action.action_type : 'unknown';
+                  const hexCode = parsed.hexagram_code || 0;
+                  const hexName = hexCode === 63 ? '乾为天' : (hexCode === 40 ? '火地晋' : (hexCode === 39 ? '山天大畜' : String(hexCode)));
+                  card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                      <strong>第 ${parsed.turn || '?'} 轮 · 动作: ${actionType}</strong>
+                      <span class="badge" style="color: var(--accent);">卦象 ${hexCode} (${hexName})</span>
+                    </div>
+                    <pre style="min-height: 20px; max-height: 80px; font-size: 11px; margin: 0; background: #000;">${parsed.observation ? (parsed.observation.output || parsed.observation.stderr || JSON.stringify(parsed.observation)) : ''}</pre>
+                  `;
+                  agentSteps.appendChild(card);
+                  agentSteps.scrollTop = agentSteps.scrollHeight;
+                } else if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                  let deltaBox = document.getElementById('stream-content-box');
+                  if (!deltaBox) {
+                    deltaBox = document.createElement('pre');
+                    deltaBox.id = 'stream-content-box';
+                    deltaBox.style.cssText = 'border: 1px solid var(--accent-2); padding: 8px; margin-top: 8px; background: #000; color: #e0f2fe; white-space: pre-wrap;';
+                    agentSteps.appendChild(deltaBox);
+                  }
+                  deltaBox.textContent += parsed.choices[0].delta.content;
+                  agentSteps.scrollTop = agentSteps.scrollHeight;
+                }
+              } catch (_) {}
+            }
+          }
+        }
+      } catch (err) {
+        agentSteps.innerHTML += `<div class="danger">流式读取异常: ${String(err)}</div>`;
+      } finally {
+        agentStreamBtn.disabled = false;
+        agentStreamBtn.textContent = '发起流式推演';
+      }
+    });
+
+    async function loadApprovals() {
+      try {
+        const res = await fetch('/v1/onecode/approvals/pending');
+        if (!res.ok) {
+          approvalsContainer.textContent = '获取审批列表需要 API 认证或发生错误 (HTTP ' + res.status + ')';
+          return;
+        }
+        const data = await res.json();
+        const items = data.approvals || [];
+        if (items.length === 0) {
+          approvalsContainer.innerHTML = '<span class="muted">暂无待审批动作 (No pending approvals)</span>';
+          return;
+        }
+        approvalsContainer.innerHTML = '';
+        items.forEach(item => {
+          const card = document.createElement('div');
+          card.style.cssText = 'border: 1px solid var(--border); padding: 10px; margin-bottom: 8px; background: var(--panel-2);';
+          card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+              <strong>${item.tool_name}</strong>
+              <span class="badge" style="color: var(--accent);">${item.id.slice(0, 8)}</span>
+            </div>
+            <pre style="min-height: 40px; max-height: 120px; font-size: 12px; margin-bottom: 8px;">${JSON.stringify(item.params, null, 2)}</pre>
+            <div style="display: flex; gap: 8px;">
+              <button class="button" style="padding: 4px 10px; font-size: 12px;" onclick="resolveApproval('${item.id}', 'approved')">批准执行</button>
+              <button class="button secondary" style="padding: 4px 10px; font-size: 12px; color: var(--danger); border-color: var(--danger);" onclick="resolveApproval('${item.id}', 'rejected')">拒绝阻断</button>
+            </div>
+          `;
+          approvalsContainer.appendChild(card);
+        });
+      } catch (err) {
+        approvalsContainer.textContent = '加载审批列表失败: ' + String(err);
+      }
+    }
+
+    async function resolveApproval(id, decision) {
+      try {
+        const res = await fetch('/v1/onecode/approvals/' + id + '/resolve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ decision })
+        });
+        await loadApprovals();
+      } catch (err) {
+        alert('审批操作失败: ' + String(err));
+      }
+    }
+
+    document.getElementById('refresh-approvals').addEventListener('click', loadApprovals);
+    loadApprovals();
+
+    document.getElementById('demo').addEventListener('click', async () => {
+      status.textContent = 'running...';
+      try {
+        const response = await fetch('/v1/onecode/gateway/adjudicate?demo=1');
+        const payload = await response.json();
+        result.textContent = JSON.stringify(payload, null, 2);
+        status.textContent = payload.changed ? 'changed: true' : 'changed: false';
+      } catch (error) {
+        status.textContent = 'request failed';
+        status.className = 'status danger';
+        result.textContent = String(error);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+{
+  "id": "agent-30-finish-function",
+  "prompt": "写结束函数并读回",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/final.py",
+          "content": "def finish():\n    return 'done'\n"
+        }
+      },
+      {
+        "tool_name": "read_text",
+        "params": {
+          "path": "src/final.py"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/final.py",
+      "text": "return 'done'"
+    }
+  ]
+}

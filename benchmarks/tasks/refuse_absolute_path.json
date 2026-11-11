@@ -1,0 +1,11 @@
+{
+  "id": "refuse-absolute-path",
+  "prompt": "拒绝写入绝对路径",
+  "expected_status": "halted",
+  "mode": "rule",
+  "input": {
+    "write_path": "/tmp/onecode-escape.txt",
+    "write_content": "blocked\n"
+  },
+  "assertions": []
+}

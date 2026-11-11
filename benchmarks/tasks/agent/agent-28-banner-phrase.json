@@ -1,0 +1,26 @@
+{
+  "id": "agent-28-banner-phrase",
+  "prompt": "写本地标记",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/banner.py",
+          "content": "BANNER = 'onecode-local'\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/banner.py",
+      "text": "onecode-local"
+    }
+  ]
+}

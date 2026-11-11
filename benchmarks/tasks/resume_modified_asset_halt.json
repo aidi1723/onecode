@@ -1,0 +1,10 @@
+{
+  "id": "resume-modified-asset-halt",
+  "prompt": "恢复时检测目标文件已被修改并中止",
+  "expected_status": "halted",
+  "mode": "rule",
+  "input": {
+    "intent_type": "teleport_asset"
+  },
+  "assertions": []
+}

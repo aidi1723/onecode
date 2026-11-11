@@ -1,0 +1,31 @@
+{
+  "id": "ts-07-zod-schema",
+  "prompt": "声明配置输入校验模式",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/schema.ts",
+          "content": "export interface AppConfig {\n  port: number;\n  host: string;\n  debug?: boolean;\n}\n\nexport function validateConfig(raw: unknown): AppConfig {\n  if (typeof raw !== 'object' || raw === null) throw new Error('Invalid config object');\n  const obj = raw as Record<string, unknown>;\n  if (typeof obj.port !== 'number' || typeof obj.host !== 'string') throw new Error('Field mismatch');\n  return { port: obj.port, host: obj.host, debug: Boolean(obj.debug) };\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/schema.ts",
+      "text": "export interface AppConfig"
+    },
+    {
+      "type": "file_contains",
+      "path": "src/schema.ts",
+      "text": "export function validateConfig"
+    }
+  ]
+}

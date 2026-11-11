@@ -1,0 +1,31 @@
+{
+  "id": "go-01-module-init",
+  "prompt": "初始化 Go 模块 example.com/service",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "go.mod",
+          "content": "module example.com/service\n\ngo 1.22\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "go.mod",
+      "text": "module example.com/service"
+    },
+    {
+      "type": "file_contains",
+      "path": "go.mod",
+      "text": "go 1.22"
+    }
+  ]
+}

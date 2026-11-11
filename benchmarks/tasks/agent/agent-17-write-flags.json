@@ -1,0 +1,26 @@
+{
+  "id": "agent-17-write-flags",
+  "prompt": "写开关",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "config/flags.txt",
+          "content": "enabled=true\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "config/flags.txt",
+      "text": "enabled=true"
+    }
+  ]
+}

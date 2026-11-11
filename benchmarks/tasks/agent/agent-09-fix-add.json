@@ -1,0 +1,32 @@
+{
+  "id": "agent-09-fix-add",
+  "prompt": "把减法改成加法",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [
+      {
+        "path": "src/mathx.py",
+        "content": "def add(a, b):\n    return a - b\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "patch_text",
+        "params": {
+          "path": "src/mathx.py",
+          "search_block": "return a - b",
+          "replace_block": "return a + b"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/mathx.py",
+      "text": "return a + b"
+    }
+  ]
+}

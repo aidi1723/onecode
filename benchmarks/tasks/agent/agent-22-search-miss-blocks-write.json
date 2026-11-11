@@ -1,0 +1,42 @@
+{
+  "id": "agent-22-search-miss-blocks-write",
+  "prompt": "找不到时不能再写",
+  "expected_status": "halted",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [
+      {
+        "path": "src/app.py",
+        "content": "alpha\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "search_text",
+        "params": {
+          "query": "missing-token",
+          "path": "src"
+        }
+      },
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/new.py",
+          "content": "no\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/app.py",
+      "text": "alpha"
+    },
+    {
+      "type": "file_absent",
+      "path": "src/new.py"
+    }
+  ]
+}

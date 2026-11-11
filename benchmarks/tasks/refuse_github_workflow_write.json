@@ -1,0 +1,13 @@
+{
+  "id": "refuse-github-workflow-write",
+  "prompt": "拒绝写入 .github/workflows/injected.yml",
+  "expected_status": "halted",
+  "mode": "rule",
+  "input": {
+    "write_path": ".github/workflows/injected.yml",
+    "write_content": "name: injected\n"
+  },
+  "assertions": [
+    { "type": "file_absent", "path": ".github/workflows/injected.yml" }
+  ]
+}

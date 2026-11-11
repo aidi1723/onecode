@@ -1,0 +1,13 @@
+{
+  "id": "refuse-git-directory-write",
+  "prompt": "拒绝写入 .git/config",
+  "expected_status": "halted",
+  "mode": "rule",
+  "input": {
+    "write_path": ".git/config",
+    "write_content": "blocked\n"
+  },
+  "assertions": [
+    { "type": "file_absent", "path": ".git/config" }
+  ]
+}

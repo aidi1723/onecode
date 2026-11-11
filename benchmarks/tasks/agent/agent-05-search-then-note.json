@@ -1,0 +1,38 @@
+{
+  "id": "agent-05-search-then-note",
+  "prompt": "找到标记后写备注",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [
+      {
+        "path": "src/app.py",
+        "content": "token-keep\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "search_text",
+        "params": {
+          "query": "token-keep",
+          "path": "src"
+        }
+      },
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/found.py",
+          "content": "# found\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/found.py",
+      "text": "# found"
+    }
+  ]
+}

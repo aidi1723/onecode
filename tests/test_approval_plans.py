@@ -1,0 +1,228 @@
+import hashlib
+import json
+import tempfile
+import unittest
+from unittest.mock import patch
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+from pathlib import Path
+
+from onecode.kernel.model_provider import ModelExecutionStep, ModelPlan, ModelToolCall
+
+
+def guarded_plan() -> ModelPlan:
+    return ModelPlan(
+        task="change readme",
+        execution_steps=[
+            ModelExecutionStep(
+                id="write",
+                description="write readme",
+                tool_calls=[
+                    ModelToolCall(
+                        tool_name="write_text",
+                        params={"path": "docs/result.md", "content": "done\n"},
+                    )
+                ],
+            )
+        ],
+    )
+
+
+class ApprovalPlanTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.env_patcher = patch.dict("os.environ", {"ONECODE_HOME": self.tmp.name})
+        self.env_patcher.start()
+        self.addCleanup(self.env_patcher.stop)
+
+    def test_plan_round_trip_checks_digest_and_workspace(self):
+        from onecode.kernel.approval_plans import load_approval_plan, persist_approval_plan
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            stored = persist_approval_plan(workspace, guarded_plan(), model_metadata={"model": "m"})
+            loaded = load_approval_plan(workspace, stored.plan_id)
+
+        self.assertEqual(loaded.plan_sha256, stored.plan_sha256)
+        self.assertEqual(loaded.workspace, str(workspace.resolve()))
+        self.assertEqual(loaded.plan.execution_steps[0].tool_calls[0].tool_name, "write_text")
+
+    def test_claim_accepts_an_import_of_a_module_already_on_disk(self):
+        from onecode.kernel.approval_plans import claim_approval_plan, persist_approval_plan
+        from onecode.kernel.model_provider import ModelPlan, ModelPlanAsset
+
+        workspace = Path(self.tmp.name)
+        (workspace / "src").mkdir()
+        (workspace / "src" / "shift.py").write_text("def label(hour):\n    return 'day'\n", encoding="utf-8")
+        stored = persist_approval_plan(
+            workspace,
+            ModelPlan(
+                task="write pay",
+                assets=[
+                    ModelPlanAsset(
+                        path="src/pay.py",
+                        content="from src.shift import label\n\ndef pay_cents(hour, minutes):\n    return minutes\n",
+                    )
+                ],
+            ),
+            model_metadata={"model": "m"},
+        )
+        claimed = claim_approval_plan(workspace, stored.plan_id)
+        self.assertEqual(claimed.plan.assets[0].path, "src/pay.py")
+
+    def test_replacing_digest_with_plain_sha256_does_not_load(self):
+        from onecode.kernel.approval_plans import load_approval_plan, persist_approval_plan
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"ONECODE_HOME": tmp}, clear=False):
+            workspace = Path(tmp) / "workspace"
+            workspace.mkdir()
+            stored = persist_approval_plan(workspace, guarded_plan(), model_metadata={"model": "m"})
+            document = json.loads(stored.path.read_text(encoding="utf-8"))
+            digest = document.pop("plan_sha256")
+            canonical = json.dumps(document, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            document["plan_sha256"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+            stored.path.write_text(json.dumps(document), encoding="utf-8")
+
+            self.assertNotEqual(document["plan_sha256"], digest)
+            with self.assertRaisesRegex(ValueError, "approval_plan_mismatch"):
+                load_approval_plan(workspace, stored.plan_id)
+
+    def test_tampered_plan_is_rejected(self):
+        from onecode.kernel.approval_plans import load_approval_plan, persist_approval_plan
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            stored = persist_approval_plan(workspace, guarded_plan(), model_metadata={})
+            document = json.loads(stored.path.read_text(encoding="utf-8"))
+            document["plan"]["execution_plan"]["steps"][0]["tool_calls"][0]["params"]["path"] = "docs/other.md"
+            stored.path.write_text(json.dumps(document), encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "approval_plan_mismatch"):
+                load_approval_plan(workspace, stored.plan_id)
+
+    def test_plan_store_rejects_secret_metadata(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "model_metadata"):
+                persist_approval_plan(Path(tmp), guarded_plan(), model_metadata={"api_key": "secret"})
+
+    def test_plan_store_rejects_invalid_tool_parameters_before_writing(self):
+        from onecode.kernel.approval_plans import persist_approval_plan
+
+        malformed = ModelPlan(
+            task="bad command",
+            execution_steps=[
+                ModelExecutionStep(
+                    id="bad",
+                    description="bad argv",
+                    tool_calls=[ModelToolCall(tool_name="run_command", params={"argv": ["echo", 1]})],
+                )
+            ],
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            with self.assertRaisesRegex(ValueError, "argv"):
+                persist_approval_plan(workspace, malformed, model_metadata={})
+
+            pending = workspace / ".onecode" / "pending-plans"
+            self.assertFalse(pending.exists())
+
+    def test_only_one_concurrent_request_can_claim_pending_plan(self):
+        from onecode.kernel.approval_plans import claim_approval_plan, persist_approval_plan
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            stored = persist_approval_plan(workspace, guarded_plan(), model_metadata={})
+            barrier = Barrier(2)
+
+            def claim():
+                barrier.wait()
+                try:
+                    return claim_approval_plan(workspace, stored.plan_id).path.parent.name
+                except ValueError as exc:
+                    return str(exc)
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                results = list(executor.map(lambda _index: claim(), range(2)))
+
+        self.assertEqual(results.count("executing-plans"), 1)
+        self.assertEqual(results.count("approval_plan_in_progress"), 1)
+
+    def test_model_plan_requires_approval_strict_and_scoped_auto_boundaries(self):
+        from onecode.kernel.approval_plans import model_plan_requires_approval
+        from onecode.kernel.model_provider import ModelExecutionStep, ModelPlan, ModelPlanAsset, ModelPlanPatch, ModelToolCall
+
+        src_asset_plan = ModelPlan(
+            task="write src/pay.py",
+            assets=[ModelPlanAsset(path="src/pay.py", content="RATE = 10\n")],
+        )
+        src_patch_plan = ModelPlan(
+            task="patch src/pay.py",
+            patches=[ModelPlanPatch(path="src/pay.py", search_block="RATE = 8\n", replace_block="RATE = 10\n")],
+        )
+        docs_asset_plan = ModelPlan(
+            task="write docs/spec.md",
+            assets=[ModelPlanAsset(path="docs/spec.md", content="# Spec\n")],
+        )
+        git_commit_plan = ModelPlan(
+            task="commit changes",
+            execution_steps=[
+                ModelExecutionStep(
+                    id="commit",
+                    description="commit",
+                    tool_calls=[ModelToolCall(tool_name="git_commit", params={"message": "ok", "paths": ["src/pay.py"]})],
+                )
+            ],
+        )
+        mcp_plan = ModelPlan(
+            task="call mcp",
+            execution_steps=[
+                ModelExecutionStep(
+                    id="mcp",
+                    description="mcp",
+                    tool_calls=[ModelToolCall(tool_name="mcp.server.query", params={})],
+                )
+            ],
+        )
+        run_command_plan = ModelPlan(
+            task="run bash",
+            execution_steps=[
+                ModelExecutionStep(
+                    id="run",
+                    description="run",
+                    tool_calls=[ModelToolCall(tool_name="run_command", params={"argv": ["ls"]})],
+                )
+            ],
+        )
+        read_only_plan = ModelPlan(
+            task="read files",
+            execution_steps=[
+                ModelExecutionStep(
+                    id="read",
+                    description="read",
+                    tool_calls=[ModelToolCall(tool_name="read_text", params={"path": "src/pay.py"})],
+                )
+            ],
+        )
+
+        self.assertTrue(model_plan_requires_approval(src_asset_plan, mode="strict"))
+        self.assertTrue(model_plan_requires_approval(src_patch_plan, mode="strict"))
+        self.assertTrue(model_plan_requires_approval(docs_asset_plan, mode="strict"))
+        self.assertFalse(model_plan_requires_approval(read_only_plan, mode="strict"))
+
+        self.assertFalse(model_plan_requires_approval(src_asset_plan, mode="scoped_auto"))
+        self.assertFalse(model_plan_requires_approval(src_patch_plan, mode="scoped_auto"))
+        self.assertTrue(model_plan_requires_approval(docs_asset_plan, mode="scoped_auto"))
+        self.assertTrue(model_plan_requires_approval(git_commit_plan, mode="scoped_auto"))
+        self.assertTrue(model_plan_requires_approval(mcp_plan, mode="scoped_auto"))
+        self.assertTrue(model_plan_requires_approval(run_command_plan, mode="scoped_auto"))
+        self.assertFalse(model_plan_requires_approval(read_only_plan, mode="scoped_auto"))
+
+        with self.assertRaises(ValueError):
+            model_plan_requires_approval(src_asset_plan, mode="unknown_mode")
+
+
+if __name__ == "__main__":
+    unittest.main()

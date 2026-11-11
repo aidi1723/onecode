@@ -1,0 +1,31 @@
+{
+  "id": "rs-08-concurrency-arc-mutex",
+  "prompt": "使用 Arc<Mutex<T>> 跨线程共享状态",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/state.rs",
+          "content": "use std::sync::{Arc, Mutex};\n\npub struct SharedCounter {\n    counter: Arc<Mutex<u64>>,\n}\n\nimpl SharedCounter {\n    pub fn new() -> Self {\n        Self { counter: Arc::new(Mutex::new(0)) }\n    }\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/state.rs",
+      "text": "Arc<Mutex<u64>>"
+    },
+    {
+      "type": "file_contains",
+      "path": "src/state.rs",
+      "text": "Arc::new(Mutex::new(0))"
+    }
+  ]
+}

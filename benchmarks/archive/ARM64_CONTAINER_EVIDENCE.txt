@@ -1,0 +1,8 @@
+bench-user@linux-bench-node:~/onecode-linux-test$ date
+Wed Oct  7 20:57:17 CST 2026
+bench-user@linux-bench-node:~/onecode-linux-test$ hostname
+linux-bench-node
+bench-user@linux-bench-node:~/onecode-linux-test$ docker run --rm --platform linux/arm64 python:3.12.3-slim python3 -c 'import platform; print(platform.machine())'
+aarch64
+bench-user@linux-bench-node:~/onecode-linux-test$ echo $?
+0

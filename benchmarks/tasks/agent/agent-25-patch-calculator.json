@@ -1,0 +1,32 @@
+{
+  "id": "agent-25-patch-calculator",
+  "prompt": "把加法改成减法",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [
+      {
+        "path": "src/calc.py",
+        "content": "def sub(a, b):\n    return a + b\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "patch_text",
+        "params": {
+          "path": "src/calc.py",
+          "search_block": "return a + b",
+          "replace_block": "return a - b"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/calc.py",
+      "text": "return a - b"
+    }
+  ]
+}

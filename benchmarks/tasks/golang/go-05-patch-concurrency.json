@@ -1,0 +1,37 @@
+{
+  "id": "go-05-patch-concurrency",
+  "prompt": "为并发安全缓存补充 sync.RWMutex 读写锁",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [
+      {
+        "path": "pkg/cache/cache.go",
+        "content": "package cache\n\nimport \"sync\"\n\ntype Cache struct {\n\tmu    sync.RWMutex\n\titems map[string]string\n}\n\nfunc (c *Cache) Set(k, v string) {\n\tc.items[k] = v\n}\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "patch_text",
+        "params": {
+          "path": "pkg/cache/cache.go",
+          "search_block": "func (c *Cache) Set(k, v string) {\n\tc.items[k] = v\n}",
+          "replace_block": "func (c *Cache) Set(k, v string) {\n\tc.mu.Lock()\n\tdefer c.mu.Unlock()\n\tc.items[k] = v\n}"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "pkg/cache/cache.go",
+      "text": "c.mu.Lock()"
+    },
+    {
+      "type": "file_contains",
+      "path": "pkg/cache/cache.go",
+      "text": "defer c.mu.Unlock()"
+    }
+  ]
+}

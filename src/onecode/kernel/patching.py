@@ -1,0 +1,184 @@
+import difflib
+import hashlib
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Literal
+
+from onecode.kernel.checkpoint import sha256_file
+from onecode.kernel.path_guard import PathGuard, PathGuardError
+
+
+class PatchRejected(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class PatchIntent:
+    path: str
+    search_block: str
+    replace_block: str
+    action: Literal["patch"] = "patch"
+
+    def __post_init__(self) -> None:
+        if self.action != "patch":
+            raise ValueError("PatchIntent action must be patch")
+        if not isinstance(self.path, str) or self.path == "":
+            raise ValueError("patch path must be a non-empty string")
+        if not isinstance(self.search_block, str) or self.search_block == "":
+            raise ValueError("patch search_block must be a non-empty string")
+        if not isinstance(self.replace_block, str):
+            raise ValueError("patch replace_block must be a string")
+
+
+@dataclass(frozen=True)
+class PatchPreview:
+    path: str
+    content: str
+    pre_sha256: str
+    diff: str = ""
+    status: Literal["ready"] = "ready"
+
+
+def apply_patch_preview(workspace_root: Path, intent: PatchIntent) -> PatchPreview:
+    target = PathGuard.resolve_target(workspace_root, intent.path)
+    try:
+        original = target.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise PatchRejected("patch_target_not_found") from exc
+
+    content = _replace_trailing_whitespace_normalized(original, intent.search_block, intent.replace_block)
+
+    diff = "".join(
+        difflib.unified_diff(
+            original.splitlines(keepends=True),
+            content.splitlines(keepends=True),
+            fromfile=f"a/{intent.path}",
+            tofile=f"b/{intent.path}",
+        )
+    )
+    return PatchPreview(path=intent.path, content=content, pre_sha256=sha256_file(target), diff=diff)
+
+
+def _replace_trailing_whitespace_normalized(original: str, search_block: str, replace_block: str) -> str:
+    orig_keepends = original.splitlines(keepends=True)
+    orig_stripped = [line.rstrip("\r\n").rstrip(" \t") for line in orig_keepends]
+    search_stripped = [line.rstrip("\r\n").rstrip(" \t") for line in search_block.splitlines()]
+    if not search_stripped or len(search_stripped) > len(orig_stripped):
+        raise PatchRejected("patch_search_not_found")
+    k = len(search_stripped)
+    matches: list[tuple[int, str]] = []
+    for idx in range(len(orig_stripped) - k + 1):
+        if orig_stripped[idx : idx + k] == search_stripped:
+            matches.append((idx, ""))
+        elif (
+            search_stripped[0]
+            and orig_stripped[idx].endswith(search_stripped[0])
+            and orig_stripped[idx + 1 : idx + k] == search_stripped[1:]
+        ):
+            prefix = orig_stripped[idx][: len(orig_stripped[idx]) - len(search_stripped[0])]
+            if all(c in " \t" for c in prefix):
+                matches.append((idx, prefix))
+    if not matches:
+        raise PatchRejected("patch_search_not_found")
+    if len(matches) > 1:
+        raise PatchRejected("patch_search_ambiguous")
+    start_idx, prefix = matches[0]
+    last_raw = orig_keepends[start_idx + k - 1]
+    line_ending = "\r\n" if last_raw.endswith("\r\n") else ("\n" if last_raw.endswith("\n") else "")
+    replacement = prefix + replace_block
+    if line_ending and not replacement.endswith(("\n", "\r\n")):
+        replacement += line_ending
+    return "".join(orig_keepends[:start_idx]) + replacement + "".join(orig_keepends[start_idx + k :])
+
+
+def find_closest_patch_context(
+    workspace_root: Path,
+    path: str,
+    search_block: str,
+    context_lines: int = 15,
+) -> dict[str, Any]:
+    try:
+        target = PathGuard.resolve_read_target(workspace_root, path)
+        if not target.is_file():
+            return {"path": path, "found": False, "similarity": 0.0, "start_line": 0, "end_line": 0, "excerpt": ""}
+        original = target.read_text(encoding="utf-8")
+    except (PathGuardError, OSError, UnicodeDecodeError):
+        return {"path": path, "found": False, "similarity": 0.0, "start_line": 0, "end_line": 0, "excerpt": ""}
+    orig_lines = original.splitlines()
+    search_lines = search_block.splitlines()
+    if not orig_lines or not search_lines:
+        return {"path": path, "found": False, "similarity": 0.0, "start_line": 0, "end_line": 0, "excerpt": ""}
+    window = max(1, min(len(search_lines), len(orig_lines)))
+    normalized_target = "\n".join(line.strip() for line in search_lines)
+    best_idx = 0
+    best_ratio = -1.0
+    for idx in range(len(orig_lines) - window + 1):
+        candidate = "\n".join(line.strip() for line in orig_lines[idx : idx + window])
+        ratio = difflib.SequenceMatcher(None, normalized_target, candidate).ratio()
+        if ratio > best_ratio:
+            best_ratio = ratio
+            best_idx = idx
+    pad = max(0, context_lines)
+    start_line = max(1, best_idx + 1 - pad)
+    end_line = min(len(orig_lines), best_idx + window + pad)
+    excerpt = "\n".join(f"{lineno}: {orig_lines[lineno - 1]}" for lineno in range(start_line, end_line + 1))
+    return {
+        "path": path,
+        "found": True,
+        "similarity": round(max(0.0, best_ratio), 4),
+        "start_line": start_line,
+        "end_line": end_line,
+        "excerpt": excerpt,
+    }
+
+
+def compile_patch_preview(preview: PatchPreview) -> None:
+    if not preview.path.endswith(".py"):
+        return
+    try:
+        compile(preview.content, preview.path, "exec")
+    except SyntaxError as exc:
+        raise PatchRejected("patch_compile_error") from exc
+
+
+def commit_patch(workspace_root: Path, intent: PatchIntent) -> dict[str, str | bool | None]:
+    try:
+        preview = apply_patch_preview(workspace_root, intent)
+        compile_patch_preview(preview)
+        written = PathGuard.write_text(workspace_root, intent.path, preview.content)
+    except PathGuardError:
+        return {
+            "status": "halted",
+            "partial": True,
+            "reason": "sovereignty_breach",
+        }
+    except PatchRejected as exc:
+        return {
+            "status": "halted",
+            "partial": True,
+            "reason": str(exc),
+        }
+
+    return {
+        "status": "completed",
+        "partial": False,
+        "reason": None,
+        "pre_sha256": preview.pre_sha256,
+        "post_sha256": written["sha256"],
+        "diff": preview.diff,
+        "search_block_sha256": hashlib_sha256_text(intent.search_block),
+        "replace_block_sha256": hashlib_sha256_text(intent.replace_block),
+        **written,
+    }
+
+
+def restore_checked_text(workspace_root: Path, relative_path: str, *, expected_sha256: str, content: str) -> dict[str, str | None]:
+    target = PathGuard.resolve_target(workspace_root, relative_path)
+    if not target.is_file() or sha256_file(target) != expected_sha256:
+        return {"status": "halted", "reason": "sha256_mismatch", "path": relative_path}
+    written = PathGuard.write_text(workspace_root, relative_path, content)
+    return {"status": "completed", "reason": None, "path": written["path"], "sha256": written["sha256"]}
+
+
+def hashlib_sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()

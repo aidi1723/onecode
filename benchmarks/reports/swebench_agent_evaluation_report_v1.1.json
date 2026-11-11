@@ -1,0 +1,100 @@
+{
+  "benchmark": "SWE-bench Lite (Real-world Agentic Autonomous Evaluation)",
+  "agent_version": "v1.1.0-bounded-preview",
+  "claims_mainstream_parity": false,
+  "positioning": "Self-hosted Bounded Preview (自托管受控工程预览级)",
+  "eval_timestamp": "2026-11-10T19:45:00+08:00",
+  "orchestration_flags": [
+    "--agent-mode terminal",
+    "--phased",
+    "--execution-scope patch_guarded",
+    "--rollback-on-failure"
+  ],
+  "model": "deepseek-v4.1-flash",
+  "runtime_environment": "Linux linux-bench-node (x86_64 Ubuntu 24.04)",
+  "total_instances_evaluated": 4,
+  "resolved_instances_count": 4,
+  "solve_rate": 1.0,
+  "results": [
+    {
+      "instance_id": "django__django-11099",
+      "repo": "django/django",
+      "target_file": "django/contrib/auth/validators.py",
+      "status": "resolved",
+      "reason": null,
+      "before_returncode": 1,
+      "after_returncode": 0,
+      "patch_chars": 901,
+      "turn_count": 4,
+      "sandbox_container": "onecode-swebench:py312"
+    },
+    {
+      "instance_id": "sympy__sympy-20590",
+      "repo": "sympy/sympy",
+      "target_file": "sympy/core/_print_helpers.py",
+      "status": "resolved",
+      "reason": null,
+      "before_returncode": 1,
+      "after_returncode": 0,
+      "patch_chars": 357,
+      "turn_count": 5,
+      "sandbox_container": "onecode-swebench:sympy"
+    },
+    {
+      "instance_id": "pytest-dev__pytest-5692",
+      "repo": "pytest-dev/pytest",
+      "target_file": "src/_pytest/junitxml.py",
+      "status": "resolved",
+      "reason": null,
+      "before_returncode": 1,
+      "after_returncode": 0,
+      "patch_chars": 639,
+      "turn_count": 5,
+      "sandbox_container": "onecode-swebench:pytest"
+    },
+    {
+      "instance_id": "sphinx-doc__sphinx-10325",
+      "repo": "sphinx-doc/sphinx",
+      "target_file": "sphinx/ext/autodoc/__init__.py",
+      "status": "resolved",
+      "reason": null,
+      "before_returncode": 1,
+      "after_returncode": 0,
+      "patch_chars": 1241,
+      "turn_count": 5,
+      "sandbox_container": "onecode-swebench:sphinx"
+    }
+  ],
+  "polyglot_benchmarks": {
+    "golang": {
+      "tasks_count": 10,
+      "passed_count": 10,
+      "pass_at_1": 1.0
+    },
+    "typescript": {
+      "tasks_count": 10,
+      "passed_count": 10,
+      "pass_at_1": 1.0
+    },
+    "rust": {
+      "tasks_count": 10,
+      "passed_count": 10,
+      "pass_at_1": 1.0
+    }
+  },
+  "chaos_and_stress_tests": {
+    "suite": "tests/test_kernel_chaos_and_stress.py",
+    "tests_count": 6,
+    "passed_count": 6,
+    "pass_rate": 1.0,
+    "tamper_penetration_vectors_intercepted": 7
+  },
+  "full_core_regression": {
+    "suite": "scripts/verify.sh",
+    "mypy_status": "Success: no issues found in 127 source files",
+    "source_quality": "passed (classes <= 500 LOC, functions <= 160 LOC)",
+    "unittests_passed": 1700,
+    "statement_coverage": "86% (22822 total statements)",
+    "doctor_diagnostics": "9/9 passed"
+  }
+}

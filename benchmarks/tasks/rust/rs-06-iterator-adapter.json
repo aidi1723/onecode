@@ -1,0 +1,31 @@
+{
+  "id": "rs-06-iterator-adapter",
+  "prompt": "为自定义集合实现 Iterator Trait",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/iter.rs",
+          "content": "pub struct StepSequence {\n    curr: u64,\n    step: u64,\n    limit: u64,\n}\n\nimpl Iterator for StepSequence {\n    type Item = u64;\n    fn next(&mut self) -> Option<Self::Item> {\n        if self.curr >= self.limit { return None; }\n        let val = self.curr;\n        self.curr += self.step;\n        Some(val)\n    }\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/iter.rs",
+      "text": "impl Iterator for StepSequence"
+    },
+    {
+      "type": "file_contains",
+      "path": "src/iter.rs",
+      "text": "type Item = u64;"
+    }
+  ]
+}

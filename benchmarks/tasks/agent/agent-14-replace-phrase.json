@@ -1,0 +1,32 @@
+{
+  "id": "agent-14-replace-phrase",
+  "prompt": "把待办标成完成",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [
+      {
+        "path": "notes/todo.txt",
+        "content": "status: open\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "patch_text",
+        "params": {
+          "path": "notes/todo.txt",
+          "search_block": "status: open",
+          "replace_block": "status: done"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "notes/todo.txt",
+      "text": "status: done"
+    }
+  ]
+}

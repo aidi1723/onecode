@@ -1,0 +1,189 @@
+{
+  "runner": "scripted_oracle",
+  "task_count": 30,
+  "passed_count": 30,
+  "pass_rate": 1.0,
+  "claims_mainstream_parity": false,
+  "tasks": [
+    {
+      "task_id": "agent-01-write-greet",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-02-patch-return",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-03-two-modules",
+      "passed": true,
+      "turn_count": 3,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-04-read-after-write",
+      "passed": true,
+      "turn_count": 3,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-05-search-then-note",
+      "passed": true,
+      "turn_count": 3,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-06-glob-python",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-07-outline-class",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-08-list-src",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-09-fix-add",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-10-fix-typo",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-11-write-json",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-12-write-doc",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-13-nested-package",
+      "passed": true,
+      "turn_count": 3,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-14-replace-phrase",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-15-write-check",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-16-patch-helper",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-17-write-flags",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-18-write-theme",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-19-regex-search",
+      "passed": true,
+      "turn_count": 3,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-20-message-constant",
+      "passed": true,
+      "turn_count": 3,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-21-turn-budget",
+      "passed": true,
+      "turn_count": 1,
+      "stop_reason": "resource_budget_exceeded"
+    },
+    {
+      "task_id": "agent-22-search-miss-blocks-write",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": "permission_denied"
+    },
+    {
+      "task_id": "agent-23-reject-git-write",
+      "passed": true,
+      "turn_count": 1,
+      "stop_reason": "sovereignty_breach"
+    },
+    {
+      "task_id": "agent-24-write-calculator",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-25-patch-calculator",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-26-class-then-outline",
+      "passed": true,
+      "turn_count": 3,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-27-glob-after-writes",
+      "passed": true,
+      "turn_count": 4,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-28-banner-phrase",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-29-write-rows",
+      "passed": true,
+      "turn_count": 2,
+      "stop_reason": null
+    },
+    {
+      "task_id": "agent-30-finish-function",
+      "passed": true,
+      "turn_count": 3,
+      "stop_reason": null
+    }
+  ]
+}

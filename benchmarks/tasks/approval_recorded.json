@@ -1,0 +1,10 @@
+{
+  "id": "approval-recorded",
+  "prompt": "记录一次人工 approve 决策",
+  "expected_status": "completed",
+  "mode": "approval",
+  "input": {},
+  "assertions": [
+    { "type": "file_exists", "path": ".onecode/approvals.jsonl" }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "id": "rs-05-patch-borrow-check",
+  "prompt": "修复借用检查器提示的可变借用冲突",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [
+      {
+        "path": "src/buffer.rs",
+        "content": "pub fn process(data: &mut Vec<String>) {\n    let first = &data[0];\n    data.push(first.clone());\n}\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "patch_text",
+        "params": {
+          "path": "src/buffer.rs",
+          "search_block": "    let first = &data[0];\n    data.push(first.clone());",
+          "replace_block": "    let first = data[0].clone();\n    data.push(first);"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/buffer.rs",
+      "text": "let first = data[0].clone();"
+    }
+  ]
+}

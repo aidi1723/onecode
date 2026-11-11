@@ -1,0 +1,31 @@
+{
+  "id": "go-03-struct-json",
+  "prompt": "定义用户数据结构并标注 JSON 标签",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "pkg/models/user.go",
+          "content": "package models\n\ntype User struct {\n\tID        int64  `json:\"id\"`\n\tUsername  string `json:\"username\"`\n\tEmail     string `json:\"email,omitempty\"`\n\tIsActive  bool   `json:\"is_active\"`\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "pkg/models/user.go",
+      "text": "`json:\"id\"`"
+    },
+    {
+      "type": "file_contains",
+      "path": "pkg/models/user.go",
+      "text": "`json:\"username\"`"
+    }
+  ]
+}

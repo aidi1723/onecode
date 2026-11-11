@@ -1,0 +1,57 @@
+"""Runtime decisions used by the runner.
+
+The hexagram code stays in the evidence record. These functions are the
+explicit policy the runner calls.
+"""
+
+from onecode.kernel.hexagram import IchingKernel, IchingTransition
+
+
+def ready_asset_should_skip() -> bool:
+    status_code = IchingKernel.compute_status(IchingKernel.QIAN, IchingKernel.DUI)
+    return IchingKernel.should_skip(status_code)
+
+
+def transition_for_result(status: str, reason: str | None) -> IchingTransition:
+    status_code = IchingKernel.classify_outcome(status, reason)
+    return IchingKernel.transition(status_code)
+
+
+def agent_cycle_decision(status: str, reason: str | None) -> dict[str, object]:
+    """Interpret one tool outcome for the multi-turn agent cycle.
+
+    The hexagram and dispatch values stay on the single-run rules. ``cycle``
+    is the shell reading of that same transition: discover continues with
+    read-only tools instead of ending the turn.
+    """
+    transition = transition_for_result(status, reason)
+    dispatch = IchingKernel.dispatch_decision(transition)
+    schedule = IchingKernel.task_schedule(transition.status_code)
+    if schedule["schedule_action"] in {"halt", "throttle", "prune"} or transition.action == "halt":
+        cycle = "stop"
+    elif transition.action == "checkpoint":
+        cycle = "verify"
+    elif transition.action == "discover":
+        cycle = "read_only_continue"
+    elif dispatch == "continue":
+        cycle = "model_continue"
+    else:
+        cycle = "stop"
+    return {
+        "status_code": transition.status_code,
+        "transition_action": transition.action,
+        "transition_reason": transition.reason,
+        "dispatch": dispatch,
+        "cycle": cycle,
+        "balance": schedule["balance"],
+        "cross_relation": schedule["cross_relation"],
+        "schedule_action": schedule["schedule_action"],
+        "schedule_reason": schedule["schedule_reason"],
+    }
+
+
+def agent_cycle_decision_for_tool(status: str, reason: str | None, *, retryable: bool = False) -> dict[str, object]:
+    """Tool-level 429 and 503 stay on the observation. They are not a run timeout."""
+    if retryable:
+        return agent_cycle_decision("completed", None)
+    return agent_cycle_decision(status, reason)

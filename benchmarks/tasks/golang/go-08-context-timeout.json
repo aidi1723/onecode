@@ -1,0 +1,37 @@
+{
+  "id": "go-08-context-timeout",
+  "prompt": "通过 context.WithTimeout 设定请求超时",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [
+      {
+        "path": "pkg/client/client.go",
+        "content": "package client\n\nimport \"context\"\n\nfunc Fetch(ctx context.Context) error {\n\treturn nil\n}\n"
+      }
+    ],
+    "script": [
+      {
+        "tool_name": "patch_text",
+        "params": {
+          "path": "pkg/client/client.go",
+          "search_block": "func Fetch(ctx context.Context) error {\n\treturn nil\n}",
+          "replace_block": "import \"time\"\n\nfunc Fetch(parent context.Context) error {\n\tctx, cancel := context.WithTimeout(parent, 5*time.Second)\n\tdefer cancel()\n\t_ = ctx\n\treturn nil\n}"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "pkg/client/client.go",
+      "text": "context.WithTimeout"
+    },
+    {
+      "type": "file_contains",
+      "path": "pkg/client/client.go",
+      "text": "defer cancel()"
+    }
+  ]
+}

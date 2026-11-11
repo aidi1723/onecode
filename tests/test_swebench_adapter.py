@@ -1,0 +1,365 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import subprocess
+import tempfile
+import unittest
+
+from unittest.mock import patch
+
+from scripts.swebench_adapter import (
+    extract_git_patch,
+    format_swebench_prompt,
+    load_swebench_instances,
+    official_test_patch,
+    run_swebench_instance,
+    setup_swebench_workspace,
+    validate_unified_diff,
+    verify_predictions_dataset,
+)
+
+
+class TestSWEBenchAdapter(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp_dir = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp_dir.name)
+
+    def tearDown(self) -> None:
+        self.tmp_dir.cleanup()
+
+    def test_load_swebench_instances(self) -> None:
+        dataset_file = self.root / "dataset.jsonl"
+        lines = [
+            {"instance_id": "inst-1", "repo": "repo/a", "problem_statement": "fix a bug"},
+            {"instance_id": "inst-2", "repo": "repo/b", "problem_statement": "fix another bug"},
+        ]
+        dataset_file.write_text("\n".join(json.dumps(l) for l in lines) + "\n", encoding="utf-8")
+
+        all_insts = load_swebench_instances(dataset_file)
+        self.assertEqual(len(all_insts), 2)
+        self.assertEqual(all_insts[0]["instance_id"], "inst-1")
+
+        filtered = load_swebench_instances(dataset_file, instance_filter={"inst-2"})
+        self.assertEqual(len(filtered), 1)
+        self.assertEqual(filtered[0]["instance_id"], "inst-2")
+
+    def test_setup_swebench_workspace_and_git_patch(self) -> None:
+        ws = self.root / "workspace"
+        inst = {"instance_id": "test-1", "repo": "my/repo"}
+        setup_swebench_workspace(inst, ws)
+
+        self.assertTrue((ws / ".git").is_dir())
+        self.assertTrue((ws / ".gitignore").is_file())
+
+        # Modify a file and check diff
+        test_file = ws / "module.py"
+        test_file.write_text("x = 1\n", encoding="utf-8")
+        subprocess.run(["git", "add", "module.py"], cwd=ws, capture_output=True, check=False)
+        subprocess.run(["git", "commit", "-m", "add module"], cwd=ws, capture_output=True, check=False)
+
+        # Make a change
+        test_file.write_text("x = 2\n", encoding="utf-8")
+        patch = extract_git_patch(ws)
+        self.assertIn("diff --git a/module.py b/module.py", patch)
+        self.assertIn("+x = 2", patch)
+
+    def test_astropy_setup_copies_extensions_after_git_clean(self) -> None:
+        ws = self.root / "astropy-ws"
+        (ws / ".git").mkdir(parents=True)
+        (ws / "astropy").mkdir()
+        calls: list[list[str]] = []
+
+        def fake_run(cmd, **_kwargs):
+            calls.append([str(part) for part in cmd])
+            return subprocess.CompletedProcess(cmd, 0)
+
+        inst = {"repo": "astropy/astropy", "base_commit": "d16bfe05a744909de4b27f5875fe0d4ed41ce607"}
+        with (
+            patch("scripts.swebench_adapter.subprocess.run", side_effect=fake_run),
+            patch("scripts.swebench_adapter.shutil.which", return_value="/usr/bin/docker"),
+        ):
+            setup_swebench_workspace(inst, ws)
+        docker_cmds = [cmd for cmd in calls if cmd and cmd[0] == "docker"]
+        self.assertEqual(len(docker_cmds), 1)
+        command = docker_cmds[0]
+        self.assertEqual(command[:3], ["docker", "run", "--rm"])
+        self.assertIn(f"{ws.resolve()}:/workspace", command)
+        self.assertIn("onecode-swebench:astropy", command)
+        self.assertEqual(command[-1], "true")
+        clean_at = next(index for index, cmd in enumerate(calls) if cmd[:3] == ["git", "clean", "-fdx"])
+        docker_at = next(index for index, cmd in enumerate(calls) if cmd[0] == "docker")
+        self.assertGreater(docker_at, clean_at)
+        self.assertEqual((ws / "astropy" / "_version.py").read_text(encoding="utf-8"), 'version = "4.3.dev0"\n')
+
+        calls.clear()
+        pytest_ws = self.root / "pytest-ws"
+        (pytest_ws / ".git").mkdir(parents=True)
+        pytest_inst = {"repo": "pytest-dev/pytest", "base_commit": "29e336bd9"}
+        with (
+            patch("scripts.swebench_adapter.subprocess.run", side_effect=fake_run),
+            patch("scripts.swebench_adapter.shutil.which", return_value="/usr/bin/docker"),
+        ):
+            setup_swebench_workspace(pytest_inst, pytest_ws)
+        self.assertFalse(any(cmd and cmd[0] == "docker" for cmd in calls))
+
+    def test_format_swebench_prompt(self) -> None:
+        inst = {
+            "instance_id": "django__django-11099",
+            "repo": "django/django",
+            "problem_statement": "UsernameValidator allows trailing newline",
+            "hints_text": "Check contrib.auth.validators",
+        }
+        prompt = format_swebench_prompt(inst)
+        self.assertIn("django__django-11099", prompt)
+        self.assertIn("UsernameValidator allows trailing newline", prompt)
+        self.assertIn("Check contrib.auth.validators", prompt)
+
+        inst_with_checks = {
+            "instance_id": "django__django-11099",
+            "repo": "django/django",
+            "problem_statement": "UsernameValidator allows trailing newline",
+            "FAIL_TO_PASS": '["test_ascii_validator", "test_unicode_validator"]',
+        }
+        prompt_with_checks = format_swebench_prompt(inst_with_checks)
+        self.assertIn("Expected Verification Targets:", prompt_with_checks)
+        self.assertIn("- test_ascii_validator", prompt_with_checks)
+        self.assertIn("- test_unicode_validator", prompt_with_checks)
+        self.assertIn("may be absent from the baseline tree", prompt_with_checks)
+        self.assertIn("Do not invent a src/ prefix", prompt_with_checks)
+        self.assertIn("no tests ran", prompt_with_checks)
+        self.assertIn("not found", prompt_with_checks)
+        self.assertIn("exit code 4", prompt_with_checks)
+        self.assertIn("do not retry it", prompt_with_checks)
+        self.assertIn("do not search the checkout for that test function", prompt_with_checks)
+        self.assertIn("python -c", prompt_with_checks)
+        self.assertIn("membership checks ('in')", prompt_with_checks)
+        self.assertNotIn("Tests already present at the base revision", prompt_with_checks)
+        self.assertIn("tests/runtests.py", prompt_with_checks)
+        self.assertIn('--settings=test_sqlite', prompt_with_checks)
+        self.assertIn("--parallel=1", prompt_with_checks)
+        self.assertIn('"action_type":"finish"', prompt_with_checks)
+        self.assertNotIn("trailingnewline", prompt_with_checks)
+
+    def test_prompt_omits_official_test_patch_body(self) -> None:
+        leaked = "trailingnewline\\u000A"
+        inst = {
+            "instance_id": "django__django-11099",
+            "repo": "django/django",
+            "problem_statement": "UsernameValidator allows trailing newline",
+            "FAIL_TO_PASS": '["test_ascii_validator (auth_tests.test_validators.UsernameValidatorsTests)"]',
+            "test_patch": "diff --git a/tests/auth_tests/test_validators.py\n+" + leaked + "\n",
+        }
+        prompt = format_swebench_prompt(inst)
+        self.assertNotIn("trailingnewline", prompt)
+        self.assertNotIn("test_patch", prompt)
+        self.assertIn("auth_tests.test_validators.UsernameValidatorsTests.test_ascii_validator", prompt)
+
+    def test_run_passes_fifteen_turn_budget(self) -> None:
+        inst = {"instance_id": "mock__turns-1", "repo": "mock/repo", "problem_statement": "budget"}
+        with (
+            patch("scripts.swebench_adapter.setup_swebench_workspace", return_value=self.root),
+            patch("scripts.swebench_adapter.extract_git_patch", return_value=""),
+            patch("scripts.swebench_adapter.run_model_task", return_value={"status": "halted", "reason": "turn_limit_exhausted"}) as run,
+        ):
+            record = run_swebench_instance(
+                inst,
+                self.root,
+                model="deepseek-v4.1-flash",
+                endpoint="http://mock",
+                agent_mode="terminal",
+            )
+        self.assertEqual(run.call_args.kwargs["max_turns"], 15)
+        self.assertEqual(record["reason"], "turn_limit_exhausted")
+
+    def test_run_selects_the_swebench_sandbox_image(self) -> None:
+        import os
+
+        inst = {"instance_id": "mock__image-1", "repo": "mock/repo", "problem_statement": "image"}
+        django = {"instance_id": "django__django-11099", "repo": "django/django", "problem_statement": "image"}
+        sympy = {"instance_id": "sympy__sympy-20590", "repo": "sympy/sympy", "problem_statement": "image"}
+        pytest_inst = {"instance_id": "pytest-dev__pytest-5692", "repo": "pytest-dev/pytest", "problem_statement": "image"}
+        sphinx = {"instance_id": "sphinx-doc__sphinx-10325", "repo": "sphinx-doc/sphinx", "problem_statement": "image"}
+        astropy = {"instance_id": "astropy__astropy-12907", "repo": "astropy/astropy", "problem_statement": "image"}
+        seen: list[str | None] = []
+
+        def capture(*_args, **_kwargs):
+            seen.append(os.environ.get("ONECODE_SANDBOX_IMAGE"))
+            return {"status": "halted", "reason": "turn_limit_exhausted"}
+
+        with (
+            patch.dict(os.environ, {}, clear=False),
+            patch("scripts.swebench_adapter.setup_swebench_workspace", return_value=self.root),
+            patch("scripts.swebench_adapter.extract_git_patch", return_value=""),
+            patch("scripts.swebench_adapter.run_model_task", side_effect=capture),
+        ):
+            os.environ.pop("ONECODE_SANDBOX_IMAGE", None)
+            run_swebench_instance(inst, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(django, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(sympy, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(pytest_inst, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(sphinx, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(astropy, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            os.environ["ONECODE_SANDBOX_IMAGE"] = "onecode-swebench:py312"
+            run_swebench_instance(inst, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(sympy, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(pytest_inst, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(astropy, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            os.environ["ONECODE_SANDBOX_IMAGE"] = "onecode-swebench:sympy"
+            run_swebench_instance(django, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(pytest_inst, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(astropy, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            os.environ["ONECODE_SANDBOX_IMAGE"] = "onecode-swebench:pytest"
+            run_swebench_instance(django, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(sympy, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(sphinx, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(astropy, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            os.environ["ONECODE_SANDBOX_IMAGE"] = "onecode-swebench:sphinx"
+            run_swebench_instance(django, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(sympy, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(pytest_inst, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(astropy, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            os.environ["ONECODE_SANDBOX_IMAGE"] = "onecode-swebench:astropy"
+            run_swebench_instance(django, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(sympy, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(pytest_inst, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(sphinx, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+            run_swebench_instance(inst, self.root, model="deepseek-v4.1-flash", endpoint="http://mock")
+        self.assertEqual(
+            seen,
+            [
+                None,
+                "onecode-swebench:py312",
+                "onecode-swebench:sympy",
+                "onecode-swebench:pytest",
+                "onecode-swebench:sphinx",
+                "onecode-swebench:astropy",
+                None,
+                "onecode-swebench:sympy",
+                "onecode-swebench:pytest",
+                "onecode-swebench:astropy",
+                "onecode-swebench:py312",
+                "onecode-swebench:pytest",
+                "onecode-swebench:astropy",
+                "onecode-swebench:py312",
+                "onecode-swebench:sympy",
+                "onecode-swebench:sphinx",
+                "onecode-swebench:astropy",
+                "onecode-swebench:py312",
+                "onecode-swebench:sympy",
+                "onecode-swebench:pytest",
+                "onecode-swebench:astropy",
+                "onecode-swebench:py312",
+                "onecode-swebench:sympy",
+                "onecode-swebench:pytest",
+                "onecode-swebench:sphinx",
+                None,
+            ],
+        )
+        self.assertNotIn("ONECODE_SANDBOX_IMAGE", os.environ)
+
+    def test_official_test_patches_stay_out_of_prompts(self) -> None:
+        dataset = Path(__file__).resolve().parents[1] / "benchmarks" / "swebench-lite" / "subset.jsonl"
+        sentinels = {
+            "sympy__sympy-20590": "b1.x = 1",
+            "pytest-dev__pytest-5692": "node.assert_attr(hostname=platform.node())",
+            "astropy__astropy-12907": "cm_4d_expected",
+            "sphinx-doc__sphinx-10325": "class MyList(list):",
+        }
+        instances = {item["instance_id"]: item for item in load_swebench_instances(dataset)}
+        for instance_id, sentinel in sentinels.items():
+            raw = instances[instance_id]
+            merged = official_test_patch(dataset, raw)
+            self.assertIn(sentinel, merged["test_patch"])
+            self.assertNotIn("diff --git", format_swebench_prompt(raw))
+            self.assertNotIn(sentinel, format_swebench_prompt(merged))
+
+    def test_run_swebench_instance_dry_run(self) -> None:
+        inst = {
+            "instance_id": "mock__repo-100",
+            "repo": "mock/repo",
+            "problem_statement": "dry run problem",
+        }
+        res = run_swebench_instance(
+            inst,
+            self.root,
+            model="deepseek-v4.1-flash",
+            endpoint="http://mock",
+            agent_mode="terminal",
+            dry_run=True,
+        )
+        self.assertEqual(res["status"], "dry_run")
+        self.assertEqual(res["instance_id"], "mock__repo-100")
+        self.assertEqual(res["agent_mode"], "terminal")
+        self.assertTrue(Path(res["workspace"]).is_dir())
+
+    def test_validate_unified_diff(self) -> None:
+        empty_res = validate_unified_diff("")
+        self.assertTrue(empty_res["valid"])
+        self.assertTrue(empty_res["empty"])
+        self.assertEqual(empty_res["files"], [])
+
+        valid_patch = (
+            "diff --git a/pkg/mod.py b/pkg/mod.py\n"
+            "index 111..222 100644\n"
+            "--- a/pkg/mod.py\n"
+            "+++ b/pkg/mod.py\n"
+            "@@ -1,2 +1,3 @@\n"
+            "-old_line\n"
+            "+new_line_1\n"
+            "+new_line_2\n"
+        )
+        res = validate_unified_diff(valid_patch)
+        self.assertTrue(res["valid"])
+        self.assertFalse(res["empty"])
+        self.assertEqual(res["files"], ["pkg/mod.py"])
+        self.assertEqual(res["additions"], 2)
+        self.assertEqual(res["deletions"], 1)
+
+        unsafe_patch = (
+            "diff --git a/.git/config b/.git/config\n"
+            "--- a/.git/config\n"
+            "+++ b/.git/config\n"
+            "@@ -1 +1 @@\n"
+            "+evil=true\n"
+        )
+        unsafe_res = validate_unified_diff(unsafe_patch)
+        self.assertFalse(unsafe_res["valid"])
+        self.assertFalse(unsafe_res["is_safe"])
+
+    def test_verify_predictions_dataset(self) -> None:
+        missing = verify_predictions_dataset(self.root / "none.jsonl", self.root / "d.jsonl")
+        self.assertEqual(missing["status"], "error")
+
+        ds_path = self.root / "dataset.jsonl"
+        ds_path.write_text(
+            json.dumps({"instance_id": "inst-1", "repo": "repo/a", "problem_statement": "p1"}) + "\n",
+            encoding="utf-8",
+        )
+
+        pred_path = self.root / "predictions.jsonl"
+        pred_lines = [
+            json.dumps({
+                "instance_id": "inst-1",
+                "model_patch": "diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -1 +1 @@\n+fixed\n",
+                "status": "completed",
+            }),
+            json.dumps({
+                "instance_id": "inst-2",
+                "model_patch": "",
+                "status": "failed",
+            }),
+        ]
+        pred_path.write_text("\n".join(pred_lines) + "\n", encoding="utf-8")
+
+        audit = verify_predictions_dataset(pred_path, ds_path)
+        self.assertEqual(audit["status"], "verified")
+        self.assertEqual(audit["dataset_total"], 1)
+        self.assertEqual(audit["predictions_count"], 2)
+        self.assertEqual(audit["matched_count"], 1)
+        self.assertEqual(audit["valid_patch_count"], 1)
+        self.assertEqual(audit["empty_patch_count"], 1)
+
+
+if __name__ == "__main__":
+    unittest.main()

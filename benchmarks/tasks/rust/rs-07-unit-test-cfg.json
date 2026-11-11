@@ -1,0 +1,31 @@
+{
+  "id": "rs-07-unit-test-cfg",
+  "prompt": "在模块尾部编写 #[cfg(test)] 单元测试模块",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 4,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/math.rs",
+          "content": "pub fn add(a: i32, b: i32) -> i32 { a + b }\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n    #[test]\n    fn test_add() {\n        assert_eq!(add(2, 3), 5);\n    }\n}\n"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/math.rs",
+      "text": "#[cfg(test)]"
+    },
+    {
+      "type": "file_contains",
+      "path": "src/math.rs",
+      "text": "assert_eq!(add(2, 3), 5)"
+    }
+  ]
+}

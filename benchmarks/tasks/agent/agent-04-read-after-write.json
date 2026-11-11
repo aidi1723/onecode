@@ -1,0 +1,32 @@
+{
+  "id": "agent-04-read-after-write",
+  "prompt": "写完再读回",
+  "expected_status": "completed",
+  "mode": "agent",
+  "input": {
+    "max_turns": 6,
+    "files": [],
+    "script": [
+      {
+        "tool_name": "write_text",
+        "params": {
+          "path": "src/note.py",
+          "content": "note = 'kept'\n"
+        }
+      },
+      {
+        "tool_name": "read_text",
+        "params": {
+          "path": "src/note.py"
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "type": "file_contains",
+      "path": "src/note.py",
+      "text": "note = 'kept'"
+    }
+  ]
+}

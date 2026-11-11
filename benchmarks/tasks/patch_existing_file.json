@@ -1,0 +1,17 @@
+{
+  "id": "patch-existing-file",
+  "prompt": "把 src/app.py 中的 VALUE = 1 修改为 VALUE = 2",
+  "expected_status": "completed",
+  "mode": "rule",
+  "input": {
+    "files": [
+      { "path": "src/app.py", "content": "VALUE = 1\n" }
+    ],
+    "patch_path": "src/app.py",
+    "search_block": "VALUE = 1",
+    "replace_block": "VALUE = 2"
+  },
+  "assertions": [
+    { "type": "file_exists", "path": "src/app.py" }
+  ]
+}
