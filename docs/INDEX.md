@@ -118,8 +118,10 @@ OneCode uses a deterministic cybernetic finite-state automaton (64-state Boolean
 - Run benchmarks: `onecode benchmark --run --workspace-root /tmp/bench`
 
 ### Safety & Security
+- **[SECURITY_ARCHITECTURE.md](SECURITY_ARCHITECTURE.md)** - Six-layer defense-in-depth architecture & reproducible 18-vector adversarial benchmark (`18/18` verified)
+- **[scripts/security_benchmark.py](../scripts/security_benchmark.py)** - Zero-API-key deterministic agent red-team test suite (`tests/test_security_suite.py`)
 - [Sandbox Design](../README.md#docker-sandbox-smoke-check) - Docker isolation with network disabled
-- [Path Guard](../README.md#safety-model) - Workspace containment and sensitive file protection
+- [Path Guard](../README.md#security-architecture--adversarial-suite--安全纵深防御架构与对抗实测) - Workspace containment, anti-tamper, and sensitive file protection
 - [Approval System](../README.md#local-agent-shell) - User approval for destructive operations
 
 ## Development History

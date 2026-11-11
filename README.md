@@ -32,8 +32,8 @@ Unlike agents that rely on an LLM's self-reported completion, OneCode constrains
 ### 1. Mission-Critical Production Safety / 工业级最高生产安全保障
 - **Kernel-Isolated Dual-Gatekeeper Verifier**: Prevents finish hallucinations. Regardless of what the model claims in prose, OneCode only marks a run `deliverable` when the isolated test suite executes and exits with `exit_code == 0`. Otherwise delivery is blocked (`delivery_status: blocked`).  
   **内核态双门禁校验器**：彻底杜绝虚假完成幻觉。无论模型文本如何声称已完成修复，只有在隔离沙箱中真实执行验证套件且返回 `exit_code == 0` 时才签发 `deliverable`；失败则强制判定 `delivery_status: blocked`，阻断缺陷代码交付。
-- **Anti-Tamper & Sovereign Boundary Protection**: Blocks shell workarounds such as inline `python -c "open('src.py', 'w')..."` bypasses (`preset_test_immutable` / `sovereignty_fire_boundary_halt`), enforces audited `patch`/`write_file` transitions, and records a tamper-evident SHA-256 log (`evidence-chain.jsonl`).  
-  **反越权防篡改保护**：实时拦截命令行旁路篡改与越界写盘，强制全部文件变更经受审计的 `patch` / `write_file` 动作通道，并持续落盘 SHA-256 不可篡改审计链（`evidence-chain.jsonl`）。
+- **Anti-Tamper & Sovereign Boundary Protection**: Blocks shell workarounds such as inline `python -c "open('src.py', 'w')..."` bypasses (`preset_test_immutable` / `sovereignty_fire_boundary_halt`), enforces audited `patch`/`write_file` transitions, and records a tamper-evident SHA-256 log (`evidence-chain.jsonl`). Full 6-layer architecture & reproducible `18/18` red-team suite: [Security Architecture](#security-architecture--adversarial-suite--安全纵深防御架构与对抗实测) · [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md).  
+  **反越权防篡改保护**：实时拦截命令行旁路篡改与越界写盘，强制全部文件变更经受审计的 `patch` / `write_file` 动作通道，并持续落盘 SHA-256 不可篡改审计链（`evidence-chain.jsonl`）。完整 6 层防御与 `18/18` 可复现对抗评测见下文[安全专章](#security-architecture--adversarial-suite--安全纵深防御架构与对抗实测)及 [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md)。
 
 ### 2. Token Reduction & Compact Context Projection / 颠覆性 Token 节省与紧凑投影
 - **Structured Shell State Projection (`shell_projection`)**: Instead of appending raw file dumps and full terminal logs every turn, OneCode projects minimal structured deltas and failure evidence across turns.  
@@ -93,6 +93,57 @@ OneCode 定位于**工业与生产环境下的高安全工程开发与受控交�
 - **Broader Production Sandbox Hardening & Industrial Commissioning Integrations / 更深层的生产环境加固与现场投产闭环集成**：  
   Deterministic hard real-time PLC/DCS execution remains outside the LLM agent runtime scope; OneCode generates and verifies engineering artifacts offline before human sign-off and bench commissioning, while broader `deployment_boundary` hardening, additional industrial protocol presets, and enterprise governance integrations continue to roll out in subsequent releases.  
   现场产线毫秒级硬实时闭环仍属于专业实时控制系统职责，OneCode 负责上线前的开发、离线回归验证与审计签发；更完善的 `deployment_boundary` 生产加固工具链、更多工业协议校验预设与企业治理集成正在后续版本中陆续完善开发中。
+
+---
+
+## Security Architecture & Adversarial Suite / 安全纵深防御架构与对抗实测
+
+Rather than trusting system-prompt instructions, OneCode enforces every security invariant in deterministic kernel Python code **before** filesystem mutation, command execution, HTTP routing, or delivery sign-off.  
+OneCode 不依赖提示词层面的“口头约束”，而是在文件落盘、Shell 执行、HTTP 路由与最终交付签发**之前**，通过 6 层确定性内核机制硬性阻断越权行为与“投机作弊”路径（详见 [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md)）。
+
+### 6 Defense-in-Depth Kernel Layers / 六层确定性内核安全防线
+
+1. **Workspace Isolation & Secret Read Guard (`PathGuard`)**  
+   Canonicalizes target paths, rejects `../` traversal, absolute paths, `\x00` null bytes, and symlink directory jailbreaks (`_reject_symlinks`); locks control-plane paths (`.git`, `.github`, `.onecode`, `pyproject.toml`, `Makefile`) and blocks model `read_file` probes on `.env`, `.env.production`, `.git/config`, and private keys (`sensitive_read_denied`).  
+   **工作区隔离与密钥防泄露**：拦截路径穿越、绝对路径、空字节与软链接逃逸；锁死 `.git/.github/.onecode/pyproject.toml/Makefile` 控制面写权限，并物理拒绝模型读取 `.env` 等敏感凭据。
+2. **Verifier Anti-Tamper, AST/Shadow Guard & Auto-Rollback (`preset_tests`, `TerminalSession`, `model_provider`)**  
+   Protects multi-language test suites (Python / Go / TS / Rust) as immutable (`preset_test_immutable`); blocks shadow test runner injection (`unittest.py`, `pytest.py`, `conftest.py`, `sitecustomize.py`, `usercustomize.py`); statically rejects `pytest`/`unittest`/`__import__`/`os._exit` in `src/` via AST; intercepts inline `python3 -c` test-tampering commands *before* shell execution; and restores source snapshots automatically on `rollback_on_failure=True`.  
+   **测试完整性保护与失败回滚**：禁止修改多语言预设单测；阻断 `unittest.py`/`sitecustomize.py` 影子注入；AST 静态查杀 `src/` 内嵌测试框架与 `os._exit(0)`；执行前预拦截 `python3 -c` 绕过写入；触发篡改立即 `halt` 并自动回滚源码快照。
+3. **Scoped Capabilities & Destructive Command Firewall (`ExecutionScope`, `ExecutionGuardrails`)**  
+   Enforces `READ_ONLY` / `PATCH_GUARDED` / `FULL_TERMINAL` policies (`ToolCapabilityPolicy`), blocks destructive commands including `bash -c` wrappers (`rm -rf`, `git reset --hard`, `git clean -f`, `git push --force`, `dd`, `kill -9`), validates `forbidden_tools` / resource budgets, and requires explicit human approval for external `mcp.*` tool calls.  
+   **分权能力集与高危命令防火墙**：按 `READ_ONLY` / `PATCH_GUARDED` / `FULL_TERMINAL` 分级授信，拦截含 Shell 嵌套包装的高危销毁指令，并对外部 `mcp.*` 调用强制接入人工审批门禁。
+4. **Isolated Delivery Gatekeeper & SHA-256 Audit Ledger (`verify_shell_write`, `wal`, `validate_evidence_chain`)**  
+   Failing verification tests hard-block delivery (`delivery_status: blocked`), while `.onecode/global-ledger.jsonl` and `.onecode/runs/<id>/evidence-chain.jsonl` detect post-run workspace or audit-log tampering via SHA-256 digests (`asset_hash_mismatch`, `evidence_chain_hash_mismatch`).  
+   **不可绕过交付门禁与防篡改审计链**：单测不真通过即强制 `delivery_status: blocked`；通过全局 WAL 与逐条前向哈希链对产出文件与审计日志做 SHA-256 校验，事后任何单字节篡改立即可检。
+5. **Container Sandbox Hardening (`SandboxConfig.build_docker_command`)**  
+   Runs isolated verification inside Docker with `--network none`, `--cap-drop ALL`, `--read-only`, `--security-opt no-new-privileges`, `--pids-limit 256`, `noexec,nosuid` `/tmp`, `PYTHONSAFEPATH=1`, `PYTHONDONTWRITEBYTECODE=1`, non-root host `--user`, and `readonly` mounts for `.git`, `.github`, `.onecode`, and `tests`.  
+   **极简高强容器沙箱**：默认无外网、全能力裁撤（`--cap-drop ALL`）、只读根文件系统、防提权与进程数上限隔离，并将受保护目录以只读模式挂载。
+6. **Gateway HTTP, Redirect & Deployment Boundary Security (`web.auth`, `http_safety`, `deployment_boundary`)**  
+   Strips `Authorization` and `api-key` headers across HTTP cross-host redirects or HTTPS->HTTP downgrades (`StripAuthRedirectHandler`), blocks DNS-rebinding `Host` headers and cross-origin CSRF (`local_request_allowed`), refuses unauthenticated `0.0.0.0` binding (`run_server`), and rejects published sample credentials (`dev-local-token`) or permissive `0o644` token files.  
+   **网关认证、重定向防泄露与部署红线**：重定向/降级自动剥离认证头；防御 DNS 重绑定与跨站 CSRF；禁止未鉴权绑定 `0.0.0.0`；拒收公开示例弱口令及权限过宽（`0o644`）的密钥文件。
+
+### Adversarial Agent Security Benchmark (`18/18` Blocked / Enforced) / 可复现对抗安全评测（18/18 实测全拦截）
+
+Anyone can reproduce the zero-API-key red-team test suite locally against the real kernel in <0.5s:  
+任何人均可零成本在本地直接运行以下对抗安全基准脚本（无需外部 LLM API Key，全部直连真实内核边界）：
+
+```bash
+# Printable Markdown adversarial benchmark report / 输出对抗评测报告
+PYTHONPATH=src python3 scripts/security_benchmark.py
+
+# Machine-readable JSON output or CI unittest suite / JSON 输出或运行单元测试套件
+PYTHONPATH=src python3 scripts/security_benchmark.py --json
+PYTHONPATH=src python3 -m unittest tests/test_security_suite.py -v
+```
+
+| Layer / 安全防线 | Adversarial Probes Tested / 实测攻击向量 (`SEC-01` .. `SEC-18`) | Blocked / 拦截率 | Source Suite / 对应测试 |
+| :--- | :--- | :---: | :--- |
+| **Workspace & Secret Boundary** | `SEC-01`..`SEC-04`: `../` traversal, abs/null-byte paths, symlink escape, `.env`/`.env.production`/`.git/config` read probe, `.git`/`.github`/`.onecode`/`pyproject.toml`/`Makefile` write | **4 / 4 (100%)** | [scripts/security_benchmark.py](scripts/security_benchmark.py) |
+| **Verifier Anti-Tamper & Rollback** | `SEC-05`..`SEC-09`: Py/Go/TS/Rust test patching, shadow `unittest.py`/`sitecustomize.py` (root+nested), AST `pytest`/`__import__`/`os._exit(0)`, `python3 -c` pre-exec bypass, halt + auto rollback | **5 / 5 (100%)** | [tests/test_security_suite.py](tests/test_security_suite.py) |
+| **Scoped Capabilities & Firewall** | `SEC-10`..`SEC-12`: `READ_ONLY` mutation block, `rm -rf`/`bash -c rm`/`git reset --hard`/`git push --force`/`dd`/`kill -9`, `forbidden_tools` & forced `mcp.*` human approval | **3 / 3 (100%)** | [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) |
+| **Delivery Gate & Audit Chain** | `SEC-13`..`SEC-14`: failing `unittest` forces `delivery_status=blocked`; post-run file & ledger edits caught (`asset_hash_mismatch`, `evidence_chain_hash_mismatch`) | **2 / 2 (100%)** | [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) |
+| **Sandbox Hardening** | `SEC-15`: validates Docker `--network none`, `--cap-drop ALL`, `--read-only`, `no-new-privileges`, `--pids-limit 256`, `PYTHONSAFEPATH=1`, RO protected mounts | **1 / 1 (100%)** | [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) |
+| **Network, Auth & Boundary** | `SEC-16`..`SEC-18`: HTTP redirect/downgrade credential strip, DNS rebinding `Host` + rogue `Origin` CSRF + unauth `0.0.0.0` bind block, published default token & `0o644` file rejection | **3 / 3 (100%)** | [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) |
 
 ---
 
