@@ -2,12 +2,14 @@
 
 ## Supported Versions
 
-Security support currently applies to the active development branch until the
-first public release.
+Security support currently applies to the `main` branch (`v1.1.0-bounded-preview` and active development).
 
 ## Reporting A Vulnerability
 
-Report vulnerabilities privately to the project maintainer.
+Please report security vulnerabilities privately via **GitHub Private Security Advisories**:
+- https://github.com/aidi1723/onecode/security/advisories/new
+
+You may also contact the maintainer (`@aidi1723`) privately via GitHub advisories before disclosing exploit details.
 
 Do not file public issues for vulnerabilities that could expose local files,
 credentials, model provider keys, or workspace data.

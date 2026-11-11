@@ -2,7 +2,8 @@
 # OneCode 安全纵深防御架构与对抗验证说明
 
 > **Positioning / 定位说明**：OneCode does not rely on system-prompt "please don't cheat" instructions. Every critical security invariant is enforced in deterministic Python kernel code before shell execution, file mutation, HTTP request routing, or final artifact delivery.  
-> OneCode 不依赖提示词层面的“口头约束”来防作弊，所有核心安全边界均在内核态 Python 代码中通过确定性拦截器强制执行——在命令执行、文件落盘、HTTP 路由与最终交付签发前进行硬门禁校验。
+> OneCode 不依赖提示词层面的“口头约束”来防作弊，所有核心安全边界均在内核态 Python 代码中通过确定性拦截器强制执行——在命令执行、文件落盘、HTTP 路由与最终交付签发前进行硬门禁校验。  
+> **Container Isolation Prerequisite / 强隔离前提**：Full container/network isolation (`--network none --cap-drop ALL --read-only`) requires Docker (`onecode doctor` -> `production_ready: true`). Host fallback without Docker runs commands on the local machine under software guards only and is intended strictly for trusted local workspaces ([SECURITY.md](../SECURITY.md)).
 
 ---
 
@@ -76,6 +77,7 @@ OneCode enforces **six defense-in-depth layers** against these vectors.
 ## 3. Reproducible Adversarial Red-Team Benchmark (`18/18`) / 可复现对抗安全测试套件
 
 Rather than relying on qualitative claims, OneCode ships a **zero-API-key, deterministic 18-case red-team test harness** ([`scripts/security_benchmark.py`](../scripts/security_benchmark.py)) backed by CI unit verification ([`tests/test_security_suite.py`](../tests/test_security_suite.py)). Every attack runs directly against the live OneCode kernel modules.
+> **Note**: This benchmark is a self-authored deterministic regression suite validating known kernel defenses against scripted exploit vectors; it is not a third-party external penetration audit.
 
 ### Reproduce Locally / 本地一键复现
 

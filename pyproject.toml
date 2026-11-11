@@ -35,10 +35,28 @@ where = ["src"]
 [tool.ruff]
 target-version = "py311"
 line-length = 120
-src = ["src", "tests"]
+src = ["src", "tests", "scripts"]
 
 [tool.ruff.lint]
-select = ["E9", "F"]
+select = [
+    "E711",
+    "E712",
+    "E713",
+    "E714",
+    "E721",
+    "E722",
+    "E9",
+    "F",
+    "W6",
+    "B006",
+    "B008",
+    "B011",
+    "B015",
+    "B018",
+    "B023",
+    "B026",
+    "B028",
+]
 
 [tool.coverage.run]
 source = ["onecode"]

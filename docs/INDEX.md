@@ -1,12 +1,22 @@
 # OneCode Documentation Index
 
-This index helps you navigate OneCode's documentation, which is organized by purpose and audience.
+This index helps you navigate OneCode's documentation, separating **active user/security docs** from **chronological historical archives**.
 
-`docs/closure/` and `docs/superpowers/` are historical records. They keep the design trail, and many of their commit hashes belong to the previous repository. Current behavior is defined by the source tree, `SECURITY.md`, and this index.
+> **Historical Archive Note**: `docs/closure/` and `docs/superpowers/` are chronological development logs (self-authored closeout notes whose legacy commit hashes belong to an earlier repository prior to the `2026-09-01` re-initialization described in [GIT_HISTORY_NOTE.md](GIT_HISTORY_NOTE.md)). Current runtime behavior and verification contracts are defined strictly by the source tree, [SECURITY.md](../SECURITY.md), [SECURITY_ARCHITECTURE.md](SECURITY_ARCHITECTURE.md), and the active test suite.
 
-## Quick Start
+## Essential Reading / 核心活跃文档（Start Here）
 
-- [README.md](../README.md) - Installation, verification, and basic usage
+- **[README.md](../README.md)** - Project positioning (`v1.1.0-bounded-preview`), installation (PyPI warning), quick start, and objective limits
+- **[SECURITY_ARCHITECTURE.md](SECURITY_ARCHITECTURE.md)** - Six-layer defense-in-depth architecture, Docker premise, and reproducible `18/18` adversarial regression suite
+- **[SECURITY.md](../SECURITY.md)** - Private vulnerability reporting (`GitHub Private Security Advisories`) and `deployment_boundary` contract
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Visual diagrams and kernel architecture overview
+- **[CLI_REFERENCE.md](CLI_REFERENCE.md)** - Complete command-line reference, flags, and environment variables
+- **[CONTRIBUTING.md](../CONTRIBUTING.md)** - How to verify, test, and contribute
+- **[DESIGN.md](../DESIGN.md)** - TUI and local web gateway design contract
+
+<details>
+<summary><b>Historical Development Closeout & Handbook Archive (`docs/closure/` & `docs/superpowers/`)</b> — click to expand</summary>
+
 - [2026-11-02 Phase V development handbook](closure/ONECODE_PHASE_V_DEVELOPMENT_HANDBOOK_2026-11-02.md) - True container verification, controlled concurrency, blind new-task expansion, and Harbor protocol preparation.
 - [2026-11-02 Harbor integration contract specification](closure/ONECODE_HARBOR_INTEGRATION_CONTRACT_2026-11-02.md) - Environment variables (`HARBOR_*`), directory topology, container execution protocol, and harbor: true gating conditions.
 - [2026-11-01 Phase IV development handbook](closure/ONECODE_PHASE_IV_DEVELOPMENT_HANDBOOK_2026-11-01.md) - Native host verifier protocol, Sui Po deflection, batch benchmark harness, domain expansion (4 Hard tasks), and container isolation.
@@ -37,8 +47,8 @@ This index helps you navigate OneCode's documentation, which is organized by pur
 - [2026-10-18 rule audit rounds](closure/ONECODE_RULE_AUDIT_ROUNDS_2026-10-18.md) - Three rounds on the Mac and n100 against the closeout reading
 - [2026-10-07 day closeout part 2](closure/ONECODE_DAY_CLOSEOUT_2026-10-07_PART_2.md) - Memory leak mitigation and ARM64 QEMU pending validation, core audit fixes applied
 - [2026-09-29 day closeout](closure/ONECODE_DAY_CLOSEOUT_2026-09-29.md) - Mac and n100 results, and what is still running
-- [DESIGN.md](../DESIGN.md) - Core design principles
-- [CONTRIBUTING.md](../CONTRIBUTING.md) - How to contribute (see onboarding guide below)
+
+</details>
 
 ## Architecture & Design
 
@@ -107,8 +117,9 @@ OneCode uses a deterministic cybernetic finite-state automaton (64-state Boolean
 
 ### Testing & Verification
 - Follow-up work starts from the [2026-10-16 follow-up development handbook](superpowers/plans/2026-10-16-onecode-followup-development-handbook.md)
-- Run core tests: `bash scripts/verify-core.sh` (234 tests, ~7s)
-- Run full suite: `bash scripts/verify.sh` (907 tests, ~21s)
+- Run core tests: `bash scripts/verify-core.sh` (~423 core tests, ~13s)
+- Run full suite: `bash scripts/verify.sh` (~1,700+ tests, ~85–180s depending on environment; coverage >=75%, ruff, mypy)
+- Run adversarial security suite: `PYTHONPATH=src python3 scripts/security_benchmark.py` (18/18 enforced)
 - Smoke check: `onecode doctor`
 
 ### Training & Benchmarking

@@ -1,8 +1,9 @@
 {
-  "benchmark": "SWE-bench Lite (Real-world Agentic Autonomous Evaluation)",
+  "benchmark": "SWE-bench Lite (Curated 4-Instance Subset Evaluation)",
   "agent_version": "v1.1.0-bounded-preview",
   "claims_mainstream_parity": false,
   "positioning": "Self-hosted Bounded Preview (自托管受控工程预览级)",
+  "methodology_note": "Curated 4-instance preview subset (non-statistical sample; does not generalize to full 300-instance SWE-bench Lite). Distinct from benchmarks/reports/swebench-lite-subset.json (an earlier 2026-09-29 official_gold_patch harness smoke check where astropy hit install_failed) and distinct from earlier multi-attempt closeout notes covering 5 instances in docs/closure/ONECODE_SWEBENCH_SUBSET_CLOSEOUT_2026-11-06.md.",
   "eval_timestamp": "2026-11-10T19:45:00+08:00",
   "orchestration_flags": [
     "--agent-mode terminal",

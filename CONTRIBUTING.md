@@ -17,7 +17,7 @@ Thank you for considering contributing to OneCode! This guide will help you get 
    ```bash
    bash scripts/verify.sh
    ```
-   This runs 907 tests and takes ~21 seconds. All tests should pass.
+   This runs the full test suite (`~1,700+` unit tests, ~85–180s depending on environment), `ruff`, `mypy`, `coverage` (`--fail-under=75`), and `onecode doctor`. All non-env-gated checks should pass.
 
 3. **Run smoke check**:
    ```bash
@@ -116,8 +116,9 @@ Changes to `src/onecode/kernel/hexagram.py` require extra scrutiny:
 
 ### Testing Requirements
 
-- Core tests must pass: `bash scripts/verify-core.sh` (234 tests, ~7s)
-- Full suite must pass: `bash scripts/verify.sh` (907 tests, ~21s)
+- Core tests must pass: `bash scripts/verify-core.sh` (~423 core tests, ~13s)
+- Full suite must pass: `bash scripts/verify.sh` (~1,700+ tests, ~85–180s depending on environment; coverage fail-under 75%)
+- Deterministic adversarial security regression: `PYTHONPATH=src python3 scripts/security_benchmark.py` (18/18 enforced)
 - Add tests for new features before implementing them
 - Edge cases: test yin-overflow, yang-overflow, pure states, balanced states
 

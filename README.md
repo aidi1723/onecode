@@ -1,39 +1,39 @@
-# OneCode — Industrial High-Assurance Autonomous Agent Kernel
-### 工业制造与生产级高安全自主智能体内核
+# OneCode — Self-Hosted Bounded Autonomous Agent Kernel (Bounded Preview)
+### 自托管受控自主编码智能体内核（`v1.1.0-bounded-preview`）
 
-OneCode is a production-grade autonomous coding and control agent kernel built for **industrial automation, factory execution, continuous process control, and mission-critical infrastructure**, engineered for strict safety enforcement, tamper resistance, and low token overhead.
+OneCode is a **self-hosted, bounded-preview** autonomous coding agent kernel (`claims_mainstream_parity: false`, zero runtime third-party kernel dependencies) built for controlled code generation, automated repair, and offline validation across engineering and industrial/IIoT automation workflows — emphasizing **deterministic delivery gates, anti-tamper protection, and compact context projection**.
 
-OneCode 是专为**工业制造、自动化车间、连续流程控制与关键基础设施**打造的高安全、防篡改、极低 Token 消耗的生产级自主智能体内核（Autonomous Agent Kernel）。
+OneCode 是一个**自托管、受控工程预览级（Bounded Preview）**自主编码智能体内核（零第三方内核运行时依赖），面向高审计需求的研发、运维脚本与工业/IIoT 离线模块开发场景，主打**确定性测试交付门禁、反篡改防越权保护与紧凑上下文 Token 节流**。
 
-Unlike agents that rely on an LLM's self-reported completion, OneCode constrains model inference within a **Deterministic Cybernetic Finite-State Automaton** and a **Kernel-Isolated Dual-Gatekeeper Verifier**, eliminating false delivery claims and unauthorized disk writes at the systems level.
-
-不同于依赖大模型自我评判的传统编码 Agent，OneCode 将模型推理严格收敛在**确定性控制论状态机**与**内核态双门禁校验器**之内，从系统工程层面根除“未通过验证即交付”的幻觉以及命令行越权写盘隐患。
+> **Scope & Isolation Prerequisite / 适用范围与隔离前提**：OneCode is NOT an unattended enterprise monolith or a real-time PLC replacement. Full OS/network sandbox isolation (`--network none --cap-drop ALL --read-only`) **requires Docker** (`onecode doctor` reports `production_ready: true`); without Docker, `run_command` executes on the host under software guards and is restricted to **trusted local workspaces** (see [SECURITY.md](SECURITY.md)).  
+> OneCode 目前处于**个人/小团队受控试点与研究预览阶段**，并非开箱即用的大型无人值守商业底座或现场 PLC 实时控制器。完整容器强隔离**须启用 Docker**；无 Docker 时命令行在宿主机运行，仅用于**可信本地工作区**（详见 [SECURITY.md](SECURITY.md)）。
 
 ---
 
-## Core Capabilities / 核心工业级特性
+## Core Capabilities / 核心特性
 
 ```
 +----------------------------------------------------------------------------------------------------+
-|                                    OneCode Industrial Kernel                                      |
+|                              OneCode Kernel (v1.1.0-bounded-preview)                               |
 +------------------------------------+----------------------------------+----------------------------+
-| 1. Mission-Critical Safety         | 2. 80%+ Token Reduction          | 3. Gateway Jitter Resilience|
+| 1. Bounded Execution Safety        | 2. Compact Context Projection    | 3. Gateway Jitter Resilience|
 | - Kernel-isolated Verifier gate    | - Compact shell_projection diff  | - Native SSE chunked stream|
 | - Anti-Tamper shell firewall       | - Prevents multi-turn context    | - Immune to HTTP 524 origin|
 | - Blocks unverified code delivery  |   prompt explosion               |   gateway timeouts         |
-|                                    | - 81.1% saved in trilogy runs    | - Full-jitter exponential  |
-| 1. 工业级最高生产安全保障          | 2. 80%+ 颠覆性 Token 节省        |   backoff & checkpoint     |
-| - 内核态独立 Verifier 测试门禁     | - 紧凑 Shell 状态差分投影        | 3. 工控网关与网络抖动容灾  |
+| - Full isolation requires Docker   | - Self-tested N100 savings logs  | - Full-jitter exponential  |
+| 1. 内核级硬门禁安全防线            | 2. 紧凑上下文差分与 Token 节流   |   backoff & checkpoint     |
+| - 内核态独立 Verifier 测试门禁     | - 紧凑 Shell 状态差分投影        | 3. 弱网与边缘网关容灾       |
 | - 反越权防篡改命令行拦截           | - 杜绝多轮上下文原始暴涨         | - 原生 SSE 流式分块传输    |
-| - 物理阻断未通过测试的代码交付     | - 工业三部曲基准实测节省 81.1%   | - 免疫 524 超时与断线重连  |
+| - 物理阻断未通过测试的代码交付     | - 适用于边界清晰的受控模块任务   | - 免疫 524 超时与断线重连  |
+| - 容器隔离依赖 Docker 运行时       |                                  |                            |
 +------------------------------------+----------------------------------+----------------------------+
 ```
 
-### 1. Mission-Critical Production Safety / 工业级最高生产安全保障
+### 1. Bounded Execution Safety / 确定性内核安全门禁
 - **Kernel-Isolated Dual-Gatekeeper Verifier**: Prevents finish hallucinations. Regardless of what the model claims in prose, OneCode only marks a run `deliverable` when the isolated test suite executes and exits with `exit_code == 0`. Otherwise delivery is blocked (`delivery_status: blocked`).  
-  **内核态双门禁校验器**：彻底杜绝虚假完成幻觉。无论模型文本如何声称已完成修复，只有在隔离沙箱中真实执行验证套件且返回 `exit_code == 0` 时才签发 `deliverable`；失败则强制判定 `delivery_status: blocked`，阻断缺陷代码交付。
-- **Anti-Tamper & Sovereign Boundary Protection**: Blocks shell workarounds such as inline `python -c "open('src.py', 'w')..."` bypasses (`preset_test_immutable` / `sovereignty_fire_boundary_halt`), enforces audited `patch`/`write_file` transitions, and records a tamper-evident SHA-256 log (`evidence-chain.jsonl`). Full 6-layer architecture & reproducible `18/18` red-team suite: [Security Architecture](#security-architecture--adversarial-suite--安全纵深防御架构与对抗实测) · [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md).  
-  **反越权防篡改保护**：实时拦截命令行旁路篡改与越界写盘，强制全部文件变更经受审计的 `patch` / `write_file` 动作通道，并持续落盘 SHA-256 不可篡改审计链（`evidence-chain.jsonl`）。完整 6 层防御与 `18/18` 可复现对抗评测见下文[安全专章](#security-architecture--adversarial-suite--安全纵深防御架构与对抗实测)及 [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md)。
+  **内核态双门禁校验器**：彻底杜绝虚假完成幻觉。无论模型文本如何声称已完成修复，只有在测试运行器真实执行验证套件且返回 `exit_code == 0` 时才签发 `deliverable`；失败则强制判定 `delivery_status: blocked`，阻断缺陷代码交付。
+- **Anti-Tamper & Sovereign Boundary Protection**: Blocks shell workarounds such as inline `python -c "open('src.py', 'w')..."` bypasses (`preset_test_immutable` / `sovereignty_fire_boundary_halt`), enforces audited `patch`/`write_file` transitions, and records a tamper-evident SHA-256 log (`evidence-chain.jsonl`). Container enforcement requires Docker (`onecode doctor` -> `production_ready: true`). Full 6-layer architecture & reproducible `18/18` self-authored regression suite: [Security Architecture](#security-architecture--adversarial-suite--安全纵深防御架构与对抗实测) · [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md).  
+  **反越权防篡改保护**：实时拦截命令行旁路篡改与越界写盘，强制全部文件变更经受审计的 `patch` / `write_file` 动作通道，并持续落盘 SHA-256 不可篡改审计链（`evidence-chain.jsonl`）。完整容器强隔离依赖 Docker。6 层防御与 `18/18` 可复现对抗测试见下文[安全专章](#security-architecture--adversarial-suite--安全纵深防御架构与对抗实测)及 [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md)。
 
 ### 2. Token Reduction & Compact Context Projection / 颠覆性 Token 节省与紧凑投影
 - **Structured Shell State Projection (`shell_projection`)**: Instead of appending raw file dumps and full terminal logs every turn, OneCode projects minimal structured deltas and failure evidence across turns.  
@@ -46,7 +46,8 @@ Unlike agents that rely on an LLM's self-reported completion, OneCode constrains
     连续流程安全（TEP 化工 / ISA PID / SIL-2）：Claude 70.5 万 Tokens vs **OneCode 15.7 万 Tokens（节省 77.8%）**
   - **Industrial IoT Gateway (Option C — Modbus TCP / Deadband / SDT)**: Claude `494k` vs **OneCode `108k` Tokens (`-78.2%`)**  
     工业物联网网关（Modbus TCP / 死区与旋转门压缩）：Claude 49.4 万 Tokens vs **OneCode 10.8 万 Tokens（节省 78.2%）**
-  - **Total Across Trilogy / 三部曲总计**: `2,097,072` vs **`397,258` Tokens (`-81.1%` / `1,699,814` saved)**, `78/78 (100.0%)` under baseline runs.
+  - **Total Across Self-Tested Trilogy / 三部曲自测总计**: `2,097,072` vs **`397,258` Tokens (`-81.1%` / `1,699,814` saved)**, `78/78 (100.0%)` under author-run N100 baseline sessions. *(Disclosure: baseline comparator raw logs and prompt traces are not archived in this public repo; evaluate on your own workload before treating this percentage as general parity.)*
+  *(说明：三部曲 Token 节省为作者在 N100 环境下的自测统计，对照方原始运行日志未随仓库公开，请结合自身任务集实测评估，勿作同级横向榜单引用。)*
 
 - **Empirical Scope & Re-Verification Boundaries / 客观适用边界与复验说明**:
   - The 78%–85% savings above were measured in controlled workspaces on single-module or well-scoped specifications (`Option A`, `Option B Tasks 1–3`, `Option C Tasks 1–3`).  
@@ -69,8 +70,8 @@ Unlike agents that rely on an LLM's self-reported completion, OneCode constrains
 
 ## Application Scenarios & Roadmap / 适用场景与后续演进
 
-OneCode is positioned as a **high-assurance engineering and controlled-delivery agent kernel for industrial & production environments** (generating, patching, verifying, and auditing code/configs under deterministic gates), rather than replacing on-line hardware controllers for millisecond-level hard real-time execution.  
-OneCode 定位于**工业与生产环境下的高安全工程开发与受控交付内核**（在确定性门禁下完成代码/配置生成、修复、沙箱验证与审计留痕），而非直接替代现场 PLC/DCS 硬件承担毫秒级硬实时在线控制。
+OneCode is positioned as a **self-hosted bounded-preview engineering and verification agent kernel** (`Self-hosted Bounded Preview`, `claims_mainstream_parity: false`) for generating, patching, verifying, and auditing scoped code/configs under deterministic gates — rather than an unattended general production monolith or a real-time PLC controller.  
+OneCode 定位于**自托管受控工程预览级（Bounded Preview）开发与校验智能体内核**（在确定性门禁下完成单模块代码/配置生成、修复、沙箱验证与审计留痕），适合个人开发者与小团队受控试点及安全参考，不替代现成生产级大型底座或现场 PLC/DCS 毫秒级硬件实时控制。
 
 ### Ready for Controlled Production Workflows / 当前已可直接胜任的场景
 - **Module-Level Industrial & IIoT Engineering (`--verifier` gated) / 工业与物联网模块级研发与修复**：  
@@ -122,7 +123,10 @@ OneCode 不依赖提示词层面的“口头约束”，而是在文件落盘、
    Strips `Authorization` and `api-key` headers across HTTP cross-host redirects or HTTPS->HTTP downgrades (`StripAuthRedirectHandler`), blocks DNS-rebinding `Host` headers and cross-origin CSRF (`local_request_allowed`), refuses unauthenticated `0.0.0.0` binding (`run_server`), and rejects published sample credentials (`dev-local-token`) or permissive `0o644` token files.  
    **网关认证、重定向防泄露与部署红线**：重定向/降级自动剥离认证头；防御 DNS 重绑定与跨站 CSRF；禁止未鉴权绑定 `0.0.0.0`；拒收公开示例弱口令及权限过宽（`0o644`）的密钥文件。
 
-### Adversarial Agent Security Benchmark (`18/18` Blocked / Enforced) / 可复现对抗安全评测（18/18 实测全拦截）
+### Adversarial Agent Security Benchmark (`18/18` Self-Authored Deterministic Suite) / 可复现对抗安全评测（18/18 自研拦截基准）
+
+> **Boundary Note / 边界与证据说明**：Full OS/network containment requires Docker (`production_ready: true` via `onecode doctor`); in non-Docker `host` fallback mode, `run_command` is strictly for **trusted local workspaces** (see [SECURITY.md](SECURITY.md)). `scripts/security_benchmark.py` is a **self-authored deterministic regression benchmark** covering known attack surfaces — it demonstrates that these kernel guards actively enforce their contracts, not an external third-party penetration audit.  
+> **说明**：完整系统与网络隔离依赖 Docker；无 Docker 时 `run_command` 在宿主机执行，仅限可信本地工作区使用。下方 `18/18` 套件为项目自带可复现回归红队测试（覆盖已知攻击面），不等同于第三方外部渗透审计。
 
 Anyone can reproduce the zero-API-key red-team test suite locally against the real kernel in <0.5s:  
 任何人均可零成本在本地直接运行以下对抗安全基准脚本（无需外部 LLM API Key，全部直连真实内核边界）：
@@ -183,9 +187,10 @@ $$\text{Delivery}(R) \iff \text{AssetsComplete}(R) \land \big(\text{ExitCode}(\t
 
 ## Quick Start / 快速上手
 
-### 1. Installation / 安装核心与可选界面
+### 1. Installation / 从源码安装（注意 PyPI 同名包冲突）
 The core kernel has no runtime third-party dependency. Textual is an optional TUI dependency.  
-核心内核零第三方运行时依赖；Textual 为可选终端界面依赖：
+> **PyPI Warning / 包名提示**：The package `onecode` on PyPI belongs to an unrelated third-party project (`DeepLime`). **Do NOT run `pip install onecode`**. Always install from a local clone of this repository:  
+> PyPI 上的 `onecode` 已被无关第三方项目占用，**请勿直接执行 `pip install onecode`**，请从本仓库源码目录以可编辑模式安装：
 
 ```bash
 # Core control kernel & CLI / 安装核心内核与命令行工具
@@ -284,8 +289,8 @@ Full options & environment variables: [docs/CLI_REFERENCE.md](docs/CLI_REFERENCE
 | **08** | IIoT Gateway / 工业物联网网关 | Modbus TCP (MBAP/PDU), 4-zone concurrent map, deadband, SDT | 26/26* (Task 4 boundary noted) | Tasks 1–3 **-78.2%** (`494k` -> `108k`) |
 | **Total** | **8 Production Tiers / 全场景** | **Distributed, Quant, Discrete Mfg, Process Safety, IIoT** | **184/184 (baseline)** | High single-module savings; multi-module evolving |
 
-> `*` Baseline cumulative records include network retries and multi-round tuning; see *Empirical Scope & Re-Verification Boundaries* above for live unassisted `Task 4` results.  
-> `*` 基线累计记录包含断线重试与多轮迭代调优；洁净工作区无提示 `Task 4` 实时复测边界见上文“客观适用边界与复验说明”。
+> `*` Baseline cumulative records (`01–08`) reflect author-run local benchmarks (`claims_mainstream_parity: false`; baseline comparator raw logs not bundled) and include retries/tuning; see *Empirical Scope & Re-Verification Boundaries* above for clean unassisted `Task 4` limits. Curated SWE-bench evaluation snapshot ([swebench_agent_evaluation_report_v1.1.json](benchmarks/reports/swebench_agent_evaluation_report_v1.1.json)) covers **4 evaluated instances** (`4/4` non-statistical preview sample, distinct from the `official_gold_patch` smoke file [swebench-lite-subset.json](benchmarks/reports/swebench-lite-subset.json)).  
+> `*` 上表（01–08）为受控单机基线累计实测统计（对照方原始日志未入库，不主张通用同级对标，洁净工作区无提示 `Task 4` 复测上限见上文）；仓库内 SWE-bench 报告归档为 **4 题自选预览子集**（详见 [swebench_agent_evaluation_report_v1.1.json](benchmarks/reports/swebench_agent_evaluation_report_v1.1.json)，不构成完整 300 题榜单结论）。
 
 ---
 
@@ -296,7 +301,8 @@ Full options & environment variables: [docs/CLI_REFERENCE.md](docs/CLI_REFERENCE
 
 ---
 
-## License / 开源协议
+## License / 开源协议与集成边界
 
 OneCode is licensed under the **GNU General Public License, Version 3 only (`GPL-3.0-only`)**.  
-OneCode 遵循 **GNU General Public License v3 only (`GPL-3.0-only`)** 开源协议，衍生与分发版本须保持开源并提供对应完整源码。
+- **Copyleft Notice / 强开源传染提示**：Because `GPL-3.0-only` is a strong copyleft license, statically importing or embedding the OneCode Python kernel directly inside proprietary closed-source products requires releasing the combined derivative work under GPLv3. Proprietary teams wishing to adopt OneCode can evaluate it over external CLI / HTTP process boundaries or contact the maintainer regarding integration terms.  
+  OneCode 遵循 **GNU General Public License v3 only (`GPL-3.0-only`)** 开源协议：直接将该 Python 内核嵌入闭源商业产品并分发时，会触发 GPLv3 的衍生作品开源义务；闭源集成方须通过独立进程 / HTTP 服务边界调用或就授权边界另行沟通。
