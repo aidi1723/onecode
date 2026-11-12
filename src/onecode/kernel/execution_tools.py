@@ -527,6 +527,10 @@ def _run_command(
     if not explicit_host:
         return 1, "", "sandbox_required"
 
+    escape_reason = PathGuard.detect_command_workspace_escape(workspace, argv)
+    if escape_reason:
+        return 1, "", f"workspace_escape_denied: {escape_reason}"
+
     argv = _with_available_python(argv)
     if on_output is None:
         proc = subprocess.Popen(

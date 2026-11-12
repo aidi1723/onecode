@@ -1,5 +1,11 @@
 # OneCode Public Release Pack / OneCode 公开发布包
 
+> [!NOTE]
+> **Historical Archive / 历史起草归档**  
+> This directory contains historical pre-release drafts and terminology references from early development iterations (v0.x ~ v1.0). The active v1.1 canonical documentation is maintained in the root `README.md`, `CONTRIBUTING.md`, and `docs/`.
+>
+> 本目录为早期预发布版本（v0.x ~ v1.0）起草与术语归档材料；当前 v1.1 规范发布说明与架构文档均维护于根目录 `README.md`、`CONTRIBUTING.md` 与 `docs/`。
+
 This directory contains public-facing release material for OneCode.
 
 本目录存放 OneCode 的公开发布材料。

@@ -149,6 +149,14 @@ class TestTerminalSessionExecution(unittest.TestCase):
         self.assertEqual(obs4.status, "blocked")
         self.assertEqual(obs4.reason, "sensitive_read_denied")
 
+    def test_command_workspace_escape_blocked(self) -> None:
+        obs = self.session.execute_action(
+            TerminalAction(action_type="command", command=("cat", "../secret.txt"))
+        )
+        self.assertEqual(obs.status, "blocked")
+        self.assertEqual(obs.reason, "workspace_escape_denied")
+        self.assertEqual(self.session.steps[-1].hexagram_code, 40)
+
     def test_patch_success(self) -> None:
         act = TerminalAction(
             action_type="patch",

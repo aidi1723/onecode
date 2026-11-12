@@ -1503,6 +1503,56 @@ class TerminalSession:
     def is_command_tampering(self, cmd_tokens: tuple[str, ...]) -> bool:
         return bool(self.command_tamper_target(cmd_tokens))
 
+    def _check_approval(self, action: TerminalAction) -> TerminalObservation | None:
+        if self.approval_mode != "strict" or action.action_type not in {"patch", "command"}:
+            return None
+        if self.execution_approval is not None:
+            if not self.execution_approval(action):
+                self.blocked_approvals_count += 1
+                return TerminalObservation(
+                    action_type=action.action_type,
+                    status="blocked",
+                    reason="approval_denied",
+                    stderr=f"Approval denied for {action.action_type}: rejected by execution_approval callback.",
+                )
+            self.approved_actions_count += 1
+            return None
+        if not self.auto_approved_for_eval:
+            self.blocked_approvals_count += 1
+            return TerminalObservation(
+                action_type=action.action_type,
+                status="blocked",
+                reason="approval_required",
+                stderr=f"Action '{action.action_type}' blocked: approval_mode is strict but no execution_approval callback provided.",
+            )
+        self.approved_actions_count += 1
+        return None
+
+    def _handle_finish(self, action: TerminalAction) -> TerminalObservation:
+        intact, tamper_reason = self.verify_test_files_integrity()
+        if not intact:
+            return TerminalObservation(
+                action_type="finish",
+                status="blocked",
+                reason="preset_test_immutable",
+                stderr=f"Cannot finish: {tamper_reason}. Test files are strictly immutable across all languages.",
+            )
+        has_modified = bool(self.command_modified_files) or _session_has_modifications(self.workspace, self.steps)
+        if self.require_modification and not has_modified:
+            return TerminalObservation(
+                action_type="finish",
+                status="error",
+                reason="unmodified_workspace",
+                stderr="Cannot finish: no implementation files have been modified or patched yet. First inspect files, apply patches, and verify.",
+            )
+        self.is_finished = True
+        self.finish_explanation = action.explanation or "Task completed by agent."
+        return TerminalObservation(
+            action_type="finish",
+            status="ok",
+            output=self.finish_explanation,
+        )
+
     def execute_action(self, action: TerminalAction) -> TerminalObservation:
         """Executes an action under sandbox security policies and records the observation."""
         # Immutable security invariant: test anti-tamper is always enforced first
@@ -1534,6 +1584,18 @@ class TerminalSession:
             self._record_step(action, obs, hexagram_code=40)
             return obs
 
+        if action.action_type == "command":
+            escape_reason = PathGuard.detect_command_workspace_escape(self.workspace, action.command)
+            if escape_reason:
+                obs = TerminalObservation(
+                    action_type="command",
+                    status="blocked",
+                    reason="workspace_escape_denied",
+                    stderr=f"Boundary protection active: {escape_reason}. Commands must remain confined to the workspace.",
+                )
+                self._record_step(action, obs, hexagram_code=40)
+                return obs
+
         # Scope capability policy check (READ_ONLY, PATCH_GUARDED, FULL_TERMINAL)
         scope_decision = ToolCapabilityPolicy.evaluate(
             self.execution_scope,
@@ -1552,62 +1614,15 @@ class TerminalSession:
             return obs
 
         # Approval gate policy check
-        if self.approval_mode == "strict" and action.action_type in {"patch", "command"}:
-            if self.execution_approval is not None:
-                if not self.execution_approval(action):
-                    self.blocked_approvals_count += 1
-                    obs = TerminalObservation(
-                        action_type=action.action_type,
-                        status="blocked",
-                        reason="approval_denied",
-                        stderr=f"Approval denied for {action.action_type}: rejected by execution_approval callback.",
-                    )
-                    self._record_step(action, obs, hexagram_code=39)
-                    return obs
-                self.approved_actions_count += 1
-            elif not self.auto_approved_for_eval:
-                self.blocked_approvals_count += 1
-                obs = TerminalObservation(
-                    action_type=action.action_type,
-                    status="blocked",
-                    reason="approval_required",
-                    stderr=f"Action '{action.action_type}' blocked: approval_mode is strict but no execution_approval callback provided.",
-                )
-                self._record_step(action, obs, hexagram_code=39)
-                return obs
-            else:
-                self.approved_actions_count += 1
+        approval_obs = self._check_approval(action)
+        if approval_obs is not None:
+            self._record_step(action, approval_obs, hexagram_code=39)
+            return approval_obs
 
         if action.action_type == "finish":
-            intact, tamper_reason = self.verify_test_files_integrity()
-            if not intact:
-                obs = TerminalObservation(
-                    action_type="finish",
-                    status="blocked",
-                    reason="preset_test_immutable",
-                    stderr=f"Cannot finish: {tamper_reason}. Test files are strictly immutable across all languages.",
-                )
-                self._record_step(action, obs, hexagram_code=40)
-                return obs
-
-            has_modified = bool(self.command_modified_files) or _session_has_modifications(self.workspace, self.steps)
-            if self.require_modification and not has_modified:
-                obs = TerminalObservation(
-                    action_type="finish",
-                    status="error",
-                    reason="unmodified_workspace",
-                    stderr="Cannot finish: no implementation files have been modified or patched yet. First inspect files, apply patches, and verify.",
-                )
-                self._record_step(action, obs, hexagram_code=39)
-                return obs
-            self.is_finished = True
-            self.finish_explanation = action.explanation or "Task completed by agent."
-            obs = TerminalObservation(
-                action_type="finish",
-                status="ok",
-                output=self.finish_explanation,
-            )
-            self._record_step(action, obs, hexagram_code=63)
+            obs = self._handle_finish(action)
+            hex_code = 63 if obs.status == "ok" else (40 if obs.reason == "preset_test_immutable" else 39)
+            self._record_step(action, obs, hexagram_code=hex_code)
             return obs
 
         if action.action_type == "write_file":
@@ -1796,6 +1811,15 @@ class TerminalSession:
                 ),
             )
 
+        escape_reason = PathGuard.detect_command_workspace_escape(self.workspace, action.command)
+        if escape_reason:
+            return TerminalObservation(
+                action_type="command",
+                status="blocked",
+                reason="workspace_escape_denied",
+                stderr=f"Boundary protection active: {escape_reason}. Commands must remain confined to the workspace.",
+            )
+
         cmd_sig = " ".join(action.command)
         if cmd_sig == self.last_command_signature and self.steps and self.steps[-1].observation.status == "error":
             self.consecutive_stalls += 1
@@ -1832,6 +1856,16 @@ class TerminalSession:
                     ),
                 )
             post_hashes = _snapshot_non_test_hashes(self.workspace)
+            deleted = [rel for rel in pre_hashes if rel not in post_hashes]
+            if deleted and any(rel.startswith("src/") or ("/" not in rel and rel.endswith(".py")) for rel in deleted):
+                return TerminalObservation(
+                    action_type="command",
+                    status="blocked",
+                    exit_code=code,
+                    reason="workspace_destruction_detected",
+                    stdout=res.get("stdout") or "",
+                    stderr=f"Integrity protection active: Command deleted core workspace source files ({', '.join(deleted[:5])}).",
+                )
             changed = [rel for rel, digest in post_hashes.items() if pre_hashes.get(rel) != digest]
             if changed:
                 for rel in changed:

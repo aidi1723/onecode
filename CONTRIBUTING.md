@@ -19,7 +19,7 @@ Thank you for considering contributing to OneCode! This guide will help you get 
    ```bash
    bash scripts/verify.sh
    ```
-   This runs the full test suite (`~1,700+` unit tests, ~85–180s depending on environment), `ruff`, `mypy`, `coverage` (`--fail-under=75`), and `onecode doctor`. All non-env-gated checks should pass.
+   This runs the full test suite (`1,618` core unit tests + `102` companion tests in `packages/onecode-symbolic-audit`, ~75–180s depending on environment), `ruff`, `mypy` across `121` core source files, `coverage` (`--fail-under=75`), and `onecode doctor`. All non-env-gated checks should pass.
 
 3. **Run smoke check**:
    ```bash

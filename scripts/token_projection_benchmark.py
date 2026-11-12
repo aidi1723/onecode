@@ -49,7 +49,7 @@ def _ensure_companion_extension_for_benchmark() -> bool:
         companion_str = str(companion_src)
         if companion_str not in sys.path:
             sys.path.insert(0, companion_str)
-        return attach_symbolic_extension(IchingKernel)
+        return attach_symbolic_extension(IchingKernel, force=True)
     return False
 
 

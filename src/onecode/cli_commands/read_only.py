@@ -134,7 +134,7 @@ def math_audit_payload() -> dict[str, object]:
         "systemic_parameter_coupling",
         "iching_classical_correspondence",
     ]
-    ziwei_audit = call_symbolic_profile(IchingKernel, "ziwei_mathematical_audit")
+    ziwei_audit = call_symbolic_profile(IchingKernel, "ziwei_mathematical_audit", force=True)
     payload: dict[str, object] = {
         "status": "ok",
         "state_count": len(graph),

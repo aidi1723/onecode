@@ -166,13 +166,18 @@ $$s = (b_5, b_4, b_3, b_2, b_1, b_0) \in \{0, 1\}^6 \cong \mathbb{Z}_{64}$$
 - **Inner Phase Vector ($\phi_{\text{in}} = (b_2, b_1, b_0)$)**: Physical file state, verifier outcomes, and tool execution telemetry. （内部文件资产与测试执行遥测相）
 
 ### 2. Lyapunov Energy Descent & Scope / 李雅普诺夫平衡熵与状态收敛边界
-The finite 64-state Q6 `transition graph` satisfies discrete monotonicity $\Delta V(s) \le 0$ against target equilibrium $b^*$ (`63: 0b111111`):
+The finite 64-state Q6 `transition graph` satisfies discrete monotonicity $\Delta V(s) = V(\mathcal{T}(s)) - V(s) \le 0$ under the runtime Lyapunov energy metric:
 
 在 64 态超立方体确定性迁移表上，每步决策满足离散非递增约束 $\Delta V(s) \le 0$（可由 `onecode math-audit` 实时验证）：
-$$V(s) = \sum_{i=0}^5 |b_i - b_i^*|, \qquad \Delta V(s) = V(\mathcal{T}(s, e)) - V(s) \le 0$$
+$$V(s) = \frac{|\text{yang\_count}(s) - 3|}{3} + \text{action\_penalty}(\mathcal{T}(s).\text{action}) + (1 - \text{bandwidth}(s))$$
+where the composite Lyapunov energy combines:
+1. **Dynamic balance penalty**: $\frac{|\text{yang\_count}(s) - 3|}{3} \in [0.0, 1.0]$, reaching minimum $0.0$ at 3-yang / 3-yin dynamic equilibrium states (`[14, 28, 49, 56]`, e.g. Xian, Heng, Kun, Jing);
+2. **Action penalty**: $\text{action\_penalty}(\mathcal{T}(s).\text{action}) \in [0.0, 1.0]$, favoring non-disruptive transitions (`continue`/`recover` = 0.0, `accelerate` = 0.1, up to `halt` = 1.0);
+3. **Bandwidth penalty**: $(1 - \text{bandwidth}(s)) \in [0.0, 0.67]$, rewarding maximum tool execution throughput.
+
 Specifically, the static lookup graph contains **56 self-loop fixed points** (terminal halts or idempotent checkpoint attractors under repeated identical fault inputs) and **8 strictly energy-decreasing edges** ($\Delta V < 0$ for reversible recovery/cooldown paths); bounded runtime termination across turns is enforced orthogonally by `--max-turns`, `turn_budget`, repeat/stagnation guards, and resource budgets. Irreversible safety violations jump deterministically to boundary halts (e.g. `40: sovereignty_fire_boundary_halt`).
 
-静态状态迁移表共包含 **56 个自环不动点**与 **8 条严格降能迁移边**（$\Delta V < 0$）；真实多轮运行的有界终止由确定性 `--max-turns`、`turn_budget`、重复动作阻断与资源配额门禁共同保证。当发生不可逆越权故障时，系统直接跃迁至硬阻断边界态（如 `40: sovereignty_fire_boundary_halt`）。
+复合李雅普诺夫能级综合了**三阴三阳动态平衡度**（于平衡态 `[14, 28, 49, 56]` 取得最小值 $0.0$）、**动作干预阻尼代价**（稳态维持为 0.0，熔断停机为 1.0）与**执行带宽损耗**，全图 64 个确定性状态迁移严格满足 $\Delta V(s) \le 0$。静态迁移表共包含 **56 个自环不动点**与 **8 条严格降能迁移边**（$\Delta V < 0$）；多轮运行的有界终止由 `--max-turns`、`turn_budget`、重复动作阻断与配额门禁共同保证。当发生不可逆越权故障时，系统直接跃迁至硬阻断边界态（如 `40: sovereignty_fire_boundary_halt`）。
 
 Optional classical symbolic telemetry (`packages/onecode-symbolic-audit`) is physically decoupled from `src/onecode/kernel/` and disabled unless explicitly installed and enabled (`ONECODE_SYMBOLIC_TELEMETRY=1`).
 

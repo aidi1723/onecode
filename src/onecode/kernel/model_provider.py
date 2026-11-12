@@ -340,7 +340,22 @@ def build_provider_config(
     raise ValueError(f"unknown model provider: {provider_kind}")
 
 
-def api_key_from_env(env: dict[str, str] | None = None, provider_kind: str = "chat") -> str | None:
+_RESOLVED_API_KEYS: dict[str, str] = {}
+
+
+def purge_sensitive_environ_keys() -> None:
+    """Purge sensitive API keys and tokens from os.environ to prevent child process inspection."""
+    for key in list(os.environ.keys()):
+        upper = key.upper()
+        if any(marker in upper for marker in ("API_KEY", "SECRET", "TOKEN", "AUTH_KEY")):
+            _RESOLVED_API_KEYS[key] = os.environ[key]
+            os.environ.pop(key, None)
+
+
+def api_key_from_env(env: dict[str, str] | None = None, provider_kind: str = "chat", *, purge: bool = False) -> str | None:
+    if env is None and provider_kind in _RESOLVED_API_KEYS:
+        return _RESOLVED_API_KEYS[provider_kind]
+
     source = env if env is not None else os.environ
     config = build_provider_config(provider_kind, endpoint=None, model=None)
     value = source.get(config.env_key)
@@ -348,6 +363,14 @@ def api_key_from_env(env: dict[str, str] | None = None, provider_kind: str = "ch
         value = source.get("OPENAI_API_KEY")
     if value is None or value.strip() == "":
         return None
+
+    if env is None:
+        _RESOLVED_API_KEYS[provider_kind] = value
+        if purge:
+            if config.env_key in os.environ:
+                os.environ.pop(config.env_key, None)
+            if "OPENAI_API_KEY" in os.environ:
+                os.environ.pop("OPENAI_API_KEY", None)
     return value
 
 

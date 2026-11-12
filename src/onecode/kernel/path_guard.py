@@ -1,5 +1,6 @@
 import os
 import re
+from collections.abc import Sequence
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -33,6 +34,20 @@ class PathGuard:
         "setup.py",
     }
     DENIED_DIRECTORIES = {".git", ".github", ".onecode"}
+
+    @classmethod
+    def detect_command_workspace_escape(cls, workspace_root: Path, argv: Sequence[str] | None) -> str | None:
+        """Detect shell command arguments attempting directory traversal outside the workspace boundary."""
+        if not argv:
+            return None
+        cmd_str = " ".join(argv)
+        if ".." in cmd_str:
+            for part in argv:
+                if ".." in part and re.search(r"(^|[/\\])\.\.([/\\]|$)", part):
+                    return f"Path traversal '{part}' escapes workspace boundary"
+            if re.search(r"(^|[\s'\"`])\.\.([/\\'\"]|$)", cmd_str):
+                return "Path traversal ('../') in command string escapes workspace boundary"
+        return None
 
     @classmethod
     def write_text(cls, workspace_root: Path, relative_path: str, content: str) -> dict[str, str]:

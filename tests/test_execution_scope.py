@@ -5,8 +5,10 @@ from pathlib import Path
 from onecode.kernel.execution_scope import (
     ExecutionScope,
     ToolCapabilityPolicy,
+    is_catastrophic_command,
     is_destructive_command,
 )
+from onecode.kernel.path_guard import PathGuard
 from onecode.kernel.model_loop import run_model_task
 from onecode.kernel.phased_terminal import run_phased_terminal_session
 from onecode.kernel.terminal_loop import (
@@ -22,9 +24,58 @@ class ExecutionScopeTests(unittest.TestCase):
         self.assertTrue(is_destructive_command(["git", "reset", "--hard", "HEAD~1"]))
         self.assertTrue(is_destructive_command(["git", "clean", "-fdx"]))
         self.assertTrue(is_destructive_command(["kill", "-9", "1234"]))
+        self.assertTrue(is_destructive_command(["find", ".", "-delete"]))
+        self.assertTrue(is_destructive_command(["find", ".", "-exec", "rm", "{}", "+"]))
+        self.assertTrue(is_destructive_command(["python3", "-c", "import shutil; shutil.rmtree('src')"]))
+        self.assertTrue(is_destructive_command(["perl", "-e", "unlink 'file.txt'"]))
+        self.assertTrue(is_destructive_command(["node", "-e", "fs.rmSync('file.txt')"]))
+        self.assertTrue(is_destructive_command(["git", "checkout", "--", "."]))
+        self.assertTrue(is_destructive_command(["git", "restore", "."]))
+        self.assertTrue(is_destructive_command(["git", "push", "origin", "+main"]))
+        self.assertTrue(is_destructive_command(["git", "push", "--force-with-lease"]))
+        self.assertTrue(is_destructive_command(["sh", "-c", "ls | xargs rm"]))
+        self.assertTrue(is_destructive_command(["truncate", "-s0", "file.txt"]))
+        self.assertTrue(is_destructive_command(["sh", "-c", ": > file.txt"]))
+        self.assertTrue(is_destructive_command(["rsync", "--delete", "a/", "b/"]))
+        self.assertTrue(is_destructive_command(["tar", "--remove-files", "-cf", "a.tar", "b"]))
+        self.assertTrue(is_destructive_command(["chmod", "-R", "000", "."]))
+        self.assertTrue(is_destructive_command(["sh", "-c", "ps eww -p $PPID"]))
+
         self.assertFalse(is_destructive_command(["ls", "-la"]))
         self.assertFalse(is_destructive_command(["git", "status"]))
         self.assertFalse(is_destructive_command(["pytest", "testing/test_something.py"]))
+        self.assertFalse(is_destructive_command(["python3", "-m", "unittest", "discover"]))
+
+    def test_catastrophic_command_detection_and_full_terminal_blocking(self) -> None:
+        self.assertTrue(is_catastrophic_command(["rm", "-rf", "/"]))
+        self.assertTrue(is_catastrophic_command(["rm", "-rf", "src"]))
+        self.assertTrue(is_catastrophic_command(["find", ".", "-delete"]))
+        self.assertTrue(is_catastrophic_command(["python3", "-c", "import shutil; shutil.rmtree('src')"]))
+        self.assertTrue(is_catastrophic_command(["mkfs.ext4", "/dev/sda1"]))
+
+        dec_blocked = ToolCapabilityPolicy.evaluate(
+            ExecutionScope.FULL_TERMINAL,
+            "command",
+            ["rm", "-rf", "src"],
+        )
+        self.assertFalse(dec_blocked.allowed)
+        self.assertEqual(dec_blocked.reason, "catastrophic_command_denied")
+        self.assertEqual(dec_blocked.hexagram_code, 40)
+
+        dec_safe = ToolCapabilityPolicy.evaluate(
+            ExecutionScope.FULL_TERMINAL,
+            "command",
+            ["pytest", "-q"],
+        )
+        self.assertTrue(dec_safe.allowed)
+
+    def test_command_workspace_escape_detection(self) -> None:
+        workspace = Path("/tmp/fake_ws")
+        self.assertIsNotNone(PathGuard.detect_command_workspace_escape(workspace, ["cat", "../secret.txt"]))
+        self.assertIsNotNone(PathGuard.detect_command_workspace_escape(workspace, ["sh", "-c", "echo pwned > ../outside.txt"]))
+        self.assertIsNotNone(PathGuard.detect_command_workspace_escape(workspace, ["python3", "-c", "open('../outside.txt','w')"]))
+        self.assertIsNone(PathGuard.detect_command_workspace_escape(workspace, ["pytest", "tests/test_something.py"]))
+        self.assertIsNone(PathGuard.detect_command_workspace_escape(workspace, ["python3", "-m", "unittest"]))
 
     def test_read_only_scope_allows_safe_actions(self) -> None:
         dec_read = ToolCapabilityPolicy.evaluate(ExecutionScope.READ_ONLY, "read_file")

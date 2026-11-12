@@ -131,13 +131,13 @@ python3 scripts/swebench_adapter.py \
 在 Linux `n100` 生产规格环境上执行全量验收脚本 [`./scripts/verify.sh`](../../scripts/verify.sh)：
 
 - **静态类型与代码质量**:
-  - `mypy`: 127 个源文件 **0 issues**。
+  - `mypy`: 121 个核心源文件 **0 issues**。
   - AST 约束: 单类行数 $\le 500$ LOC，单函数行数 $\le 160$ LOC，100% 合规。
   - `ruff`: 全部通过。
 - **自动化测试覆盖率**:
-  - 1,700+ 项测试用例全绿通过。
-  - 统计代码行: 22,822 行语句。
-  - 覆盖率: **86%**（远高于 75% 质量红线）。
+  - 1,618 项核心测试用例全绿通过（外加 `packages/onecode-symbolic-audit` 102 项符号测试，合计 1,720 项）。
+  - 统计代码行: 20,400+ 行语句。
+  - 覆盖率: **85%**（远高于 75% 质量红线）。
 - **Doctor 诊断自检**:
   - `write_text`、`resume_skip`、`sovereignty_breach`、`http_timeout`、`project_context`、`runtime_config`、`skill_context`、`recovery_policy`、`deployment_boundary` 共 9 项子系统全面通过（`status: "ok"`）。
 

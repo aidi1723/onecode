@@ -20,7 +20,7 @@ from onecode.kernel.symbolic_telemetry import (  # noqa: E402
     symbolic_extension_loaded,
 )
 
-attach_symbolic_extension(IchingKernel)
+attach_symbolic_extension(IchingKernel, force=True)
 
 
 class SymbolicPluginIntegrationTests(unittest.TestCase):

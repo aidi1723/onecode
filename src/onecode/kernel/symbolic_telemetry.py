@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib
 import math
 import os
+import sys
 from typing import Any
 
 SYMBOLIC_TELEMETRY_ENV = "ONECODE_SYMBOLIC_TELEMETRY"
@@ -22,12 +23,34 @@ def symbolic_extension_loaded() -> bool:
     return _EXTENSION_ATTACHED
 
 
-def attach_symbolic_extension(kernel_cls: type[Any]) -> bool:
-    """Attach optional mixins from `onecode_symbolic_audit` onto `kernel_cls` when installed."""
-    global _EXTENSION_ATTACHED
+def _safe_import_symbolic_extension() -> Any | None:
+    """Import `onecode_symbolic_audit` avoiding current working directory / workspace hijacking."""
+    cwd = os.path.abspath(os.getcwd())
+    ws_env = os.environ.get("ONECODE_WORKSPACE")
+    workspace = os.path.abspath(ws_env) if ws_env else ""
+    safe_sys_path = [
+        p for p in sys.path
+        if p and p != "." and os.path.abspath(p) != cwd and (not workspace or os.path.abspath(p) != workspace)
+    ]
+    saved_path = sys.path[:]
     try:
-        mod = importlib.import_module("onecode_symbolic_audit")
+        sys.path = safe_sys_path
+        return importlib.import_module("onecode_symbolic_audit")
     except ImportError:
+        return None
+    finally:
+        sys.path = saved_path
+
+
+def attach_symbolic_extension(kernel_cls: type[Any], *, force: bool = False) -> bool:
+    """Attach optional mixins from `onecode_symbolic_audit` onto `kernel_cls` when enabled."""
+    global _EXTENSION_ATTACHED
+    if not force and not symbolic_telemetry_enabled():
+        _EXTENSION_ATTACHED = False
+        return False
+
+    mod = _safe_import_symbolic_extension()
+    if mod is None:
         _EXTENSION_ATTACHED = False
         return False
 
@@ -51,9 +74,12 @@ def call_symbolic_profile(
     kernel_cls: type[Any],
     method_name: str,
     *args: Any,
+    force: bool = False,
     **kwargs: Any,
 ) -> dict[str, Any] | None:
     """Invoke an optional symbolic audit method on `kernel_cls` if the companion extension is installed."""
+    if not _EXTENSION_ATTACHED and (force or symbolic_telemetry_enabled()):
+        attach_symbolic_extension(kernel_cls, force=force)
     fn = getattr(kernel_cls, method_name, None)
     if fn is None or not callable(fn):
         return None
