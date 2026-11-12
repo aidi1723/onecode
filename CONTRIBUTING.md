@@ -4,13 +4,15 @@ Thank you for considering contributing to OneCode! This guide will help you get 
 
 ## Quick Start
 
-1. **Set up development environment**:
+1. **Set up development environment** (package dist name: `onecode-kernel`):
    ```bash
    git clone <repository-url>
    cd onecode
    python3 -m venv .venv
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   pip install -e .[tui]
+   pip install -e ".[tui,dev]"
+   # Optional decoupled symbolic companion package:
+   # pip install -e ./packages/onecode-symbolic-audit
    ```
 
 2. **Verify your setup**:
@@ -116,18 +118,22 @@ Changes to `src/onecode/kernel/hexagram.py` require extra scrutiny:
 
 ### Testing Requirements
 
-- Core tests must pass: `bash scripts/verify-core.sh` (~423 core tests, ~13s)
-- Full suite must pass: `bash scripts/verify.sh` (~1,700+ tests, ~85–180s depending on environment; coverage fail-under 75%)
+Verification is organized into three isolated layers plus the full CI gate:
+
+- **Core functional suite**: `bash scripts/verify-core.sh` (~336 engineering core tests, no symbolic package required)
+- **Repository & doc-contract meta tests**: `bash scripts/verify-meta.sh` (`tests/meta/`: README, LICENSE, SBOM/design contracts, rule closure)
+- **Optional symbolic audit companion tests**: `bash scripts/verify-symbolic.sh` (`packages/onecode-symbolic-audit/`, 102 cross-validation & integration tests + 26 certificates benchmark)
+- **Full suite must pass**: `bash scripts/verify.sh` (`ruff`, `mypy`, AST line bounds, `unittest discover -s tests`, coverage fail-under 75%, `onecode doctor`)
 - Deterministic adversarial security regression: `PYTHONPATH=src python3 scripts/security_benchmark.py` (18/18 enforced)
 - Add tests for new features before implementing them
 - Edge cases: test yin-overflow, yang-overflow, pure states, balanced states
 
 ### Documentation
 
-- Update `docs/INDEX.md` if adding new features
-- Design documents go in `docs/superpowers/specs/`
+- Update `docs/INDEX.md` if adding new active documentation
+- Active design contracts live in `docs/superpowers/specs/`; historical development logs and superseded plans are archived on git branch `archive/dev-logs-v1.1`
 - Follow the existing naming pattern: `YYYY-MM-DD-onecode-<feature>-design.md`
-- Closure reports go in `docs/` after verification
+- Closure notes for released milestones are preserved on `archive/dev-logs-v1.1` rather than cluttering `main`
 
 ## Repository Structure
 

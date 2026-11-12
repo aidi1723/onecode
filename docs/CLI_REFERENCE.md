@@ -68,7 +68,7 @@ Each run writes immutable evidence under `<workspace>/.onecode/runs/<run-id>/` (
 - `onecode inspect --workspace ./my-project --run-id <id>`: Inspect run status, ledger integrity, and SHA-256 evidence chain continuity.
 - `onecode list-runs --workspace ./my-project`: List all recorded runs in a workspace.
 - `onecode doctor [--production]`: Run built-in boundary checks (`write_text`, `resume_skip`, `sovereignty_breach`, `http_timeout`, `project_context`, `runtime_config`, `skill_context`, `recovery_policy`, `deployment_boundary`).
-- `onecode math-audit`: Verify all deterministic state-machine certificates and Lyapunov balance invariants.
+- `onecode math-audit`: Inspect the deterministic 64-state transition table (`56` self-loop fixed points, `8` energy-decreasing edges), Lyapunov invariants, and optional `symbolic_extension` attachment status.
 - `onecode audit-self`: Run end-to-end self-audit across CLI/TUI/compile/unit checks.
 - `onecode sandbox-smoke`: Verify isolated Docker container test execution (network disabled).
 - `onecode list-verifier-presets`: List built-in verifier presets (`python-unittest`, etc.).
@@ -77,7 +77,7 @@ Each run writes immutable evidence under `<workspace>/.onecode/runs/<run-id>/` (
 
 - `onecode config {show,set-model,discover-models}`: View active configuration hierarchies or configure default model endpoints.
 - `onecode approvals`: Manage pending human-in-the-loop approval requests.
-- `onecode tui [--workspace PATH] [--model MODEL]`: Start the interactive terminal UI (`pip install -e .[tui]`).
+- `onecode tui [--workspace PATH] [--model MODEL]`: Start the interactive terminal UI (`onecode-kernel[tui]`, installed locally via `pip install -e .[tui]`).
 - `onecode serve [--host 127.0.0.1] [--port 19080]`: Serve an OpenAI-compatible HTTP API with `ONECODE_API_TOKEN` authentication (`/health`, `/v1/models`, `/v1/chat/completions`).
 - `onecode shell` & `onecode shell-status`: Manage local web shell integration when `ONECODE_LIBRECHAT_DIR` or an adjacent shell checkout is configured.
 - `onecode shell-schema`: Print the public structured `shell_projection` contract schema.

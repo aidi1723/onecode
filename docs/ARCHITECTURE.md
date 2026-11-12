@@ -353,6 +353,7 @@ flowchart LR
 ## Additional Resources
 
 - [I Ching Complete Rule Kernel Design](superpowers/specs/2026-05-28-onecode-v0.5-iching-complete-rule-kernel-design.md) - Mathematical foundations
+- [Optional Symbolic Extension (`packages/onecode-symbolic-audit`)](../packages/onecode-symbolic-audit/README.md) - Physically decoupled classical & Ziwei diagnostic package (optional, disabled unless installed and opted in via `ONECODE_SYMBOLIC_TELEMETRY=1`)
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Required reading for developers
 - [INDEX.md](INDEX.md) - Full documentation index
 

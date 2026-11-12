@@ -4,6 +4,8 @@ set -euo pipefail
 PYTHON_BIN="${PYTHON:-}"
 if [[ -z "$PYTHON_BIN" && -n "${VIRTUAL_ENV:-}" && -x "$VIRTUAL_ENV/bin/python" ]]; then
   PYTHON_BIN="$VIRTUAL_ENV/bin/python"
+elif [[ -z "$PYTHON_BIN" && -x ".venv/bin/python" ]]; then
+  PYTHON_BIN=".venv/bin/python"
 fi
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 
@@ -21,12 +23,15 @@ PYTHONPATH=src "$PYTHON_BIN" -m unittest \
   tests.test_execution_engine \
   tests.test_model_loop \
   tests.test_benchmark \
+  tests.test_token_benchmark \
+  tests.test_security_suite \
   tests.test_shell_projection \
   tests.test_wal \
   tests.test_iching_kernel_integration \
+  tests.test_doctor_cli \
+  tests.test_recovery_policy \
   tests.test_resumption \
   tests.test_task_resume \
-  tests.test_ziwei_cross_validation \
   -v
 
 echo "doctor"

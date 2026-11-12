@@ -23,13 +23,13 @@ else
 fi
 
 echo "compileall"
-PYTHONPATH="${REPO_SRC}${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -m compileall src tests
+PYTHONPATH="${REPO_SRC}${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -m compileall src tests packages
 
 echo "source-quality"
 PYTHONPATH="${REPO_SRC}${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" scripts/check_source_quality.py src
 
 echo "ruff"
-PYTHONPATH="${REPO_SRC}${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -m ruff check src tests scripts
+PYTHONPATH="${REPO_SRC}${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -m ruff check src tests scripts packages
 
 echo "mypy"
 PYTHONPATH="${REPO_SRC}${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -m mypy src/

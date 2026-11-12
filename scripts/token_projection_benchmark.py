@@ -37,9 +37,26 @@ def _symbolic_telemetry_env(enabled: bool) -> Iterator[None]:
             os.environ[key] = prior
 
 
+def _ensure_companion_extension_for_benchmark() -> bool:
+    """Attach optional `onecode-symbolic-audit` companion package if present in repo."""
+    from onecode.kernel.hexagram import IchingKernel
+    from onecode.kernel.symbolic_telemetry import attach_symbolic_extension, symbolic_extension_loaded
+
+    if symbolic_extension_loaded():
+        return True
+    companion_src = REPO_ROOT / "packages" / "onecode-symbolic-audit" / "src"
+    if companion_src.is_dir():
+        companion_str = str(companion_src)
+        if companion_str not in sys.path:
+            sys.path.insert(0, companion_str)
+        return attach_symbolic_extension(IchingKernel)
+    return False
+
+
 def benchmark_checkpoint_telemetry_decoupling(turns: int = 8) -> dict[str, Any]:
     """Compare per-turn serialized telemetry size under default vs opt-in symbolic mode."""
     sample_states = [39, 40, 47, 7, 15, 31, 62, 63]
+    extension_loaded = _ensure_companion_extension_for_benchmark()
 
     def _measure(enabled: bool) -> tuple[int, list[int]]:
         sizes: list[int] = []
@@ -67,6 +84,7 @@ def benchmark_checkpoint_telemetry_decoupling(turns: int = 8) -> dict[str, Any]:
     reduction_pct = round((saved_bytes / symbolic_total_bytes) * 100.0, 2) if symbolic_total_bytes else 0.0
     return {
         "turns": turns,
+        "symbolic_extension_loaded": extension_loaded,
         "default_telemetry_bytes": default_total_bytes,
         "symbolic_telemetry_bytes": symbolic_total_bytes,
         "saved_bytes": saved_bytes,

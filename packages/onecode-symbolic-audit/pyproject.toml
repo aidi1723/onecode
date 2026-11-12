@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "onecode-symbolic-audit"
+version = "1.1.0"
+description = "Optional symbolic/cultural isomorphism audit and observability extension for OneCode Kernel"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "GPL-3.0-only"
+dependencies = []
+
+[project.entry-points."onecode.extensions"]
+symbolic_audit = "onecode_symbolic_audit:SYMBOLIC_MIXINS"
+
+[tool.setuptools.packages.find]
+where = ["src"]

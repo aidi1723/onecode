@@ -19,9 +19,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     wheel_dir = Path(args[0])
-    wheels = sorted(wheel_dir.glob("onecode-*.whl"))
+    wheels = sorted(wheel_dir.glob("onecode*.whl"))
     if len(wheels) != 1:
-        print(f"expected exactly one onecode wheel in {wheel_dir}, found {len(wheels)}", file=sys.stderr)
+        print(f"expected exactly one onecode-kernel wheel in {wheel_dir}, found {len(wheels)}", file=sys.stderr)
         return 1
 
     with zipfile.ZipFile(wheels[0]) as archive:

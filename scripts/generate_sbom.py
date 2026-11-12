@@ -82,7 +82,7 @@ def generate_cyclonedx_sbom(components: list[dict[str, Any]], tree_hash: str) ->
             "tools": [{"vendor": "OneCode", "name": "onecode-sbom-generator", "version": __version__}],
             "component": {
                 "type": "application",
-                "name": "onecode",
+                "name": "onecode-kernel",
                 "version": __version__,
                 "description": "Local-first agent kernel with guarded model plan execution",
                 "licenses": [{"license": {"id": "GPL-3.0-only"}}],
@@ -105,7 +105,7 @@ def generate_cyclonedx_sbom(components: list[dict[str, Any]], tree_hash: str) ->
         ],
         "dependencies": [
             {
-                "ref": "onecode",
+                "ref": "onecode-kernel",
                 "dependsOn": [],  # Pure standard library - no external runtime dependencies
             }
         ],
@@ -118,7 +118,7 @@ def generate_spdx_sbom(components: list[dict[str, Any]], tree_hash: str) -> dict
         "spdxVersion": "SPDX-2.3",
         "dataLicense": "CC0-1.0",
         "SPDXID": "SPDXRef-DOCUMENT",
-        "name": "onecode",
+        "name": "onecode-kernel",
         "documentNamespace": f"https://github.com/aidi1723/onecode/spdx/{tree_hash[:16]}",
         "creationInfo": {
             "created": "2026-11-05T00:00:00Z",
@@ -126,10 +126,10 @@ def generate_spdx_sbom(components: list[dict[str, Any]], tree_hash: str) -> dict
         },
         "packages": [
             {
-                "SPDXID": "SPDXRef-Package-onecode",
-                "name": "onecode",
+                "SPDXID": "SPDXRef-Package-onecode-kernel",
+                "name": "onecode-kernel",
                 "versionInfo": __version__,
-                "packageFileName": f"onecode-{__version__}.tar.gz",
+                "packageFileName": f"onecode-kernel-{__version__}.tar.gz",
                 "supplier": "Organization: OneCode",
                 "downloadLocation": "https://github.com/aidi1723/onecode",
                 "filesAnalyzed": True,
@@ -151,7 +151,7 @@ def generate_spdx_sbom(components: list[dict[str, Any]], tree_hash: str) -> dict
         "relationships": [
             {
                 "spdxElementId": "SPDXRef-DOCUMENT",
-                "relatedSpdxElement": "SPDXRef-Package-onecode",
+                "relatedSpdxElement": "SPDXRef-Package-onecode-kernel",
                 "relationshipType": "DESCRIBES",
             }
         ],

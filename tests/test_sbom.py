@@ -44,7 +44,7 @@ class SbomGeneratorTests(unittest.TestCase):
         self.assertEqual(doc["bomFormat"], "CycloneDX")
         self.assertEqual(doc["specVersion"], "1.5")
         self.assertIn("metadata", doc)
-        self.assertEqual(doc["dependencies"], [{"ref": "onecode", "dependsOn": []}])
+        self.assertEqual(doc["dependencies"], [{"ref": "onecode-kernel", "dependsOn": []}])
         self.assertEqual(len(doc["components"]), len(components))
 
     def test_generate_spdx_sbom_structure(self) -> None:

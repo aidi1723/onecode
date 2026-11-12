@@ -9,9 +9,12 @@ from typing import Any
 from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.preset_tests import is_preset_test_path
 from onecode.kernel.symbolic_telemetry import (
+    call_symbolic_profile,
     compute_systemic_intervention,
+    compute_workspace_envelope,
     resolve_state_governance_mode,
     symbolic_telemetry_enabled,
+    trace_causal_origin_file,
 )
 
 
@@ -594,7 +597,9 @@ def _append_symbolic_diagnostic_alerts(
     consecutive_repair_stalls: int,
     str_result: str,
 ) -> None:
-    pattern_profile = IchingKernel.ziwei_pattern_matrix_profile(
+    pattern_profile = call_symbolic_profile(
+        IchingKernel,
+        "ziwei_pattern_matrix_profile",
         turn_number=len(turn_history) + 1,
         current_status=resolved_status,
         token_budget_ok=not has_truncation,
@@ -603,6 +608,18 @@ def _append_symbolic_diagnostic_alerts(
         undefined_symbols_count=undefined_symbols_count,
         consecutive_repair_stalls=consecutive_repair_stalls,
     )
+    if pattern_profile is None:
+        _append_engineering_diagnostic_alerts(
+            guidance,
+            resolved_status=resolved_status,
+            has_truncation=has_truncation,
+            has_verifier_fail=has_verifier_fail,
+            syntax_error_count=syntax_error_count,
+            undefined_symbols_count=undefined_symbols_count,
+            consecutive_repair_stalls=consecutive_repair_stalls,
+        )
+        return
+
     p_name = pattern_profile["pattern"]
     if p_name == "羊陀夹忌":
         guidance.append(
@@ -626,28 +643,37 @@ def _append_symbolic_diagnostic_alerts(
             "- Verifier failure (化忌入官禄): Test suite assertion failed. Focus surgical edits directly on the failing assertion requirements."
         )
 
-    anchorage = IchingKernel.shen_gong_anchorage_profile(
+    anchorage = call_symbolic_profile(
+        IchingKernel,
+        "shen_gong_anchorage_profile",
         turn_number=len(turn_history) + 1,
         current_status=resolved_status,
         token_budget_ok=not has_truncation,
         verifier_passed=not has_verifier_fail,
         environment_ok="timeout" not in str_result and "gateway" not in str_result,
-    )
+    ) or {}
     if anchorage.get("shelter_guidance"):
         guidance.append(
             f"- Execution shelter (身宫寄托·{anchorage['palace_name']}): {anchorage['shelter_guidance']}"
         )
 
-    brightness = IchingKernel.star_brightness_profile(resolved_status, pattern_level=pattern_profile.get("level"))
+    brightness = call_symbolic_profile(
+        IchingKernel,
+        "star_brightness_profile",
+        resolved_status,
+        pattern_level=pattern_profile.get("level"),
+    ) or {}
     if brightness.get("governance_mode") == "degraded":
         guidance.append(
             f"- Degraded protection mode (星曜落陷·{brightness['brightness_label']}): Energy unstable. Disallow full-file rewrite; limit actions to surgical diff or traceback inspection."
         )
 
-    cascade = IchingKernel.flying_sihua_cascade_profile(
+    cascade = call_symbolic_profile(
+        IchingKernel,
+        "flying_sihua_cascade_profile",
         turn_number=len(turn_history) + 1,
         status_code=resolved_status,
-    )
+    ) or {}
     if cascade.get("double_ji"):
         guidance.append(
             "- Double Ji cascade alert (双忌重叠): Major stage and micro turn collide. Halt all non-essential changes and focus strictly on minimal regression repair."
@@ -731,11 +757,16 @@ def format_repair_diagnostics(
 
     turn_history = failed_result.get("turn_history", [])
     if error_parts and turn_history:
-        cause = IchingKernel.causal_origin_profile("\n".join(error_parts), turn_history)
+        joined_errors = "\n".join(error_parts)
+        cause = (
+            call_symbolic_profile(IchingKernel, "causal_origin_profile", joined_errors, turn_history)
+            if use_symbolic
+            else None
+        ) or trace_causal_origin_file(joined_errors, turn_history)
         if cause:
             root_hdr = (
                 f"- Causal root trace (来因宫 {cause['incoming_branch']})"
-                if use_symbolic
+                if use_symbolic and "incoming_branch" in cause
                 else "- Causal root trace"
             )
             guidance.append(
@@ -749,7 +780,14 @@ def format_repair_diagnostics(
     combined_details = " ".join(failure_details).lower()
     has_truncation = "truncated" in str_result or "truncated" in combined_details
     has_verifier_fail = failed_result.get("status") in {"halted", "failed"} or "verifier" in combined_details
-    syntax_error_count = sum(1 for d in failure_details if any(k in d.lower() for k in ("syntaxerror", "patch_mismatch", "invalid_model_plan")))
+    syntax_error_count = sum(
+        1
+        for d in failure_details
+        if any(
+            k in d.lower()
+            for k in ("syntaxerror", "syntax error", "syntax_error", "patch_mismatch", "invalid_model_plan")
+        )
+    )
     undefined_symbols_count = sum(1 for d in failure_details if any(k in d.lower() for k in ("nameerror", "importerror", "has no attribute", "modulenotfounderror")))
 
     raw_status = failed_result.get("task_status_code")
@@ -797,22 +835,32 @@ def _format_ziwei_repair_guidance(failed_result: dict[str, Any], failure_details
 
 def _ziwei_structural_alerts(resolved_status: int) -> list[str]:
     alerts: list[str] = []
-    breaking_profile = IchingKernel.pattern_breaking_profile(resolved_status)
-    if breaking_profile.get("is_broken"):
+    breaking_profile = call_symbolic_profile(IchingKernel, "pattern_breaking_profile", resolved_status)
+    if breaking_profile and breaking_profile.get("is_broken"):
         shas_str = "、".join(breaking_profile.get("breaking_shas_hit", []))
         alerts.append(
             f"- Formation broken alert (格局破格·{shas_str}): Health score {breaking_profile['formation_health_score']}. "
             f"{breaking_profile['governance_directive']}. Emit minimal search_block/replace_block patches; do NOT rewrite the file."
         )
-    palace_star = IchingKernel.palace_star_duality_profile(active_palace=resolved_status % 12)
-    alerts.append(
-        f"- Active operational domain (把宫当星·{palace_star['palace_as_star']}): Focus on {palace_star['governance_domain']}."
+    palace_star = call_symbolic_profile(
+        IchingKernel,
+        "palace_star_duality_profile",
+        active_palace=resolved_status % 12,
     )
-    coupling = IchingKernel.systemic_coupling_profile(hexagram_state=resolved_status)
-    if coupling["governance_posture"] == "yang_overload_cooldown_governance":
-        alerts.append("- Yang overload alert (纯阳亢进): System entropy too high. Enforce cooldown and surgical micro-patches.")
-    elif coupling["governance_posture"] == "yin_excess_checkpoint_preservation":
-        alerts.append("- Yin excess alert (重阴凝滞): System inertia high. Enforce state preservation and incremental commit.")
+    if palace_star:
+        alerts.append(
+            f"- Active operational domain (把宫当星·{palace_star['palace_as_star']}): Focus on {palace_star['governance_domain']}."
+        )
+    coupling = call_symbolic_profile(
+        IchingKernel,
+        "systemic_coupling_profile",
+        hexagram_state=resolved_status,
+    )
+    if coupling:
+        if coupling["governance_posture"] == "yang_overload_cooldown_governance":
+            alerts.append("- Yang overload alert (纯阳亢进): System entropy too high. Enforce cooldown and surgical micro-patches.")
+        elif coupling["governance_posture"] == "yin_excess_checkpoint_preservation":
+            alerts.append("- Yin excess alert (重阴凝滞): System inertia high. Enforce state preservation and incremental commit.")
     return alerts
 
 
@@ -876,9 +924,12 @@ def workspace_scale_stats(workspace: Path) -> tuple[int, int]:
 
 
 def resolve_task_bureau(workspace: Path) -> dict[str, Any]:
-    """Resolve the task's Five Elements Bureau (五行局) and adaptive scheduling limits."""
+    """Resolve workspace scale envelope and adaptive turn/timeout limits."""
     file_count, total_loc = workspace_scale_stats(workspace)
-    return IchingKernel.task_bureau_profile(file_count, total_loc)
+    ext = call_symbolic_profile(IchingKernel, "task_bureau_profile", file_count, total_loc)
+    if ext is not None:
+        return ext
+    return compute_workspace_envelope(file_count, total_loc)
 
 
 _DOC_SKIP_DIRS = frozenset({

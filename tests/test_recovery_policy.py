@@ -61,14 +61,12 @@ class RecoveryPolicyTests(unittest.TestCase):
         self.assertEqual(status_47["iching_status_code"], 47)
         self.assertEqual(status_47["lyapunov_damping_factor"], 0.60)
 
-        # Opt-in symbolic telemetry preserves jie_shen_relief / twelve_deities payload
+        # Opt-in toggle without symbolic companion installed degrades gracefully
         with patch.dict(os.environ, {"ONECODE_SYMBOLIC_TELEMETRY": "1"}):
             sym_40 = recovery_status("verifier_failure", status_code=40, attempt_count=1)
-            self.assertIn("jie_shen_relief", sym_40)
-            self.assertTrue(sym_40["jie_shen_relief"]["relief_effective"])
-            self.assertEqual(sym_40["jie_shen_relief"]["damping_factor"], 0.75)
-            sym_47 = recovery_status("verifier_failure", status_code=47, attempt_count=2)
-            self.assertEqual(sym_47["jie_shen_relief"]["damping_factor"], 0.60)
+            self.assertEqual(sym_40["iching_status_code"], 40)
+            self.assertEqual(sym_40["lyapunov_damping_factor"], 0.75)
+            self.assertFalse(sym_40.get("symbolic_extension_installed", False))
 
     def test_record_attempt_preserves_explicit_status_code(self):
         context = RecoveryContext()

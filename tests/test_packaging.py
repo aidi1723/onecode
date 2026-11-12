@@ -14,7 +14,7 @@ class PackagingTests(unittest.TestCase):
         data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
 
         self.assertEqual(data["build-system"]["build-backend"], "setuptools.build_meta")
-        self.assertEqual(data["project"]["name"], "onecode")
+        self.assertEqual(data["project"]["name"], "onecode-kernel")
         self.assertEqual(data["project"]["requires-python"], ">=3.11")
         self.assertEqual(data["project"]["scripts"]["onecode"], "onecode.cli:main")
 
@@ -39,7 +39,7 @@ class PackagingTests(unittest.TestCase):
 
     def test_wheel_asset_checker_requires_tui_styles(self):
         with TemporaryDirectory() as tmp:
-            wheel = Path(tmp) / "onecode-0.1.0-py3-none-any.whl"
+            wheel = Path(tmp) / "onecode_kernel-0.1.0-py3-none-any.whl"
             with zipfile.ZipFile(wheel, "w") as archive:
                 archive.writestr("onecode/tui/styles.tcss", "Screen {}\n")
                 archive.writestr("onecode/web/gateway_console.html", "<!doctype html>\n")
@@ -49,7 +49,7 @@ class PackagingTests(unittest.TestCase):
 
     def test_wheel_asset_checker_rejects_missing_tui_styles(self):
         with TemporaryDirectory() as tmp:
-            wheel = Path(tmp) / "onecode-0.1.0-py3-none-any.whl"
+            wheel = Path(tmp) / "onecode_kernel-0.1.0-py3-none-any.whl"
             with zipfile.ZipFile(wheel, "w") as archive:
                 archive.writestr("onecode/tui/app.py", "")
 

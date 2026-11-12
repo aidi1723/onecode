@@ -19,6 +19,7 @@ from onecode.kernel.hexagram import IchingKernel
 from onecode.kernel.path_guard import PathGuard, PathGuardError
 from onecode.kernel.preset_tests import is_preset_test_path
 from onecode.kernel.symbolic_telemetry import (
+    call_symbolic_profile,
     compute_cycle_gain_multiplier,
     compute_systemic_intervention,
     resolve_state_governance_mode,
@@ -1093,8 +1094,12 @@ def _apply_repair_state_interventions(
         if interv.get("adaptive_cooldown_ms", 0) > 0:
             metadata["cooldown_pause_ms"] = interv["adaptive_cooldown_ms"]
         if symbolic_telemetry_enabled():
-            metadata["star_brightness"] = IchingKernel.star_brightness_profile(failed_code)
-            metadata["systemic_coupling"] = IchingKernel.systemic_coupling_profile(hexagram_state=failed_code)
+            sb = call_symbolic_profile(IchingKernel, "star_brightness_profile", failed_code)
+            sc = call_symbolic_profile(IchingKernel, "systemic_coupling_profile", hexagram_state=failed_code)
+            if sb is not None:
+                metadata["star_brightness"] = sb
+            if sc is not None:
+                metadata["systemic_coupling"] = sc
     except (TypeError, ValueError, KeyError, ImportError) as ex:
         _record_kernel_fault("repair_coupling", ex)
     return metadata
@@ -1792,19 +1797,30 @@ def _enrich_bureau_and_brightness_metadata(workspace: Path, run_metadata: dict[s
             run_metadata.setdefault("governance_mode", gov_mode)
 
             if symbolic_telemetry_enabled():
-                run_metadata["star_brightness"] = IchingKernel.star_brightness_profile(code_int)
-                run_metadata["pattern_breaking"] = IchingKernel.pattern_breaking_profile(code_int)
-                run_metadata["tri_level_time_flow"] = IchingKernel.tri_level_time_flow_profile(
-                    bureau=bureau_id,
-                    ming_branch=ming_branch,
-                    year_branch=year_branch,
-                )
-                run_metadata["palace_star_duality"] = IchingKernel.palace_star_duality_profile(
-                    active_palace=code_int % 12,
-                )
-                run_metadata["systemic_coupling"] = IchingKernel.systemic_coupling_profile(
-                    hexagram_state=code_int,
-                )
+                optional_fields = {
+                    "star_brightness": call_symbolic_profile(IchingKernel, "star_brightness_profile", code_int),
+                    "pattern_breaking": call_symbolic_profile(IchingKernel, "pattern_breaking_profile", code_int),
+                    "tri_level_time_flow": call_symbolic_profile(
+                        IchingKernel,
+                        "tri_level_time_flow_profile",
+                        bureau=bureau_id,
+                        ming_branch=ming_branch,
+                        year_branch=year_branch,
+                    ),
+                    "palace_star_duality": call_symbolic_profile(
+                        IchingKernel,
+                        "palace_star_duality_profile",
+                        active_palace=code_int % 12,
+                    ),
+                    "systemic_coupling": call_symbolic_profile(
+                        IchingKernel,
+                        "systemic_coupling_profile",
+                        hexagram_state=code_int,
+                    ),
+                }
+                for key, value in optional_fields.items():
+                    if value is not None:
+                        run_metadata[key] = value
         except (TypeError, ValueError, KeyError, ImportError) as ex:
             _record_kernel_fault("bureau_profile", ex)
 

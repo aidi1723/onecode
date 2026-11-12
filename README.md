@@ -165,12 +165,16 @@ $$s = (b_5, b_4, b_3, b_2, b_1, b_0) \in \{0, 1\}^6 \cong \mathbb{Z}_{64}$$
 - **Outer Phase Vector ($\phi_{\text{out}} = (b_5, b_4, b_3)$)**: Contract rules, sandbox constraints, and scheduling context. （外部规则契约与沙箱上下文相）
 - **Inner Phase Vector ($\phi_{\text{in}} = (b_2, b_1, b_0)$)**: Physical file state, verifier outcomes, and tool execution telemetry. （内部文件资产与测试执行遥测相）
 
-### 2. Lyapunov Energy Descent / 李雅普诺夫平衡熵收敛
-To prevent unbounded retry oscillation, the kernel evaluates state energy $V(s)$ against the target fixed point $b^*$ (e.g. `63: 0b111111`):  
-为保证多轮迭代收敛、杜绝死循环震荡，内核定义平衡能量泛函 $V(s)$ 并约束每步转移 $\mathcal{T}: S \times \mathcal{E} \to S$：
+### 2. Lyapunov Energy Descent & Scope / 李雅普诺夫平衡熵与状态收敛边界
+The finite 64-state Q6 `transition graph` satisfies discrete monotonicity $\Delta V(s) \le 0$ against target equilibrium $b^*$ (`63: 0b111111`):
+
+在 64 态超立方体确定性迁移表上，每步决策满足离散非递增约束 $\Delta V(s) \le 0$（可由 `onecode math-audit` 实时验证）：
 $$V(s) = \sum_{i=0}^5 |b_i - b_i^*|, \qquad \Delta V(s) = V(\mathcal{T}(s, e)) - V(s) \le 0$$
-Irreversible safety violations jump deterministically to boundary halts (e.g. `40: sovereignty_fire_boundary_halt`).  
-当发生不可逆越权故障时，系统直接跃迁至硬阻断边界态（如 `40: sovereignty_fire_boundary_halt`）。
+Specifically, the static lookup graph contains **56 self-loop fixed points** (terminal halts or idempotent checkpoint attractors under repeated identical fault inputs) and **8 strictly energy-decreasing edges** ($\Delta V < 0$ for reversible recovery/cooldown paths); bounded runtime termination across turns is enforced orthogonally by `--max-turns`, `turn_budget`, repeat/stagnation guards, and resource budgets. Irreversible safety violations jump deterministically to boundary halts (e.g. `40: sovereignty_fire_boundary_halt`).
+
+静态状态迁移表共包含 **56 个自环不动点**与 **8 条严格降能迁移边**（$\Delta V < 0$）；真实多轮运行的有界终止由确定性 `--max-turns`、`turn_budget`、重复动作阻断与资源配额门禁共同保证。当发生不可逆越权故障时，系统直接跃迁至硬阻断边界态（如 `40: sovereignty_fire_boundary_halt`）。
+
+Optional classical symbolic telemetry (`packages/onecode-symbolic-audit`) is physically decoupled from `src/onecode/kernel/` and disabled unless explicitly installed and enabled (`ONECODE_SYMBOLIC_TELEMETRY=1`).
 
 ### 3. 5-Phase Closed-Loop Transfer / 五相闭环反馈调度
 $$\mathbf{S}_{k+1} = \mathbf{M}_{\text{transfer}} \cdot \mathbf{S}_k + \mathbf{B} \cdot e_{\text{evidence}}$$
@@ -191,25 +195,35 @@ $$\text{Delivery}(R) \iff \text{AssetsComplete}(R) \land \big(\text{ExitCode}(\t
 
 ## Quick Start / 快速上手
 
-### 1. Installation / 从源码安装（注意 PyPI 同名包冲突）
-The core kernel has no runtime third-party dependency. Textual is an optional TUI dependency.  
-> **PyPI Warning / 包名提示**：The package `onecode` on PyPI belongs to an unrelated third-party project (`DeepLime`). **Do NOT run `pip install onecode`**. Always install from a local clone of this repository:  
-> PyPI 上的 `onecode` 已被无关第三方项目占用，**请勿直接执行 `pip install onecode`**，请从本仓库源码目录以可编辑模式安装：
+### 1. Installation / 从源码安装（包名：`onecode-kernel`）
+The core kernel has no runtime third-party dependency. Textual is an optional TUI dependency. Its distribution package is named **`onecode-kernel`** (with CLI binary `onecode` and Python import namespace `onecode`) to avoid colliding with the unrelated `DeepLime/onecode` package on PyPI, and `packages/onecode-symbolic-audit` is a strictly optional companion package.
+
+> **PyPI Warning / 包名与冲突规避**：The package `onecode` on PyPI belongs to an unrelated third-party project (`DeepLime`). This distribution declares `name = "onecode-kernel"` in `pyproject.toml`; **never run `pip install onecode`**. Always install from this repository:
+> PyPI 上的 `onecode` 已被无关第三方项目占用，因此本仓库发布包名为 **`onecode-kernel`**（CLI 命令与 Python 导入名仍为 `onecode`），**请勿执行 `pip install onecode`**，请从源码目录安装：
 
 ```bash
-# Core control kernel & CLI / 安装核心内核与命令行工具
+# Core control kernel & CLI (dist: onecode-kernel, zero runtime deps) / 安装核心内核与命令行工具
 pip install -e .
 
 # Optional interactive terminal UI / 安装可选 Textual TUI
 pip install -e .[tui]
+
+# Optional decoupled symbolic audit companion package / 可选符号审计扩展包（默认无需安装）
+pip install -e ./packages/onecode-symbolic-audit
 ```
 
-### 2. Verification & Self-Audit / 全量验证与系统自审
+### 2. Verification & Self-Audit / 三层分层验证与系统自审
 ```bash
-# Core fast verification / 核心轻量验证门禁
+# 1) Engineering core tests (fast gate, no symbolic companion required) / 核心工程层测试
 bash scripts/verify-core.sh
 
-# Full verification suite (tests, lint, typecheck) / 全量严格套件
+# 2) Repository docs, license, SBOM & contract meta tests / 仓库元契约与文档一致性测试
+bash scripts/verify-meta.sh
+
+# 3) Optional symbolic audit companion tests & micro-benchmark / 可选符号审计伴生包测试
+bash scripts/verify-symbolic.sh
+
+# Full verification suite (tests, lint, typecheck, >=75% coverage, doctor) / 全量严格套件
 bash scripts/verify.sh
 
 # Local v0.7 verification workflow demo / 本地门禁演示工作流
@@ -225,8 +239,9 @@ PYTHONPATH=src python3 -m onecode.cli doctor
 PYTHONPATH=src python3 -m onecode audit-self
 PYTHONPATH=src python3 -m onecode math-audit
 ```
-`doctor` runs isolated physical checks (`write_text`, `resume_skip`, `sovereignty_breach`, `http_timeout`), while `math-audit` performs read-only verification of the 64-state `transition graph`, attractor count, `Q6` closure, and Lyapunov bounds.  
-`doctor` 会执行物理沙箱链路自检，`math-audit` 则校验 64 态转移图闭合性与李雅普诺夫边界。
+`doctor` runs isolated physical checks (`write_text`, `resume_skip`, `sovereignty_breach`, `http_timeout`), while `math-audit` performs read-only verification of the 64-state `transition graph` (`56` self-loop fixed points, `8` energy-decreasing transitions), `Q6` closure, Lyapunov bounds, and optional `symbolic_extension` attachment status.
+
+`doctor` 会执行物理沙箱链路自检，`math-audit` 则校验 64 态转移图闭合性（56 自环不动点 + 8 降能迁移边）、李雅普诺夫边界与可选符号扩展挂载状态。
 
 ---
 

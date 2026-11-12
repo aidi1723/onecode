@@ -58,6 +58,13 @@ class DoctorCliTests(unittest.TestCase):
         self.assertIn("collision_risk", result)
         self.assertTrue(result["collision_risk"]["safe"])
         self.assertEqual(result["collision_risk"]["unsafe_collision_count"], 0)
+        self.assertEqual(result["self_loop_fixed_point_count"], 56)
+        self.assertEqual(result["energy_decrease_transition_count"], 8)
+        self.assertIn("automaton_scope_note", result)
+        self.assertIn("symbolic_extension", result)
+        if not result["symbolic_extension"]["installed"]:
+            self.assertNotIn("ziwei_audit", result)
+            self.assertEqual(len(result["accepted_mappings"]), 12)
 
     def test_cli_doctor_runs_core_smoke_checks(self):
         env = os.environ.copy()

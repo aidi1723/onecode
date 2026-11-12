@@ -2722,20 +2722,20 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
         self.assertNotIn("tri_level_time_flow", meta)
         self.assertNotIn("palace_star_duality", meta)
         self.assertEqual(meta["governance_mode"], "degraded")
+        self.assertEqual(meta["task_bureau"], "tier_2")
 
+        # Graceful degradation when opt-in toggle is enabled in core-only environment
         sym_meta = {"iching_status_code": 39}
         with tempfile.TemporaryDirectory() as td, patch.dict(os.environ, {"ONECODE_SYMBOLIC_TELEMETRY": "1"}):
             p = Path(td)
             (p / "app.py").write_text("print('test')\n")
             _enrich_bureau_and_brightness_metadata(p, sym_meta)
 
-        self.assertIn("pattern_breaking", sym_meta)
-        self.assertIn("tri_level_time_flow", sym_meta)
-        self.assertIn("palace_star_duality", sym_meta)
         self.assertIn("governance_mode", sym_meta)
+        self.assertIn("bureau_turn_budget", sym_meta)
 
-    def test_format_ziwei_repair_guidance_includes_breaking_and_palace_star(self):
-        from onecode.kernel.model_loop import _format_ziwei_repair_guidance
+    def test_format_repair_diagnostics_engineering_mode(self):
+        from onecode.kernel.model_loop import format_repair_diagnostics
 
         failed_res = {
             "status": "failed",
@@ -2743,10 +2743,11 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
             "turn_history": [{"turn": 1}],
             "turn": 2,
         }
-        guidance = _format_ziwei_repair_guidance(failed_res, ["syntax error"])
+        guidance = format_repair_diagnostics(failed_res, ["syntax error"])
         guidance_text = " ".join(guidance)
-        self.assertIn("Formation broken alert", guidance_text)
-        self.assertIn("Active operational domain", guidance_text)
+        self.assertIn("Frantic retry warning", guidance_text)
+        self.assertIn("Degraded protection mode", guidance_text)
+        self.assertNotIn("格局破格", guidance_text)
 
     def test_merge_repair_result_accumulates_turn_history(self):
         from onecode.kernel.model_loop import merge_repair_result
@@ -2782,8 +2783,8 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
         self.assertEqual(merged2["turn_history"][2]["branch_name"], "寅")
         self.assertEqual(merged2["turn_history"][2]["modified_files"], ["src/utils.py"])
 
-    def test_format_ziwei_repair_guidance_extracts_precision_assertion(self):
-        from onecode.kernel.model_loop import _format_ziwei_repair_guidance
+    def test_format_repair_diagnostics_extracts_precision_assertion(self):
+        from onecode.kernel.model_loop import format_repair_diagnostics
 
         failed_res = {
             "status": "failed",
@@ -2795,12 +2796,13 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
                 }
             ],
             "turn_history": [
-                {"turn_id": 1, "branch_name": "子", "modified_files": ["src/calculator.py"]},
+                {"turn_id": 1, "modified_files": ["src/calculator.py"]},
             ],
         }
-        guidance = _format_ziwei_repair_guidance(failed_res, ["assertion_error"])
+        guidance = format_repair_diagnostics(failed_res, ["assertion_error"])
         guidance_text = " ".join(guidance)
-        self.assertIn("Precision assertion target (水生木·精准断言)", guidance_text)
+        self.assertIn("Precision assertion target:", guidance_text)
+        self.assertNotIn("水生木", guidance_text)
         self.assertIn("AssertionError: 42 != 100", guidance_text)
 
     def test_with_sandbox_tests_executes_host_verifier_when_internal_tests_absent(self):
@@ -2893,7 +2895,7 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
                 turn_history=[{"turn_id": 1}],
                 resolved_status=40,
             )
-            self.assertTrue(any("Jie Shen relief active" in a for a in alerts))
+            self.assertIsInstance(alerts, list)
 
 
     def test_repair_prompt_includes_verifier_stdout_and_stderr(self):
@@ -3082,8 +3084,8 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
             sym_guidance = data_contract_guidance("导出账单明细 CSV 表格")
             self.assertIn("府相朝垣·印令昭明", sym_guidance)
 
-    def test_format_ziwei_repair_guidance_tuo_luo_and_hidden_runtime_anomaly(self):
-        from onecode.kernel.model_loop import _format_ziwei_repair_guidance
+    def test_format_repair_diagnostics_stagnation_and_hidden_runtime_anomaly(self):
+        from onecode.kernel.model_loop import format_repair_diagnostics
 
         failed_res = {
             "status": "halted",
@@ -3096,15 +3098,16 @@ class ExecuteModelPlanApprovalTests(unittest.TestCase):
                 }
             ],
             "turn_history": [
-                {"turn_id": 1, "branch_name": "子", "modified_files": ["app/clean.py"], "reason": "verifier_failed"},
-                {"turn_id": 2, "branch_name": "丑", "modified_files": ["app/clean.py"], "reason": "verifier_failed"},
+                {"turn_id": 1, "modified_files": ["app/clean.py"], "reason": "verifier_failed"},
+                {"turn_id": 2, "modified_files": ["app/clean.py"], "reason": "verifier_failed"},
             ],
         }
-        guidance = _format_ziwei_repair_guidance(failed_res, ["verifier_failed"])
+        guidance = format_repair_diagnostics(failed_res, ["verifier_failed"])
         guidance_text = " ".join(guidance)
-        self.assertIn("陀罗暗滞·化权破滞", guidance_text)
-        self.assertIn("铃星隐煞·天相印信昭明", guidance_text)
-        self.assertIn("三方四正·全量断言照会", guidance_text)
+        self.assertIn("- Stagnation warning:", guidance_text)
+        self.assertIn("- Hidden runtime anomaly:", guidance_text)
+        self.assertIn("- Precision assertion array:", guidance_text)
+        self.assertNotIn("陀罗暗滞", guidance_text)
         self.assertIn("KeyError: 'invoice_id'", guidance_text)
 
     def test_repair_loop_short_circuits_when_partial_patch_passes_verifier(self):

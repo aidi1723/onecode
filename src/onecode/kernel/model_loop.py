@@ -49,6 +49,7 @@ from onecode.kernel.model_guidance import (  # noqa: F401
     _ziwei_structural_alerts,
     data_contract_guidance,
     file_write_slots,
+    format_repair_diagnostics,
     format_verifier_diagnostics,
     initial_asset_prompt,
     missing_required_files,

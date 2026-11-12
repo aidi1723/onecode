@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-12 - Structural decoupling, package naming isolation & documentation pruning
+
+Version stays 1.1.0. No new hexagram was added. `classify_outcome` was not edited. `claims_mainstream_parity` stays false. Kernel dependencies strictly remain `dependencies = []`.
+
+### Architectural & Packaging Improvements
+
+- **Physical Decoupling of Optional Symbolic Code**: Extracted the 7 Ziwei and classical symbolic modules (`hexagram_classical.py`, `hexagram_ziwei*.py`, 7,428 lines), cross-validation suite (`test_ziwei_cross_validation.py`), and `benchmark_ziwei.py` out of `src/onecode/kernel/`, `tests/`, and `scripts/` into a standalone optional companion package `packages/onecode-symbolic-audit/` (`onecode-symbolic-audit`). Core `IchingKernel`, telemetry (`checkpoint.py`), repair diagnostics (`model_guidance.py`, `model_repair.py`), and `recovery_policy.py` run purely from `src/onecode/kernel/` with zero hard imports of optional symbolic code (`attach_symbolic_extension`, `call_symbolic_profile`).
+- **PyPI Package Collision Avoidance (`onecode-kernel`)**: Renamed `[project] name` in `pyproject.toml` from `onecode` to `onecode-kernel` (preserving CLI script `onecode = "onecode.cli:main"` and Python namespace `onecode`) and added optional extra `symbolic = ["onecode-symbolic-audit>=1.1.0"]`. Updated CycloneDX/SPDX SBOM generation (`scripts/generate_sbom.py`), wheel asset verification (`scripts/check_wheel_assets.py`), and packaging tests (`tests/test_packaging.py`, `tests/test_sbom.py`).
+- **Three-Tier Verification Stratification**: Isolated documentation, license, SBOM/design-contract, source-hygiene, and rule-closure checks into `tests/meta/` (`scripts/verify-meta.sh`), updated `scripts/verify-core.sh` to validate pure core engineering suites (including `tests.test_security_suite` and `tests.test_token_benchmark`), and added `scripts/verify-symbolic.sh` for optional companion verification (102 tests + 26 certificates micro-benchmark). Full `scripts/verify.sh` discovers all core and meta tests seamlessly.
+- **Historical Log Archival & Automaton Precision**: Archived full historical milestone logs and early specs (`docs/closure/` & `docs/superpowers/`) onto immutable git branch `archive/dev-logs-v1.1`, keeping `main` focused on active documentation and the 5 source/test-referenced contract specs plus archive notices. Updated `onecode math-audit` and `README.md` to explicitly expose the static Q6 graph counts (`56` self-loop fixed points, `8` strictly energy-decreasing edges) and mechanical runtime turn/resource termination guards.
+
 ## 2026-11-10 - Two-phase session orchestration (Plan -> Execute/Verify)
 
 Version stays 1.1.0. No new hexagram was added. `classify_outcome` was not edited. `claims_mainstream_parity` stays false. Kernel dependencies strictly remain `dependencies = []`.

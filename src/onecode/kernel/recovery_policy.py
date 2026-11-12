@@ -3,7 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from onecode.kernel.hexagram import IchingKernel
-from onecode.kernel.symbolic_telemetry import compute_damping_factor, symbolic_telemetry_enabled
+from onecode.kernel.symbolic_telemetry import (
+    SYMBOLIC_EXTENSION_PACKAGE,
+    call_symbolic_profile,
+    compute_damping_factor,
+    symbolic_telemetry_enabled,
+)
 
 
 SCENARIO_ACTIONS = {
@@ -82,16 +87,27 @@ def recovery_status(
         "dispatch_decision": IchingKernel.dispatch_decision(transition),
     }
     if symbolic_telemetry_enabled():
-        payload["jie_shen_relief"] = IchingKernel.jie_shen_relief_profile(
+        relief = call_symbolic_profile(
+            IchingKernel,
+            "jie_shen_relief_profile",
             turn_number=turn_number,
             status_code=resolved_status_code,
             error_scenario=scenario,
             attempt_count=attempt_count,
         )
-        payload["twelve_deities"] = IchingKernel.twelve_deities_profile(
+        deities = call_symbolic_profile(
+            IchingKernel,
+            "twelve_deities_profile",
             turn_number=turn_number,
             status_code=resolved_status_code,
         )
+        if relief is not None:
+            payload["jie_shen_relief"] = relief
+        if deities is not None:
+            payload["twelve_deities"] = deities
+        if relief is None and deities is None:
+            payload["symbolic_extension_installed"] = False
+            payload["symbolic_extension_package"] = SYMBOLIC_EXTENSION_PACKAGE
     return payload
 
 
