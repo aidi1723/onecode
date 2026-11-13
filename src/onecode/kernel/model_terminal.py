@@ -33,15 +33,45 @@ def _write_trace_and_notify_turn(
     trace_path: Path,
     step: TerminalStep,
     on_turn: Callable[[dict[str, Any]], None] | None,
+    phase_tracker: dict[str, Any] | None = None,
 ) -> None:
     from onecode.kernel.model_loop import _record_kernel_fault
-    from onecode.kernel.hypercube_vector import StateVector6D
+    from onecode.kernel.hypercube_vector import (
+        StateVector6D,
+        PhaseSpaceState12D,
+        DEFAULT_DIAGONAL_MASS,
+    )
 
     try:
         vec = StateVector6D.from_discrete_code(step.hexagram_code)
+        p_coords = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+        if phase_tracker is not None:
+            last_vec = phase_tracker.get("last_vec")
+            last_ns = phase_tracker.get("last_ns", 0)
+            if last_vec is not None and isinstance(last_vec, StateVector6D):
+                dt = max(0.5, (step.timestamp_ns - last_ns) / 1e9) if (step.timestamp_ns and last_ns) else 1.0
+                p_list = []
+                for i in range(6):
+                    v_i = (vec.coords[i] - last_vec.coords[i]) / dt
+                    p_i = DEFAULT_DIAGONAL_MASS[i] * v_i
+                    p_list.append(round(p_i, 4))
+                p_coords = tuple(p_list)  # type: ignore[assignment]
+            phase_tracker["last_vec"] = vec
+            phase_tracker["last_ns"] = step.timestamp_ns
+
+        phase = PhaseSpaceState12D.from_vectors(vec, p_coords)
+        t_energy = phase.kinetic_energy()
+        v_energy = vec.lyapunov_energy()
+        h_total = phase.hamiltonian()
+        pos_code, mom_code = phase.to_jiao_yanshou_dual_codes()
+
         spatial_info = {
             "coords": list(vec.coords),
-            "lyapunov_energy": round(vec.lyapunov_energy(), 6),
+            "momentum": list(p_coords),
+            "kinetic_energy": round(t_energy, 6),
+            "lyapunov_energy": round(v_energy, 6),
+            "hamiltonian": round(h_total, 6),
+            "jiao_yanshou_dual": [pos_code, mom_code],
             "project_3d": [round(x, 4) for x in vec.project_3d()],
         }
     except Exception:
@@ -120,8 +150,10 @@ def _run_terminal_model_task(
 
     adapted_provider = _TerminalProviderAdapter(active_provider, resolved_model, http_timeout_seconds)
 
+    phase_tracker: dict[str, Any] = {}
+
     def on_step_callback(step: TerminalStep) -> None:
-        _write_trace_and_notify_turn(trace_path, step, on_turn)
+        _write_trace_and_notify_turn(trace_path, step, on_turn, phase_tracker=phase_tracker)
 
     effective_phased = phased or (os.environ.get("ONECODE_PHASED_SESSION", "").lower() in {"1", "true", "yes"})
     if effective_phased:

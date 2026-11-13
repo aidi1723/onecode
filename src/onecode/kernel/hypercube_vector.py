@@ -215,6 +215,9 @@ class ChannelState8D:
         return code
 
 
+DEFAULT_DIAGONAL_MASS: tuple[float, float, float, float, float, float] = (1.0, 1.5, 0.8, 0.5, 2.5, 1.2)
+
+
 @dataclass(frozen=True)
 class PhaseSpaceState12D:
     """12-dimensional Hamiltonian phase space state Z = (q, p) in R^12.
@@ -231,6 +234,13 @@ class PhaseSpaceState12D:
     p4: float
     p5: float
 
+    @classmethod
+    def from_vectors(cls, q: StateVector6D, p: Sequence[float]) -> PhaseSpaceState12D:
+        p_list = list(p) if p else [0.0] * 6
+        while len(p_list) < 6:
+            p_list.append(0.0)
+        return cls(q=q, p0=p_list[0], p1=p_list[1], p2=p_list[2], p3=p_list[3], p4=p_list[4], p5=p_list[5])
+
     def __post_init__(self) -> None:
         # Momentum can exceed 1.0 (velocity is not strictly bounded to [-1, 1])
         # but guard against NaN / Inf
@@ -244,7 +254,7 @@ class PhaseSpaceState12D:
 
     def kinetic_energy(self, mass: Sequence[float] | None = None) -> float:
         """Calculate kinetic energy T = 1/2 * p^T * M^-1 * p with diagonal inertia matrix."""
-        m = mass or (1.0, 1.5, 0.8, 0.5, 2.5, 1.2)
+        m = mass or DEFAULT_DIAGONAL_MASS
         total_ke = 0.0
         for p_i, m_i in zip(self.p_tuple(), m):
             effective_m = max(1e-4, float(m_i))

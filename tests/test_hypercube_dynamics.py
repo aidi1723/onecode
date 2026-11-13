@@ -102,6 +102,59 @@ class TestHypercubeDynamics(unittest.TestCase):
         self.assertGreater(steps_per_sec, 200.0)
         self.assertLess(latency_us, 5000.0)
 
+    def test_terminal_step_12d_phase_space_telemetry(self) -> None:
+        """Verify that terminal loop telemetry accurately records 12D Phase Space state."""
+        import tempfile
+        import json
+        from pathlib import Path
+        from onecode.kernel.terminal_loop import TerminalAction, TerminalObservation, TerminalStep
+        from onecode.kernel.model_terminal import _write_trace_and_notify_turn
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            trace_path = Path(tmpdir) / "trace.jsonl"
+            phase_tracker: dict[str, Any] = {}
+            received_turns: list[dict[str, Any]] = []
+
+            # Turn 1: Initial state (Hexagram 39)
+            step1 = TerminalStep(
+                turn_index=1,
+                action=TerminalAction(action_type="command", command=("ls",)),
+                observation=TerminalObservation(action_type="command", status="ok", stdout="file.py"),
+                hexagram_code=39,
+                timestamp_ns=1_000_000_000,
+            )
+            _write_trace_and_notify_turn(trace_path, step1, on_turn=lambda t: received_turns.append(t), phase_tracker=phase_tracker)
+
+            # Turn 2: Transition to completion (Hexagram 63)
+            step2 = TerminalStep(
+                turn_index=2,
+                action=TerminalAction(action_type="finish", explanation="Done"),
+                observation=TerminalObservation(action_type="finish", status="ok"),
+                hexagram_code=63,
+                timestamp_ns=2_000_000_000,
+            )
+            _write_trace_and_notify_turn(trace_path, step2, on_turn=lambda t: received_turns.append(t), phase_tracker=phase_tracker)
+
+            lines = [json.loads(line) for line in trace_path.read_text(encoding="utf-8").strip().splitlines()]
+            self.assertEqual(len(lines), 2)
+
+            # Turn 1 verification
+            t1_spatial = lines[0]["spatial_vector"]
+            self.assertEqual(len(t1_spatial["coords"]), 6)
+            self.assertEqual(t1_spatial["momentum"], [0.0] * 6)
+            self.assertEqual(t1_spatial["kinetic_energy"], 0.0)
+            self.assertAlmostEqual(t1_spatial["hamiltonian"], t1_spatial["lyapunov_energy"])
+
+            # Turn 2 verification (velocity and momentum generated)
+            t2_spatial = lines[1]["spatial_vector"]
+            self.assertEqual(len(t2_spatial["coords"]), 6)
+            self.assertEqual(len(t2_spatial["momentum"]), 6)
+            # Transition from 39 to 63 flips bits, so momentum must be non-zero
+            self.assertGreater(t2_spatial["kinetic_energy"], 0.0)
+            self.assertEqual(len(t2_spatial["jiao_yanshou_dual"]), 2)
+            self.assertEqual(t2_spatial["jiao_yanshou_dual"][0], 63)
+            self.assertAlmostEqual(t2_spatial["hamiltonian"], t2_spatial["kinetic_energy"] + t2_spatial["lyapunov_energy"], places=5)
+
 
 if __name__ == "__main__":
     unittest.main()
