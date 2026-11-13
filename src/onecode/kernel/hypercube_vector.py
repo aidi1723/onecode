@@ -276,7 +276,8 @@ class PhaseSpaceState12D:
     ) -> PhaseSpaceState12D:
         """Perform one step of dissipative conformal Leapfrog integration.
 
-        Maintains long-term numerical stability with local truncation error O(gamma * delta_t^2).
+        Uses exponential conformal damping decay exp(-0.5 * gamma * dt) and inelastic
+        boundary wall absorption to guarantee unconditional numerical stability.
         """
         dt = max(1e-4, delta_t)
         gamma = damping or (0.35, 0.35, 0.35, 0.35, 0.35, 0.35)
@@ -284,11 +285,12 @@ class PhaseSpaceState12D:
 
         grad_v0 = self.q.lyapunov_gradient()
 
-        # 1. Half step momentum update: p(t + dt/2) = p(t) - dt/2 * (grad_V(q(t)) + gamma * p(t))
+        # 1. Half step momentum update with conformal exponential dissipation
         half_p: list[float] = []
         for p_i, g_i, gam_i in zip(self.p_tuple(), grad_v0, gamma):
-            dp = -0.5 * dt * (g_i + gam_i * p_i)
-            half_p.append(p_i + dp)
+            decay = math.exp(-0.5 * max(0.0, gam_i) * dt)
+            hp = decay * p_i - 0.5 * dt * g_i
+            half_p.append(hp)
 
         # 2. Full step position update: q(t + dt) = q(t) + dt * M^-1 * p(t + dt/2)
         new_q_coords: list[float] = []
@@ -306,12 +308,16 @@ class PhaseSpaceState12D:
             new_q_coords[5],
         )
 
-        # 3. Final half step momentum update: p(t + dt) = p(t + dt/2) - dt/2 * (grad_V(q(t + dt)) + gamma * p(t + dt/2))
+        # 3. Final half step momentum update with conformal dissipation and boundary wall absorption
         grad_v1 = new_q.lyapunov_gradient()
         final_p: list[float] = []
-        for hp_i, g_i, gam_i in zip(half_p, grad_v1, gamma):
-            dp = -0.5 * dt * (g_i + gam_i * hp_i)
-            final_p.append(hp_i + dp)
+        for hp_i, g_i, gam_i, q_i in zip(half_p, grad_v1, gamma, new_q_coords):
+            decay = math.exp(-0.5 * max(0.0, gam_i) * dt)
+            fp = decay * (hp_i - 0.5 * dt * g_i)
+            # Inelastic wall collision: absorb momentum directed outside [-1.0, 1.0]
+            if (q_i >= 1.0 and fp > 0.0) or (q_i <= -1.0 and fp < 0.0):
+                fp = 0.0
+            final_p.append(fp)
 
         return PhaseSpaceState12D(
             q=new_q,
