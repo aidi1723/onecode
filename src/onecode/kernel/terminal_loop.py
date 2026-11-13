@@ -705,6 +705,13 @@ def _split_shell_segments(script: str) -> list[str]:
             current = []
             index += 2
             continue
+        if char == "&":
+            seg = "".join(current).strip()
+            if seg:
+                segments.append(seg)
+            current = []
+            index += 1
+            continue
         current.append(char)
         index += 1
     seg = "".join(current).strip()

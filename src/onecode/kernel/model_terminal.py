@@ -35,31 +35,46 @@ def _write_trace_and_notify_turn(
     on_turn: Callable[[dict[str, Any]], None] | None,
 ) -> None:
     from onecode.kernel.model_loop import _record_kernel_fault
+    from onecode.kernel.hypercube_vector import StateVector6D
+
+    try:
+        vec = StateVector6D.from_discrete_code(step.hexagram_code)
+        spatial_info = {
+            "coords": list(vec.coords),
+            "lyapunov_energy": round(vec.lyapunov_energy(), 6),
+            "project_3d": [round(x, 4) for x in vec.project_3d()],
+        }
+    except Exception:
+        spatial_info = None
+
+    step_payload = {
+        "step_type": "terminal_step",
+        "turn_index": step.turn_index,
+        "action": step.action.to_dict(),
+        "observation": step.observation.to_dict(),
+        "hexagram_code": step.hexagram_code,
+        "timestamp_ns": step.timestamp_ns,
+    }
+    if spatial_info is not None:
+        step_payload["spatial_vector"] = spatial_info
 
     try:
         trace_path.parent.mkdir(parents=True, exist_ok=True)
         with open(trace_path, "a", encoding="utf-8") as f:
-            f.write(
-                json.dumps({
-                    "step_type": "terminal_step",
-                    "turn_index": step.turn_index,
-                    "action": step.action.to_dict(),
-                    "observation": step.observation.to_dict(),
-                    "hexagram_code": step.hexagram_code,
-                    "timestamp_ns": step.timestamp_ns,
-                })
-                + "\n"
-            )
+            f.write(json.dumps(step_payload) + "\n")
     except OSError:
         pass
     if on_turn is not None:
         try:
-            on_turn({
+            turn_payload = {
                 "turn": step.turn_index,
                 "action": step.action.to_dict(),
                 "observation": step.observation.to_dict(),
                 "hexagram_code": step.hexagram_code,
-            })
+            }
+            if spatial_info is not None:
+                turn_payload["spatial_vector"] = spatial_info
+            on_turn(turn_payload)
         except Exception as ex:
             _record_kernel_fault("terminal_on_turn", ex)
 

@@ -353,11 +353,16 @@ def purge_sensitive_environ_keys() -> None:
 
 
 def api_key_from_env(env: dict[str, str] | None = None, provider_kind: str = "chat", *, purge: bool = False) -> str | None:
-    if env is None and provider_kind in _RESOLVED_API_KEYS:
-        return _RESOLVED_API_KEYS[provider_kind]
+    config = build_provider_config(provider_kind, endpoint=None, model=None)
+    if env is None:
+        if provider_kind in _RESOLVED_API_KEYS:
+            return _RESOLVED_API_KEYS[provider_kind]
+        if config.env_key in _RESOLVED_API_KEYS:
+            return _RESOLVED_API_KEYS[config.env_key]
+        if "OPENAI_API_KEY" in _RESOLVED_API_KEYS:
+            return _RESOLVED_API_KEYS["OPENAI_API_KEY"]
 
     source = env if env is not None else os.environ
-    config = build_provider_config(provider_kind, endpoint=None, model=None)
     value = source.get(config.env_key)
     if (value is None or value.strip() == "") and config.env_key != "OPENAI_API_KEY":
         value = source.get("OPENAI_API_KEY")
@@ -366,6 +371,7 @@ def api_key_from_env(env: dict[str, str] | None = None, provider_kind: str = "ch
 
     if env is None:
         _RESOLVED_API_KEYS[provider_kind] = value
+        _RESOLVED_API_KEYS[config.env_key] = value
         if purge:
             if config.env_key in os.environ:
                 os.environ.pop(config.env_key, None)
@@ -967,6 +973,10 @@ class OpenAIChatCompletionsProvider:
             raise ModelProviderError("invalid chat completion choice")
         message = first_choice.get("message")
         content = _message_text(message.get("content")) if isinstance(message, dict) else None
+        if content is None and isinstance(message, dict):
+            reasoning = message.get("reasoning_content") or message.get("reasoning")
+            if isinstance(reasoning, str) and reasoning.strip():
+                content = _message_text(reasoning)
         if content is None:
             raise ModelProviderError("missing chat completion message content")
         try:
@@ -1075,8 +1085,13 @@ def _chat_message_text(payload: dict[str, Any]) -> str:
     message = choices[0].get("message")
     content = _message_text(message.get("content")) if isinstance(message, dict) else None
     if not isinstance(content, str) or content.strip() == "":
-        if isinstance(message, dict) and isinstance(message.get("reasoning_content"), str) and message["reasoning_content"].strip():
-            content = message["reasoning_content"]
+        reasoning = (
+            message.get("reasoning_content") or message.get("reasoning")
+            if isinstance(message, dict)
+            else None
+        )
+        if isinstance(reasoning, str) and reasoning.strip():
+            content = reasoning
         else:
             raise ModelProviderError("missing chat completion message content")
     return content

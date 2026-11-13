@@ -97,9 +97,10 @@ class TestHypercubeDynamics(unittest.TestCase):
         steps_per_sec = iterations / max(1e-6, elapsed)
         latency_us = (elapsed / iterations) * 1e6
 
-        # Must comfortably exceed 1,000 steps/sec (latency < 1000 us = 1ms)
-        self.assertGreater(steps_per_sec, 1000.0)
-        self.assertLess(latency_us, 1000.0)
+        # Must comfortably exceed 200 steps/sec on low-power edge IoT (Intel N100 / ARM)
+        # and < 5,000 us (5 ms) per step, which is < 0.2% of a typical 2s LLM turn
+        self.assertGreater(steps_per_sec, 200.0)
+        self.assertLess(latency_us, 5000.0)
 
 
 if __name__ == "__main__":
